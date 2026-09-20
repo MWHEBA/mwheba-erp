@@ -335,6 +335,12 @@
                 <span class="meta-label">رقم الفاتورة:</span>
                 <span class="meta-value">{{ sale.number }}</span>
             </div>
+            {% if sale.work_order %}
+            <div class="meta-row">
+                <span class="meta-label">أمر الشغل:</span>
+                <span class="meta-value">#{{ sale.work_order.number }}</span>
+            </div>
+            {% endif %}
             <div class="meta-row">
                 <span class="meta-label">التاريخ:</span>
                 <span class="meta-value">{{ sale.created_at|date:"d-m-Y H:i" }}</span>

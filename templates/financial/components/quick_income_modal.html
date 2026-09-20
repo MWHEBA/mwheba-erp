@@ -3,23 +3,24 @@
 {% load pricing_filters %}
 
 <!-- مودال الإيراد السريع / التعديل -->
-<div class="modal fade" id="quickIncomeModal" tabindex="-1" aria-labelledby="quickIncomeModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header {% if journal_entry %}bg-primary{% else %}bg-success{% endif %} text-white">
-        <h5 class="modal-title" id="quickIncomeModalLabel">
-          <i class="fas {% if journal_entry %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+<div class="modal fade" id="quickIncomeModal" tabindex="-1" aria-labelledby="quickIncomeModalLabel" aria-hidden="true"
+     {% if journal_entry and financial_category %}data-initial-category-id="{{ financial_category.id }}"{% endif %}>
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="quickIncomeModalLabel">
+          <i class="fas {% if journal_entry %}fa-edit text-primary{% else %}fa-plus-circle text-primary{% endif %} me-2"></i>
           {% if journal_entry %}
             {% trans "تعديل إيراد" %}
           {% else %}
             {% trans "إضافة إيراد جديد" %}
           {% endif %}
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       
       <form id="quickIncomeForm" method="post" action="{% if journal_entry %}{% url 'financial:income_edit' journal_entry.id %}{% else %}{% url 'financial:income_create' %}{% endif %}">
-        <div class="modal-body">
+        <div class="modal-body p-4">
           {% csrf_token %}
           
           <!-- رسائل الخطأ -->
@@ -77,7 +78,7 @@
             
             <!-- الخزينة -->
             <div class="col-md-6 mb-3">
-              {% include "components/payment_account_select.html" with field_name="receipt_account" field_id="quick_receiving_account" label="الخزينة" required=True %}
+              {% include "components/payment_account_select.html" with field_name="receipt_account" field_id="quick_receiving_account" label="الخزينة / حساب الإيداع" required=True action_type="deposit" %}
             </div>
             
             <!-- ملاحظات -->
@@ -92,12 +93,12 @@
           </div>
         </div>
         
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
             <i class="fas fa-times me-1"></i>
             {% trans "إلغاء" %}
           </button>
-          <button type="submit" class="btn {% if journal_entry %}btn-primary{% else %}btn-success{% endif %}" id="quickIncomeSubmitBtn">
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="quickIncomeSubmitBtn">
             <i class="fas fa-save me-1"></i>
             {% if journal_entry %}
               {% trans "حفظ التعديلات" %}
@@ -313,12 +314,12 @@ document.getElementById('quickIncomeModal').addEventListener('keydown', function
   }
 });
 
-// تحميل القيم المحفوظة في حالة التعديل
-{% if journal_entry and financial_category %}
-// انتظار تحميل العناصر في DOM ثم تحميل التصنيفات
-setTimeout(function() {
-  // تحميل التصنيفات مع القيم المحددة
-  loadIncomeFinancialCategories({{ financial_category.id }});
-}, 100);
-{% endif %}
+// تحميل القيم المحفوظة في حالة التعديل بطريقة نظيفة عبر Dataset
+const quickIncomeModalEl = document.getElementById('quickIncomeModal');
+const initialIncomeCatId = quickIncomeModalEl ? quickIncomeModalEl.getAttribute('data-initial-category-id') : null;
+if (initialIncomeCatId) {
+  setTimeout(function() {
+    loadIncomeFinancialCategories(initialIncomeCatId);
+  }, 100);
+}
 </script>

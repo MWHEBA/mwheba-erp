@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
         select.empty().append('<option value="">{% trans "اختر طلب التسعير..." %}</option>');
         if (data.orders && data.orders.length > 0) {
           data.orders.forEach(o => {
-            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-print-unit="${o.print_unit_price || o.unit_price}" data-design-fee="${o.design_fee || 0}" data-has-design="${o.has_design ? '1' : '0'}" data-design-name="${o.design_service_name || ''}" data-product="${o.product_id}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} {{ currency_symbol|default:'ج.م' }}</option>`);
+            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-print-unit="${o.print_unit_price || o.unit_price}" data-design-fee="${o.design_fee || 0}" data-has-design="${o.has_design ? '1' : '0'}" data-design-name="${o.design_service_name || ''}" data-product="${o.product_id}" data-work-order="${o.work_order_id || ''}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} {{ currency_symbol|default:'ج.م' }}</option>`);
           });
         } else {
           select.append('<option value="" disabled>{% trans "لا توجد طلبات تسعير معتمدة جاهزة" %}</option>');
@@ -95,10 +95,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const title = opt.data('title');
     const qty = opt.data('qty');
     const productId = opt.data('product');
+    const workOrderId = opt.data('work-order');
     const hasDesign = opt.data('has-design') === '1' || opt.data('has-design') === 1;
     const designFee = parseFloat(opt.data('design-fee')) || 0;
     const designName = opt.data('design-name') || '{% trans "خدمة تصميم وتجهيز" %}';
     const printUnitPrice = hasDesign ? (opt.data('print-unit') || opt.data('unit')) : opt.data('unit');
+
+    // تعيين أمر الشغل المرتبط إذا وجد
+    if (workOrderId && $('#id_work_order').length) {
+      $('#id_work_order').val(workOrderId).trigger('change');
+    }
 
     // تحديد زر الإضافة المتاح حسب المستند (عروض أسعار / أوامر بيع / فواتير بيع)
     const addBtn = $('#add-item-btn').length ? $('#add-item-btn') : ($('#add-item').length ? $('#add-item') : $('#add-row'));

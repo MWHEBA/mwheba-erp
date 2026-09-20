@@ -203,7 +203,7 @@
 
             <!-- اختيار الخزينة / الحساب المالي / الرصيد المسبق -->
             <div class="col-md-6">
-              {% include "components/payment_account_select.html" with field_name="payment_method" field_id="payment_method" label="طريقة الدفع (الخزينة / البنك / الرصيد المسبق)" required=True %}
+              {% include "components/payment_account_select.html" with field_name="payment_method" field_id="payment_method" label="طريقة الدفع (الخزينة / البنك / الرصيد المسبق)" required=True action_type=action_type|default:(is_purchase|yesno:"disburse,deposit") %}
             </div>
 
             <!-- رقم المرجع والشيك مع التلميح الذكي -->

@@ -51,6 +51,13 @@
                 <a href="{% url 'sale:sales_order_detail' dn.sales_order.pk %}" class="text-decoration-none text-primary">
                   #{{ dn.sales_order.order_number }}
                 </a>
+                {% if dn.sales_order.quotation_reference.work_order %}
+                <div class="mt-1">
+                  <a href="{% url 'work_order:work_order_detail' dn.sales_order.quotation_reference.work_order.pk %}" class="badge bg-secondary text-decoration-none small">
+                    <i class="fas fa-hammer me-1"></i>#{{ dn.sales_order.quotation_reference.work_order.order_number }}
+                  </a>
+                </div>
+                {% endif %}
               {% else %}
                 -
               {% endif %}

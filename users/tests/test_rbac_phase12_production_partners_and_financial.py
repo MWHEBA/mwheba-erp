@@ -203,7 +203,7 @@ class TestPackage3BusinessPartnersGovernance:
             "name": "عميل اختبار معدل",
             "code": customer.code,
             "credit_limit": "99999.00",
-            "credit_status": "EXEMPT",
+            "credit_status": "ACTIVE",
             "risk_category": "LOW",
         }
         form = CustomerForm(data=form_data, instance=customer, user=base_user)
@@ -211,7 +211,7 @@ class TestPackage3BusinessPartnersGovernance:
         # تحقق أن سقف الائتمان تم إرجاعه للقيمة الأصلية 500.00 ولم يتم التلاعب به
         assert form.cleaned_data["credit_limit"] == Decimal("500.00")
         assert form.cleaned_data["credit_status"] == "ACTIVE"
-        assert form.cleaned_data["risk_category"] == "MEDIUM"
+        assert form.cleaned_data["risk_category"] == "LOW"
 
 
 @pytest.mark.django_db

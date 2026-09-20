@@ -174,25 +174,25 @@
 </div>
 
 <!-- مودال المساهمة -->
-<div class="modal fade" id="contributionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-plus-circle me-2"></i>
+<div class="modal fade" id="contributionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>
                     مساهمة جديدة
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="contributionForm" method="post" action="{% url 'financial:create_contribution' %}">
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     {% csrf_token %}
                     <input type="hidden" name="partner_account" value="{{ partner_account.id }}">
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">المبلغ *</label>
+                                <label class="form-label fw-bold">المبلغ *</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="amount" 
                                            step="0.01" min="0.01" required>
@@ -202,7 +202,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="contribution_cash_account" label="الخزينة" required=True value_type="id" %}
+                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="contribution_cash_account" label="الخزينة / حساب الإيداع" required=True value_type="id" action_type="deposit" %}
                             </div>
                         </div>
                     </div>
@@ -210,7 +210,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">نوع المساهمة *</label>
+                                <label class="form-label fw-bold">نوع المساهمة *</label>
                                 <select class="form-select" name="contribution_type" required>
                                     <option value="">اختر النوع</option>
                                     <option value="loan">قرض للشركة</option>
@@ -221,7 +221,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">التاريخ *</label>
+                                <label class="form-label fw-bold">التاريخ *</label>
                                 <input type="text" class="form-control" name="transaction_date" data-date-picker
                                        placeholder="اختر التاريخ" value="{% now 'Y-m-d' %}" required>
                             </div>
@@ -229,15 +229,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">الوصف *</label>
+                        <label class="form-label fw-bold">الوصف *</label>
                         <textarea class="form-control" name="description" rows="3" 
                                   placeholder="سبب المساهمة..." required></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-plus me-2"></i>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-plus me-1"></i>
                         إضافة المساهمة
                     </button>
                 </div>
@@ -247,18 +247,18 @@
 </div>
 
 <!-- مودال السحب -->
-<div class="modal fade" id="withdrawalModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title">
-                    <i class="fas fa-minus-circle me-2"></i>
+<div class="modal fade" id="withdrawalModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-minus-circle text-warning me-2"></i>
                     سحب مبلغ
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="withdrawalForm" method="post" action="{% url 'financial:create_withdrawal' %}">
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     {% csrf_token %}
                     <input type="hidden" name="partner_account" value="{{ partner_account.id }}">
                     
@@ -271,7 +271,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">المبلغ *</label>
+                                <label class="form-label fw-bold">المبلغ *</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="amount" 
                                            step="0.01" min="0.01" required>
@@ -282,7 +282,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="withdrawal_cash_account" label="الخزينة" required=True value_type="id" %}
+                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="withdrawal_cash_account" label="الخزينة / حساب الصرف" required=True value_type="id" action_type="disburse" %}
                             </div>
                         </div>
                     </div>
@@ -290,7 +290,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">نوع السحب *</label>
+                                <label class="form-label fw-bold">نوع السحب *</label>
                                 <select class="form-select" name="withdrawal_type" required>
                                     <option value="">اختر النوع</option>
                                     <option value="loan_repayment">سداد قرض سابق</option>
@@ -302,7 +302,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">التاريخ *</label>
+                                <label class="form-label fw-bold">التاريخ *</label>
                                 <input type="text" class="form-control" name="transaction_date" data-date-picker
                                        placeholder="اختر التاريخ" value="{% now 'Y-m-d' %}" required>
                             </div>
@@ -310,15 +310,15 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label">الوصف *</label>
+                        <label class="form-label fw-bold">الوصف *</label>
                         <textarea class="form-control" name="description" rows="3" 
                                   placeholder="سبب السحب..." required></textarea>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-minus me-2"></i>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning px-4 fw-bold">
+                        <i class="fas fa-minus me-1"></i>
                         تأكيد السحب
                     </button>
                 </div>

@@ -649,6 +649,16 @@
               </a>
             </span>
           </div>
+          {% if so.quotation_reference.work_order %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "أمر الشغل المرتبط:" %}</span>
+            <span>
+              <a href="{% url 'work_order:work_order_detail' so.quotation_reference.work_order.id %}" class="badge bg-info text-white text-decoration-none">
+                <i class="fas fa-briefcase me-1"></i>#{{ so.quotation_reference.work_order.number }}
+              </a>
+            </span>
+          </div>
+          {% endif %}
           {% endif %}
           {% if so.expected_delivery_date %}
           <div class="d-flex justify-content-between border-bottom pb-2">
@@ -812,15 +822,15 @@
               <i class="fas fa-wallet me-1 text-primary"></i>{% trans "الخزينة النقدية المستلمة" %} <span class="text-danger">*</span>
             </label>
             <select name="financial_account" id="collect_financial_account" class="form-select" required>
-              <optgroup label="{% trans 'الخزن النقدية' %}" id="collect_optgroup_cash">
-                {% for acc in cash_payment_accounts %}
+              <optgroup label="{% trans 'الخزن النقدية المعتمدة للإيداع' %}" id="collect_optgroup_cash">
+                {% for acc in cash_deposit_accounts|default:cash_payment_accounts %}
                   <option value="{{ acc.id }}" data-type="cash" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}">
                     {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>
                 {% endfor %}
               </optgroup>
-              <optgroup label="{% trans 'الحسابات البنكية' %}" id="collect_optgroup_bank" style="display: none;">
-                {% for acc in bank_payment_accounts %}
+              <optgroup label="{% trans 'الحسابات البنكية المعتمدة للإيداع' %}" id="collect_optgroup_bank" style="display: none;">
+                {% for acc in bank_deposit_accounts|default:bank_payment_accounts %}
                   <option value="{{ acc.id }}" data-type="bank" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}" disabled>
                     {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>

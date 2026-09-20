@@ -343,6 +343,13 @@ class Purchase(models.Model):
         """
         return self.payments.filter(status="posted").exists()
 
+    @property
+    def is_posted(self):
+        """
+        هل الفاتورة مرحلة ومؤكدة
+        """
+        return self.status == "confirmed"
+
     def update_payment_status(self):
         """
         تحديث حالة الدفع

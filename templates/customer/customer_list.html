@@ -33,6 +33,15 @@
             <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
           </div>
           <div class="col-md-2 col-sm-6">
+            <label for="tier" class="form-label">{% trans "الشريحة التجارية" %}</label>
+            <select class="form-select" id="tier" name="tier">
+              <option value="">{% trans "كل الشرائح" %}</option>
+              {% for t in tiers %}
+              <option value="{{ t.id }}" {% if request.GET.tier == t.id|stringformat:"s" %}selected{% endif %}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
             <label for="customer_type" class="form-label">{% trans "نوع العميل" %}</label>
             <select class="form-select" id="customer_type" name="customer_type">
               <option value="">{% trans "كل الأنواع" %}</option>
@@ -58,7 +67,7 @@
               <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون مديونية</option>
             </select>
           </div>
-          <div class="col-md-3 col-sm-12 d-flex gap-2 align-items-end">
+          <div class="col-md-2 col-sm-12 d-flex gap-2 align-items-end">
             <button type="submit" class="btn btn-primary flex-grow-1">
               <i class="fas fa-search me-1"></i>{% trans "بحث" %}
             </button>

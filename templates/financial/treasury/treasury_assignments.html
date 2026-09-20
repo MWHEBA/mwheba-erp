@@ -1,0 +1,518 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title|default:"إسناد الخزن والحسابات البنكية" }} | {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- 1. Central Page Header & Breadcrumbs -->
+    {% include "shared/page_header.html" with title=title|default:page_title subtitle=subtitle|default:page_subtitle icon=icon|default:page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <!-- 2. Collapsible Filter Section (معيار Rule 6 & Rule 7 القياسي) -->
+    <div class="section-container mb-4">
+        <h5 class="section-title cursor-pointer {% if not selected_user and not selected_treasury and not selected_perm_type %}collapsed{% endif %}" 
+            data-bs-toggle="collapse" 
+            data-bs-target="#filterSection" 
+            aria-expanded="{% if selected_user or selected_treasury or selected_perm_type %}true{% else %}false{% endif %}">
+            <i class="fas fa-filter me-2"></i>{% trans "فلاتر البحث والتصفية" %}
+        </h5>
+        <div class="collapse {% if selected_user or selected_treasury or selected_perm_type %}show{% endif %}" id="filterSection">
+            <form method="get" class="row g-3 p-3">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold">{% trans "المستخدم" %}</label>
+                    <select name="user" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "جميع المستخدمين" %}</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}" {% if selected_user|stringformat:'s' == u.id|stringformat:'s' %}selected{% endif %}>
+                            {{ u.get_full_name|default:u.username }} ({{ u.username }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-bold">{% trans "الخزينة / الحساب البنكي" %}</label>
+                    <select name="treasury" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "جميع الخزن والبنوك" %}</option>
+                        {% for t in treasuries %}
+                        <option value="{{ t.id }}" {% if selected_treasury|stringformat:'s' == t.id|stringformat:'s' %}selected{% endif %}>
+                            {{ t.code }} - {{ t.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-2">
+                    <label class="form-label small fw-bold">{% trans "نوع الصلاحية" %}</label>
+                    <select name="perm_type" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "الكل" %}</option>
+                        <option value="deposit" {% if selected_perm_type == 'deposit' %}selected{% endif %}>{% trans "إيداع فقط" %}</option>
+                        <option value="disburse" {% if selected_perm_type == 'disburse' %}selected{% endif %}>{% trans "صرف فقط" %}</option>
+                        <option value="both" {% if selected_perm_type == 'both' %}selected{% endif %}>{% trans "إيداع + صرف" %}</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="fas fa-search me-1"></i> {% trans "تصفية" %}
+                    </button>
+                    <a href="{% url 'financial:treasury_assignments_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Data Table Section -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-table me-2"></i>جدول إسنادات الخزن للمستخدمين</h5>
+        <div class="table-responsive p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">المستخدم</th>
+                        <th>الخزينة / الحساب البنكي</th>
+                        <th class="text-center">العملة</th>
+                        <th class="text-center">صلاحية الإيداع (القبض)</th>
+                        <th class="text-center">صلاحية الصرف (السداد)</th>
+                        <th class="text-center">خزينة افتراضية</th>
+                        <th>سقف الصرف</th>
+                        <th>الصلاحية الزمنية</th>
+                        <th class="text-center pe-3">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in assignments %}
+                    <tr id="row-assignment-{{ item.id }}">
+                        <td class="ps-3 fw-bold">
+                            <div><i class="fas fa-user-circle text-muted me-1"></i> {{ item.user.get_full_name|default:item.user.username }}</div>
+                            <small class="text-muted">@{{ item.user.username }}</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold">
+                                <a href="{% url 'financial:cash_account_movements' item.treasury.id %}" class="text-decoration-none text-dark" title="عرض حركات الحساب">
+                                    {{ item.treasury.name }} <i class="fas fa-external-link-alt fs-8 text-primary ms-1"></i>
+                                </a>
+                            </div>
+                            <small class="badge bg-light text-dark border">{{ item.treasury.code }}</small>
+                            {% if item.treasury.is_cash_account %}
+                                <span class="badge bg-info text-dark">نقدي</span>
+                            {% elif item.treasury.is_bank_account %}
+                                <span class="badge bg-primary">بنكي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ item.treasury.currency.code|default:"EGP" }}</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input perm-toggle" type="checkbox" role="switch"
+                                    data-id="{{ item.id }}" data-field="can_deposit"
+                                    {% if item.can_deposit %}checked{% endif %}
+                                    title="تبديل صلاحية الإيداع">
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input perm-toggle" type="checkbox" role="switch"
+                                    data-id="{{ item.id }}" data-field="can_disburse"
+                                    {% if item.can_disburse %}checked{% endif %}
+                                    title="تبديل صلاحية الصرف">
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input perm-toggle" type="checkbox" role="switch"
+                                    data-id="{{ item.id }}" data-field="is_default"
+                                    {% if item.is_default %}checked{% endif %}
+                                    title="تعيين كخزينة افتراضية">
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.max_single_disbursement_limit or item.daily_disbursement_limit %}
+                                <small class="d-block text-muted">حركة: <strong>{{ item.max_single_disbursement_limit|default:"بلا سقف" }}</strong></small>
+                                <small class="d-block text-muted">يومي: <strong>{{ item.daily_disbursement_limit|default:"بلا سقف" }}</strong></small>
+                            {% else %}
+                                <span class="badge bg-light text-muted border">غير مقيد</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.valid_from or item.valid_until %}
+                                <small class="d-block text-muted">من: {{ item.valid_from|date:"Y-m-d"|default:"الآن" }}</small>
+                                <small class="d-block text-muted">إلى: {{ item.valid_until|date:"Y-m-d"|default:"دائم" }}</small>
+                            {% else %}
+                                <span class="badge bg-success">دائم</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center pe-3">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'financial:cash_account_movements' item.treasury.id %}" class="btn btn-outline-secondary" title="عرض حركات الخزينة / الحساب">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                                <a href="{% url 'financial:cash_account_edit' item.treasury.id %}" class="btn btn-outline-primary" title="تعديل بيانات الخزينة / الحساب">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger delete-assignment-btn" data-id="{{ item.id }}" data-name="{{ item.user }} -> {{ item.treasury.name }}" title="إلغاء الإسناد">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fas fa-info-circle me-1"></i> لا توجد إسنادات مطابقة لمعايير البحث الحالية.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 5. SSR Pagination Wrapper (Rule 6) -->
+    <div id="pagination-wrapper" class="mb-4">
+        {% include "partials/pagination.html" with page_obj=assignments align="center" %}
+    </div>
+
+    <!-- 6. سجل التدقيق والرقابة الأخير -->
+    {% if recent_audits %}
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-history me-2"></i>آخر عمليات التعديل والتدقيق على إسناد الخزن</h5>
+        <div class="table-responsive p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">التاريخ والوقت</th>
+                        <th>المستخدم المعني</th>
+                        <th>الخزينة</th>
+                        <th>نوع الإجراء</th>
+                        <th>القائم بالإجراء</th>
+                        <th class="pe-3">ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for audit in recent_audits %}
+                    <tr>
+                        <td class="ps-3 small text-muted">{{ audit.created_at|date:"Y-m-d H:i" }}</td>
+                        <td class="fw-bold small">{{ audit.user }}</td>
+                        <td class="small">{{ audit.treasury.name }}</td>
+                        <td>
+                            {% if audit.action == 'ASSIGNED' %}
+                                <span class="badge bg-success">إسناد جديد</span>
+                            {% elif audit.action == 'UPDATED' %}
+                                <span class="badge bg-info text-dark">تعديل صلاحيات</span>
+                            {% elif audit.action == 'REVOKED' %}
+                                <span class="badge bg-danger">إلغاء إسناد</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ audit.get_action_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ audit.performed_by|default:"النظام" }}</td>
+                        <td class="pe-3 small text-muted">{{ audit.notes|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- 7. نافذة الإسناد الجماعي والجديد (Corporate Modal Architecture - Rule 8) -->
+<div class="modal fade" id="bulkAssignmentModal" tabindex="-1" aria-labelledby="bulkAssignmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="bulkAssignmentModalLabel">
+                    <i class="fas fa-user-shield text-primary me-2"></i>إسناد خزينة / حساب بنكي للمستخدمين
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="bulkAssignmentForm">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">الخزينة / الحساب البنكي <span class="text-danger">*</span></label>
+                            <select id="modal_treasury_id" class="form-select" required>
+                                <option value="">اختر الخزينة أو الحساب البنكي</option>
+                                {% for t in treasuries %}
+                                <option value="{{ t.id }}">{{ t.code }} - {{ t.name }} ({{ t.currency.code|default:"EGP" }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">المستخدمون المستهدفون <span class="text-danger">*</span></label>
+                            <select id="modal_user_ids" class="form-select" multiple required>
+                                {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted d-block mt-1">يمكنك تحديد مستخدم واحد أو أكثر في نفس الوقت.</small>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1"></div>
+
+                        <div class="col-12 col-md-4">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="modal_can_deposit" checked>
+                                <label class="form-check-label fw-bold" for="modal_can_deposit">
+                                    <i class="fas fa-arrow-down text-success me-1"></i> صلاحية الإيداع / القبض
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="modal_can_disburse">
+                                <label class="form-check-label fw-bold" for="modal_can_disburse">
+                                    <i class="fas fa-arrow-up text-warning me-1"></i> صلاحية الصرف / السداد
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="form-check form-switch mt-2">
+                                <input class="form-check-input" type="checkbox" id="modal_is_default">
+                                <label class="form-check-label fw-bold" for="modal_is_default">
+                                    <i class="fas fa-star text-warning me-1"></i> خزينة افتراضية للعملة
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1"></div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">الحد الأقصى للصرف للحركة الواحدة</label>
+                            <input type="number" step="0.01" id="modal_max_single_limit" class="form-control" placeholder="اتركه فارغاً لبلا سقف">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">الحد الأقصى للصرف اليومي التراكمي</label>
+                            <input type="number" step="0.01" id="modal_daily_limit" class="form-control" placeholder="اتركه فارغاً لبلا سقف">
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">ساري من تاريخ (اختياري)</label>
+                            <input type="date" id="modal_valid_from" class="form-control">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-bold">ساري حتى تاريخ (اختياري)</label>
+                            <input type="date" id="modal_valid_until" class="form-control">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">ملاحظات / سبب الإسناد</label>
+                            <textarea id="modal_notes" class="form-control" rows="2" placeholder="أدخل أي ملاحظات رقابية أو توثيقية..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="submitBulkBtn">
+                        <i class="fas fa-save me-1"></i> حفظ وتفعيل الإسناد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // إعداد Select2 داخل المودال والشاشة وفقاً لمعيار Rule 8
+    if (typeof jQuery !== "undefined" && jQuery.fn.select2) {
+        $('.select2-filter').select2({
+            dir: "rtl",
+            language: "ar",
+            width: '100%'
+        });
+
+        $('#modal_treasury_id').select2({
+            dropdownParent: $('#bulkAssignmentModal'),
+            dir: "rtl",
+            language: "ar",
+            width: '100%'
+        });
+
+        $('#modal_user_ids').select2({
+            dropdownParent: $('#bulkAssignmentModal'),
+            dir: "rtl",
+            language: "ar",
+            width: '100%',
+            placeholder: "اختر مستخدماً واحداً أو أكثر"
+        });
+    }
+
+    const csrfToken = "{{ csrf_token }}";
+
+    // 1. تبديل الصلاحية الفورية Toggle Switch
+    document.querySelectorAll(".perm-toggle").forEach(function (toggle) {
+        toggle.addEventListener("change", function () {
+            const assignmentId = this.dataset.id;
+            const field = this.dataset.field;
+            const isChecked = this.checked;
+            const originalState = !isChecked;
+
+            fetch("{% url 'financial:treasury_assignment_toggle_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({
+                    assignment_id: assignmentId,
+                    field: field,
+                    value: isChecked
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.showNotification) {
+                        window.showNotification(data.message, "success", "تم التحديث");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.message, "success");
+                    }
+                } else {
+                    toggle.checked = originalState;
+                    if (window.showNotification) {
+                        window.showNotification(data.error || "تعذر تحديث الصلاحية", "error", "خطأ");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.error || "تعذر تحديث الصلاحية", "error");
+                    }
+                }
+            })
+            .catch(err => {
+                toggle.checked = originalState;
+                console.error(err);
+                if (window.showNotification) {
+                    window.showNotification("حدث خطأ أثناء الاتصال بالخادم.", "error", "خطأ");
+                }
+            });
+        });
+    });
+
+    // 2. إرسال الإسناد الجماعي Bulk Save
+    const bulkForm = document.getElementById("bulkAssignmentForm");
+    if (bulkForm) {
+        bulkForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById("submitBulkBtn");
+            submitBtn.disabled = true;
+
+            const selectedUsers = Array.from(document.getElementById("modal_user_ids").selectedOptions).map(opt => opt.value);
+            const treasuryId = document.getElementById("modal_treasury_id").value;
+            const canDeposit = document.getElementById("modal_can_deposit").checked;
+            const canDisburse = document.getElementById("modal_can_disburse").checked;
+            const isDefault = document.getElementById("modal_is_default").checked;
+            const maxSingleLimit = document.getElementById("modal_max_single_limit").value;
+            const dailyLimit = document.getElementById("modal_daily_limit").value;
+            const validFrom = document.getElementById("modal_valid_from").value;
+            const validUntil = document.getElementById("modal_valid_until").value;
+            const notes = document.getElementById("modal_notes").value;
+
+            fetch("{% url 'financial:treasury_assignment_bulk_save_api' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({
+                    user_ids: selectedUsers,
+                    treasury_id: treasuryId,
+                    can_deposit: canDeposit,
+                    can_disburse: canDisburse,
+                    is_default: isDefault,
+                    max_single_disbursement_limit: maxSingleLimit,
+                    daily_disbursement_limit: dailyLimit,
+                    valid_from: validFrom,
+                    valid_until: validUntil,
+                    notes: notes
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                submitBtn.disabled = false;
+                if (data.success) {
+                    if (window.showNotification) {
+                        window.showNotification(data.message, "success", "نجاح");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.message, "success");
+                    }
+                    // إغلاق المودال وانتظار اكتمال أنيميشن التوست
+                    const modalEl = document.getElementById('bulkAssignmentModal');
+                    if (modalEl) {
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) {
+                            modalInstance.hide();
+                        }
+                    }
+                    setTimeout(function () {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showNotification) {
+                        window.showNotification(data.error || "تعذر حفظ الإسناد", "error", "خطأ");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.error || "تعذر حفظ الإسناد", "error");
+                    }
+                }
+            })
+            .catch(err => {
+                submitBtn.disabled = false;
+                console.error(err);
+                if (window.showNotification) {
+                    window.showNotification("حدث خطأ أثناء إرسال البيانات.", "error", "خطأ");
+                }
+            });
+        });
+    }
+
+    // 3. حذف وإلغاء الإسناد
+    document.querySelectorAll(".delete-assignment-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            const assignmentId = this.dataset.id;
+            const assignmentName = this.dataset.name;
+
+            if (!confirm(`هل أنت متأكد من رغبتك في إلغاء إسناد:\n${assignmentName}\nسيتم سحب كافة الصلاحيات على هذه الخزينة فوراً.`)) {
+                return;
+            }
+
+            fetch(`/financial/treasury-assignments/${assignmentId}/delete/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.getElementById(`row-assignment-${assignmentId}`);
+                    if (row) row.remove();
+                    if (window.showNotification) {
+                        window.showNotification(data.message, "success", "تم الإلغاء");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.message, "success");
+                    }
+                } else {
+                    if (window.showNotification) {
+                        window.showNotification(data.error || "تعذر إلغاء الإسناد", "error", "خطأ");
+                    } else if (window.showToastr) {
+                        window.showToastr(data.error || "تعذر إلغاء الإسناد", "error");
+                    }
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (window.showNotification) {
+                    window.showNotification("حدث خطأ في الاتصال أثناء الإلغاء.", "error", "خطأ");
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -108,6 +108,12 @@
           <span class="text-muted">مكان ومخزن التسليم:</span>
           <span class="fw-semibold">{{ po.warehouse.name }}</span>
         </div>
+        {% if po.work_order %}
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">أمر الشغل:</span>
+          <span class="fw-bold">#{{ po.work_order.number }}</span>
+        </div>
+        {% endif %}
         <div class="d-flex justify-content-between mb-1">
           <span class="text-muted">العملة:</span>
           <span class="fw-bold">{{ po.currency|default:"EGP" }}</span>

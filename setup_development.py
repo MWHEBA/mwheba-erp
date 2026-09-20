@@ -790,9 +790,9 @@ def main():
         print_warning("⚠️ تم تخطي تفعيل الحوكمة (سيتم تفعيلها تلقائياً عند الدخول)")
 
     # ======================================================
-    # المرحلة 10: التحقق من المخزن الرئيسي والموردين
+    # المرحلة 10: التحقق من المخزن الرئيسي والموردين وإعدادات العملاء
     # ======================================================
-    print_step(10, TOTAL_STEPS, "التحقق من المخزن الرئيسي والموردين")
+    print_step(10, TOTAL_STEPS, "التحقق من المخزن الرئيسي والموردين وإعدادات العملاء")
     try:
         from product.models import Warehouse
         wh, _ = Warehouse.objects.get_or_create(
@@ -812,6 +812,14 @@ def main():
         print_success("تم التحقق من ربط أنواع الموردين")
     except Exception as e:
         print_warning(f"تحذير فحص الموردين: {e}")
+
+    # بذر وتأسيس إعدادات العملاء والشرائح التجارية وشروط السداد
+    print_info("تأسيس وبذر إعدادات العملاء والشرائح وشروط السداد (seed_customer_settings)...")
+    cust_seed_success = run_command(f'"{sys.executable}" manage.py seed_customer_settings', show_output=False)
+    if cust_seed_success:
+        print_success("تم بنجاح تأسيس وبذر إعدادات العملاء والشرائح التجارية وشروط السداد")
+    else:
+        print_warning("تحذير أثناء تشغيل seed_customer_settings")
 
     # ======================================================
     # المرحلة 11: تحديث hashes الملفات
@@ -904,6 +912,21 @@ def main():
             print_success(f"✅ أنواع الخدمات: {service_types_count}")
         except Exception as e:
             print_info(f"   بيانات الموردين: غير متاحة ({e})")
+
+        # إحصائيات العملاء وإعداداتهم
+        try:
+            from customer.models import Customer, CustomerTier, PaymentTerm, CustomerGeneralSettings
+            customers_count = Customer.objects.count()
+            tiers_count     = CustomerTier.objects.filter(is_active=True).count()
+            terms_count     = PaymentTerm.objects.filter(is_active=True).count()
+            cust_settings   = CustomerGeneralSettings.get_settings()
+
+            print_success(f"✅ العملاء المسجلون: {customers_count}")
+            print_success(f"✅ الشرائح التجارية للعملاء: {tiers_count} شريحة")
+            print_success(f"✅ شروط السداد: {terms_count} شرط سداد")
+            print_info(f"   بادئة ترقيم العملاء: {cust_settings.code_prefix} | حد الائتمان الافتراضي: {cust_settings.default_credit_limit}")
+        except Exception as e:
+            print_info(f"   بيانات إعدادات العملاء: غير متاحة ({e})")
         
         # إحصائيات المنتجات والخدمات
         try:
@@ -988,6 +1011,7 @@ def main():
     print_colored("   Financial: دليل حسابات + تصنيفات + تصنيفات فرعية + مزامنة", Colors.GRAY)
     print_colored("   HR      : أقسام + وظائف + موظفين + إجازات + أذونات + عقوبات + بصمة", Colors.GRAY)
     print_colored("   Supplier: أنواع موردين + أنواع خدمات", Colors.GRAY)
+    print_colored("   Customer: شرائح تجارية + شروط سداد + سياسات الائتمان والترقيم", Colors.GRAY)
     print_colored("   Product : فئات + وحدات + مخازن + منتجات", Colors.GRAY)
     print_colored("   Printing: ورق + ماكينات + تشطيب + تسعير (12 ملف)", Colors.GRAY)
     

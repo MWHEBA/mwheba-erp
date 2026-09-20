@@ -56,16 +56,7 @@ class WorkOrder(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            year = timezone.now().strftime('%Y')
-            prefix = f"WO-{year}-"
-            last_order = WorkOrder.objects.filter(number__startswith=prefix).order_by('-number').first()
-            if last_order:
-                try:
-                    last_num = int(last_order.number.split('-')[-1])
-                    new_num = last_num + 1
-                except (ValueError, IndexError):
-                    new_num = 1
-            else:
-                new_num = 1
-            self.number = f"{prefix}{new_num:04d}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.number = SequenceService.get_next_number(DocumentType.WORK_ORDER)
         super().save(*args, **kwargs)

@@ -296,6 +296,23 @@ class Employee(models.Model):
             raise ValidationError(errors)
     
     def save(self, *args, **kwargs):
-        """Override save to call clean()"""
+        """Override save to call clean() and sync linked user status"""
         self.full_clean()
+        
+        old_status = None
+        if self.pk:
+            old_status = Employee.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            
         super().save(*args, **kwargs)
+        
+        # مزامنة الحالة مع حساب المستخدم المرتبط (مع تفادي التكرار)
+        if self.user:
+            try:
+                from users.services.user_management_service import UserManagementService
+                if self.status in ['suspended', 'terminated'] and self.user.is_active:
+                    UserManagementService.toggle_user_status(self.user, target_active=False)
+                elif self.status == 'active' and not self.user.is_active and old_status in ['suspended', 'terminated']:
+                    UserManagementService.toggle_user_status(self.user, target_active=True)
+            except Exception as sync_err:
+                import logging
+                logging.getLogger('hr.employee').warning(f"Could not sync user status from employee {self.id}: {sync_err}")

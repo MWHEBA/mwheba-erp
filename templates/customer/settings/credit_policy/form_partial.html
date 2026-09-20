@@ -1,0 +1,92 @@
+{% load i18n %}
+
+<form id="generalSettingsForm" method="POST" action="{% url 'customer:general_settings' %}">
+  {% csrf_token %}
+  
+  <div id="generalSettingsAlert" class="alert alert-danger d-none"></div>
+
+  <div class="row g-4">
+    <!-- إعدادات الترقيم التلقائي -->
+    <div class="col-lg-6">
+      <div class="card h-100 border">
+        <div class="card-header bg-light py-3">
+          <h6 class="card-title fw-bold mb-0 text-dark">
+            <i class="fas fa-barcode text-primary me-2"></i>{% trans "قواعد الترقيم والتكويد التلقائي للعملاء" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <p class="text-muted small mb-4">
+            {% trans "تحدد هذه الإعدادات النمط المعتمد عند إنشاء كود تلقائي للعملاء الجدد (مثال: CUST-0001)." %}
+          </p>
+
+          <div class="mb-3">
+            <label for="{{ general_settings_form.code_prefix.id_for_label }}" class="form-label fw-bold">
+              {% trans "بادئة كود العميل (Prefix)" %}
+            </label>
+            {{ general_settings_form.code_prefix }}
+            <small class="text-muted">{% trans "الحروف أو الرموز التي تبدأ بها أكواد العملاء (افتراضياً CUST-)" %}</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ general_settings_form.code_digits.id_for_label }}" class="form-label fw-bold">
+              {% trans "عدد خانات الترقيم (Digits)" %}
+            </label>
+            {{ general_settings_form.code_digits }}
+            <small class="text-muted">{% trans "عدد الخانات الرقمية المكملة بالأصفار (مثلاً 4 تعني 0001 حتى 9999)" %}</small>
+          </div>
+
+          <div class="alert alert-info py-2 px-3 mb-0 small">
+            <i class="fas fa-eye me-1"></i>
+            {% trans "معاينة شكل الكود التالي:" %} <strong id="codePreview" class="font-monospace text-primary">CUST-0001</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- سياسة الرقابة والحدود الائتمانية -->
+    <div class="col-lg-6">
+      <div class="card h-100 border">
+        <div class="card-header bg-light py-3">
+          <h6 class="card-title fw-bold mb-0 text-dark">
+            <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "سياسة الرقابة والائتمان الافتراضية" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <p class="text-muted small mb-4">
+            {% trans "القيم الافتراضية المطبقة عند إنشاء عميل جديد لم يتم تعيين شريحة تجارية له." %}
+          </p>
+
+          <div class="mb-3">
+            <label for="{{ general_settings_form.default_credit_limit.id_for_label }}" class="form-label fw-bold">
+              {% trans "الحد الائتماني الافتراضي (ج.م)" %}
+            </label>
+            {{ general_settings_form.default_credit_limit }}
+            <small class="text-muted">{% trans "الحد الأقصى للمديونية المسموح بها للعميل الجديد (0 تعني غير محدد)" %}</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ general_settings_form.default_grace_period_days.id_for_label }}" class="form-label fw-bold">
+              {% trans "فترة السماح الافتراضية (أيام)" %}
+            </label>
+            {{ general_settings_form.default_grace_period_days }}
+            <small class="text-muted">{% trans "الأيام الإضافية المسموحة بعد تاريخ استحقاق الفاتورة قبل إيقاف البيع الآجل" %}</small>
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ general_settings_form.credit_limit_enforcement.id_for_label }}" class="form-label fw-bold">
+              {% trans "آلية تطبيق وتجاوز الحد الائتماني" %}
+            </label>
+            {{ general_settings_form.credit_limit_enforcement }}
+            <small class="text-muted">{% trans "تحديد سلوك النظام عند محاولة إصدار فاتورة تتجاوز الحد الائتماني للعميل" %}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 text-end">
+      <button type="submit" class="btn btn-primary px-5 py-2 fw-bold" id="btnSaveGeneralSettings">
+        <i class="fas fa-save me-1"></i>{% trans "حفظ إعدادات وسياسات العملاء" %}
+      </button>
+    </div>
+  </div>
+</form>

@@ -13,6 +13,8 @@ from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Sum
 from decimal import Decimal
+from django.core.exceptions import ValidationError
+import json
 import logging
 
 from purchase.models import Purchase, PurchasePayment, PurchaseItem
@@ -294,6 +296,9 @@ def purchase_create(request, supplier_id=None):
         from work_order.models import WorkOrder
         try:
             selected_work_order = WorkOrder.objects.get(id=work_order_id)
+            if selected_work_order.status == 'cancelled':
+                messages.warning(request, _("أمر الشغل المحدد ملغي ولا يمكن ربطه بفاتورة مشتريات."))
+                selected_work_order = None
         except WorkOrder.DoesNotExist:
             pass
     
@@ -412,7 +417,11 @@ def purchase_create(request, supplier_id=None):
                         purchase.warehouse = None
                     
                     if selected_work_order:
-                        purchase.work_order = selected_work_order
+                        from work_order.models import WorkOrder
+                        wo = WorkOrder.objects.select_for_update().get(id=selected_work_order.id)
+                        if wo.status == 'cancelled':
+                            raise ValueError(_("لا يمكن حفظ فاتورة المشتريات لأن أمر الشغل المرتبط ملغي."))
+                        purchase.work_order = wo
                     
                     # معالجة العملة وسعر الصرف مع الحوكمة المالية
                     currency_id = request.POST.get("currency")

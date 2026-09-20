@@ -1,0 +1,132 @@
+{% load i18n %}
+{% load custom_filters %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="tiersTable">
+    <thead class="table-light">
+      <tr>
+        <th style="width: 40px;" class="text-center">#</th>
+        <th>{% trans "الشريحة التجارية" %}</th>
+        <th>{% trans "الكود" %}</th>
+        <th>{% trans "سياسة التسعير" %}</th>
+        <th>{% trans "شرط الدفع الافتراضي" %}</th>
+        <th>{% trans "الحد الائتماني الافتراضي" %}</th>
+        <th>{% trans "درجة المخاطرة" %}</th>
+        <th class="text-center">{% trans "العملاء" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-end" style="width: 120px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="tierSortableBody">
+      {% for tier in tiers %}
+      <tr data-tier-id="{{ tier.pk }}">
+        <td class="text-center text-muted">
+          <span class="badge bg-light text-dark border">{{ forloop.counter }}</span>
+        </td>
+        <td>
+          <div class="d-flex align-items-center">
+            <span class="badge bg-light text-primary border me-2">
+              <i class="{{ tier.icon|default:'fas fa-user-tag' }}"></i>
+            </span>
+            <div>
+              <div class="fw-bold text-dark">{{ tier.name }}</div>
+              {% if tier.description %}
+              <small class="text-muted d-block text-truncate" style="max-width: 250px;">{{ tier.description }}</small>
+              {% endif %}
+            </div>
+            {% if tier.is_system %}
+            <span class="badge bg-secondary ms-2" title="{% trans 'شريحة نظام أساسية' %}">{% trans "نظام" %}</span>
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          <code class="fw-bold">{{ tier.code }}</code>
+        </td>
+        <td>
+          {% if tier.default_price_list %}
+          <span class="badge bg-info text-dark">
+            <i class="fas fa-tags me-1"></i>{{ tier.default_price_list.name }}
+          </span>
+          {% elif tier.discount_percentage > 0 %}
+          <span class="badge bg-warning text-dark">
+            <i class="fas fa-percent me-1"></i>{{ tier.discount_percentage }}% {% trans "خصم" %}
+          </span>
+          {% else %}
+          <span class="text-muted small">{% trans "السعر القياسي" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if tier.default_payment_term %}
+          <span class="text-dark fw-medium">
+            <i class="fas fa-calendar-alt text-muted me-1"></i>{{ tier.default_payment_term.name }}
+          </span>
+          {% else %}
+          <span class="text-muted small">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if tier.default_credit_limit > 0 %}
+          <span class="fw-bold text-dark">{{ tier.default_credit_limit|floatformat:2 }}</span>
+          {% else %}
+          <span class="text-muted small">{% trans "غير محدد" %}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if tier.default_risk_category == 'low' %}
+          <span class="badge bg-success">{% trans "منخفضة" %}</span>
+          {% elif tier.default_risk_category == 'medium' %}
+          <span class="badge bg-warning text-dark">{% trans "متوسطة" %}</span>
+          {% elif tier.default_risk_category == 'high' %}
+          <span class="badge bg-danger">{% trans "مرتفعة" %}</span>
+          {% else %}
+          <span class="text-muted small">-</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <span class="badge bg-light text-dark border">
+            {{ tier.customers.count }} {% trans "عميل" %}
+          </span>
+        </td>
+        <td class="text-center">
+          <div class="form-check form-switch d-inline-block">
+            <input class="form-check-input tier-status-toggle" type="checkbox" role="switch"
+                   data-tier-id="{{ tier.pk }}"
+                   data-url="{% url 'customer:tier_toggle_status' tier.pk %}"
+                   {% if tier.is_active %}checked{% endif %}>
+          </div>
+        </td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary edit-tier-btn"
+                    data-tier-id="{{ tier.pk }}"
+                    data-url="{% url 'customer:tier_edit' tier.pk %}"
+                    title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </button>
+            {% if not tier.is_system %}
+            <button type="button" class="btn btn-outline-danger delete-tier-btn"
+                    data-tier-id="{{ tier.pk }}"
+                    data-tier-name="{{ tier.name }}"
+                    data-url="{% url 'customer:tier_delete' tier.pk %}"
+                    title="{% trans 'حذف' %}">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="10" class="text-center py-5 text-muted">
+          <i class="fas fa-layer-group fa-3x mb-3 text-secondary opacity-50"></i>
+          <p class="mb-2 fw-bold">{% trans "لا توجد شرائح تجارية مسجلة حتى الآن" %}</p>
+          <p class="small text-muted">{% trans "يمكنك إضافة شريحة جديدة وتحديد سياسات التسعير والائتمان المخصصة لها." %}</p>
+          <button type="button" class="btn btn-primary btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#tierModal">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة شريحة تجارية" %}
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -194,6 +194,16 @@
             <span class="text-muted">{% trans "المخزن المستهدف:" %}</span>
             <span class="fw-semibold">{{ po.warehouse.name }}</span>
           </div>
+          {% if po.work_order %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "أمر الشغل المرتبط:" %}</span>
+            <span class="fw-bold">
+              <a href="{% url 'work_order:work_order_detail' po.work_order.pk %}" class="badge bg-primary text-decoration-none">
+                <i class="fas fa-hammer me-1"></i>#{{ po.work_order.number }}
+              </a>
+            </span>
+          </div>
+          {% endif %}
           <div class="d-flex justify-content-between border-bottom pb-2">
             <span class="text-muted">{% trans "تاريخ أمر الشراء:" %}</span>
             <span>{{ po.order_date|date:"Y-m-d" }}</span>

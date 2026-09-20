@@ -479,14 +479,16 @@
 <div class="modal fade" id="recordDepositModal" tabindex="-1" aria-labelledby="recordDepositModalLabel"
   aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
+    <div class="modal-content border-0 shadow-lg">
       <form method="post" action="{% url 'work_order:work_order_record_deposit' work_order.id %}">
         {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold" id="recordDepositModalLabel">{% trans "تسجيل دفعة مقدمة (عربون)" %}</h5>
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0" id="recordDepositModalLabel">
+            <i class="fas fa-piggy-bank text-info me-2"></i>{% trans "تسجيل دفعة مقدمة (عربون)" %}
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <!-- مبلغ الدفعة -->
             <div class="col-md-6">
@@ -522,9 +524,9 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-warning text-dark fw-bold">{% trans "تسجيل الدفعة" %}</button>
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "تسجيل الدفعة" %}</button>
         </div>
       </form>
     </div>
@@ -535,14 +537,44 @@
 <!-- Actions Modal -->
 <div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="actionsModalLabel">
-          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="actionsModalLabel">
+          <i class="fas fa-sliders-h text-primary me-2"></i>{% trans "إدارة وإجراءات أمر الشغل" %}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
+        <!-- قسم تغيير الحالة -->
+        {% if perms.work_order.change_workorder or user.is_superuser %}
+        <div class="mb-4 pb-3 border-bottom">
+          <label class="form-label fw-bold text-secondary small mb-2"><i class="fas fa-traffic-light me-1"></i>{% trans "تحديث حالة أمر الشغل:" %}</label>
+          <form method="post" action="{% url 'work_order:work_order_change_status' work_order.id %}" class="d-flex gap-2 flex-wrap">
+            {% csrf_token %}
+            {% if work_order.status != 'pending' %}
+            <button type="submit" name="status" value="pending" class="btn btn-outline-warning btn-sm">
+              <i class="fas fa-clock me-1"></i>{% trans "قيد الانتظار" %}
+            </button>
+            {% endif %}
+            {% if work_order.status != 'in_progress' %}
+            <button type="submit" name="status" value="in_progress" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-play me-1"></i>{% trans "قيد التشغيل" %}
+            </button>
+            {% endif %}
+            {% if work_order.status != 'completed' %}
+            <button type="submit" name="status" value="completed" class="btn btn-outline-success btn-sm">
+              <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}
+            </button>
+            {% endif %}
+            {% if work_order.status != 'cancelled' %}
+            <button type="submit" name="status" value="cancelled" class="btn btn-outline-danger btn-sm" data-confirm="{% trans 'هل أنت متأكد من إلغاء أمر الشغل؟' %}">
+              <i class="fas fa-ban me-1"></i>{% trans "إلغاء أمر الشغل" %}
+            </button>
+            {% endif %}
+          </form>
+        </div>
+        {% endif %}
+
         <div class="list-group">
           <!-- تعديل أمر الشغل -->
           {% if perms.work_order.change_workorder or user.is_superuser %}
@@ -586,12 +618,21 @@
 {{ block.super }}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.clickable-row').forEach(row => {
+    document.querySelectorAll('.clickable-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
         if (e.target.closest('a, button, input, select')) return;
         const href = this.getAttribute('data-href');
         if (href) {
           window.location.href = href;
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-confirm]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        const msg = this.getAttribute('data-confirm');
+        if (msg && !confirm(msg)) {
+          e.preventDefault();
         }
       });
     });

@@ -200,6 +200,21 @@
                                         <label class="form-label">{% trans "شروط وطريقة السداد" %}</label>
                                         <input type="text" name="payment_terms" id="id_payment_terms" class="form-control" value="{{ form.payment_terms.value|default:form.instance.payment_terms|default:'' }}" placeholder="مثال: سداد 30 يوم من تاريخ الاستلام...">
                                     </div>
+
+                                    <!-- أمر الشغل المرتبط -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="id_work_order">
+                                            <i class="fas fa-hammer me-1 text-secondary"></i>{% trans "أمر الشغل المرتبط" %}
+                                        </label>
+                                        <select name="work_order" id="id_work_order" class="form-select select2-init" dir="rtl">
+                                            <option value="">-- {% trans "بدون أمر شغل" %} --</option>
+                                            {% for wo in form.fields.work_order.queryset %}
+                                                <option value="{{ wo.id }}" {% if form.work_order.value == wo.id|stringformat:'s' or selected_work_order.id == wo.id or po.work_order_id == wo.id %}selected{% endif %}>
+                                                    {{ wo.number }} - {{ wo.customer.name }} ({{ wo.name|default:wo.get_status_display }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>

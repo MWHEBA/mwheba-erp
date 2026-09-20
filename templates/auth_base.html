@@ -135,7 +135,7 @@
         
         .auth-body {
             min-height: 100vh;
-            min-height: 100dvh; /* dynamic viewport - يطرح browser chrome */
+            min-height: 100dvh;
             height: 100dvh;
             position: relative;
             display: flex;
@@ -166,143 +166,200 @@
             z-index: 1;
         }
         
-        .auth-container {
+        .auth-container, .login-container {
             margin: auto;
-            max-width: 450px;
+            max-width: 440px;
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: var(--white, #ffffff);
             border-radius: 16px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 
-                        0 12px 24px rgba(var(--primary-rgb, 1, 87, 138), 0.1);
-            backdrop-filter: blur(5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-color, #e5e7eb);
+            padding: 2.25rem;
             transition: all 0.3s ease;
             overflow: hidden;
             transform: translateY(0);
             animation: float 4s ease-in-out infinite;
         }
         
-        /* @keyframes float موجود في unified-components.css */
+        .auth-container:hover, .login-container:hover {
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+        }
         
-        .auth-container:hover {
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 
-                        0 16px 32px rgba(var(--primary-rgb, 1, 87, 138), 0.15);
-            transform: translateY(-3px);
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
         }
         
         .logo-container {
             text-align: center;
-            padding: 0.5rem 0;
+            padding: 0;
+            margin-bottom: 0.85rem;
         }
         
-        .logo-container img {
-            max-height: 110px;
-            transition: all 0.3s ease;
+        .logo-container img, .login-logo {
+            max-height: 90px;
+            width: auto;
+            margin: 0 auto;
+            transition: transform 0.3s ease;
         }
         
-        .logo-container img:hover {
-            transform: scale(1.03);
-        }
-        
-        .auth-form {
-            padding: 1.5rem;
-        }
-        
-        .auth-form input {
-            border-radius: 8px;
-            padding: 0.65rem 1rem;
-            border: 1px solid #e0e7ff;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-        
-        .auth-form input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 1, 87, 138), 0.25);
-        }
-        
-        .auth-button {
-            width: 100%;
-            padding: 0.65rem;
-            font-weight: 600;
-            background-color: var(--primary-color);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(var(--primary-rgb, 1, 87, 138), 0.25);
-        }
-        
-        .auth-button:hover {
-            background-color: var(--primary-dark, #013e61);
-            box-shadow: 0 6px 16px rgba(var(--primary-rgb, 1, 87, 138), 0.35);
-            transform: translateY(-2px);
-        }
-        
-        .auth-footer {
-            text-align: center;
-            padding: 1rem;
-            background-color: rgba(255, 255, 255, 0.7);
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
-            backdrop-filter: blur(5px);
-            color: var(--text-muted);
-            margin-top: auto;
-        }
-        
-        /* ظلال إضافية وتأثيرات للعناصر */
-        .form-group {
-            position: relative;
-            margin-bottom: 1rem;
-        }
-        
-        .form-group i {
-            position: absolute;
-            right: 12px;
-            top: 19px;
-            color: var(--primary-color);
-        }
-        
-        .input-with-icon {
-            padding-right: 40px !important;
-        }
-        
-        /* الرسالة الترحيبية */
         .welcome-message {
             text-align: center;
+            margin-bottom: 1.5rem;
         }
         
         .welcome-message h3 {
             color: var(--primary-color);
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            font-size: 1.35rem;
         }
         
         .welcome-message p {
             color: var(--text-muted);
-            font-size: 0.85rem;
+            font-size: 0.875rem;
+            margin-bottom: 0;
+        }
+        
+        .auth-form {
+            padding: 0;
+            width: 100%;
+        }
+        
+        .form-group {
+            position: relative;
+            margin-bottom: 1.15rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-color, #333333);
+        }
+        
+        .form-control {
+            height: 44px;
+            padding: 0.5rem 1rem;
+            font-size: 0.925rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color, #d1d5db);
+            background-color: var(--white, #ffffff);
+            color: var(--text-color, #333333);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-soft, rgba(14, 49, 120, 0.15));
+            outline: none;
+        }
+        
+        .input-with-icon {
+            padding-right: 2.75rem !important;
+            padding-left: 2.75rem !important;
+        }
+        
+        .position-relative .input-icon {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-color);
+            font-size: 0.95rem;
+            pointer-events: none;
+            z-index: 3;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            padding: 0;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease;
+        }
+        
+        .toggle-password:hover {
+            color: var(--primary-color);
+        }
+        
+        .form-check-input {
+            width: 1.05rem;
+            height: 1.05rem;
+            cursor: pointer;
+        }
+        
+        .form-check-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .auth-button {
+            width: 100%;
+            height: 44px;
+            padding: 0.5rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.25rem;
+        }
+        
+        .auth-button:hover {
+            background-color: var(--primary-dark, var(--primary-color));
+            color: #ffffff;
+        }
+        
+        .auth-footer {
+            text-align: center;
+            padding: 0.6rem 1rem;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(5px);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: auto;
         }
         
         /* تجاوب مع الشاشات الصغيرة */
         @media (max-width: 576px) {
-            .auth-container {
-                max-width: 90%;
-                margin: 1rem auto;
-            }
-            
-            .auth-form {
+            .auth-container, .login-container {
+                max-width: 92%;
                 padding: 1.25rem;
             }
         }
-
+        
         /* توسيط المحتوى عمودياً في الشاشة */
         .container.py-5 {
-            padding-top: 2rem !important;
-            padding-bottom: 2rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 1rem !important;
             flex: 1;
             display: flex;
             align-items: center;
-            overflow-y: auto; /* المحتوى أكبر من المساحة المتاحة */
+            overflow-y: auto;
         }
     </style>
 </head>

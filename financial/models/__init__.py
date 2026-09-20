@@ -96,6 +96,7 @@ from financial.fx.models import (
     FXApprovalWorkflow,
 )
 from .approval import EnterpriseApprovalRule, EnterpriseApprovalRequest, EnterpriseApprovalStep, EnterpriseApprovalAuditLog
+from .treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
 
 __all__ = [
     # النماذج الأساسية
@@ -117,6 +118,9 @@ __all__ = [
     "JournalEntryTemplateLine",
     # نموذج تدقيق التحقق من المعاملات المالية
     "ValidationAuditLog",
+    # نماذج إسناد الخزن والرقابة
+    "UserTreasuryAccess",
+    "TreasuryAccessAuditLog",
     # نماذج الأرصدة المحسنة
     "BalanceSnapshot",
     "AccountBalanceCache",

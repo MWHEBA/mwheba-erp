@@ -85,6 +85,15 @@ class ExpenseForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
+    # ربط بأمر الشغل
+    work_order = forms.ModelChoiceField(
+        label="أمر الشغل",
+        queryset=None,
+        required=False,
+        empty_label="اختر أمر الشغل (اختياري)",
+        widget=forms.Select(attrs={"class": "form-select select2"}),
+    )
+
     # الضرائب والخصم والتحصيل (FIN-TAX-001)
     vat_active = forms.BooleanField(
         label="خاضع لضريبة القيمة المضافة (14%)",
@@ -116,6 +125,13 @@ class ExpenseForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # أوامر الشغل
+        try:
+            from work_order.models import WorkOrder
+            self.fields["work_order"].queryset = WorkOrder.objects.exclude(status='cancelled').select_related('customer')
+        except Exception:
+            pass
 
         # حسابات المصروفات
         try:

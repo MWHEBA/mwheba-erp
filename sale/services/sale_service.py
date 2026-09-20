@@ -18,6 +18,7 @@ import logging
 from sale.services.pricing_validator import PricingSecurityValidator
 
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
+from product.models import Product
 from governance.services.accounting_gateway import AccountingGateway
 from governance.services.movement_service import MovementService
 from customer.services.customer_service import CustomerService
@@ -96,9 +97,19 @@ class SaleService:
                 discount=Decimal(str(data.get('discount', 0))),
                 discount_type=data.get('discount_type', 'fixed'),
                 payment_method=data.get('payment_method', 'credit'),
-                subtotal=subtotal_approx,
-                doc_type='sale'
             )
+            # التحقق من أمر الشغل وقفله تشاؤمياً لمنع race conditions
+            work_order_id = data.get('work_order_id')
+            if work_order_id:
+                from work_order.models import WorkOrder
+                try:
+                    wo = WorkOrder.objects.select_for_update().get(id=work_order_id)
+                    if wo.status == 'cancelled':
+                        raise ValidationError(f"لا يمكن إصدار فاتورة مبيعات لأمر شغل ملغي ({wo.number}).")
+                    if str(wo.customer_id) != str(data.get('customer_id')):
+                        raise ValidationError(f"أمر الشغل ({wo.number}) لا يتبع العميل المحدد.")
+                except WorkOrder.DoesNotExist:
+                    raise ValidationError(f"أمر الشغل المحدد برقم {work_order_id} غير موجود.")
 
             sale = Sale.objects.create(
                 date=data.get('date', timezone.now().date()),
@@ -198,14 +209,16 @@ class SaleService:
         if not price_snapshot and prod:
             from sale.services.pricing_service import PricingService
             try:
+                curr_code = getattr(sale.currency, 'code', str(sale.currency)) if sale.currency else "EGP"
                 res = PricingService.get_sales_price(
-                    product=prod,
-                    customer=sale.customer,
-                    price_list=sale.price_list,
-                    currency=sale.currency,
+                    product_id=prod.id,
+                    customer_id=sale.customer_id if sale.customer else None,
+                    quantity=Decimal(str(item_data.get('quantity', 1))),
+                    price_list_id=getattr(sale, 'price_list_id', None),
+                    unit_id=getattr(prod, 'unit_id', None),
+                    as_of_date=sale.date,
+                    currency=curr_code,
                     exchange_rate=sale.exchange_rate,
-                    quantity=Decimal(str(item_data['quantity'])),
-                    pricing_date=sale.date
                 )
                 price_snapshot = res.get('price_snapshot')
             except Exception:
@@ -421,6 +434,21 @@ class SaleService:
             sale.price_list_id = data.get('price_list_id') or data.get('price_list')
         if 'financial_category_id' in data:
             sale.financial_category_id = data['financial_category_id']
+        if 'work_order_id' in data:
+            work_order_id = data['work_order_id']
+            if work_order_id:
+                from work_order.models import WorkOrder
+                try:
+                    wo = WorkOrder.objects.select_for_update().get(id=work_order_id)
+                    if wo.status == 'cancelled':
+                        raise ValidationError(f"لا يمكن ربط الفاتورة بأمر شغل ملغي ({wo.number}).")
+                    if str(wo.customer_id) != str(sale.customer_id):
+                        raise ValidationError(f"أمر الشغل ({wo.number}) لا يتبع العميل المحدد.")
+                    sale.work_order_id = wo.id
+                except WorkOrder.DoesNotExist:
+                    raise ValidationError(f"أمر الشغل المحدد برقم {work_order_id} غير موجود.")
+            else:
+                sale.work_order_id = None
         sale.save()
 
         # 3. إزالة البنود القديمة وإضافة البنود الجديدة

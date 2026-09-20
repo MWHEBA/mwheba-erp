@@ -8,6 +8,7 @@ from customer.models import Customer
 from product.models import Product, Stock, Warehouse
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class SaleForm(forms.ModelForm):
@@ -161,9 +162,10 @@ class SaleForm(forms.ModelForm):
 
         from work_order.models import WorkOrder
         self.fields['work_order'] = forms.ModelChoiceField(
-            queryset=WorkOrder.objects.all(),
+            queryset=WorkOrder.objects.exclude(status='cancelled').select_related('customer'),
             required=False,
-            widget=forms.HiddenInput()
+            widget=forms.Select(attrs={"class": "form-control select2", "id": "id_work_order"}),
+            label=_("أمر الشغل")
         )
 
         from financial.models import CostCenter
@@ -316,6 +318,15 @@ class SaleForm(forms.ModelForm):
                 cleaned_data['payment_method'] = 'credit'
                 cleaned_data['down_payment_amount'] = Decimal('0')
             
+        # التحقق من أمر الشغل
+        work_order = cleaned_data.get('work_order')
+        customer = cleaned_data.get('customer')
+        if work_order:
+            if work_order.status == 'cancelled':
+                raise ValidationError({'work_order': _("أمر الشغل المحدد ملغي ولا يمكن ربط معاملات به.")})
+            if customer and work_order.customer_id != customer.id:
+                raise ValidationError({'work_order': _("أمر الشغل المحدد لا يتبع العميل المختار.")})
+
         return cleaned_data
 
     def clean_financial_category(self):
@@ -488,7 +499,7 @@ class SalePaymentForm(forms.ModelForm):
                         self.initial['payment_method'] = default_cash.code
                 elif old_value == 'bank_transfer':
                     from financial.services.role_registry import AccountRoleRegistry
-                    default_bank = AccountRoleRegistry.get_account_role("BANK_CONTROL_ACCOUNT")
+                    default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
                     if default_bank:
                         self.initial['payment_method'] = default_bank.code
                 else:
@@ -833,9 +844,10 @@ class QuotationForm(forms.ModelForm):
 
         from work_order.models import WorkOrder
         self.fields['work_order'] = forms.ModelChoiceField(
-            queryset=WorkOrder.objects.all(),
+            queryset=WorkOrder.objects.exclude(status='cancelled').select_related('customer'),
             required=False,
-            widget=forms.HiddenInput()
+            widget=forms.Select(attrs={"class": "form-control select2", "id": "id_work_order"}),
+            label=_("أمر الشغل")
         )
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
@@ -877,6 +889,17 @@ class QuotationForm(forms.ModelForm):
                 return self.instance.salesman
             return user
         return salesman or user
+
+    def clean(self):
+        cleaned_data = super().clean()
+        work_order = cleaned_data.get('work_order')
+        customer = cleaned_data.get('customer')
+        if work_order:
+            if work_order.status == 'cancelled':
+                raise ValidationError({'work_order': _("أمر الشغل المحدد ملغي ولا يمكن ربط معاملات به.")})
+            if customer and work_order.customer_id != customer.id:
+                raise ValidationError({'work_order': _("أمر الشغل المحدد لا يتبع العميل المختار.")})
+        return cleaned_data
 
 
 class CustomFieldDefinitionForm(forms.ModelForm):

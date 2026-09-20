@@ -66,30 +66,30 @@
 </div>
 
 <!-- مودال تسجيل الدفع -->
-<div class="modal fade" id="payModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
+<div class="modal fade" id="payModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
       <form method="post" id="payForm" action="">
         {% csrf_token %}
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-cash-register me-2"></i>تسجيل دفع</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0"><i class="fas fa-cash-register text-primary me-2"></i>تسجيل دفع</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <p class="mb-3">الموظف: <strong id="payEmployeeName"></strong></p>
           <p class="mb-3">المبلغ: <strong id="payAmount"></strong> {{ currency_symbol }}</p>
           <div class="mb-3">
-            {% include "components/payment_account_select.html" with field_name="payment_account" field_id="payment_account" label="حساب الاستلام" required=True value_type="id" %}
+            {% include "components/payment_account_select.html" with field_name="payment_account" field_id="payment_account" label="حساب الصرف" required=True value_type="id" action_type="disburse" %}
           </div>
           <div class="mb-3">
-            <label class="form-label">تاريخ الدفع</label>
+            <label class="form-label fw-bold">تاريخ الدفع</label>
             <input type="date" name="payment_date" class="form-control"
                    value="{% now 'Y-m-d' %}">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-          <button type="submit" class="btn btn-success">
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
             <i class="fas fa-check me-1"></i>تأكيد الدفع
           </button>
         </div>

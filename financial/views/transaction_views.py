@@ -17,8 +17,11 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.contenttypes.models import ContentType
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from django.db import models
 import json
+import logging
+from django.db import models
+
+logger = logging.getLogger(__name__)
 
 # استيراد النماذج والخدمات الجديدة
 from ..forms.expense_forms import ExpenseForm, ExpenseEditForm, ExpenseFilterForm
@@ -1668,7 +1671,7 @@ def journal_entry_delete(request, pk):
     """
     حذف قيد محاسبي مع التحقق من الصلاحيات
     """
-    from .permissions import check_user_can_delete_entry
+    from financial.permissions import check_user_can_delete_entry
     from django.core.exceptions import ValidationError
 
     entry = get_object_or_404(JournalEntry, pk=pk)
@@ -2517,7 +2520,18 @@ def manual_journal_entry_create(request):
     from financial.models.currency import Currency
     from financial.services.exchange_rate_service import ExchangeRateService
 
-    accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).select_related('account_type', 'currency').order_by('code')
+    accounts_qs = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).select_related('account_type', 'currency').order_by('code')
+    if not request.user.is_superuser:
+        from financial.services.treasury_security_service import TreasurySecurityService
+        allowed_trsy_ids = set(TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").values_list("id", flat=True))
+        accounts = [
+            acc for acc in accounts_qs
+            if not (getattr(acc, 'is_cash_account', False) or getattr(acc, 'is_bank_account', False) or (acc.account_type and getattr(acc.account_type, 'code', '').lower() in ['cash', 'bank']))
+            or acc.id in allowed_trsy_ids
+        ]
+    else:
+        accounts = list(accounts_qs)
+
     cost_centers = CostCenter.objects.filter(is_active=True, children__isnull=True).order_by('code')
     currencies = Currency.objects.filter(is_active=True).order_by('code')
     func_currency = ExchangeRateService.get_functional_currency()

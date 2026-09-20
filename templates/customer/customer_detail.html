@@ -190,6 +190,16 @@
                   <small class="text-muted d-block mb-1">{% trans "نوع العميل (الكيان القانوني)" %}</small>
                   <span class="text-dark fw-semibold">{{ customer.get_customer_type_display }}</span>
                 </div>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الشريحة التجارية" %}</small>
+                  {% if customer.tier %}
+                    <span class="badge" style="background-color: var(--primary-color); color: var(--color-white, #fff);">
+                      <i class="{{ customer.tier.icon|default:'fas fa-tag' }} me-1"></i>{{ customer.tier.name }}
+                    </span>
+                  {% else %}
+                    <span class="text-muted small">{% trans "غير مصنف" %}</span>
+                  {% endif %}
+                </div>
                 {% if customer.customer_type == 'individual' or customer.national_id %}
                 <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "الرقم القومي (للأفراد)" %}</small>

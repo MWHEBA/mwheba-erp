@@ -4,7 +4,7 @@
 
 <!-- مودال المصروف السريع / التعديل -->
 <div class="modal fade" id="quickExpenseModal" tabindex="-1" aria-labelledby="quickExpenseModalLabel"
-  aria-hidden="true" data-initial-category-id="{% if journal_entry and financial_category %}{{ financial_category.id }}{% endif %}">
+  aria-hidden="true" data-initial-category-id="{% if journal_entry and financial_category %}{{ financial_category.id }}{% endif %}" data-initial-work-order-id="{% if journal_entry and journal_entry.work_order %}{{ journal_entry.work_order.id }}{% endif %}">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-light border-bottom px-4 py-3">
@@ -79,7 +79,18 @@
 
             <!-- الخزينة / حساب الصرف أو التسوية -->
             <div class="col-md-6 mb-3">
-              {% include "components/payment_account_select.html" with field_name="payment_account" field_id="quick_payment_account" label="حساب الصرف / التسوية" allow_custody=True required=True %}
+              {% include "components/payment_account_select.html" with field_name="payment_account" field_id="quick_payment_account" label="حساب الصرف / التسوية" allow_custody=True required=True action_type="disburse" %}
+            </div>
+
+            <!-- أمر الشغل المرتبط -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_work_order" class="form-label">
+                <i class="fas fa-hammer me-1 text-secondary"></i>
+                {% trans "أمر الشغل المرتبط (اختياري)" %}
+              </label>
+              <select class="form-select" id="quick_work_order" name="work_order">
+                <option value="">{% trans "-- بدون أمر شغل (مصروف عام) --" %}</option>
+              </select>
             </div>
 
             <!-- ملاحظات -->
@@ -117,8 +128,9 @@
 <script>
   // دالة فتح مودال المصروف السريع
   function openQuickExpenseModal() {
-    // تحميل التصنيفات المالية
+    // تحميل التصنيفات المالية وأوامر الشغل
     loadFinancialCategories();
+    loadWorkOrders();
 
     // إظهار المودال
     const modal = new bootstrap.Modal(document.getElementById('quickExpenseModal'));
@@ -145,6 +157,28 @@
       // التركيز على حقل الوصف
       document.getElementById('quick_description').focus();
     }, 300);
+  }
+
+  // تحميل أوامر الشغل
+  function loadWorkOrders(selectedId = null) {
+    fetch('/work-orders/api/customer-work-orders/')
+      .then(response => response.json())
+      .then(data => {
+        const woSelect = document.getElementById('quick_work_order');
+        if (!woSelect) return;
+        woSelect.innerHTML = '<option value="">{% trans "-- بدون أمر شغل (مصروف عام) --" %}</option>';
+        const items = data.results || [];
+        items.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.id;
+          opt.textContent = item.text;
+          if (selectedId && item.id == selectedId) {
+            opt.selected = true;
+          }
+          woSelect.appendChild(opt);
+        });
+      })
+      .catch(err => console.error('Error loading work orders:', err));
   }
 
   // تحميل التصنيفات المالية
@@ -250,10 +284,10 @@
           // عرض رسالة النجاح
           showSuccessToast(data.message);
 
-          // إعادة تحميل الصفحة بعد ثانية
+          // إعادة تحميل الصفحة بعد اكتمال انيميشن التوست (Rule 10)
           setTimeout(() => {
             location.reload();
-          }, 1000);
+          }, 3100);
         } else {
           // عرض الأخطاء
           showQuickExpenseErrors(data.errors || {}, data.message);
@@ -322,9 +356,11 @@
   // تحميل القيم المحفوظة في حالة التعديل بطريقة نظيفة عبر Dataset
   const quickExpenseModalEl = document.getElementById('quickExpenseModal');
   const initialCatId = quickExpenseModalEl ? quickExpenseModalEl.getAttribute('data-initial-category-id') : null;
-  if (initialCatId) {
+  const initialWoId = quickExpenseModalEl ? quickExpenseModalEl.getAttribute('data-initial-work-order-id') : null;
+  if (initialCatId || initialWoId) {
     setTimeout(function () {
-      loadFinancialCategories(initialCatId);
+      if (initialCatId) loadFinancialCategories(initialCatId);
+      if (initialWoId) loadWorkOrders(initialWoId);
     }, 100);
   }
 </script>

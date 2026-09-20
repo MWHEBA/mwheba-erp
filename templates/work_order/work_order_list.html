@@ -148,15 +148,17 @@
 
 <!-- مودال إنشاء/تعديل أمر الشغل -->
 <div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
       <form id="workOrderForm" method="POST" action="{% url 'work_order:work_order_create' %}">
         {% csrf_token %}
-        <div class="modal-header" style="background-color: var(--primary-color); color: white;">
-          <h5 class="modal-title fw-bold" id="workOrderModalLabel">{% trans "إنشاء أمر شغل جديد" %}</h5>
-          <button type="button" class="btn-close btn-close-white ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0" id="workOrderModalLabel">
+            <i class="fas fa-tasks text-primary me-2"></i>{% trans "إنشاء أمر شغل جديد" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <div class="col-md-12">
               <label class="form-label fw-bold">{{ form.customer.label }} <span class="text-danger">*</span></label>
@@ -184,9 +186,9 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer bg-light">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-          <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>{% trans "حفظ" %}</button>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-save me-1"></i>{% trans "حفظ" %}</button>
         </div>
       </form>
     </div>

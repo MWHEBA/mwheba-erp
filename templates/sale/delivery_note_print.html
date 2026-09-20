@@ -40,6 +40,12 @@
     <span class="meta-label">{% trans "أمر البيع الأصلي" %}:</span>
     <span class="meta-value fw-bold">{{ dn.sales_order.order_number }}</span>
 </div>
+{% if dn.sales_order.quotation_reference.work_order %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "أمر الشغل" %}:</span>
+    <span class="meta-value fw-bold">#{{ dn.sales_order.quotation_reference.work_order.order_number }}</span>
+</div>
+{% endif %}
 <div class="meta-row">
     <span class="meta-label">{% trans "المخزن المورد" %}:</span>
     <span class="meta-value">{{ dn.warehouse.name }}</span>

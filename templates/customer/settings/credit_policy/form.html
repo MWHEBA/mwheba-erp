@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    {% include "customer/settings/credit_policy/form_partial.html" with general_settings_form=form %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  function updateCodePreview() {
+    const prefix = $('#id_code_prefix').val() || 'CUST-';
+    const digits = parseInt($('#id_code_digits').val()) || 4;
+    const sampleNumber = '1'.padStart(digits, '0');
+    $('#codePreview').text(prefix + sampleNumber);
+  }
+
+  $('#id_code_prefix, #id_code_digits').on('input change', updateCodePreview);
+  updateCodePreview();
+
+  $('#generalSettingsForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSaveGeneralSettings');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ إعدادات وسياسات العملاء');
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        } else if (window.showNotification) {
+          window.showNotification(res.message, 'success');
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ إعدادات وسياسات العملاء');
+        const res = xhr.responseJSON;
+        if (window.showToastr) {
+          window.showToastr((res && res.message) ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}", 'error');
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

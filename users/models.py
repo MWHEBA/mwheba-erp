@@ -288,6 +288,12 @@ class User(AbstractUser):
         backend = RolePermissionBackend()
         return backend.get_all_permissions(self, obj)
 
+    def get_role_permissions_list(self):
+        """
+        الحصول على قائمة الصلاحيات الممنوحة للمستخدم من خلال أدواره كنصوص
+        """
+        return self.get_all_permissions()
+
     def get_all_permission_objects(self):
         """
         الحصول على كائنات Permission للمستخدم لمن يحتاجها.
@@ -319,11 +325,27 @@ class User(AbstractUser):
         """التحقق من وجود دور معين بالاسم"""
         return bool(self.role and self.role.name == role_name)
 
-    def get_role_permissions_list(self):
-        """الحصول على قائمة بأسماء صلاحيات الدور"""
-        if not self.role:
-            return []
-        return [f"{p.content_type.app_label}.{p.codename}" for p in self.role.permissions.select_related('content_type')]
+    def save(self, *args, **kwargs):
+        # مزامنة حقل status وحقل is_active تلقائياً
+        if self.is_active:
+            self.status = "active"
+        else:
+            self.status = "inactive"
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, force=False, **kwargs):
+        """
+        حماية مستوى النموذج: منع حذف أي مستخدم نشط، أو لديه معاملات ما لم يتم التمرير القسري
+        """
+        if not force:
+            if self.is_active:
+                raise ValidationError(_("لا يمكن حذف المستخدم لأنه ما زال في حالة 'نشط'. يجب تعطيل الحساب أولاً ونقله إلى الأرشيف قبل محاولة الحذف."))
+            from users.services.user_management_service import UserManagementService
+            can_del, summary, msg = UserManagementService.can_delete_user(self)
+            if not can_del:
+                raise ValidationError(msg)
+        return super().delete(*args, **kwargs)
+
 
 
 

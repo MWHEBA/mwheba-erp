@@ -43,11 +43,30 @@
                 {% if customers_sales_enabled %}
                 {% if perms.customer.view_customer or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="{% url "customer:customer_list" %}" class="sidebar-link {% if active_menu == 'customers' %}active{% endif %}">
+                    <a href="#customerMenu" class="sidebar-link collapsed {% if active_menu == 'customers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-users sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "العملاء" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'customers' %}show{% endif %}" id="customerMenu">
+                        <li>
+                            <a href="{% url "customer:customer_list" %}" class="submenu-link {% if active_submenu == 'customers_list' %}active{% endif %}">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}
+                            </a>
+                        </li>
+                        
+                        {% if perms.customer.change_customertier or user.is_superuser %}
+                        <div class="nav-divider"></div>
+                        <li class="submenu-title">الإعدادات</li>
+                        <li>
+                            <a href="{% url 'customer:settings_index' %}" class="submenu-link {% if active_submenu == 'customer_settings' %}active{% endif %}">
+                                <i class="fas fa-cog me-2"></i>{% trans "إعدادات العملاء" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
                 </li>
+                {% endif %}
                 {% endif %}
 
                 <!-- المبيعات -->
@@ -136,7 +155,6 @@
                         {% endif %}
                     </ul>
                 </li>
-                {% endif %}
                 {% endif %}
 
                 <!-- أوامر الشغل (Work Orders) -->
@@ -540,6 +558,13 @@
                         <li>
                             <a href="{% url 'financial:bank_reconciliation_list' %}" class="submenu-link">
                                 <i class="fas fa-university me-2"></i>{% trans "التسويات البنكية" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.financial.change_chartofaccounts or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'financial:treasury_assignments' %}" class="submenu-link">
+                                <i class="fas fa-user-lock me-2 text-warning"></i>{% trans "إسناد الخزن والبنوك" %}
                             </a>
                         </li>
                         {% endif %}

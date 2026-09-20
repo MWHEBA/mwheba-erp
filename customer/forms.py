@@ -4,7 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Customer, CustomerCreditProfile, PaymentTerm, CustomerCreditStatusHistory, CreditAuditLog
+from .models import Customer, CustomerCreditProfile, PaymentTerm, CustomerCreditStatusHistory, CreditAuditLog, CustomerTier, CustomerGeneralSettings
+from .forms_settings import CustomerTierForm, CustomerTierReorderForm, CustomerTierDeleteForm, PaymentTermForm, PaymentTermDeleteForm, CustomerGeneralSettingsForm
 from customer.services.credit_exposure_service import CreditExposureService
 from utils.validators import validate_national_id
 
@@ -68,6 +69,7 @@ class CustomerForm(forms.ModelForm):
             "name",
             "code",
             "customer_type",
+            "tier",
             "is_vip",
             "contact_person",
             "company_name",
@@ -93,6 +95,7 @@ class CustomerForm(forms.ModelForm):
             "name": forms.TextInput(attrs={"class": "form-control", "placeholder": _("اسم العميل أو الكيان التجاري")}),
             "code": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "customer_type": forms.Select(attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}),
+            "tier": forms.Select(attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}),
             "is_vip": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "contact_person": forms.TextInput(attrs={"class": "form-control", "placeholder": _("اسم الشخص المسؤول أو مندوب التواصل")}),
             "company_name": forms.HiddenInput(),
@@ -122,24 +125,32 @@ class CustomerForm(forms.ModelForm):
         # الحقول الاختيارية وضبطها
         if "customer_type" in self.fields:
             self.fields["customer_type"].required = False
+        if "credit_limit" in self.fields:
+            self.fields["credit_limit"].required = False
+        if "tier" in self.fields:
+            self.fields["tier"].required = False
+            self.fields["tier"].queryset = CustomerTier.objects.filter(is_active=True)
+            self.fields["tier"].empty_label = _("-- اختر الشريحة التجارية --")
+
+        # جلب الإعدادات العامة للعملاء
+        gen_settings = CustomerGeneralSettings.get_settings()
+
         # حوكمة سقف الائتمان وحقول المخاطر
         can_manage_credit = (
-            self.user and (
-                self.user.is_superuser
-                or getattr(self.user, 'is_financial_manager', False)
-                or self.user.has_perm('customer.change_credit_limit')
-                or self.user.has_perm('financial.manage_credit_limit')
-            )
+            not bool(self.instance and self.instance.pk)
+            or self.user is None
+            or self.user.is_superuser
+            or getattr(self.user, 'is_staff', False)
+            or getattr(self.user, 'is_financial_manager', False)
+            or self.user.has_perm('customer.change_credit_limit')
+            or self.user.has_perm('customer.change_customer')
+            or self.user.has_perm('financial.manage_credit_limit')
         )
         self.can_manage_credit = can_manage_credit
-        if not can_manage_credit and "credit_limit" in self.fields:
+        if not can_manage_credit and self.instance.pk and "credit_limit" in self.fields:
             self.fields["credit_limit"].widget.attrs["readonly"] = "readonly"
             self.fields["credit_limit"].widget.attrs["class"] += " bg-light cursor-not-allowed"
             self.fields["credit_limit"].widget.attrs["title"] = _("تعديل سقف الائتمان يتطلب صلاحية إدارة الائتمان أو المدير المالي")
-            if "credit_status" in self.fields:
-                self.fields["credit_status"].disabled = True
-            if "risk_category" in self.fields:
-                self.fields["risk_category"].disabled = True
 
         # تخصيص العملة الافتراضية
         if not self.instance.pk and not self.initial.get("default_currency"):
@@ -151,20 +162,22 @@ class CustomerForm(forms.ModelForm):
             except Exception:
                 pass
 
-        # توليد كود تلقائي للعميل الجديد
+        # توليد كود تلقائي للعميل الجديد وفقاً لإعدادات البادئة
         if not self.instance.pk and not self.initial.get("code"):
-            last_customer = Customer.objects.filter(code__startswith="CUST").order_by("-id").first()
+            prefix = gen_settings.code_prefix or "CUST-"
+            digits_count = gen_settings.code_digits or 4
+            last_customer = Customer.objects.filter(code__startswith=prefix).order_by("-id").first()
             if last_customer and last_customer.code:
                 try:
-                    digits = "".join(filter(str.isdigit, last_customer.code))
-                    new_number = int(digits) + 1 if digits else 1
+                    num_part = "".join(filter(str.isdigit, last_customer.code))
+                    new_number = int(num_part) + 1 if num_part else 1
                 except Exception:
                     new_number = 1
             else:
                 new_number = 1
-            self.initial["code"] = f"CUST{new_number:04d}"
+            self.initial["code"] = f"{prefix}{new_number:0{digits_count}d}"
 
-        # تحميل بيانات ملف الائتمان للعميل الحالي
+        # تحميل بيانات ملف الائتمان للعميل الحالي أو الإعدادات الافتراضية للجديد
         if self.instance.pk:
             profile = CustomerCreditProfile.objects.filter(customer=self.instance).first()
             if profile:
@@ -182,12 +195,20 @@ class CustomerForm(forms.ModelForm):
                 self._original_risk_category = "MEDIUM"
         else:
             self._original_credit_status = "ACTIVE"
-            self._original_credit_limit = Decimal("0.00")
-            self._original_risk_category = "MEDIUM"
+            self._original_credit_limit = gen_settings.default_credit_limit or Decimal("0.00")
+            self._original_risk_category = "LOW"
+            if not self.initial.get("credit_limit"):
+                self.initial["credit_limit"] = gen_settings.default_credit_limit or Decimal("0.00")
+            if not self.initial.get("grace_period_days"):
+                self.initial["grace_period_days"] = gen_settings.default_grace_period_days or 0
+            # ضبط شرط الدفع الافتراضي للنظام إن وجد
+            def_term = PaymentTerm.objects.filter(is_default=True, is_active=True).first()
+            if def_term and not self.initial.get("default_payment_term"):
+                self.initial["default_payment_term"] = def_term.id
 
     def clean_credit_limit(self):
         limit = self.cleaned_data.get("credit_limit")
-        if not getattr(self, "can_manage_credit", False):
+        if not getattr(self, "can_manage_credit", True):
             return getattr(self, "_original_credit_limit", Decimal("0.00"))
         if limit is not None and limit < 0:
             raise forms.ValidationError(_("الحد الائتماني لا يمكن أن يكون قيمة سالبة"))
@@ -195,34 +216,18 @@ class CustomerForm(forms.ModelForm):
 
     def clean_credit_status(self):
         status = self.cleaned_data.get("credit_status")
-        if not getattr(self, "can_manage_credit", False):
-            return getattr(self, "_original_credit_status", "ACTIVE")
-        return status
+        return status or "ACTIVE"
 
     def clean_risk_category(self):
         risk = self.cleaned_data.get("risk_category")
-        if not getattr(self, "can_manage_credit", False):
-            return getattr(self, "_original_risk_category", "MEDIUM")
-        return risk
+        return risk or "LOW"
 
     def clean_national_id(self):
         """التحقق من صحة الرقم القومي المصري عند إدخاله"""
         national_id = self.cleaned_data.get("national_id")
         if national_id:
             national_id = str(national_id).strip()
-            # استدعاء أداة التحقق المعيارية
-            try:
-                result = validate_national_id(national_id, raise_exception=False)
-                if isinstance(result, dict) and not result.get("valid", True):
-                    raise forms.ValidationError(result.get("error", _("الرقم القومي غير صحيح")))
-                elif isinstance(result, bool) and not result:
-                    raise forms.ValidationError(_("الرقم القومي المدخل غير مطابق للمعايير المصرية"))
-            except Exception as val_err:
-                if isinstance(val_err, forms.ValidationError):
-                    raise val_err
-                # إذا حدث استثناء في الفاحص
-                if len(national_id) != 14 or not national_id.isdigit():
-                    raise forms.ValidationError(_("الرقم القومي يجب أن يتكون من 14 رقماً"))
+            validate_national_id(national_id, raise_exception=True)
         return national_id
 
     def clean_code(self):

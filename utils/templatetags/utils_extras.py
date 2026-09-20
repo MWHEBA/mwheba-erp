@@ -53,6 +53,32 @@ def translate_formula(value):
 
 
 @register.filter
+def days_until(value):
+    """
+    حساب عدد الأيام المتبقية حتى تاريخ محدد
+    استخدام: {{ date_value|days_until }}
+    """
+    if not value:
+        return None
+    try:
+        if isinstance(value, str):
+            for fmt in ('%Y-%m-%d', '%Y-%m-%d %H:%M:%S', '%d/%m/%Y'):
+                try:
+                    value = datetime.datetime.strptime(value.split('T')[0], fmt).date()
+                    break
+                except ValueError:
+                    pass
+        if isinstance(value, datetime.datetime):
+            value = value.date()
+        if isinstance(value, datetime.date):
+            today = timezone.now().date() if hasattr(timezone, 'now') else datetime.date.today()
+            return (value - today).days
+    except Exception:
+        pass
+    return None
+
+
+@register.filter
 def sub(value, arg):
     """
     طرح arg من value

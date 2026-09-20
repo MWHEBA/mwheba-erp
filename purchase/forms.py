@@ -11,6 +11,7 @@ from .models import (
 )
 from supplier.models import Supplier
 from product.models import Product, Warehouse
+from work_order.models import WorkOrder
 from django.utils import timezone
 
 
@@ -51,11 +52,21 @@ class PurchaseForm(forms.ModelForm):
         ),
     )
 
+    work_order = forms.ModelChoiceField(
+        queryset=WorkOrder.objects.none(),
+        label="أمر الشغل",
+        required=False,
+        widget=forms.Select(
+            attrs={"class": "form-control select2", "id": "id_work_order"}
+        ),
+    )
+
     class Meta:
         model = Purchase
         fields = [
             "supplier",
             "warehouse",
+            "work_order",
             "date",
             "number",
             "discount",
@@ -102,6 +113,10 @@ class PurchaseForm(forms.ModelForm):
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
+
+        from work_order.models import WorkOrder
+        self.fields["work_order"].queryset = WorkOrder.objects.exclude(status='cancelled')
+        self.fields["work_order"].required = False
 
         # إعداد خيارات طريقة الدفع
         payment_choices = [
@@ -259,6 +274,12 @@ class PurchaseForm(forms.ModelForm):
             cleaned_data['payment_method'] = 'credit'
         
         return cleaned_data
+
+    def clean_work_order(self):
+        work_order = self.cleaned_data.get("work_order")
+        if work_order and work_order.status == 'cancelled':
+            raise ValidationError("لا يمكن ربط فاتورة مشتريات بأمر شغل ملغي")
+        return work_order
 
     def clean_number(self):
         number = self.cleaned_data.get("number")
@@ -822,8 +843,9 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields["cost_center"].required = False
 
         from work_order.models import WorkOrder
-        self.fields["work_order"].queryset = WorkOrder.objects.all()
+        self.fields["work_order"].queryset = WorkOrder.objects.exclude(status='cancelled')
         self.fields["work_order"].required = False
+        self.fields["work_order"].widget.attrs.update({"class": "form-control select2", "id": "id_work_order"})
 
         if not self.initial.get("order_date"):
             self.initial["order_date"] = timezone.now().date()

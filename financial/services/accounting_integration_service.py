@@ -5,6 +5,7 @@
 from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Any
@@ -41,7 +42,7 @@ class AccountingIntegrationService:
 
     @classmethod
     def create_sale_journal_entry(
-        cls, sale, user: Optional[User] = None
+        cls, sale, user: Optional[AbstractBaseUser] = None
     ) -> Optional[JournalEntry]:
         """
         إنشاء قيود محاسبية منفصلة لفاتورة مبيعات حسب تصنيف المنتجات
@@ -112,8 +113,12 @@ class AccountingIntegrationService:
                 )
 
                 if journal_entry:
+                    update_fields = ["journal_entry"]
                     sale.journal_entry = journal_entry
-                    sale.save(update_fields=["journal_entry"])
+                    if getattr(sale, 'work_order_id', None):
+                        journal_entry.work_order_id = sale.work_order_id
+                        journal_entry.save(update_fields=["work_order"])
+                    sale.save(update_fields=update_fields)
 
                 return journal_entry
 
@@ -123,7 +128,7 @@ class AccountingIntegrationService:
 
     @classmethod
     def create_purchase_journal_entry(
-        cls, purchase, user: Optional[User] = None
+        cls, purchase, user: Optional[AbstractBaseUser] = None
     ) -> Optional[JournalEntry]:
         """
         إنشاء قيد محاسبي لفاتورة مشتريات
@@ -286,6 +291,9 @@ class AccountingIntegrationService:
                 # ربط القيد بالفاتورة
                 if journal_entry:
                     purchase.journal_entry = journal_entry
+                    if getattr(purchase, 'work_order_id', None):
+                        journal_entry.work_order_id = purchase.work_order_id
+                        journal_entry.save(update_fields=["work_order"])
                     purchase.save(update_fields=["journal_entry"])
                     logger.info(f"✅ تم ربط القيد المحاسبي {journal_entry.number} بالفاتورة {purchase.number}")
 
@@ -297,7 +305,7 @@ class AccountingIntegrationService:
 
     @classmethod
     def create_return_journal_entry(
-        cls, sale_return, user: Optional[User] = None
+        cls, sale_return, user: Optional[AbstractBaseUser] = None
     ) -> Optional[JournalEntry]:
         """
         إنشاء قيد محاسبي لمرتجع مبيعات
@@ -415,7 +423,7 @@ class AccountingIntegrationService:
         cls,
         payment,
         payment_type: str,  # 'sale_payment' or 'purchase_payment'
-        user: Optional[User] = None,
+        user: Optional[AbstractBaseUser] = None,
     ) -> Optional[JournalEntry]:
         """
         إنشاء قيد محاسبي للمدفوعات
@@ -1246,7 +1254,7 @@ class AccountingIntegrationService:
         return SubledgerAccountService.get_or_create_customer_account(customer, user=user)
 
     @classmethod
-    def _create_customer_account(cls, customer, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
+    def _create_customer_account(cls, customer, user: Optional[AbstractBaseUser] = None) -> Optional[ChartOfAccounts]:
         """إنشاء حساب محاسبي جديد للعميل عبر المحرك المركزي الموحد"""
         if not customer:
             return None
@@ -1254,7 +1262,7 @@ class AccountingIntegrationService:
         return SubledgerAccountService.create_customer_account(customer, user=user)
 
     @classmethod
-    def _create_supplier_account(cls, supplier, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
+    def _create_supplier_account(cls, supplier, user: Optional[AbstractBaseUser] = None) -> Optional[ChartOfAccounts]:
         """
         إنشاء حساب محاسبي جديد للمورد تلقائياً
         يستخدم نفس المنطق الموجود في supplier/views.py:supplier_create_account
@@ -1320,7 +1328,7 @@ class AccountingIntegrationService:
         sale,
         old_total: Decimal,
         old_cost: Decimal,
-        user: Optional[User] = None,
+        user: Optional[AbstractBaseUser] = None,
         reason: str = ""
     ) -> Optional[JournalEntry]:
         """
@@ -1499,7 +1507,7 @@ class AccountingIntegrationService:
         cls,
         purchase,
         old_total: Decimal,
-        user: Optional[User] = None,
+        user: Optional[AbstractBaseUser] = None,
         reason: str = ""
     ) -> Optional[JournalEntry]:
         """
@@ -1758,7 +1766,7 @@ class AccountingIntegrationService:
         original_entry: JournalEntry, 
         refund_amount: Decimal, 
         reason: str,
-        user: Optional[User] = None
+        user: Optional[AbstractBaseUser] = None
     ) -> Optional[JournalEntry]:
         """
         إنشاء قيد عكسي للتسوية المالية

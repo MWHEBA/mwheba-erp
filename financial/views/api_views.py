@@ -1,3 +1,7 @@
+import csv
+import os
+import json
+import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from users.decorators import require_permission
@@ -6,7 +10,8 @@ from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum, Count, Avg
 from django.db import transaction
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
@@ -15,8 +20,6 @@ from django.contrib.contenttypes.models import ContentType
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.db import models
-import json
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -568,21 +571,21 @@ def api_financial_categories(request):
 
 
 @login_required 
-@require_permission('financial.view_chartofaccounts')
 def api_payment_accounts(request):
-    """API لجلب حسابات الخزينة (نقدية وبنكية) النهائية فقط"""
+    """
+    API لجلب حسابات الخزينة (نقدية وبنكية) المصرح بها للمستخدم الحالي فقط
+    يدعم الفلترة بنوع العملية ?action=deposit أو ?action=disburse أو ?action=any والعملة ?currency=EGP
+    """
     try:
-        # جلب الحسابات النهائية للخزينة والبنوك فقط
-        accounts = ChartOfAccounts.objects.filter(
-            is_active=True, 
-            is_leaf=True,  # الحسابات النهائية فقط
-            account_type__category="asset"  # من فئة الأصول
-        ).filter(
-            models.Q(is_cash_account=True) |  # حسابات نقدية
-            models.Q(is_bank_account=True) |  # حسابات بنكية
-            models.Q(account_type__code="CASH") |  # نوع الخزينة
-            models.Q(account_type__code="BANK")   # نوع البنوك
-        ).values('id', 'name', 'code').order_by('code')
+        from financial.services.treasury_security_service import TreasurySecurityService
+        action = request.GET.get('action', 'any')
+        currency = request.GET.get('currency', None)
+
+        accounts = TreasurySecurityService.get_user_accessible_treasuries(
+            user=request.user,
+            action=action,
+            currency=currency
+        ).values('id', 'name', 'code', 'currency__code', 'currency__symbol').order_by('code')
         
         return JsonResponse(list(accounts), safe=False)
     except Exception as e:
@@ -616,7 +619,7 @@ def export_transactions(request):
     تصدير المعاملات المالية
     """
     try:
-        from .models.transactions import FinancialTransaction
+        from financial.models.transactions import FinancialTransaction
 
         transactions = FinancialTransaction.objects.all().order_by("-date", "-id")
     except ImportError:
@@ -2001,7 +2004,7 @@ def payment_sync_retry_failed_api(request):
     API لإعادة محاولة العمليات الفاشلة
     """
     try:
-        from .models.payment_sync import PaymentSyncOperation
+        from financial.models.payment_sync import PaymentSyncOperation
         from django.db import models
 
         # العمليات الفاشلة القابلة لإعادة المحاولة
@@ -2039,7 +2042,7 @@ def payment_sync_resolve_errors_api(request):
     API لحل الأخطاء القديمة
     """
     try:
-        from .models.payment_sync import PaymentSyncError
+        from financial.models.payment_sync import PaymentSyncError
         from django.utils import timezone
         from datetime import timedelta
 
@@ -3253,7 +3256,7 @@ def payment_sync_operations(request):
     عمليات تزامن المدفوعات
     """
     try:
-        from .models.payment_sync import PaymentSyncOperation
+        from financial.models.payment_sync import PaymentSyncOperation
         
         operations = PaymentSyncOperation.objects.select_related(
             'created_by'
@@ -3277,7 +3280,7 @@ def payment_sync_logs(request):
     سجلات تزامن المدفوعات
     """
     try:
-        from .models.payment_sync import PaymentSyncError
+        from financial.models.payment_sync import PaymentSyncError
         
         logs = PaymentSyncError.objects.order_by('-occurred_at')[:100]
         

@@ -1,21 +1,18 @@
 """
-خدمة مساعدة للتعامل مع الحسابات في النظام الجديد والقديم
-
-هذه الخدمة توفر واجهة موحدة للوصول للحسابات
-مع إمكانية التراجع للنظام القديم في حالة الحاجة
+خدمة مساعدة للتعامل مع الحسابات في النظام
+توفر واجهة موحدة للوصول للحسابات النقدية والبنكية مع الحوكمة والسرية التامة للمستخدمين
 """
 
+from typing import Optional, Union
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 
 try:
     from ..models.chart_of_accounts import ChartOfAccounts, AccountType
-
     NEW_SYSTEM_AVAILABLE = True
 except ImportError:
     NEW_SYSTEM_AVAILABLE = False
 
-# النظام القديم لم يعد متاحاً - استخدام النظام الجديد فقط
 Account = None
 
 
@@ -23,75 +20,118 @@ class AccountHelperService:
     """خدمة مساعدة للتعامل مع الحسابات"""
 
     @staticmethod
-    def get_cash_accounts():
-        """الحصول على الحسابات النقدية والصناديق المفعلة والنهائية فقط"""
-        if NEW_SYSTEM_AVAILABLE:
-            try:
-                return (
-                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-                    .filter(
-                        models.Q(is_cash_account=True)
-                        | models.Q(account_type__code__iexact="cash")
-                        | models.Q(account_type__name__icontains="نقدي")
-                        | models.Q(account_type__name__icontains="صندوق")
-                        | models.Q(account_type__name__icontains="خزينة")
-                    )
-                    .order_by("code")
+    def get_cash_accounts(user=None, action: str = "any"):
+        """
+        الحصول على الحسابات النقدية والصناديق المفعلة والنهائية
+        إذا تم تمرير user: يتم تطبيق حوكمة وسرية الخزن المتاحة له بحسب نوع العملية (deposit/disburse/any)
+        """
+        if not NEW_SYSTEM_AVAILABLE:
+            return ChartOfAccounts.objects.none()
+
+        if user is not None:
+            from financial.services.treasury_security_service import TreasurySecurityService
+            qs = TreasurySecurityService.get_user_accessible_treasuries(user, action=action)
+            return qs.filter(
+                models.Q(is_cash_account=True)
+                | models.Q(account_type__code__iexact="cash")
+                | models.Q(account_type__name__icontains="نقدي")
+                | models.Q(account_type__name__icontains="صندوق")
+                | models.Q(account_type__name__icontains="خزينة")
+            ).order_by("code")
+
+        try:
+            return (
+                ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                .filter(
+                    models.Q(is_cash_account=True)
+                    | models.Q(account_type__code__iexact="cash")
+                    | models.Q(account_type__name__icontains="نقدي")
+                    | models.Q(account_type__name__icontains="صندوق")
+                    | models.Q(account_type__name__icontains="خزينة")
                 )
-            except Exception:
-                pass
-        return ChartOfAccounts.objects.none()
+                .order_by("code")
+            )
+        except Exception:
+            return ChartOfAccounts.objects.none()
 
     @staticmethod
-    def get_custody_accounts():
-        """الحصول على حسابات العهد المؤقتة المفعلة والنهائية فقط للتسوية"""
-        if NEW_SYSTEM_AVAILABLE:
-            try:
-                return (
-                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-                    .filter(
-                        models.Q(code__startswith="1145")
-                        | models.Q(code__startswith="1051")
-                        | models.Q(account_type__code__iexact="OTHER_DEBIT")
-                        | models.Q(account_type__name__icontains="عهدة")
-                    )
-                    .order_by("code")
+    def get_custody_accounts(user=None):
+        """
+        الحصول على حسابات العهد المؤقتة المفعلة والنهائية فقط للتسوية
+        إذا تم تمرير user: يتم حصر العهد على العهد المسندة له شخصياً
+        """
+        if not NEW_SYSTEM_AVAILABLE:
+            return ChartOfAccounts.objects.none()
+
+        if user is not None:
+            from financial.services.treasury_security_service import TreasurySecurityService
+            qs = TreasurySecurityService.get_user_accessible_treasuries(user, action="any")
+            return qs.filter(
+                models.Q(code__startswith="1145")
+                | models.Q(code__startswith="1051")
+                | models.Q(account_type__code__iexact="OTHER_DEBIT")
+                | models.Q(account_type__name__icontains="عهدة")
+            ).order_by("code")
+
+        try:
+            return (
+                ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                .filter(
+                    models.Q(code__startswith="1145")
+                    | models.Q(code__startswith="1051")
+                    | models.Q(account_type__code__iexact="OTHER_DEBIT")
+                    | models.Q(account_type__name__icontains="عهدة")
                 )
-            except Exception:
-                pass
-        return ChartOfAccounts.objects.none()
+                .order_by("code")
+            )
+        except Exception:
+            return ChartOfAccounts.objects.none()
 
     @staticmethod
-    def get_bank_accounts():
-        """الحصول على الحسابات البنكية والمحافظ المفعلة والنهائية فقط"""
-        if NEW_SYSTEM_AVAILABLE:
-            try:
-                return (
-                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-                    .filter(
-                        models.Q(is_bank_account=True)
-                        | models.Q(account_type__code__iexact="bank")
-                        | models.Q(account_type__name__icontains="بنك")
-                        | models.Q(account_type__name__icontains="مصرف")
-                    )
-                    .order_by("code")
+    def get_bank_accounts(user=None, action: str = "any"):
+        """
+        الحصول على الحسابات البنكية والمحافظ المفعلة والنهائية
+        إذا تم تمرير user: يتم حصر الحسابات على المصرح له بها
+        """
+        if not NEW_SYSTEM_AVAILABLE:
+            return ChartOfAccounts.objects.none()
+
+        if user is not None:
+            from financial.services.treasury_security_service import TreasurySecurityService
+            qs = TreasurySecurityService.get_user_accessible_treasuries(user, action=action)
+            return qs.filter(
+                models.Q(is_bank_account=True)
+                | models.Q(account_type__code__iexact="bank")
+                | models.Q(account_type__name__icontains="بنك")
+                | models.Q(account_type__name__icontains="مصرف")
+            ).order_by("code")
+
+        try:
+            return (
+                ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                .filter(
+                    models.Q(is_bank_account=True)
+                    | models.Q(account_type__code__iexact="bank")
+                    | models.Q(account_type__name__icontains="بنك")
+                    | models.Q(account_type__name__icontains="مصرف")
                 )
-            except Exception:
-                pass
-        return ChartOfAccounts.objects.none()
+                .order_by("code")
+            )
+        except Exception:
+            return ChartOfAccounts.objects.none()
 
     @staticmethod
-    def get_cash_and_bank_accounts():
+    def get_cash_and_bank_accounts(user=None, action: str = "any"):
         """الحصول على جميع الحسابات النقدية والبنكية المفعلة والنهائية"""
-        cash_qs = AccountHelperService.get_cash_accounts()
-        bank_qs = AccountHelperService.get_bank_accounts()
+        cash_qs = AccountHelperService.get_cash_accounts(user=user, action=action)
+        bank_qs = AccountHelperService.get_bank_accounts(user=user, action=action)
         if NEW_SYSTEM_AVAILABLE:
             try:
                 return (
                     ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
                     .filter(
-                        models.Q(id__in=cash_qs.values_list('id', flat=True))
-                        | models.Q(id__in=bank_qs.values_list('id', flat=True))
+                        models.Q(id__in=cash_qs.values_list("id", flat=True))
+                        | models.Q(id__in=bank_qs.values_list("id", flat=True))
                     )
                     .order_by("code")
                 )
@@ -100,19 +140,19 @@ class AccountHelperService:
         return ChartOfAccounts.objects.none()
 
     @staticmethod
-    def get_expense_and_settlement_accounts():
+    def get_expense_and_settlement_accounts(user=None):
         """الحصول على الحسابات المتاحة لسداد وتسوية المصروفات والمشتريات (خزائن + بنوك + عهد)"""
-        cash_qs = AccountHelperService.get_cash_accounts()
-        bank_qs = AccountHelperService.get_bank_accounts()
-        custody_qs = AccountHelperService.get_custody_accounts()
+        cash_qs = AccountHelperService.get_cash_accounts(user=user, action="disburse")
+        bank_qs = AccountHelperService.get_bank_accounts(user=user, action="disburse")
+        custody_qs = AccountHelperService.get_custody_accounts(user=user)
         if NEW_SYSTEM_AVAILABLE:
             try:
                 return (
                     ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
                     .filter(
-                        models.Q(id__in=cash_qs.values_list('id', flat=True))
-                        | models.Q(id__in=bank_qs.values_list('id', flat=True))
-                        | models.Q(id__in=custody_qs.values_list('id', flat=True))
+                        models.Q(id__in=cash_qs.values_list("id", flat=True))
+                        | models.Q(id__in=bank_qs.values_list("id", flat=True))
+                        | models.Q(id__in=custody_qs.values_list("id", flat=True))
                     )
                     .order_by("code")
                 )
@@ -157,10 +197,16 @@ class AccountHelperService:
         return None
 
     @staticmethod
-    def get_default_cash_account():
-        """الحصول على الحساب النقدي الافتراضي بسلسلة سقوط احترافي Fallback"""
+    def get_default_cash_account(user=None, action: str = "deposit"):
+        """الحصول على الحساب النقدي الافتراضي للمستخدم أو للنظام بسلسلة سقوط احترافي Fallback"""
         if not NEW_SYSTEM_AVAILABLE:
             return None
+
+        if user is not None:
+            from financial.services.treasury_security_service import TreasurySecurityService
+            def_trsy = TreasurySecurityService.get_user_default_treasury(user, action=action)
+            if def_trsy:
+                return def_trsy
 
         # 1. محاولة جلب الحساب المربوط بديناميكية الأدوار
         try:

@@ -207,6 +207,12 @@ def dashboard(request):
     # ترتيب حسب الوقت
     recent_activities = sorted(recent_activities, key=lambda x: x['time'], reverse=True)[:5]
 
+    try:
+        from financial.services.treasury_security_service import TreasurySecurityService
+        treasury_balances = TreasurySecurityService.get_user_visible_treasury_balances(request.user)
+    except Exception:
+        treasury_balances = {"total_cash": 0, "total_bank": 0, "total_liquidity": 0, "count": 0}
+
     context = {
         # إحصائيات أساسية
         "suppliers_count": suppliers_count,
@@ -232,6 +238,9 @@ def dashboard(request):
         "supplier_invoices_headers": supplier_invoices_headers,
         "supplier_invoices_data": supplier_invoices_data,
         
+        # إحصائيات السيولة والخزن المرئية للمستخدم فقط
+        "treasury_balances": treasury_balances,
+
         # آخر العمليات
         "recent_activities": recent_activities,
     }

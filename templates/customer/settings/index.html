@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Unified Settings Card Container -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <!-- Navigation Tabs -->
+      <ul class="nav nav-tabs border-bottom mb-4" id="customerSettingsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-bold {% if active_tab == 'tiers' %}active{% endif %}" id="tiers-tab" data-bs-toggle="tab" data-bs-target="#tiersTabPane" type="button" role="tab" aria-controls="tiersTabPane" aria-selected="{% if active_tab == 'tiers' %}true{% else %}false{% endif %}">
+            <i class="fas fa-layer-group me-2 text-primary"></i>{% trans "الشرائح والتصنيفات التجارية" %}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-bold {% if active_tab == 'payment_terms' %}active{% endif %}" id="payment-terms-tab" data-bs-toggle="tab" data-bs-target="#paymentTermsTabPane" type="button" role="tab" aria-controls="paymentTermsTabPane" aria-selected="{% if active_tab == 'payment_terms' %}true{% else %}false{% endif %}">
+            <i class="fas fa-calendar-alt me-2 text-info"></i>{% trans "شروط السداد والائتمان" %}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-bold {% if active_tab == 'credit_policy' %}active{% endif %}" id="credit-policy-tab" data-bs-toggle="tab" data-bs-target="#creditPolicyTabPane" type="button" role="tab" aria-controls="creditPolicyTabPane" aria-selected="{% if active_tab == 'credit_policy' %}true{% else %}false{% endif %}">
+            <i class="fas fa-shield-alt me-2 text-danger"></i>{% trans "سياسات الترقيم والرقابة العامة" %}
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tabs Content -->
+      <div class="tab-content" id="customerSettingsTabContent">
+        <!-- Tab 1: الشرائح التجارية -->
+        <div class="tab-pane fade {% if active_tab == 'tiers' %}show active{% endif %}" id="tiersTabPane" role="tabpanel" aria-labelledby="tiers-tab">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="text-muted mb-0 small">
+              <i class="fas fa-info-circle me-1"></i>
+              {% trans "تسمح الشرائح بتطبيق تلقائي لقوائم الأسعار، نسب الخصومات، شروط السداد والحدود الائتمانية للعملاء." %}
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewTier">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة شريحة تجارية" %}
+            </button>
+          </div>
+          <div id="tiersTableContainer">
+            {% include "customer/settings/tiers/list_partial.html" %}
+          </div>
+        </div>
+
+        <!-- Tab 2: شروط السداد -->
+        <div class="tab-pane fade {% if active_tab == 'payment_terms' %}show active{% endif %}" id="paymentTermsTabPane" role="tabpanel" aria-labelledby="payment-terms-tab">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <p class="text-muted mb-0 small">
+              <i class="fas fa-info-circle me-1"></i>
+              {% trans "شروط السداد تحدد آجال الاستحقاق والدفعات المقدمة وخصومات السداد المبكر للفواتير وعروض الأسعار." %}
+            </p>
+            <button type="button" class="btn btn-primary btn-sm" id="btnNewPaymentTerm">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة شرط سداد" %}
+            </button>
+          </div>
+          <div id="paymentTermsTableContainer">
+            {% include "customer/settings/payment_terms/list_partial.html" %}
+          </div>
+        </div>
+
+        <!-- Tab 3: سياسة الرقابة والائتمان والترقيم -->
+        <div class="tab-pane fade {% if active_tab == 'credit_policy' %}show active{% endif %}" id="creditPolicyTabPane" role="tabpanel" aria-labelledby="credit-policy-tab">
+          {% include "customer/settings/credit_policy/form_partial.html" %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+{% include "customer/settings/tiers/form_modal.html" %}
+{% include "customer/settings/tiers/delete_modal.html" %}
+{% include "customer/settings/payment_terms/form_modal.html" %}
+{% include "customer/settings/payment_terms/delete_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  // Bootstrap Modals Instances
+  const tierModal = new bootstrap.Modal(document.getElementById('tierModal'));
+  const deleteTierModal = new bootstrap.Modal(document.getElementById('deleteTierModal'));
+  const termModal = new bootstrap.Modal(document.getElementById('paymentTermModal'));
+  const deleteTermModal = new bootstrap.Modal(document.getElementById('deletePaymentTermModal'));
+
+  // Sync active tab to URL
+  $('#customerSettingsTabs button').on('shown.bs.tab', function(e) {
+    const target = $(e.target).attr('data-bs-target');
+    let tabParam = 'tiers';
+    if (target === '#paymentTermsTabPane') tabParam = 'payment_terms';
+    else if (target === '#creditPolicyTabPane') tabParam = 'credit_policy';
+    
+    const newUrl = window.location.pathname + '?tab=' + tabParam;
+    window.history.replaceState({ path: newUrl }, '', newUrl);
+  });
+
+  // ===================== Tiers Logic =====================
+  $('#btnNewTier').on('click', function() {
+    $('#tierForm')[0].reset();
+    $('#tierForm').attr('action', "{% url 'customer:tier_create' %}");
+    $('#tierModalTitleText').text("{% trans 'إضافة شريحة تجارية' %}");
+    $('#tierFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+    $('#id_tier_is_active').prop('checked', true);
+    tierModal.show();
+  });
+
+  $(document).on('click', '.edit-tier-btn', function() {
+    const editUrl = $(this).data('url');
+    $('#tierFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+
+    $.get(editUrl, function(res) {
+      if (res.success && res.data) {
+        const d = res.data;
+        $('#id_tier_name').val(d.name);
+        $('#id_tier_code').val(d.code);
+        $('#id_tier_display_order').val(d.display_order);
+        $('#id_tier_description').val(d.description);
+        $('#id_tier_default_price_list').val(d.default_price_list || '');
+        $('#id_tier_discount_percentage').val(d.discount_percentage);
+        $('#id_tier_default_payment_term').val(d.default_payment_term || '');
+        $('#id_tier_default_credit_limit').val(d.default_credit_limit);
+        $('#id_tier_default_risk_category').val(d.default_risk_category);
+        $('#id_tier_is_active').prop('checked', d.is_active);
+
+        $('#tierForm').attr('action', editUrl);
+        $('#tierModalTitleText').text("{% trans 'تعديل الشريحة التجارية' %}");
+        tierModal.show();
+      }
+    });
+  });
+
+  $('#tierForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSaveTier');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $('.is-invalid').removeClass('is-invalid');
+    $('#tierFormAlert').addClass('d-none');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        if (res.success) {
+          tierModal.hide();
+          if (window.showToastr) {
+            window.showToastr(res.message, 'success');
+          } else if (window.showNotification) {
+            window.showNotification(res.message, 'success');
+          }
+          setTimeout(function() {
+            location.reload();
+          }, 3100);
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ الشريحة');
+        const res = xhr.responseJSON;
+        if (res && res.errors) {
+          $.each(res.errors, function(field, errList) {
+            const input = $('#id_tier_' + field);
+            input.addClass('is-invalid');
+            $('#error_' + field).text(errList.join(', '));
+          });
+        } else {
+          $('#tierFormAlert').removeClass('d-none').text((res && res.message) ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}");
+        }
+      }
+    });
+  });
+
+  $(document).on('click', '.delete-tier-btn', function() {
+    const deleteUrl = $(this).data('url');
+    const tierName = $(this).data('tier-name');
+    $('#deleteTierName').text(tierName);
+    $('#deleteTierForm').attr('action', deleteUrl);
+    deleteTierModal.show();
+  });
+
+  $(document).on('change', '.tier-status-toggle', function() {
+    const checkbox = $(this);
+    const url = checkbox.data('url');
+    $.ajax({
+      url: url,
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      success: function(res) {
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        }
+      },
+      error: function() {
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        if (window.showToastr) {
+          window.showToastr("{% trans 'تعذر تغيير حالة الشريحة' %}", 'error');
+        }
+      }
+    });
+  });
+
+  // ===================== Payment Terms Logic =====================
+  $('#btnNewPaymentTerm').on('click', function() {
+    $('#paymentTermForm')[0].reset();
+    $('#paymentTermForm').attr('action', "{% url 'customer:payment_term_create' %}");
+    $('#paymentTermModalTitleText').text("{% trans 'إضافة شرط سداد' %}");
+    $('#paymentTermFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+    $('#id_term_is_active').prop('checked', true);
+    termModal.show();
+  });
+
+  $(document).on('click', '.edit-term-btn', function() {
+    const editUrl = $(this).data('url');
+    $('#paymentTermFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+
+    $.get(editUrl, function(res) {
+      if (res.success && res.data) {
+        const d = res.data;
+        $('#id_term_name').val(d.name);
+        $('#id_term_days').val(d.days);
+        $('#id_term_description').val(d.description);
+        $('#id_term_advance_percentage').val(d.advance_percentage);
+        $('#id_term_discount_percentage').val(d.discount_percentage);
+        $('#id_term_discount_days').val(d.discount_days);
+        $('#id_term_is_default').prop('checked', d.is_default);
+        $('#id_term_is_active').prop('checked', d.is_active);
+
+        $('#paymentTermForm').attr('action', editUrl);
+        $('#paymentTermModalTitleText').text("{% trans 'تعديل شرط السداد' %}");
+        termModal.show();
+      }
+    });
+  });
+
+  $('#paymentTermForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSavePaymentTerm');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $('.is-invalid').removeClass('is-invalid');
+    $('#paymentTermFormAlert').addClass('d-none');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        if (res.success) {
+          termModal.hide();
+          if (window.showToastr) {
+            window.showToastr(res.message, 'success');
+          } else if (window.showNotification) {
+            window.showNotification(res.message, 'success');
+          }
+          setTimeout(function() {
+            location.reload();
+          }, 3100);
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ شرط السداد');
+        const res = xhr.responseJSON;
+        if (res && res.errors) {
+          $.each(res.errors, function(field, errList) {
+            const input = $('#id_term_' + field);
+            input.addClass('is-invalid');
+            $('#error_term_' + field).text(errList.join(', '));
+          });
+        } else {
+          $('#paymentTermFormAlert').removeClass('d-none').text((res && res.message) ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}");
+        }
+      }
+    });
+  });
+
+  $(document).on('click', '.delete-term-btn', function() {
+    const deleteUrl = $(this).data('url');
+    const termName = $(this).data('term-name');
+    $('#deletePaymentTermName').text(termName);
+    $('#deletePaymentTermForm').attr('action', deleteUrl);
+    deleteTermModal.show();
+  });
+
+  $(document).on('change', '.payment-term-status-toggle', function() {
+    const checkbox = $(this);
+    const url = checkbox.data('url');
+    $.ajax({
+      url: url,
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      success: function(res) {
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        }
+      },
+      error: function() {
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        if (window.showToastr) {
+          window.showToastr("{% trans 'تعذر تغيير حالة الشرط' %}", 'error');
+        }
+      }
+    });
+  });
+
+  // ===================== General Settings Logic =====================
+  function updateCodePreview() {
+    const prefix = $('#id_code_prefix').val() || 'CUST-';
+    const digits = parseInt($('#id_code_digits').val()) || 4;
+    const sampleNumber = '1'.padStart(digits, '0');
+    $('#codePreview').text(prefix + sampleNumber);
+  }
+
+  $('#id_code_prefix, #id_code_digits').on('input change', updateCodePreview);
+  updateCodePreview();
+
+  $('#generalSettingsForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSaveGeneralSettings');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ إعدادات وسياسات العملاء');
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        } else if (window.showNotification) {
+          window.showNotification(res.message, 'success');
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ إعدادات وسياسات العملاء');
+        const res = xhr.responseJSON;
+        if (window.showToastr) {
+          window.showToastr((res && res.message) ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}", 'error');
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

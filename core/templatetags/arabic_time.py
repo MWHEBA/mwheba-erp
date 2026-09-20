@@ -9,6 +9,37 @@ register = template.Library()
 
 
 @register.filter
+def arabic_time(value):
+    """
+    تنسيق الوقت بالعربية مع تحويل ص/م
+    استخدام: {{ time_value|arabic_time }}
+    """
+    if not value:
+        return ""
+    try:
+        if isinstance(value, str):
+            parts = value.strip().split(':')
+            if len(parts) >= 2:
+                hour = int(parts[0])
+                minute = int(parts[1])
+            else:
+                return value
+        elif hasattr(value, 'hour') and hasattr(value, 'minute'):
+            hour = value.hour
+            minute = value.minute
+        else:
+            return str(value)
+
+        period = "ص" if hour < 12 else "م"
+        display_hour = hour % 12
+        if display_hour == 0:
+            display_hour = 12
+        return f"{display_hour:02d}:{minute:02d} {period}"
+    except Exception:
+        return str(value)
+
+
+@register.filter
 def arabic_timesince(value):
     """
     تحويل الوقت إلى صيغة عربية (منذ كم)

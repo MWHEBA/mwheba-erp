@@ -1,54 +1,42 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load crispy_forms_tags %}
 {% load custom_filters %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <style>
-/* تصميم صفحة الملف الشخصي */
-.profile-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    overflow: hidden;
-}
-
-.profile-avatar-section {
-    text-align: center;
-    padding: 2rem;
-    background: #f8f9fa;
-}
-
-.profile-avatar-container {
+/* تنسيق الصورة الشخصية والبطاقة الجانبية */
+.profile-avatar-wrapper {
     position: relative;
-    display: inline-block;
-    cursor: pointer;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
 }
 
-.profile-avatar {
-    width: 150px;
-    height: 150px;
+.profile-avatar-img {
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    border: 5px solid white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 4px solid var(--bs-white, #ffffff);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     object-fit: cover;
+    background-color: var(--bs-light, #f8f9fa);
 }
 
 .profile-avatar-placeholder {
-    width: 150px;
-    height: 150px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    border: 5px solid white;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    background: var(--primary-color);
-    color: white;
+    border: 4px solid var(--bs-white, #ffffff);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background-color: var(--primary-color, #0d6efd);
+    color: var(--bs-white, #ffffff);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 4rem;
+    font-size: 3.5rem;
 }
 
 .profile-avatar-overlay {
@@ -57,7 +45,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.45);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -66,89 +54,78 @@
     transition: opacity 0.2s ease;
 }
 
-.profile-avatar-container:hover .profile-avatar-overlay {
+.profile-avatar-wrapper:hover .profile-avatar-overlay {
     opacity: 1;
 }
 
 .avatar-action-btn {
-    background: white;
+    background: var(--bs-white, #ffffff);
     border: none;
-    width: 45px;
-    height: 45px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.avatar-action-btn:hover {
+    transform: scale(1.08);
 }
 
 .avatar-delete-btn {
-    color: #dc3545;
+    color: var(--bs-danger, #dc3545);
 }
 
 .avatar-delete-btn:hover {
-    background: #dc3545;
-    color: white;
+    background: var(--bs-danger, #dc3545);
+    color: var(--bs-white, #ffffff);
 }
 
 .avatar-upload-btn {
-    color: var(--primary-color);
+    color: var(--primary-color, #0d6efd);
 }
 
 .avatar-upload-btn:hover {
-    background: var(--primary-color);
-    color: white;
+    background: var(--primary-color, #0d6efd);
+    color: var(--bs-white, #ffffff);
 }
 
-.profile-info-item {
-    padding: 1rem;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background-color 0.2s ease;
+.profile-info-row {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color, #e9ecef);
 }
 
-.profile-info-item:last-child {
+.profile-info-row:last-child {
     border-bottom: none;
 }
 
-.profile-info-item:hover {
-    background-color: #f8f9fa;
-}
-
-.profile-info-item i {
-    width: 30px;
+.profile-info-row i {
+    width: 24px;
     text-align: center;
-}
-
-/* section-title و form-section موجودين في components.css */
-
-.action-buttons {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    padding-top: 1.5rem;
-    border-top: 2px solid #f0f0f0;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
-    
-    <div class="row">
-        <!-- الشريط الجانبي - معلومات المستخدم -->
-        <div class="col-lg-4 mb-4">
-            <div class="profile-card">
-                <div class="profile-avatar-section">
-                    <div class="profile-avatar-container">
+
+    <div class="row g-4">
+        <!-- الشريط الجانبي: كارت بيانات المستخدم والحساب -->
+        <div class="col-lg-4">
+            <div class="section-container mb-4">
+                <div class="text-center pt-3 pb-3 border-bottom">
+                    <div class="profile-avatar-wrapper mb-3">
                         {% if user.profile_image %}
-                            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="profile-avatar" id="profileAvatarImg">
+                            <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name|default:user.username }}" class="profile-avatar-img" id="profileAvatarImg">
                             <div class="profile-avatar-overlay">
-                                <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="حذف الصورة">
+                                <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="{% trans 'حذف الصورة' %}">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
@@ -157,603 +134,477 @@
                                 <i class="fas fa-user"></i>
                             </div>
                             <div class="profile-avatar-overlay">
-                                <button type="button" class="avatar-action-btn avatar-upload-btn" id="uploadAvatarBtn" title="رفع صورة">
+                                <button type="button" class="avatar-action-btn avatar-upload-btn" id="uploadAvatarBtn" title="{% trans 'رفع صورة شخصية' %}">
                                     <i class="fas fa-camera"></i>
                                 </button>
                             </div>
                         {% endif %}
                     </div>
-                    
-                    <h4 class="mt-3 mb-1">{{ user.get_full_name }}</h4>
-                    {% if user.role %}
-                    <div class="mb-2">
-                        {% if user.role.name == 'admin' %}
-                            <span class="badge bg-danger px-3 py-2">
-                                <i class="fas fa-shield-alt me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'financial_manager' %}
+
+                    <h5 class="fw-bold text-dark mb-1">{{ user.get_full_name|default:user.username }}</h5>
+                    <p class="text-muted small mb-2" dir="ltr">@{{ user.username }}</p>
+
+                    <div class="d-flex justify-content-center gap-2 flex-wrap mb-2">
+                        {% if user.role %}
                             <span class="badge bg-primary px-3 py-2">
-                                <i class="fas fa-calculator me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'accountant' %}
-                            <span class="badge bg-info text-dark px-3 py-2">
-                                <i class="fas fa-file-invoice-dollar me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'sales_manager' %}
-                            <span class="badge bg-success px-3 py-2">
-                                <i class="fas fa-chart-line me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'sales_rep' %}
-                            <span class="badge bg-success px-3 py-2">
-                                <i class="fas fa-user-tag me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'procurement_officer' %}
-                            <span class="badge bg-warning text-dark px-3 py-2">
-                                <i class="fas fa-shopping-cart me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'inventory_manager' %}
-                            <span class="badge bg-warning text-dark px-3 py-2">
-                                <i class="fas fa-warehouse me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'production_supervisor' %}
-                            <span class="badge bg-secondary px-3 py-2">
-                                <i class="fas fa-cogs me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'hr_officer' %}
-                            <span class="badge bg-info px-3 py-2">
-                                <i class="fas fa-users-cog me-1"></i>{{ user.role.display_name }}
-                            </span>
-                        {% elif user.role.name == 'viewer' %}
-                            <span class="badge bg-light text-dark border px-3 py-2">
-                                <i class="fas fa-eye me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-user-shield me-1"></i>{{ user.role.display_name }}
                             </span>
                         {% else %}
                             <span class="badge bg-secondary px-3 py-2">
-                                <i class="fas fa-user me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-user-tag me-1"></i>{% trans "بدون دور مخصص" %}
+                            </span>
+                        {% endif %}
+
+                        {% if user.is_active %}
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="fas fa-check-circle me-1"></i>{% trans "نشط" %}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger px-3 py-2">
+                                <i class="fas fa-ban me-1"></i>{% trans "معطل" %}
                             </span>
                         {% endif %}
                     </div>
-                    {% else %}
-                    <p class="text-muted mb-2">
-                        <span class="badge bg-secondary px-3 py-2">
-                            <i class="fas fa-user-slash me-1"></i>لا يوجد دور محدد
-                        </span>
-                    </p>
-                    {% endif %}
-                    
-                    <span class="badge bg-{{ user.status|yesno:'success,danger' }} px-3 py-2">
-                        <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>
-                        {{ user.get_status_display }}
-                    </span>
                 </div>
-                
+
                 <div class="p-0">
-                    <div class="profile-info-item">
+                    <div class="profile-info-row d-flex align-items-center">
                         <i class="fas fa-envelope text-primary me-2"></i>
-                        <strong>البريد الإلكتروني:</strong>
-                        <div class="mt-1 text-muted">{{ user.email }}</div>
-                    </div>
-                    
-                    {% if user.phone %}
-                    <div class="profile-info-item">
-                        <i class="fas fa-phone text-success me-2"></i>
-                        <strong>الهاتف:</strong>
-                        <div class="mt-1 text-muted">{{ user.phone|format_phone }}</div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if user.address %}
-                    <div class="profile-info-item">
-                        <i class="fas fa-map-marker-alt text-danger me-2"></i>
-                        <strong>العنوان:</strong>
-                        <div class="mt-1 text-muted">{{ user.address }}</div>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="profile-info-item">
-                        <i class="fas fa-calendar text-info me-2"></i>
-                        <strong>تاريخ الانضمام:</strong>
-                        <div class="mt-1 text-muted">{{ user.date_joined|date:"d F Y" }}</div>
-                    </div>
-                    
-                    <div class="profile-info-item">
-                        <i class="fas fa-clock text-warning me-2"></i>
-                        <strong>آخر دخول:</strong>
-                        <div class="mt-1 text-muted">
-                            {% if user.last_login %}
-                                {{ user.last_login|date:"d F Y - H:i" }}
-                            {% else %}
-                                لم يسجل دخول من قبل
-                            {% endif %}
+                        <div class="flex-grow-1">
+                            <div class="small text-muted">{% trans "البريد الإلكتروني" %}</div>
+                            <div class="fw-semibold text-dark text-truncate" dir="ltr">{{ user.email|default:"-" }}</div>
                         </div>
                     </div>
-                    
+
+                    <div class="profile-info-row d-flex align-items-center">
+                        <i class="fas fa-phone text-success me-2"></i>
+                        <div class="flex-grow-1">
+                            <div class="small text-muted">{% trans "رقم الهاتف" %}</div>
+                            <div class="fw-semibold text-dark" dir="ltr">{{ user.phone|default:"-" }}</div>
+                        </div>
+                    </div>
+
+                    {% if user.address %}
+                    <div class="profile-info-row d-flex align-items-start">
+                        <i class="fas fa-map-marker-alt text-danger me-2 mt-1"></i>
+                        <div class="flex-grow-1">
+                            <div class="small text-muted">{% trans "العنوان" %}</div>
+                            <div class="fw-semibold text-dark">{{ user.address }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="profile-info-row d-flex align-items-center">
+                        <i class="fas fa-calendar-alt text-info me-2"></i>
+                        <div class="flex-grow-1">
+                            <div class="small text-muted">{% trans "تاريخ الانضمام" %}</div>
+                            <div class="fw-semibold text-dark">{{ user.date_joined|date:"d F Y" }}</div>
+                        </div>
+                    </div>
+
+                    <div class="profile-info-row d-flex align-items-center">
+                        <i class="fas fa-history text-warning me-2"></i>
+                        <div class="flex-grow-1">
+                            <div class="small text-muted">{% trans "آخر تسجيل دخول" %}</div>
+                            <div class="fw-semibold text-dark">
+                                {% if user.last_login %}
+                                    {{ user.last_login|date:"d F Y - H:i" }}
+                                {% else %}
+                                    {% trans "لم يسجل دخول من قبل" %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
                     {% if user.role %}
-                    <div class="profile-info-item">
-                        <i class="fas fa-shield-alt text-success me-2"></i>
-                        <strong>تفاصيل الدور:</strong>
-                        <div class="mt-2">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-muted">عدد الصلاحيات:</span>
-                                <span class="badge bg-success">{{ user.role.permissions.count }} صلاحية</span>
-                            </div>
-                            {% if user.role.description %}
-                            <div class="mt-2">
-                                <small class="text-muted">{{ user.role.description }}</small>
-                            </div>
-                            {% endif %}
+                    <div class="profile-info-row">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted">
+                                <i class="fas fa-key text-secondary me-1"></i>{% trans "صلاحيات الدور" %}
+                            </span>
+                            <span class="badge bg-light text-dark border">{{ user.role.permissions.count }} {% trans "صلاحية" %}</span>
                         </div>
                     </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        
-        <!-- المحتوى الرئيسي - نموذج التعديل -->
+
+        <!-- المحتوى الرئيسي: نموذج تعديل البيانات الشخصية -->
         <div class="col-lg-8">
-            <!-- رسائل النظام -->
-            {% if messages %}
-            <div class="mb-3">
-                {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-check-circle me-2"></i>
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            
-            <form method="post" enctype="multipart/form-data">
+            <form method="post" enctype="multipart/form-data" id="profileForm">
                 {% csrf_token %}
-                
+
                 <!-- قسم المعلومات الأساسية -->
-                <div class="form-section">
-                    <h5 class="section-title">
-                        <i class="fas fa-user me-2"></i>
-                        المعلومات الأساسية
-                    </h5>
-                    
-                    <div class="row mb-3">
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-user-edit me-2"></i>{% trans "المعلومات الأساسية" %}</h5>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label small text-muted">{% trans "اسم المستخدم" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-at text-muted"></i></span>
+                                <input type="text" class="form-control bg-light border-start-0 text-muted" value="{{ user.username }}" readonly dir="ltr">
+                            </div>
+                            <small class="text-muted"><i class="fas fa-lock me-1"></i>{% trans "اسم المستخدم غير قابل للتعديل لسلامة سجلات التدقيق." %}</small>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="id_first_name" class="form-label small text-muted">{% trans "الاسم الأول" %} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                                <input type="text" name="first_name" id="id_first_name" class="form-control border-start-0" 
+                                       value="{{ form.first_name.value|default:'' }}" required placeholder="{% trans 'الاسم الأول' %}">
+                            </div>
+                            {% if form.first_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="id_last_name" class="form-label small text-muted">{% trans "الاسم الأخير" %} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                                <input type="text" name="last_name" id="id_last_name" class="form-control border-start-0" 
+                                       value="{{ form.last_name.value|default:'' }}" required placeholder="{% trans 'الاسم الأخير' %}">
+                            </div>
+                            {% if form.last_name.errors %}
+                                <div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- قسم معلومات الاتصال والعنوان -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-address-book me-2"></i>{% trans "معلومات الاتصال" %}</h5>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="id_email" class="form-label small text-muted">{% trans "البريد الإلكتروني" %} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-envelope text-muted"></i></span>
+                                <input type="email" name="email" id="id_email" class="form-control border-start-0" 
+                                       value="{{ form.email.value|default:'' }}" required dir="ltr" placeholder="user@example.com">
+                            </div>
+                            {% if form.email.errors %}
+                                <div class="text-danger small mt-1">{{ form.email.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="id_phone" class="form-label small text-muted">{% trans "رقم الهاتف" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-end-0"><i class="fas fa-phone text-muted"></i></span>
+                                <input type="tel" name="phone" id="id_phone" class="form-control border-start-0" 
+                                       value="{{ form.phone.value|default:'' }}" dir="ltr" placeholder="010XXXXXXXX / +20...">
+                            </div>
+                            {% if form.phone.errors %}
+                                <div class="text-danger small mt-1">{{ form.phone.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
                         <div class="col-12">
-                            <label class="form-label text-dark">اسم المستخدم</label>
-                            <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly>
-                            <small class="text-muted">اسم المستخدم غير قابل للتغيير.</small>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            {{ form.first_name|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.last_name|as_crispy_field }}
+                            <label for="id_address" class="form-label small text-muted">{% trans "العنوان" %}</label>
+                            <textarea name="address" id="id_address" class="form-control" rows="3" placeholder="{% trans 'العنوان الشخصي أو مكان الإقامة...' %}">{{ form.address.value|default:'' }}</textarea>
+                            {% if form.address.errors %}
+                                <div class="text-danger small mt-1">{{ form.address.errors.0 }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                
-                <!-- قسم معلومات الاتصال -->
-                <div class="form-section">
-                    <h5 class="section-title">
-                        <i class="fas fa-address-book me-2"></i>
-                        معلومات الاتصال
-                    </h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            {{ form.email|as_crispy_field }}
-                        </div>
-                        <div class="col-md-6">
-                            {{ form.phone|as_crispy_field }}
-                        </div>
-                    </div>
-                    
-                    <div class="mb-0">
-                        {{ form.address|as_crispy_field }}
-                    </div>
+
+                <!-- حقل الصورة المخفي لرفعها تلقائياً -->
+                <div class="d-none">
+                    <input type="file" name="profile_image" id="id_profile_image" accept="image/*">
                 </div>
-                
-                <!-- حقل الصورة مخفي -->
-                <div style="display: none;">
-                    {{ form.profile_image }}
-                </div>
-                
-                <!-- أزرار الإجراءات -->
-                <div class="form-section">
-                    <div class="action-buttons">
-                        {% if request.user.is_admin or request.user.is_superuser %}
-                        <a href="{% url 'users:permissions_dashboard' %}?tab=users&user_id={{ user.id }}" class="btn btn-outline-info btn-lg">
-                            <i class="fas fa-user-shield me-2"></i>
-                            إدارة الصلاحيات
-                        </a>
-                        {% endif %}
-                        <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                            <i class="fas fa-key me-2"></i>
-                            تغيير كلمة المرور
-                        </button>
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="fas fa-save me-2"></i>
-                            حفظ التغييرات
-                        </button>
-                    </div>
+
+                <!-- شريط أزرار الإجراءات -->
+                <div class="d-flex justify-content-end gap-2 mb-4">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                        <i class="fas fa-key me-2"></i>{% trans "تغيير كلمة المرور" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-save me-2"></i>{% trans "حفظ التغييرات" %}
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- Modal تغيير كلمة المرور -->
+<!-- Modal تغيير كلمة المرور الموحد وفق Rule 8 -->
 <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header text-white" style="background-color: var(--primary-color);">
-                <h5 class="modal-title" id="changePasswordModalLabel">
-                    <i class="fas fa-key me-2"></i>
-                    تغيير كلمة المرور
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="changePasswordModalLabel">
+                    <i class="fas fa-key text-primary me-2"></i>
+                    {% trans "تغيير كلمة المرور" %}
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post" action="{% url 'users:change_password_ajax' %}" id="changePasswordForm">
                 {% csrf_token %}
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>ملاحظة:</strong> يجب أن تحتوي كلمة المرور الجديدة على 8 أحرف على الأقل ولا تكون شائعة جداً.
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 shadow-xs mb-3 small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "يجب ألا تقل كلمة المرور الجديدة عن 8 أحرف وألا تكون مطابقة لبياناتك الشخصية." %}
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="old_password" class="form-label">
-                            <i class="fas fa-lock me-1"></i>
-                            كلمة المرور الحالية
+                        <label for="old_password" class="form-label fw-bold small text-dark">
+                            {% trans "كلمة المرور الحالية" %} <span class="text-danger">*</span>
                         </label>
-                        <input type="password" class="form-control" id="old_password" name="old_password" 
-                               required autocomplete="current-password">
-                        <div class="invalid-feedback">
-                            يرجى إدخال كلمة المرور الحالية
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="old_password" name="old_password" 
+                                   required autocomplete="current-password" placeholder="{% trans 'أدخل كلمة المرور الحالية...' %}">
+                            <button class="btn btn-outline-secondary toggle-pass-btn" type="button" data-target="old_password" title="إظهار / إخفاء">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="new_password1" class="form-label">
-                            <i class="fas fa-key me-1"></i>
-                            كلمة المرور الجديدة
+                        <label for="new_password1" class="form-label fw-bold small text-dark">
+                            {% trans "كلمة المرور الجديدة" %} <span class="text-danger">*</span>
                         </label>
-                        <input type="password" class="form-control" id="new_password1" name="new_password1" 
-                               required autocomplete="new-password">
-                        <div class="invalid-feedback">
-                            يرجى إدخال كلمة المرور الجديدة
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="new_password1" name="new_password1" 
+                                   required minlength="8" autocomplete="new-password" placeholder="{% trans '8 خانات على الأقل...' %}">
+                            <button class="btn btn-outline-secondary toggle-pass-btn" type="button" data-target="new_password1" title="إظهار / إخفاء">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="new_password2" class="form-label">
-                            <i class="fas fa-check-circle me-1"></i>
-                            تأكيد كلمة المرور الجديدة
+                        <label for="new_password2" class="form-label fw-bold small text-dark">
+                            {% trans "تأكيد كلمة المرور الجديدة" %} <span class="text-danger">*</span>
                         </label>
-                        <input type="password" class="form-control" id="new_password2" name="new_password2" 
-                               required autocomplete="new-password">
-                        <div class="invalid-feedback">
-                            يرجى تأكيد كلمة المرور الجديدة
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="new_password2" name="new_password2" 
+                                   required minlength="8" autocomplete="new-password" placeholder="{% trans 'أعد إدخال كلمة المرور الجديدة...' %}">
+                            <button class="btn btn-outline-secondary toggle-pass-btn" type="button" data-target="new_password2" title="إظهار / إخفاء">
+                                <i class="fas fa-eye"></i>
+                            </button>
                         </div>
                     </div>
-                    
-                    <div id="passwordErrors" class="alert alert-danger d-none">
-                        <!-- سيتم عرض الأخطاء هنا -->
-                    </div>
+
+                    <div id="passwordErrors" class="alert alert-danger border-0 small d-none mb-0"></div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>
-                        إلغاء
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
                     </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i>
-                        حفظ كلمة المرور
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="changePasswordSubmitBtn">
+                        <i class="fas fa-save me-2"></i>{% trans "تحديث كلمة المرور" %}
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// وظيفة رفع الصورة
-const uploadBtn = document.getElementById('uploadAvatarBtn');
-const deleteBtn = document.getElementById('deleteAvatarBtn');
-const fileInput = document.getElementById('{{ form.profile_image.id_for_label }}');
-
-// عند الضغط على زر الرفع
-if (uploadBtn) {
-    uploadBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        fileInput.click();
-    });
-}
-
-// عند اختيار ملف - رفع تلقائي
-if (fileInput) {
-    fileInput.addEventListener('change', function(e) {
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
-            
-            // عرض مؤشر التحميل
-            Swal.fire({
-                title: 'جاري رفع الصورة...',
-                html: '<div class="spinner-border text-primary" role="status"></div>',
-                showConfirmButton: false,
-                allowOutsideClick: false,
-                customClass: {
-                    popup: 'swal2-rtl'
-                }
-            });
-            
-            // إنشاء FormData لرفع الصورة
-            const formData = new FormData();
-            formData.append('profile_image', file);
-            formData.append('action', 'upload');
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-            
-            // رفع الصورة عبر AJAX
-            fetch('{% url "users:update_profile_image" %}', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // تحديث الصورة في الواجهة
-                    const container = document.querySelector('.profile-avatar-container');
-                    container.innerHTML = `
-                        <img src="${data.image_url}" alt="صورة جديدة" class="profile-avatar" id="profileAvatarImg">
-                        <div class="profile-avatar-overlay">
-                            <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="حذف الصورة">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                    `;
-                    
-                    // إعادة تفعيل زر الحذف
-                    setupDeleteButton();
-                    
-                    // عرض رسالة نجاح
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'تم بنجاح!',
-                        text: data.message,
-                        timer: 2000,
-                        showConfirmButton: false,
-                        customClass: {
-                            popup: 'swal2-rtl'
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'خطأ!',
-                        text: data.message,
-                        confirmButtonText: 'حسناً',
-                        customClass: {
-                            popup: 'swal2-rtl'
-                        }
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'خطأ!',
-                    text: 'حدث خطأ أثناء رفع الصورة',
-                    confirmButtonText: 'حسناً',
-                    customClass: {
-                        popup: 'swal2-rtl'
-                    }
-                });
-            });
+// تبديل إظهار / إخفاء كلمات المرور في المودال
+document.querySelectorAll('#changePasswordModal .toggle-pass-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        const icon = this.querySelector('i');
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+            if (icon) icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            if (icon) icon.className = 'fas fa-eye';
         }
     });
-}
+});
 
-// وظيفة حذف الصورة
-function setupDeleteButton() {
-    const deleteBtn = document.getElementById('deleteAvatarBtn');
-    if (deleteBtn) {
-        deleteBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            Swal.fire({
-                title: 'تأكيد الحذف',
-                text: 'هل أنت متأكد من حذف الصورة الشخصية؟',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'نعم، احذف',
-                cancelButtonText: 'إلغاء',
-                reverseButtons: true,
-                customClass: {
-                    popup: 'swal2-rtl',
-                    confirmButton: 'btn btn-danger me-2',
-                    cancelButton: 'btn btn-secondary'
-                },
-                buttonsStyling: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // عرض مؤشر التحميل
-                    Swal.fire({
-                        title: 'جاري حذف الصورة...',
-                        html: '<div class="spinner-border text-danger" role="status"></div>',
-                        showConfirmButton: false,
-                        allowOutsideClick: false,
-                        customClass: {
-                            popup: 'swal2-rtl'
-                        }
-                    });
-                    
-                    // حذف الصورة عبر AJAX
-                    const formData = new FormData();
-                    formData.append('action', 'delete');
-                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-                    
-                    fetch('{% url "users:update_profile_image" %}', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // تغيير العرض إلى placeholder
-                            const container = document.querySelector('.profile-avatar-container');
-                            container.innerHTML = `
-                                <div class="profile-avatar-placeholder" id="profileAvatarPlaceholder">
-                                    <i class="fas fa-user"></i>
-                                </div>
-                                <div class="profile-avatar-overlay">
-                                    <button type="button" class="avatar-action-btn avatar-upload-btn" id="uploadAvatarBtn" title="رفع صورة">
-                                        <i class="fas fa-camera"></i>
-                                    </button>
-                                </div>
-                            `;
-                            
-                            // إعادة تفعيل زر الرفع
-                            setupUploadButton();
-                            
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'تم بنجاح!',
-                                text: data.message,
-                                timer: 2000,
-                                showConfirmButton: false,
-                                customClass: {
-                                    popup: 'swal2-rtl'
-                                }
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'خطأ!',
-                                text: data.message,
-                                confirmButtonText: 'حسناً',
-                                customClass: {
-                                    popup: 'swal2-rtl'
-                                }
-                            });
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'خطأ!',
-                            text: 'حدث خطأ أثناء حذف الصورة',
-                            confirmButtonText: 'حسناً',
-                            customClass: {
-                                popup: 'swal2-rtl'
-                            }
-                        });
-                    });
-                }
-            });
-        });
-    }
-}
+// رفع وحذف الصورة الشخصية تلقائياً
+const fileInput = document.getElementById('id_profile_image');
 
-function setupUploadButton() {
+function initAvatarUpload() {
     const uploadBtn = document.getElementById('uploadAvatarBtn');
-    if (uploadBtn) {
+    if (uploadBtn && fileInput) {
         uploadBtn.addEventListener('click', function(e) {
             e.preventDefault();
             fileInput.click();
         });
     }
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                const formData = new FormData();
+                formData.append('profile_image', file);
+                formData.append('action', 'upload');
+                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+                toastr.info('جاري رفع الصورة الشخصية...');
+
+                fetch('{% url "users:update_profile_image" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const wrapper = document.querySelector('.profile-avatar-wrapper');
+                        wrapper.innerHTML = `
+                            <img src="${data.image_url}" alt="Profile Avatar" class="profile-avatar-img" id="profileAvatarImg">
+                            <div class="profile-avatar-overlay">
+                                <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="حذف الصورة">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        `;
+                        initAvatarDelete();
+                        toastr.success(data.message || 'تم تحديث الصورة الشخصية بنجاح');
+                    } else {
+                        toastr.error(data.message || 'حدث خطأ أثناء رفع الصورة');
+                    }
+                })
+                .catch(() => toastr.error('حدث خطأ في الاتصال أثناء رفع الصورة'));
+            }
+        });
+    }
 }
 
-// تفعيل زر الحذف عند تحميل الصفحة
-setupDeleteButton();
-</script>
-<script>
+function initAvatarDelete() {
+    const deleteBtn = document.getElementById('deleteAvatarBtn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+
+            Swal.fire({
+                title: 'تأكيد حذف الصورة',
+                text: 'هل أنت متأكد من رغبتك في حذف الصورة الشخصية؟',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: 'var(--bs-danger, #dc3545)',
+                cancelButtonColor: 'var(--bs-secondary, #6c757d)',
+                confirmButtonText: 'نعم، احذف',
+                cancelButtonText: 'إلغاء'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('action', 'delete');
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+                    fetch('{% url "users:update_profile_image" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const wrapper = document.querySelector('.profile-avatar-wrapper');
+                            wrapper.innerHTML = `
+                                <div class="profile-avatar-placeholder" id="profileAvatarPlaceholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div class="profile-avatar-overlay">
+                                    <button type="button" class="avatar-action-btn avatar-upload-btn" id="uploadAvatarBtn" title="رفع صورة شخصية">
+                                        <i class="fas fa-camera"></i>
+                                    </button>
+                                </div>
+                            `;
+                            initAvatarUpload();
+                            toastr.success(data.message || 'تم حذف الصورة بنجاح');
+                        } else {
+                            toastr.error(data.message || 'تعذر حذف الصورة');
+                        }
+                    })
+                    .catch(() => toastr.error('حدث خطأ أثناء حذف الصورة'));
+                }
+            });
+        });
+    }
+}
+
+// تهيئة أزرار الصورة
+initAvatarUpload();
+initAvatarDelete();
+
+// معالج تغيير كلمة المرور عبر AJAX
 $(document).ready(function() {
-    // معالج إرسال نموذج تغيير كلمة المرور
     $('#changePasswordForm').on('submit', function(e) {
         e.preventDefault();
-        
+
         const form = $(this);
-        const submitBtn = form.find('button[type="submit"]');
-        const originalBtnText = submitBtn.html();
-        
-        // إخفاء الأخطاء السابقة
+        const submitBtn = $('#changePasswordSubmitBtn');
+        const p1 = $('#new_password1').val();
+        const p2 = $('#new_password2').val();
+
+        if (p1 !== p2) {
+            toastr.error('كلمتا المرور الجديدتان غير متطابقتين');
+            $('#new_password2').focus();
+            return;
+        }
+
+        if (p1.length < 8) {
+            toastr.warning('يجب ألا تقل كلمة المرور الجديدة عن 8 خانات');
+            $('#new_password1').focus();
+            return;
+        }
+
         $('#passwordErrors').addClass('d-none').html('');
-        form.find('.is-invalid').removeClass('is-invalid');
-        
-        // تعطيل الزر وإظهار مؤشر التحميل
-        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
-        
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
+
         $.ajax({
             url: form.attr('action'),
             type: 'POST',
             data: form.serialize(),
             dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    // إغلاق المودال
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(res) {
+                if (res.success) {
                     $('#changePasswordModal').modal('hide');
-                    
-                    // إعادة تعيين النموذج
                     form[0].reset();
-                    
-                    // عرض رسالة نجاح
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'تم بنجاح!',
-                        text: response.message || 'تم تغيير كلمة المرور بنجاح',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        customClass: {
-                            popup: 'swal2-rtl'
-                        }
-                    });
+                    toastr.success(res.message || 'تم تغيير كلمة المرور بنجاح');
                 }
             },
             error: function(xhr) {
-                let errorMessage = '';
-                
+                let errorHtml = '';
                 try {
-                    const response = JSON.parse(xhr.responseText);
-                    
-                    
-                    if (response.errors && Array.isArray(response.errors)) {
-                        errorMessage = '<ul class="mb-0">';
-                        response.errors.forEach(function(error) {
-                            errorMessage += '<li>' + error + '</li>';
-                        });
-                        errorMessage += '</ul>';
-                    } else if (response.message) {
-                        errorMessage = response.message;
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.errors && Array.isArray(res.errors)) {
+                        errorHtml = '<ul class="mb-0 ps-3">' + res.errors.map(err => `<li>${err}</li>`).join('') + '</ul>';
+                    } else if (res.message) {
+                        errorHtml = res.message;
                     } else {
-                        errorMessage = 'حدث خطأ أثناء تغيير كلمة المرور';
+                        errorHtml = 'حدث خطأ أثناء تغيير كلمة المرور، يرجى المحاولة مرة أخرى.';
                     }
-                } catch (e) {
-                    console.error('Parse error:', e);
-                    errorMessage = 'حدث خطأ في الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
+                } catch (err) {
+                    errorHtml = 'حدث خطأ في الاتصال بالخادم، يرجى المحاولة لاحقاً.';
                 }
-                
-                // عرض الأخطاء
-                $('#passwordErrors').removeClass('d-none').html(errorMessage);
+                $('#passwordErrors').removeClass('d-none').html(errorHtml);
             },
             complete: function() {
-                // إعادة تفعيل الزر
-                submitBtn.prop('disabled', false).html(originalBtnText);
+                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-2"></i>تحديث كلمة المرور');
             }
         });
     });
-    
-    // إعادة تعيين النموذج عند إغلاق المودال
+
     $('#changePasswordModal').on('hidden.bs.modal', function() {
         $('#changePasswordForm')[0].reset();
         $('#passwordErrors').addClass('d-none').html('');
-        $(this).find('.is-invalid').removeClass('is-invalid');
+        document.querySelectorAll('#changePasswordModal input[type="text"]').forEach(input => {
+            if (input.id.includes('password')) input.type = 'password';
+        });
+        document.querySelectorAll('#changePasswordModal .toggle-pass-btn i').forEach(icon => {
+            icon.className = 'fas fa-eye';
+        });
     });
 });
 </script>
-{% endblock %} 
+{% endblock %}

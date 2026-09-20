@@ -513,6 +513,365 @@ class UserManagementService(TransactionalService):
                 logger.error(f"Error searching users: {e}")
                 return []
 
+    @staticmethod
+    def invalidate_user_sessions(user_id: int):
+        """
+        إنهاء وحذف كافة الجلسات النشطة للمستخدم فوراً من قاعدة البيانات
+        """
+        try:
+            from django.contrib.sessions.models import Session
+            now = timezone.now()
+            for session in Session.objects.filter(expire_date__gte=now):
+                try:
+                    data = session.get_decoded()
+                    if str(data.get('_auth_user_id')) == str(user_id):
+                        session.delete()
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.warning(f"Could not invalidate user sessions for user {user_id}: {e}")
+
+    @staticmethod
+    def can_delete_user(user: User, current_user=None) -> tuple[bool, list[dict], str]:
+        """
+        فحص استباقي شامل لشروط حذف المستخدم:
+        1. منع حذف الحساب الحالي.
+        2. منع حذف مدير النظام الرئيسي (superuser).
+        3. منع حذف المستخدم إذا كان نشطاً (يجب تعطيله وأرشفته أولاً).
+        4. منع حذف المستخدم إذا كان مربوطاً بملف موظف HR.
+        5. فحص شامل لكافة المعاملات والعمليات في كافة موديولات النظام.
+        """
+        if current_user and user.pk == current_user.pk:
+            return False, [], "لا يمكنك حذف حسابك الخاص المسجل به حالياً!"
+
+        if user.is_superuser:
+            return False, [], "لا يمكن حذف مدير النظام الرئيسي لأسباب أمنية وتشغيلية!"
+
+        if user.is_active:
+            return False, [], "لا يمكن حذف المستخدم لأنه ما زال في حالة 'نشط'. يجب تعطيل الحساب أولاً ونقله إلى الأرشيف قبل محاولة الحذف."
+
+        operations_summary = []
+
+        # 1. فحص ملف الموظف في الموارد البشرية
+        try:
+            from hr.models import Employee
+            if Employee.objects.filter(user=user).exists():
+                operations_summary.append({
+                    'label': 'ملف وظيفي وسجلات بالموارد البشرية',
+                    'count': 1,
+                    'icon': 'fas fa-id-card'
+                })
+        except Exception:
+            pass
+
+        # 2. فحص المبيعات والعملاء وعروض الأسعار
+        try:
+            from sale.models import Sale, SalesOrder, Quotation, CreditNote
+            sales_count = Sale.objects.filter(Q(created_by=user) | Q(sales_person=user)).count()
+            if sales_count > 0:
+                operations_summary.append({'label': 'فواتير ومبيعات', 'count': sales_count, 'icon': 'fas fa-file-invoice-dollar'})
+
+            orders_count = SalesOrder.objects.filter(created_by=user).count()
+            if orders_count > 0:
+                operations_summary.append({'label': 'أوامر بيع', 'count': orders_count, 'icon': 'fas fa-shopping-cart'})
+
+            quotations_count = Quotation.objects.filter(created_by=user).count()
+            if quotations_count > 0:
+                operations_summary.append({'label': 'عروض أسعار', 'count': quotations_count, 'icon': 'fas fa-file-alt'})
+
+            credit_notes_count = CreditNote.objects.filter(created_by=user).count()
+            if credit_notes_count > 0:
+                operations_summary.append({'label': 'إشعارات دائنة', 'count': credit_notes_count, 'icon': 'fas fa-undo'})
+        except Exception:
+            pass
+
+        # فحص إسناد مندوب مبيعات للعملاء
+        try:
+            from customer.models import Customer
+            assigned_customers = Customer.objects.filter(sales_rep=user).count()
+            if assigned_customers > 0:
+                operations_summary.append({'label': 'عملاء مسندين كمندوب مبيعات', 'count': assigned_customers, 'icon': 'fas fa-users'})
+        except Exception:
+            pass
+
+        # 3. فحص المشتريات والموردين
+        try:
+            from purchase.models import Purchase, PurchaseOrder, SupplierBill, PurchaseReturn, PurchasePayment
+            purchases_count = Purchase.objects.filter(created_by=user).count()
+            if purchases_count > 0:
+                operations_summary.append({'label': 'فواتير مشتريات', 'count': purchases_count, 'icon': 'fas fa-shopping-bag'})
+
+            po_count = PurchaseOrder.objects.filter(Q(created_by=user) | Q(approved_by=user)).count()
+            if po_count > 0:
+                operations_summary.append({'label': 'أوامر شراء', 'count': po_count, 'icon': 'fas fa-truck-loading'})
+
+            bills_count = SupplierBill.objects.filter(created_by=user).count()
+            if bills_count > 0:
+                operations_summary.append({'label': 'فواتير موردين', 'count': bills_count, 'icon': 'fas fa-receipt'})
+
+            returns_count = PurchaseReturn.objects.filter(created_by=user).count()
+            if returns_count > 0:
+                operations_summary.append({'label': 'مرتجعات مشتريات', 'count': returns_count, 'icon': 'fas fa-reply'})
+
+            payments_count = PurchasePayment.objects.filter(Q(created_by=user) | Q(posted_by=user)).count()
+            if payments_count > 0:
+                operations_summary.append({'label': 'مدفوعات موردين', 'count': payments_count, 'icon': 'fas fa-money-check-alt'})
+        except Exception:
+            pass
+
+        # 4. فحص المحاسبة والمالية والموافقات
+        try:
+            from financial.models import JournalEntry, FinancialTransaction, OpeningBalanceBatch, FXRevaluationRun
+            je_count = JournalEntry.objects.filter(Q(created_by=user) | Q(posted_by=user) | Q(locked_by=user)).count()
+            if je_count > 0:
+                operations_summary.append({'label': 'قيود يومية محاسبية', 'count': je_count, 'icon': 'fas fa-calculator'})
+
+            ft_count = FinancialTransaction.objects.filter(Q(created_by=user) | Q(approved_by=user)).count()
+            if ft_count > 0:
+                operations_summary.append({'label': 'معاملات وسندات مالية', 'count': ft_count, 'icon': 'fas fa-money-bill-wave'})
+
+            ob_count = OpeningBalanceBatch.objects.filter(Q(created_by=user) | Q(approved_by=user) | Q(posted_by=user)).count()
+            if ob_count > 0:
+                operations_summary.append({'label': 'دفعات أرصدة افتتاحية', 'count': ob_count, 'icon': 'fas fa-balance-scale'})
+
+            fx_count = FXRevaluationRun.objects.filter(created_by=user).count()
+            if fx_count > 0:
+                operations_summary.append({'label': 'جلسات إعادة تقييم عملات', 'count': fx_count, 'icon': 'fas fa-coins'})
+        except Exception:
+            pass
+
+        # فحص سلاسل الموافقات المؤسسية
+        try:
+            from financial.models.approval import EnterpriseApprovalStep, EnterpriseApprovalRequest
+            steps_count = EnterpriseApprovalStep.objects.filter(action_by=user).count()
+            if steps_count > 0:
+                operations_summary.append({'label': 'خطوات وسجلات موافقات مالية', 'count': steps_count, 'icon': 'fas fa-check-double'})
+
+            reqs_count = EnterpriseApprovalRequest.objects.filter(Q(requested_by=user) | Q(approved_by=user)).count()
+            if reqs_count > 0:
+                operations_summary.append({'label': 'طلبات موافقات مؤسسية', 'count': reqs_count, 'icon': 'fas fa-clipboard-check'})
+        except Exception:
+            pass
+
+        # 5. فحص المخازن والإنتاج وتسعير الطباعة (Rule 4: مصطلحات المخازن الموحدة)
+        try:
+            from product.models import StockMovement, StockTransfer, InventoryAdjustment
+            sm_count = StockMovement.objects.filter(created_by=user).count()
+            if sm_count > 0:
+                operations_summary.append({'label': 'حركات مخزنية', 'count': sm_count, 'icon': 'fas fa-boxes'})
+
+            st_count = StockTransfer.objects.filter(created_by=user).count()
+            if st_count > 0:
+                operations_summary.append({'label': 'تحويلات مخزنية', 'count': st_count, 'icon': 'fas fa-dolly'})
+
+            ia_count = InventoryAdjustment.objects.filter(created_by=user).count()
+            if ia_count > 0:
+                operations_summary.append({'label': 'تسويات مخزنية', 'count': ia_count, 'icon': 'fas fa-clipboard-list'})
+        except Exception:
+            pass
+
+        try:
+            from work_order.models import WorkOrder
+            wo_count = WorkOrder.objects.filter(created_by=user).count()
+            if wo_count > 0:
+                operations_summary.append({'label': 'أوامر تشغيل وشغل', 'count': wo_count, 'icon': 'fas fa-industry'})
+        except Exception:
+            pass
+
+        try:
+            from printing_pricing.models import PrintingOrder
+            ppo_count = PrintingOrder.objects.filter(Q(created_by=user) | Q(sales_rep=user)).count()
+            if ppo_count > 0:
+                operations_summary.append({'label': 'طلبات تسعير طباعة', 'count': ppo_count, 'icon': 'fas fa-print'})
+        except Exception:
+            pass
+
+        # 6. فحص سجلات النشاطات المنفذة بواسطة هذا المستخدم
+        try:
+            from users.models import ActivityLog
+            al_count = ActivityLog.objects.filter(user=user).count()
+            if al_count > 0:
+                operations_summary.append({'label': 'سجلات نشاطات وتدقيق في النظام', 'count': al_count, 'icon': 'fas fa-history'})
+        except Exception:
+            pass
+
+        # 7. فحص ملف الموظف في HR
+        try:
+            if hasattr(user, 'employee_profile') and user.employee_profile:
+                emp = user.employee_profile
+                operations_summary.append({
+                    'label': f'ملف موظف في الموارد البشرية ({emp.name} - {emp.employee_number})',
+                    'count': 1,
+                    'icon': 'fas fa-id-card'
+                })
+        except Exception:
+            pass
+
+        # 8. فحص تلقائي لأي جداول مرتبطة متبقية
+        excluded_relations = {
+            'users_with_custom_permissions', 'users_with_revoked_permissions',
+            'secondary_roles', 'groups', 'user_permissions', 'logentry'
+        }
+        total_operations = sum(item['count'] for item in operations_summary)
+
+        if total_operations == 0:
+            for rel in user._meta.related_objects:
+                accessor_name = rel.get_accessor_name()
+                if accessor_name in excluded_relations:
+                    continue
+                try:
+                    rel_manager = getattr(user, accessor_name, None)
+                    if rel_manager is not None and hasattr(rel_manager, 'count'):
+                        c = rel_manager.count()
+                        if c > 0:
+                            verbose_name = getattr(rel.related_model._meta, 'verbose_name_plural', rel.related_model.__name__)
+                            operations_summary.append({
+                                'label': f'سجلات {verbose_name}',
+                                'count': c,
+                                'icon': 'fas fa-database'
+                            })
+                            total_operations += c
+                except Exception:
+                    pass
+
+        if total_operations > 0:
+            ops_details = "، ".join([f"{item['label']} ({item['count']})" for item in operations_summary[:3]])
+            if len(operations_summary) > 3:
+                ops_details += f" وغيرها ({len(operations_summary) - 3} أنواع أخرى)"
+            user_display = user.get_full_name() or user.username
+            msg = f"لا يمكن حذف المستخدم '{user_display}' نهائياً لوجود {total_operations} عملية وسجل مرتبط به في النظام ({ops_details}). يمكنك الإبقاء عليه معطلاً في الأرشيف لحفظ سجلات التدقيق."
+            return False, operations_summary, msg
+
+        return True, [], ""
+
+    @staticmethod
+    @transaction.atomic
+    def delete_user(user: User, current_user=None) -> dict:
+        """
+        حذف نهائي آمن للمستخدم بعد التحقق من شروط الحذف الصارمة
+        """
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+        can_del, summary, error_msg = UserManagementService.can_delete_user(locked_user, current_user=current_user)
+        if not can_del:
+            return {
+                'success': False,
+                'message': error_msg,
+                'operations_summary': summary
+            }
+
+        user_name = locked_user.get_full_name() or locked_user.username
+        user_id = locked_user.id
+
+        # تنظيف الجلسات وكاش الصلاحيات
+        UserManagementService.invalidate_user_sessions(user_id)
+        PermissionCacheService.invalidate_user_cache(user_id)
+
+        # حذف نهائي عبر force=True لتخطي فحص النموذج بعد اجتياز فحص السيرفيس
+        locked_user.delete(force=True)
+        logger.info(f"✅ تم حذف المستخدم {user_name} (ID: {user_id}) نهائياً بنجاح لعدم وجود أي عمليات مرتبطة به")
+
+        return {
+            'success': True,
+            'message': f"تم حذف المستخدم '{user_name}' نهائياً بنجاح لعدم وجود أي عمليات مرتبطة به."
+        }
+
+    @staticmethod
+    @transaction.atomic
+    def toggle_user_status(user: User, current_user=None, target_active: Optional[bool] = None) -> dict:
+        """
+        التبديل بين تفعيل الحساب أو تعطيله وأرشفته فورياً
+        مع حماية آخر مدير نشط، وإنهاء الجلسات اللحظي، ومزامنة الحالات
+        """
+        locked_user = User.objects.select_for_update().get(pk=user.pk)
+
+        if target_active is None:
+            new_active = not locked_user.is_active
+        else:
+            new_active = bool(target_active)
+
+        user_name = locked_user.get_full_name() or locked_user.username
+
+        if not new_active:
+            # 1. منع تعطيل الحساب الشخصي
+            if current_user and locked_user.pk == current_user.pk:
+                return {
+                    'success': False,
+                    'message': "لا يمكنك تعطيل حسابك الخاص المسجل به حالياً!"
+                }
+
+            # 2. قفل أمان آخر مدير نشط في النظام
+            if locked_user.is_superuser:
+                active_superusers = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=locked_user.pk).count()
+                if active_superusers == 0:
+                    return {
+                        'success': False,
+                        'message': "لا يمكن تعطيل مدير النظام الرئيسي لأنه المدير النشط الوحيد المتبقي في النظام!"
+                    }
+
+            if locked_user.role and locked_user.role.name == 'admin':
+                active_admins = User.objects.filter(role__name='admin', is_active=True).exclude(pk=locked_user.pk).count()
+                active_superusers = User.objects.filter(is_superuser=True, is_active=True).exclude(pk=locked_user.pk).count()
+                if active_admins == 0 and active_superusers == 0:
+                    return {
+                        'success': False,
+                        'message': "لا يمكن تعطيل هذا المستخدم لأنه المشرف الإداري النشط الوحيد المتبقي في النظام!"
+                    }
+
+        # تحديث الحالة والمزامنة
+        locked_user.is_active = new_active
+        locked_user.status = "active" if new_active else "inactive"
+        locked_user.save(update_fields=['is_active', 'status'])
+
+        # مزامنة حالة ملف الموظف في HR إن وجد مع تفادي التكرار والـ ValidationError
+        try:
+            if hasattr(locked_user, 'employee_profile') and locked_user.employee_profile:
+                emp = locked_user.employee_profile
+                if not new_active and emp.status == 'active':
+                    emp.status = 'suspended'
+                    emp.save(update_fields=['status'])
+                elif new_active and emp.status == 'suspended':
+                    emp.status = 'active'
+                    emp.save(update_fields=['status'])
+        except Exception as emp_err:
+            logger.warning(f"Could not sync employee status for user {locked_user.id}: {emp_err}")
+
+        # مسح كاش الصلاحيات
+        PermissionCacheService.invalidate_user_cache(locked_user.id)
+
+        # إنهاء الجلسات اللحظي عند التعطيل
+        if not new_active:
+            UserManagementService.invalidate_user_sessions(locked_user.id)
+
+        # تسجيل الحركة في ActivityLog
+        try:
+            from users.models import ActivityLog
+            action_title = "تفعيل المستخدم" if new_active else "تعطيل وأرشفة المستخدم"
+            ActivityLog.objects.create(
+                user=current_user if current_user and current_user.is_authenticated else locked_user,
+                action=action_title,
+                model_name='User',
+                object_id=locked_user.id,
+                extra_data={
+                    'user_name': user_name,
+                    'is_active': new_active,
+                    'status': locked_user.status,
+                    'details': f"{action_title}: {user_name}"
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Could not log user toggle action: {e}")
+
+        action_text = "تفعيل" if new_active else "تعطيل"
+        dest_text = "واستعادته من الأرشيف" if new_active else "ونقله إلى الأرشيف"
+
+        return {
+            'success': True,
+            'is_active': new_active,
+            'action': 'activated' if new_active else 'archived',
+            'message': f"تم {action_text} المستخدم '{user_name}' {dest_text} بنجاح."
+        }
+
+
 
 class BulkUserManagementService(BulkOperationService):
     """

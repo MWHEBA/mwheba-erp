@@ -100,6 +100,17 @@
                     <span class="info-value expense-amount">{{ expense_amount|currency }}</span>
                 </div>
                 
+                {% if journal_entry.work_order %}
+                <div class="info-item">
+                    <span class="info-label">أمر الشغل المرتبط:</span>
+                    <span class="info-value">
+                        <a href="{% url 'work_order:work_order_detail' journal_entry.work_order.pk %}" class="badge bg-primary text-decoration-none">
+                            <i class="fas fa-hammer me-1"></i>#{{ journal_entry.work_order.number }}
+                        </a>
+                    </span>
+                </div>
+                {% endif %}
+
                 {% if journal_entry.notes %}
                 <div class="info-item">
                     <span class="info-label">ملاحظات:</span>

@@ -67,7 +67,7 @@
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            {% include "components/payment_account_select.html" with field_name="payment_account" field_id="payment_account" label="حساب الدفع" required=True %}
+                            {% include "components/payment_account_select.html" with field_name="payment_account" field_id="payment_account" label="حساب الدفع" required=True action_type="disburse" %}
                         </div>
                         
                         <div class="mb-3">

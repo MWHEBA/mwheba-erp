@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="stats-card">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-primary text-white">
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "إجمالي شروط السداد" %}</div>
+            <div class="stats-card-value">{{ stats.terms_total|default:"0" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-success text-white">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "الشروط النشطة" %}</div>
+            <div class="stats-card-value">{{ stats.terms_active|default:"0" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-info text-white">
+            <i class="fas fa-star"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "الشرط الافتراضي" %}</div>
+            <div class="stats-card-value" style="font-size: 1.1rem;">
+              {{ default_term.name|default:"غير محدد" }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-calendar-alt me-2"></i>{% trans "قائمة شروط السداد" %}</h5>
+      <button type="button" class="btn btn-primary btn-sm" id="btnNewPaymentTerm">
+        <i class="fas fa-plus me-1"></i>{% trans "إضافة شرط سداد" %}
+      </button>
+    </div>
+
+    <div id="paymentTermsTableContainer">
+      {% include "customer/settings/payment_terms/list_partial.html" %}
+    </div>
+  </div>
+</div>
+
+{% include "customer/settings/payment_terms/form_modal.html" %}
+{% include "customer/settings/payment_terms/delete_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  const termModal = new bootstrap.Modal(document.getElementById('paymentTermModal'));
+  const deleteTermModal = new bootstrap.Modal(document.getElementById('deletePaymentTermModal'));
+
+  // Open Create Modal
+  $('#btnNewPaymentTerm, .btn-new-term').on('click', function() {
+    $('#paymentTermForm')[0].reset();
+    $('#paymentTermForm').attr('action', "{% url 'customer:payment_term_create' %}");
+    $('#paymentTermModalTitleText').text("{% trans 'إضافة شرط سداد' %}");
+    $('#paymentTermFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+    termModal.show();
+  });
+
+  // Open Edit Modal
+  $(document).on('click', '.edit-term-btn', function() {
+    const editUrl = $(this).data('url');
+    $('#paymentTermFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+
+    $.get(editUrl, function(res) {
+      if (res.success && res.data) {
+        const d = res.data;
+        $('#id_term_name').val(d.name);
+        $('#id_term_days').val(d.days);
+        $('#id_term_description').val(d.description);
+        $('#id_term_advance_percentage').val(d.advance_percentage);
+        $('#id_term_discount_percentage').val(d.discount_percentage);
+        $('#id_term_discount_days').val(d.discount_days);
+        $('#id_term_is_default').prop('checked', d.is_default);
+        $('#id_term_is_active').prop('checked', d.is_active);
+
+        $('#paymentTermForm').attr('action', editUrl);
+        $('#paymentTermModalTitleText').text("{% trans 'تعديل شرط السداد' %}");
+        termModal.show();
+      }
+    });
+  });
+
+  // Submit Form (AJAX)
+  $('#paymentTermForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSavePaymentTerm');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $('.is-invalid').removeClass('is-invalid');
+    $('#paymentTermFormAlert').addClass('d-none');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        if (res.success) {
+          termModal.hide();
+          if (window.showToastr) {
+            window.showToastr(res.message, 'success');
+          } else if (window.showNotification) {
+            window.showNotification(res.message, 'success');
+          }
+          setTimeout(function() {
+            location.reload();
+          }, 3100);
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ شرط السداد');
+        const res = xhr.responseJSON;
+        if (res && res.errors) {
+          $.each(res.errors, function(field, errList) {
+            const input = $('#id_term_' + field);
+            input.addClass('is-invalid');
+            $('#error_term_' + field).text(errList.join(', '));
+          });
+        } else {
+          $('#paymentTermFormAlert').removeClass('d-none').text(res && res.message ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}");
+        }
+      }
+    });
+  });
+
+  // Delete Modal
+  $(document).on('click', '.delete-term-btn', function() {
+    const deleteUrl = $(this).data('url');
+    const termName = $(this).data('term-name');
+    $('#deletePaymentTermName').text(termName);
+    $('#deletePaymentTermForm').attr('action', deleteUrl);
+    deleteTermModal.show();
+  });
+
+  // Toggle status
+  $(document).on('change', '.payment-term-status-toggle', function() {
+    const checkbox = $(this);
+    const url = checkbox.data('url');
+    $.ajax({
+      url: url,
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      success: function(res) {
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        }
+      },
+      error: function() {
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        if (window.showToastr) {
+          window.showToastr("{% trans 'تعذر تغيير حالة الشرط' %}", 'error');
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

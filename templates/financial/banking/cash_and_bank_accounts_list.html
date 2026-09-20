@@ -137,12 +137,16 @@
         <div class="row">
             {% for account in accounts %}
                 <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
-                    <a href="{% url 'financial:cash_account_movements' account.id %}" class="card cash-account-card h-100 text-reset text-decoration-none" style="display: block;">
-                        <div class="card-body">
+                    <div class="card cash-account-card h-100 border shadow-sm">
+                        <div class="card-body clickable-card cursor-pointer" data-href="{% url 'financial:cash_account_movements' account.id %}">
                             <!-- رأس الكرت -->
                             <div class="account-header">
                                 <div class="flex-grow-1">
-                                    <h5 class="account-title">{{ account.name }}</h5>
+                                    <h5 class="account-title mb-1">
+                                        <a href="{% url 'financial:cash_account_movements' account.id %}" class="text-reset text-decoration-none fw-bold">
+                                            {{ account.name }}
+                                        </a>
+                                    </h5>
                                     <span class="account-code">{{ account.code }}</span>
                                 </div>
                                 
@@ -163,6 +167,37 @@
                                     {% endif %}
                                     <span class="badge bg-secondary border" style="font-size: 0.75rem;">{{ account.currency_symbol }}</span>
                                 </div>
+                            </div>
+
+                            <!-- شارات الصلاحيات والإسناد الحوكمي -->
+                            <div class="d-flex flex-wrap align-items-center gap-1 my-2">
+                                {% if request.user.is_superuser %}
+                                    <span class="badge bg-light text-primary border" title="كامل الصلاحيات كمسؤول نظام">
+                                        <i class="fas fa-crown me-1 text-warning"></i>كامل الصلاحيات
+                                    </span>
+                                {% elif account.user_access %}
+                                    {% if account.user_access.can_deposit %}
+                                        <span class="badge bg-light text-success border" title="صلاحية الإيداع والقبض">
+                                            <i class="fas fa-arrow-down me-1 text-success"></i>إيداع
+                                        </span>
+                                    {% endif %}
+                                    {% if account.user_access.can_disburse %}
+                                        <span class="badge bg-light text-warning border" title="صلاحية الصرف والسداد">
+                                            <i class="fas fa-arrow-up me-1 text-warning"></i>صرف
+                                        </span>
+                                    {% endif %}
+                                    {% if account.user_access.is_default %}
+                                        <span class="badge bg-light text-primary border" title="خزينة افتراضية للعملة">
+                                            <i class="fas fa-star me-1 text-warning"></i>افتراضية
+                                        </span>
+                                    {% endif %}
+                                {% endif %}
+
+                                {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
+                                    <span class="badge bg-light text-muted border ms-auto" title="عدد المستخدمين المفوضين بهذه الخزينة">
+                                        <i class="fas fa-users-cog me-1 text-info"></i>{{ account.assigned_users_count }} مفوض
+                                    </span>
+                                {% endif %}
                             </div>
                             
                             <!-- عرض الرصيد المزدوج -->
@@ -208,7 +243,24 @@
                             </div>
                             
                         </div>
-                    </a>
+
+                        <!-- أزرار الإجراءات السريعة على كل كرت متوافقة مع الحوكمة -->
+                        <div class="card-footer bg-light border-top py-2 px-3 d-flex justify-content-between align-items-center">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'financial:cash_account_movements' account.id %}" class="btn btn-outline-secondary btn-sm" title="عرض حركات الخزينة">
+                                    <i class="fas fa-history me-1"></i>الحركات
+                                </a>
+                                <a href="{% url 'financial:cash_account_edit' account.id %}" class="btn btn-outline-primary btn-sm" title="تعديل بيانات الخزينة">
+                                    <i class="fas fa-edit me-1"></i>تعديل
+                                </a>
+                            </div>
+                            {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
+                                <a href="{% url 'financial:treasury_assignments_list' %}?treasury={{ account.id }}" class="btn btn-outline-info btn-sm fw-bold" title="إدارة إسناد هذه الخزينة للمستخدمين">
+                                    <i class="fas fa-user-shield me-1"></i>إسناد
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             {% endfor %}
         </div>
@@ -488,6 +540,16 @@ function openTransferModal() {
 }
 
 $(document).ready(function() {
+    // التنقل عند النقر على كرت الخزينة مع استثناء الروابط والأزرار
+    $(document).on('click', '.clickable-card', function(e) {
+        if (!$(e.target).closest('a, button, input, select, label').length) {
+            var href = $(this).data('href');
+            if (href) {
+                window.location.href = href;
+            }
+        }
+    });
+
     // تعيين تاريخ اليوم تلقائياً
     var today = new Date().toISOString().split('T')[0];
     $('#transfer_date').val(today);

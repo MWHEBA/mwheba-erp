@@ -1,0 +1,18 @@
+{% load i18n %}
+{% if object.employee_profile %}
+    {% with emp=object.employee_profile %}
+        {% if perms.hr.view_employee or request.user.is_superuser or request.user.is_admin %}
+            <a href="{% url 'hr:employee_detail' pk=emp.pk %}" class="text-decoration-none fw-bold" title="{% trans 'عرض الملف الوظيفي للموظف' %}">
+                <span class="badge bg-light text-primary border">
+                    <i class="fas fa-id-badge me-1"></i>{{ emp.name }} [{{ emp.employee_number }}]
+                </span>
+            </a>
+        {% else %}
+            <span class="badge bg-light text-dark border">
+                <i class="fas fa-id-badge text-muted me-1"></i>{{ emp.name }} [{{ emp.employee_number }}]
+            </span>
+        {% endif %}
+    {% endwith %}
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

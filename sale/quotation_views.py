@@ -1103,6 +1103,7 @@ def quotation_convert_to_sale(request, pk):
                 'currency_id': quotation.currency_id if hasattr(quotation, 'currency_id') and quotation.currency_id else None,
                 'exchange_rate': current_rate,
                 'payment_method': 'credit',  # آجل كافتراضي
+                'work_order_id': quotation.work_order_id if hasattr(quotation, 'work_order_id') and quotation.work_order_id else None,
                 'custom_fields': SaleService.smart_merge_custom_fields('sale', quotation.custom_fields),
                 'items': []
             }

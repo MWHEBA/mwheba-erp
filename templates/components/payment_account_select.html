@@ -1,7 +1,7 @@
 {% comment %}
 Component: Payment Account Select
 مكون موحد لاختيار حساب الدفع (الخزينة/البنك/الرصيد المسبق)
-مع إظهار العملة بجانب كل حساب
+مع دعم الحوكمة والسرية التامة ونوع العملية (إيداع/صرف)
 {% endcomment %}
 {% load utils_extras %}
 
@@ -19,45 +19,134 @@ Component: Payment Account Select
     <option value="">{{ empty_option_text|default:"اختر الحساب / طريقة الدفع" }}</option>
     {% endif %}
     
-    {% if cash_payment_accounts %}
-    <optgroup label="الخزن النقدية">
-        {% for account in cash_payment_accounts %}
-        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency_code|default:'EGP' }}"
-            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency_rate|default:'1.000000' }}"
-            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
-            {% if value_type == 'id' %}
-                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
-            {% else %}
-                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+    {% if action_type == 'deposit' %}
+        {% with active_cash=cash_deposit_accounts|default:cash_payment_accounts active_bank=bank_deposit_accounts|default:bank_payment_accounts %}
+            {% if active_cash %}
+            <optgroup label="الخزن النقدية المعتمدة للتحصيل والإيداع">
+                {% for account in active_cash %}
+                <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                    data-currency="{{ account.currency_code|default:'EGP' }}"
+                    data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                    data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                    data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                    {% if value_type == 'id' %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                    {% else %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                    {% endif %}
+                    {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
+                >
+                    {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+                </option>
+                {% endfor %}
+            </optgroup>
             {% endif %}
-            {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
-        >
-            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
-        </option>
-        {% endfor %}
-    </optgroup>
-    {% endif %}
 
-    {% if bank_payment_accounts %}
-    <optgroup label="الحسابات البنكية">
-        {% for account in bank_payment_accounts %}
-        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency_code|default:'EGP' }}"
-            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency_rate|default:'1.000000' }}"
-            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
-            {% if value_type == 'id' %}
-                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
-            {% else %}
-                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+            {% if active_bank %}
+            <optgroup label="الحسابات البنكية المعتمدة للإيداع">
+                {% for account in active_bank %}
+                <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                    data-currency="{{ account.currency_code|default:'EGP' }}"
+                    data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                    data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                    data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                    {% if value_type == 'id' %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                    {% else %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                    {% endif %}
+                >
+                    {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+                </option>
+                {% endfor %}
+            </optgroup>
             {% endif %}
-        >
-            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
-        </option>
-        {% endfor %}
-    </optgroup>
+        {% endwith %}
+
+    {% elif action_type == 'disburse' %}
+        {% with active_cash=cash_disbursement_accounts|default:cash_payment_accounts active_bank=bank_disbursement_accounts|default:bank_payment_accounts %}
+            {% if active_cash %}
+            <optgroup label="الخزن النقدية المعتمدة للصرف والسداد">
+                {% for account in active_cash %}
+                <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                    data-currency="{{ account.currency_code|default:'EGP' }}"
+                    data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                    data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                    data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                    {% if value_type == 'id' %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                    {% else %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                    {% endif %}
+                >
+                    {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+                </option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
+
+            {% if active_bank %}
+            <optgroup label="الحسابات البنكية المعتمدة للسداد">
+                {% for account in active_bank %}
+                <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                    data-currency="{{ account.currency_code|default:'EGP' }}"
+                    data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                    data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                    data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                    {% if value_type == 'id' %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                    {% else %}
+                        {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                    {% endif %}
+                >
+                    {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+                </option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
+        {% endwith %}
+
+    {% else %}
+        {% if cash_payment_accounts %}
+        <optgroup label="الخزن النقدية">
+            {% for account in cash_payment_accounts %}
+            <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                data-currency="{{ account.currency_code|default:'EGP' }}"
+                data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                {% if value_type == 'id' %}
+                    {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                {% else %}
+                    {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                {% endif %}
+                {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
+            >
+                {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+            </option>
+            {% endfor %}
+        </optgroup>
+        {% endif %}
+
+        {% if bank_payment_accounts %}
+        <optgroup label="الحسابات البنكية">
+            {% for account in bank_payment_accounts %}
+            <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+                data-currency="{{ account.currency_code|default:'EGP' }}"
+                data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+                data-rate="{{ account.currency_rate|default:'1.000000' }}"
+                data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+                {% if value_type == 'id' %}
+                    {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+                {% else %}
+                    {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+                {% endif %}
+            >
+                {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+            </option>
+            {% endfor %}
+        </optgroup>
+        {% endif %}
     {% endif %}
 
     {% if allow_custody and custody_payment_accounts %}
@@ -78,25 +167,6 @@ Component: Payment Account Select
         </option>
         {% endfor %}
     </optgroup>
-    {% endif %}
-
-    {% if not cash_payment_accounts and not bank_payment_accounts and payment_accounts %}
-        {% for account in payment_accounts %}
-        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency_code|default:'EGP' }}"
-            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency_rate|default:'1.000000' }}"
-            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
-            {% if value_type == 'id' %}
-                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
-            {% else %}
-                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
-            {% endif %}
-            {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
-        >
-            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
-        </option>
-        {% endfor %}
     {% endif %}
 
     {% if customer_prepaid_balance and customer_prepaid_balance > 0 %}

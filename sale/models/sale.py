@@ -342,6 +342,13 @@ class Sale(models.Model):
         return self.payments.filter(status="posted").exists()
 
     @property
+    def is_posted(self):
+        """
+        هل الفاتورة مرحلة ومؤكدة
+        """
+        return self.status == "confirmed"
+
+    @property
     def merged_custom_fields(self):
         """
         دمج الحقول المخصصة مع إعدادات التعاريف الحديثة (بما فيها show_in_header و show_on_print)

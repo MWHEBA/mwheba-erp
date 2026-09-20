@@ -190,6 +190,22 @@
                                                 </select>
                                             </div>
 
+                                            <!-- أمر الشغل -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label d-flex justify-content-between align-items-center">
+                                                    <span>{% trans "أمر الشغل" %} <i class="fas fa-briefcase text-primary me-1"></i></span>
+                                                    <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">اختياري</span>
+                                                </label>
+                                                <select name="work_order" id="id_work_order" class="form-select select2" dir="rtl">
+                                                    <option value="">-- {% trans "بدون أمر شغل" %} --</option>
+                                                    {% for wo in form.fields.work_order.queryset %}
+                                                        <option value="{{ wo.id }}" data-customer="{{ wo.customer_id }}" {% if form.work_order.value == wo.id|stringformat:'s' or sale.work_order_id == wo.id or selected_work_order.id == wo.id %}selected{% endif %}>
+                                                            {{ wo.number }}{% if wo.title %} - {{ wo.title }}{% endif %} ({{ wo.get_status_display }})
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
                                             <!-- التصنيف المالي -->
                                             <div class="col-12 col-md-6">
                                                 <!-- الوضع الأوتوماتيكي -->

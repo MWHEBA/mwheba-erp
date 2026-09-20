@@ -221,11 +221,37 @@
         <!-- 3. الإعدادات المالية وحوكمة الائتمان -->
         <div class="section-container mb-4">
             <h5 class="section-title">
-                <i class="fas fa-shield-alt me-2"></i>{% trans "الإعدادات المالية وحوكمة الائتمان (FIN-AR-001)" %}
+                <i class="fas fa-shield-alt me-2"></i>{% trans "الإعدادات المالية وحوكمة الائتمان" %}
             </h5>
             <div class="p-3">
+                <!-- تنبيه الشريحة التجارية التفاعلي -->
+                <div id="tier_info_banner" class="alert alert-info py-2 px-3 mb-3 d-none align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-info-circle me-1"></i>
+                        <span id="tier_info_text"></span>
+                    </div>
+                    <span class="badge bg-primary" id="tier_info_badge"></span>
+                </div>
+
                 <div class="row g-3">
-                    <div class="col-md-6 col-lg-3">
+                    <!-- الشريحة التجارية -->
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_tier" class="form-label fw-bold">
+                            <i class="fas fa-layer-group me-1 text-primary"></i>{% trans "الشريحة التجارية للعميل" %}
+                        </label>
+                        <div class="input-group">
+                            {{ form.tier }}
+                            <a href="{% url 'customer:settings_index' %}" target="_blank" class="btn btn-outline-secondary" title="{% trans 'إدارة الشرائح' %}">
+                                <i class="fas fa-cog"></i>
+                            </a>
+                        </div>
+                        <small class="text-muted d-block mt-1">{% trans "تحدد الشريحة قائمة الأسعار والخصومات والحد الائتماني وشروط السداد تلقائياً." %}</small>
+                        {% if form.tier.errors %}
+                            <div class="invalid-feedback d-block">{{ form.tier.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
                         <label for="id_default_currency" class="form-label">
                             <i class="fas fa-money-bill me-1 text-success"></i>{% trans "العملة الافتراضية للمعاملات" %}
                         </label>
@@ -236,7 +262,7 @@
                         {% endif %}
                     </div>
 
-                    <div class="col-md-6 col-lg-3">
+                    <div class="col-md-6 col-lg-4">
                         <label for="id_default_price_list" class="form-label">
                             <i class="fas fa-tags me-1 text-primary"></i>{% trans "قائمة الأسعار الافتراضية" %}
                         </label>
@@ -260,9 +286,14 @@
 
                     <div class="col-md-6 col-lg-3">
                         <label for="id_default_payment_term" class="form-label">
-                            <i class="fas fa-file-contract me-1 text-primary"></i>{% trans "شروط الدفع المعيارية" %}
+                            <i class="fas fa-file-contract me-1 text-primary"></i>{% trans "شروط السداد المعيارية" %}
                         </label>
-                        {{ form.default_payment_term }}
+                        <div class="input-group">
+                            {{ form.default_payment_term }}
+                            <button type="button" class="btn btn-outline-secondary" id="btnQuickAddPaymentTerm" title="{% trans 'إضافة شرط سداد سريع' %}">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                         {% if form.default_payment_term.errors %}
                             <div class="invalid-feedback d-block">{{ form.default_payment_term.errors.0 }}</div>
                         {% endif %}
@@ -423,6 +454,43 @@
         </div>
     </form>
 </div>
+
+<!-- Quick Add Payment Term Modal -->
+<div class="modal fade" id="quickPaymentTermModal" tabindex="-1" aria-labelledby="quickPaymentTermModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="quickPaymentTermModalLabel">
+          <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "إضافة شرط سداد سريع" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickPaymentTermForm" novalidate>
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div id="quickPaymentTermAlert" class="alert alert-danger d-none"></div>
+          <div class="mb-3">
+            <label for="quick_term_name" class="form-label fw-bold">{% trans "اسم شرط السداد" %} <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="quick_term_name" name="name" required placeholder="مثال: آجل 45 يوم">
+          </div>
+          <div class="mb-3">
+            <label for="quick_term_days" class="form-label fw-bold">{% trans "عدد أيام الاستحقاق" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="quick_term_days" name="days" value="0" min="0" required>
+              <span class="input-group-text">{% trans "يوم" %}</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSubmitQuickTerm">
+            <i class="fas fa-save me-1"></i>{% trans "إضافة" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -460,7 +528,6 @@
             const taxNumberContainer = document.getElementById('container_tax_number');
 
             if (customerTypeVal === 'individual') {
-                // الأفراد: اسم العميل الشخصي + الرقم القومي فقط
                 if (labelName) labelName.innerHTML = '{% trans "اسم العميل (الاسم الكامل)" %} <span class="text-danger">*</span>';
                 if (inputName) inputName.placeholder = '{% trans "الاسم الرباعي للعميل" %}';
                 if (contactPersonContainer) contactPersonContainer.style.display = 'none';
@@ -468,7 +535,6 @@
                 if (nationalIdContainer) nationalIdContainer.style.display = 'block';
                 if (taxNumberContainer) taxNumberContainer.style.display = 'none';
             } else if (customerTypeVal === 'company') {
-                // الشركات والمنشآت: اسم الشركة أو المنشأة + السجل التجاري والبطاقة الضريبية + جهة الاتصال
                 if (labelName) labelName.innerHTML = '{% trans "اسم الشركة / المنشأة" %} <span class="text-danger">*</span>';
                 if (inputName) inputName.placeholder = '{% trans "الاسم التجاري أو القانوني للشركة أو المنشأة" %}';
                 if (contactPersonContainer) contactPersonContainer.style.display = 'block';
@@ -476,7 +542,6 @@
                 if (nationalIdContainer) nationalIdContainer.style.display = 'none';
                 if (taxNumberContainer) taxNumberContainer.style.display = 'block';
             } else if (customerTypeVal === 'government') {
-                // الجهات الحكومية: اسم الجهة + الرقم الضريبي + جهة الاتصال
                 if (labelName) labelName.innerHTML = '{% trans "اسم الجهة الحكومية" %} <span class="text-danger">*</span>';
                 if (inputName) inputName.placeholder = '{% trans "اسم الهيئة أو الوزارة أو القطاع الحكومي" %}';
                 if (contactPersonContainer) contactPersonContainer.style.display = 'block';
@@ -492,7 +557,7 @@
             }
         }
 
-        // 3. تهيئة Select2 لدعم اللغة العربية وربط أحداث التغيير
+        // 3. تهيئة Select2
         if (typeof $ !== 'undefined' && $.fn.select2) {
             $('.select2-filter').select2({
                 dir: 'rtl',
@@ -500,7 +565,6 @@
                 width: '100%'
             });
 
-            // ربط حدث التغيير لـ Select2 و Native Change
             $('#id_customer_type').on('change select2:select select2:clear', function() {
                 updateCustomerTypeVisibility();
             });
@@ -508,6 +572,90 @@
 
         // تشغيل الفحص عند تحميل الصفحة
         updateCustomerTypeVisibility();
+
+        // 4. التفاعل مع اختيار الشريحة التجارية وتعبئة الحقول المالية تلقائياً
+        $('#id_tier').on('change', function() {
+            const tierId = $(this).val();
+            const banner = $('#tier_info_banner');
+            const infoText = $('#tier_info_text');
+            const infoBadge = $('#tier_info_badge');
+
+            if (!tierId) {
+                banner.addClass('d-none').removeClass('d-flex');
+                return;
+            }
+
+            $.get('/customer/settings/tiers/' + tierId + '/api-info/', function(res) {
+                if (res.success && res.tier) {
+                    const t = res.tier;
+                    if (t.default_price_list_id) {
+                        $('#id_default_price_list').val(t.default_price_list_id).trigger('change');
+                    }
+                    if (t.default_payment_term_id) {
+                        $('#id_default_payment_term').val(t.default_payment_term_id).trigger('change');
+                    }
+                    if (parseFloat(t.default_credit_limit) > 0) {
+                        $('#id_credit_limit').val(t.default_credit_limit);
+                    }
+                    if (t.default_risk_category) {
+                        $('#id_risk_category').val(t.default_risk_category).trigger('change');
+                    }
+
+                    infoText.text('تم تطبيق الإعدادات الافتراضية للشريحة: ' + t.name);
+                    infoBadge.text(t.code);
+                    banner.removeClass('d-none').addClass('d-flex');
+                }
+            });
+        });
+
+        // 5. نافذة إضافة شرط سداد سريع (Quick Add Payment Term)
+        const quickTermModal = new bootstrap.Modal(document.getElementById('quickPaymentTermModal'));
+        $('#btnQuickAddPaymentTerm').on('click', function() {
+            $('#quickPaymentTermForm')[0].reset();
+            $('#quickPaymentTermAlert').addClass('d-none').text('');
+            quickTermModal.show();
+        });
+
+        $('#quickPaymentTermForm').on('submit', function(e) {
+            e.preventDefault();
+            const nameVal = $('#quick_term_name').val().trim();
+            const daysVal = $('#quick_term_days').val();
+            const submitBtn = $('#btnSubmitQuickTerm');
+
+            if (!nameVal) {
+                $('#quickPaymentTermAlert').removeClass('d-none').text("{% trans 'يرجى إدخال اسم شرط السداد' %}");
+                return;
+            }
+
+            submitBtn.prop('disabled', true);
+            $.ajax({
+                url: "{% url 'customer:payment_term_quick_add' %}",
+                method: 'POST',
+                data: {
+                    name: nameVal,
+                    days: daysVal,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                success: function(res) {
+                    submitBtn.prop('disabled', false);
+                    if (res.success) {
+                        // إضافة الخيار الجديد لقائمة شروط السداد واختياره
+                        const newOption = new Option(res.term.name, res.term.id, true, true);
+                        $('#id_default_payment_term').append(newOption).trigger('change');
+                        quickTermModal.hide();
+                        if (window.showToastr) {
+                            window.showToastr(res.message, 'success');
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    submitBtn.prop('disabled', false);
+                    const res = xhr.responseJSON;
+                    $('#quickPaymentTermAlert').removeClass('d-none').text(res && res.message ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}");
+                }
+            });
+        });
     });
 </script>
 {% endblock %} 

@@ -70,6 +70,10 @@ from .account_views import (
     partner_transactions_list,
     partner_transaction_detail,
     get_partner_balance,
+    treasury_assignments_list,
+    treasury_assignment_toggle_api,
+    treasury_assignment_bulk_save_api,
+    treasury_assignment_delete_api,
 )
 
 # من transaction_views.py  

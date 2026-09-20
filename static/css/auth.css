@@ -210,68 +210,66 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 .auth-container {
     background-color: var(--white);
     border-radius: 1rem;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15), 
-                0 0.25rem 0.5rem rgba(var(--primary-rgb, 4, 87, 141), 0.1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
     overflow: hidden;
     transition: all 0.3s ease;
     position: relative;
-    max-width: 480px;
+    max-width: 440px;
     width: 100%;
-    margin: 2rem auto;
-    padding: 2rem;
+    margin: 1.5rem auto;
+    padding: 2.25rem;
 }
 
 .auth-container:hover {
-    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15), 
-                0 0.5rem 1rem rgba(var(--primary-rgb, 4, 87, 141), 0.2);
-    transform: translateY(-5px);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
 }
 
 /* تنسيقات الشعار وعنوان الصفحة */
 .logo-container {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 0.85rem;
 }
 
 .logo-container img {
+    max-height: 90px;
+    width: auto;
     transition: transform 0.3s ease;
-}
-
-.logo-container img:hover {
-    transform: scale(1.05);
 }
 
 .welcome-message {
     text-align: center;
+    margin-bottom: 1.5rem;
 }
 
 .welcome-message h3 {
     color: var(--primary-color);
-    font-weight: bold;
-    margin-bottom: 0.5rem;
-    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    font-size: 1.35rem;
 }
 
 .welcome-message p {
     color: var(--text-muted);
+    font-size: 0.875rem;
     margin-bottom: 0;
 }
 
 /* تنسيقات النموذج */
 .auth-form {
-    max-width: 400px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.15rem;
     position: relative;
 }
 
 .form-label {
     display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
+    margin-bottom: 0.45rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     color: var(--text-primary);
 }
 
@@ -419,10 +417,18 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 }
 
 /* تنسيقات خاصة بصفحة تسجيل الدخول */
+.form-check {
+    padding-left: 1.5em;
+    padding-right: 0;
+}
+
+.form-check .form-check-input,
 .form-check-input {
-    width: 1rem;
-    height: 1rem;
-    margin-top: 0.25rem;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-top: 0.2rem;
+    margin-left: 0.5em;
+    margin-right: 0;
     vertical-align: top;
     background-color: var(--white);
     border: 1px solid var(--border-color);

@@ -150,90 +150,125 @@ def user_permissions(request):
 
 def payment_accounts(request):
     """
-    إضافة حسابات الدفع (الخزينة/البنك) المصنفة للقوالب مع Cache
-    ✅ استخدام AccountHelperService للمرجعية الموحدة وتقديم الخزن والبنك والافتراضي بمرونة
+    إضافة حسابات الدفع (الخزينة/البنك/العهد) المصنفة للقوالب مع User-Scoped Cache
+    ✅ حماية الأداء للزوار وفصل صلاحيات الإيداع والصرف للمستخدم المسجل
     """
-    cache_key = 'payment_accounts_data_v5'
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return {
+            "payment_accounts": [],
+            "cash_payment_accounts": [],
+            "cash_deposit_accounts": [],
+            "cash_disbursement_accounts": [],
+            "bank_payment_accounts": [],
+            "bank_deposit_accounts": [],
+            "bank_disbursement_accounts": [],
+            "custody_payment_accounts": [],
+            "default_payment_account": None,
+            "default_bank_account": None,
+        }
+
+    from financial.services.treasury_security_service import TreasurySecurityService
+    cache_key = TreasurySecurityService.get_cache_key(user.id)
     cached_data = cache.get(cache_key)
 
     if cached_data is None:
         try:
             from financial.services.account_helper import AccountHelperService
 
-            cash_qs = AccountHelperService.get_cash_accounts().select_related('currency')
-            bank_qs = AccountHelperService.get_bank_accounts().select_related('currency')
-            custody_qs = AccountHelperService.get_custody_accounts().select_related('currency')
+            # جلب الحسابات المصرح بها للمستخدم بحسب نوع العملية
+            deposit_cash_qs = AccountHelperService.get_cash_accounts(user=user, action="deposit").select_related("currency")
+            disburse_cash_qs = AccountHelperService.get_cash_accounts(user=user, action="disburse").select_related("currency")
+            all_cash_qs = AccountHelperService.get_cash_accounts(user=user, action="any").select_related("currency")
+
+            deposit_bank_qs = AccountHelperService.get_bank_accounts(user=user, action="deposit").select_related("currency")
+            disburse_bank_qs = AccountHelperService.get_bank_accounts(user=user, action="disburse").select_related("currency")
+            all_bank_qs = AccountHelperService.get_bank_accounts(user=user, action="any").select_related("currency")
+
+            custody_qs = AccountHelperService.get_custody_accounts(user=user).select_related("currency")
 
             def _serialize_acc(acc):
-                curr_code = 'EGP'
-                curr_symbol = 'ج.م'
-                curr_rate = '1.000000'
-                is_func = '1'
-                if getattr(acc, 'currency', None):
+                curr_code = "EGP"
+                curr_symbol = "ج.م"
+                curr_rate = "1.000000"
+                is_func = "1"
+                if getattr(acc, "currency", None):
                     curr = acc.currency
-                    curr_code = curr.code or 'EGP'
-                    curr_symbol = getattr(curr, 'symbol', None) or curr_code
-                    curr_rate = str(getattr(curr, 'rate', getattr(curr, 'current_rate', '1.000000')) or '1.000000')
-                    is_func = '1' if getattr(curr, 'is_functional', False) else '0'
+                    curr_code = curr.code or "EGP"
+                    curr_symbol = getattr(curr, "symbol", None) or curr_code
+                    curr_rate = str(getattr(curr, "rate", getattr(curr, "current_rate", "1.000000")) or "1.000000")
+                    is_func = "1" if getattr(curr, "is_functional", False) else "0"
                 return {
-                    'id': acc.id,
-                    'code': acc.code,
-                    'name': acc.name,
-                    'currency_code': curr_code,
-                    'currency_symbol': curr_symbol,
-                    'currency_rate': curr_rate,
-                    'currency_is_functional': is_func,
-                    'is_cash_account': getattr(acc, 'is_cash_account', False),
-                    'is_bank_account': getattr(acc, 'is_bank_account', False),
+                    "id": acc.id,
+                    "code": acc.code,
+                    "name": acc.name,
+                    "currency_code": curr_code,
+                    "currency_symbol": curr_symbol,
+                    "currency_rate": curr_rate,
+                    "currency_is_functional": is_func,
+                    "is_cash_account": getattr(acc, "is_cash_account", False),
+                    "is_bank_account": getattr(acc, "is_bank_account", False),
                 }
 
-            cash_accounts_data = [_serialize_acc(a) for a in cash_qs]
-            bank_accounts_data = [_serialize_acc(a) for a in bank_qs]
-            custody_accounts_data = [_serialize_acc(a) for a in custody_qs]
+            deposit_cash_data = [_serialize_acc(a) for a in deposit_cash_qs]
+            disburse_cash_data = [_serialize_acc(a) for a in disburse_cash_qs]
+            all_cash_data = [_serialize_acc(a) for a in all_cash_qs]
 
-            # الدمج للقوائم العامة
-            all_accounts_data = cash_accounts_data + bank_accounts_data
+            deposit_bank_data = [_serialize_acc(a) for a in deposit_bank_qs]
+            disburse_bank_data = [_serialize_acc(a) for a in disburse_bank_qs]
+            all_bank_data = [_serialize_acc(a) for a in all_bank_qs]
 
-            # الحساب الافتراضي الرئيسي للنقدية بسلسلة السقوط الاحتياطي
-            def_cash_obj = AccountHelperService.get_default_cash_account()
-            default_account_data = None
-            if def_cash_obj:
-                default_account_data = _serialize_acc(def_cash_obj)
+            custody_data = [_serialize_acc(a) for a in custody_qs]
 
-            # الحساب الافتراضي للبنك
-            default_bank_data = None
-            if bank_accounts_data:
-                default_bank_data = bank_accounts_data[0]
+            all_accounts_data = all_cash_data + all_bank_data
+
+            # الحساب الافتراضي للنقدية والبنك
+            def_cash_obj = AccountHelperService.get_default_cash_account(user=user, action="deposit")
+            default_account_data = _serialize_acc(def_cash_obj) if def_cash_obj else (deposit_cash_data[0] if deposit_cash_data else None)
+
+            default_bank_data = deposit_bank_data[0] if deposit_bank_data else (all_bank_data[0] if all_bank_data else None)
 
             cached_data = {
-                'accounts': all_accounts_data,
-                'cash_accounts': cash_accounts_data,
-                'bank_accounts': bank_accounts_data,
-                'custody_accounts': custody_accounts_data,
-                'default': default_account_data,
-                'default_bank': default_bank_data
+                "accounts": all_accounts_data,
+                "cash_accounts": all_cash_data,
+                "cash_deposit_accounts": deposit_cash_data,
+                "cash_disbursement_accounts": disburse_cash_data,
+                "bank_accounts": all_bank_data,
+                "bank_deposit_accounts": deposit_bank_data,
+                "bank_disbursement_accounts": disburse_bank_data,
+                "custody_accounts": custody_data,
+                "default": default_account_data,
+                "default_bank": default_bank_data,
             }
 
-            cache.set(cache_key, cached_data, 600)
+            cache.set(cache_key, cached_data, TreasurySecurityService.CACHE_TIMEOUT)
 
         except Exception as e:
             logger.debug(f"Payment accounts context processor error: {e}")
             cached_data = {
-                'accounts': [],
-                'cash_accounts': [],
-                'bank_accounts': [],
-                'custody_accounts': [],
-                'default': None,
-                'default_bank': None
+                "accounts": [],
+                "cash_accounts": [],
+                "cash_deposit_accounts": [],
+                "cash_disbursement_accounts": [],
+                "bank_accounts": [],
+                "bank_deposit_accounts": [],
+                "bank_disbursement_accounts": [],
+                "custody_accounts": [],
+                "default": None,
+                "default_bank": None,
             }
 
     return {
-        'payment_accounts': cached_data['accounts'],
-        'cash_payment_accounts': cached_data.get('cash_accounts', []),
-        'bank_payment_accounts': cached_data.get('bank_accounts', []),
-        'custody_payment_accounts': cached_data.get('custody_accounts', []),
-        'default_payment_account': cached_data['default'],
-        'default_bank_account': cached_data.get('default_bank')
+        "payment_accounts": cached_data["accounts"],
+        "cash_payment_accounts": cached_data.get("cash_accounts", []),
+        "cash_deposit_accounts": cached_data.get("cash_deposit_accounts", []),
+        "cash_disbursement_accounts": cached_data.get("cash_disbursement_accounts", []),
+        "bank_payment_accounts": cached_data.get("bank_accounts", []),
+        "bank_deposit_accounts": cached_data.get("bank_deposit_accounts", []),
+        "bank_disbursement_accounts": cached_data.get("bank_disbursement_accounts", []),
+        "custody_payment_accounts": cached_data.get("custody_accounts", []),
+        "default_payment_account": cached_data["default"],
+        "default_bank_account": cached_data.get("default_bank"),
     }
 
 

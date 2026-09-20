@@ -255,7 +255,12 @@ class PriceHistory(models.Model):
         if self.old_price is not None and self.new_price is not None:
             self.change_amount = self.new_price - self.old_price
             if self.old_price > 0:
-                self.change_percentage = (self.change_amount / self.old_price) * 100
+                pct = (self.change_amount / self.old_price) * 100
+                if pct > Decimal("9999.9999"):
+                    pct = Decimal("9999.9999")
+                elif pct < Decimal("-9999.9999"):
+                    pct = Decimal("-9999.9999")
+                self.change_percentage = pct
             else:
                 self.change_percentage = Decimal("0")
 

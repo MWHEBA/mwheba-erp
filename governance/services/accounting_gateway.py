@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 AccountingGateway - Thread-Safe Central Gateway for Journal Entry Creation
 
@@ -27,13 +29,12 @@ Usage:
 
 import logging
 from decimal import Decimal
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from django.db import transaction, connection
 from django.utils import timezone
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.apps import apps
 
@@ -52,7 +53,11 @@ from .source_linkage_service import SourceLinkageService
 from financial.models.journal_entry import JournalEntry, JournalEntryLine, AccountingPeriod
 from financial.models.chart_of_accounts import ChartOfAccounts
 
-User = get_user_model()
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractBaseUser as User
+else:
+    User = Any
+
 logger = logging.getLogger(__name__)
 
 
@@ -521,6 +526,7 @@ class AccountingGateway:
         with DatabaseLockManager.atomic_operation():
             # Validate and prepare data
             validated_lines = self._validate_and_prepare_lines(lines)
+            self._validate_treasury_permissions(validated_lines, user, source_info)
             entry_date = date or timezone.now().date()
             
             from financial.services.ledger_core_service import LedgerCoreService
@@ -583,6 +589,9 @@ class AccountingGateway:
             operation='CREATE'
         ):
             raise AuthorityViolationError(
+                service='AccountingGateway',
+                model='JournalEntry',
+                operation='CREATE',
                 message="AccountingGateway lacks authority to create JournalEntry records",
                 error_code="AUTHORITY_VIOLATION",
                 context={
@@ -681,6 +690,51 @@ class AccountingGateway:
                         'subcategory_parent_category_id': subcategory.parent_category_id
                     }
                 )
+
+    def _validate_treasury_permissions(
+        self,
+        validated_lines: List[Dict],
+        user: User,
+        source_info: Optional[SourceInfo] = None
+    ) -> None:
+        """
+        Kernel-level validation to enforce user treasury deposit and disbursement permissions.
+        Prevents unauthorized debit/credit on cash, bank, and custody accounts before database commit.
+        Autonomous system tasks (Closing runs, FX revaluation, revenue recognition) pass under system authority.
+        """
+        if not user or user.is_superuser:
+            return
+
+        if source_info and source_info.module in ['period_close', 'fx_revaluation', 'revenue_recognition', 'closing_engine']:
+            return
+
+        from financial.services.treasury_security_service import TreasurySecurityService
+
+        for line in validated_lines:
+            acc = line.get('account')
+            if not acc:
+                continue
+
+            is_treasury = (
+                getattr(acc, 'is_cash_account', False)
+                or getattr(acc, 'is_bank_account', False)
+                or (hasattr(acc, 'account_type') and getattr(acc.account_type, 'code', '').lower() in ['cash', 'bank'])
+                or (hasattr(acc, 'code') and (str(acc.code).startswith('1145') or str(acc.code).startswith('1051') or str(acc.code).startswith('101') or str(acc.code).startswith('102')))
+            )
+
+            if not is_treasury:
+                continue
+
+            debit_amt = line.get('debit', Decimal('0.00')) or Decimal('0.00')
+            credit_amt = line.get('credit', Decimal('0.00')) or Decimal('0.00')
+
+            # Debit to cash/bank is an Inflow / Deposit
+            if debit_amt > Decimal('0.00'):
+                TreasurySecurityService.enforce_deposit(user, acc.id)
+
+            # Credit to cash/bank is an Outflow / Disbursement
+            if credit_amt > Decimal('0.00'):
+                TreasurySecurityService.enforce_disbursement(user, acc.id, amount=credit_amt)
     
     def _validate_and_prepare_lines(self, lines: List[JournalEntryLineData]) -> List[Dict]:
         """
@@ -1465,7 +1519,7 @@ class AccountingGateway:
         """
         if hasattr(journal_entry, 'source_id') and journal_entry.source_id:
             try:
-                from customer.models.payment import CustomerPayment
+                from customer.models import CustomerPayment
                 payment = CustomerPayment.objects.get(id=journal_entry.source_id)
                 
                 if not period.is_date_in_period(payment.payment_date):

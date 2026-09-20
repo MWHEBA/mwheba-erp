@@ -1,0 +1,32 @@
+{% load i18n %}
+
+<div class="modal fade" id="deleteTierModal" tabindex="-1" aria-labelledby="deleteTierModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-danger mb-0" id="deleteTierModalLabel">
+          <i class="fas fa-exclamation-triangle text-danger me-2"></i>{% trans "تأكيد حذف الشريحة التجارية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="deleteTierForm" method="POST" action="">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="mb-3">
+            {% trans "هل أنت متأكد من رغبتك في حذف الشريحة:" %} <strong id="deleteTierName" class="text-danger"></strong>؟
+          </p>
+          <div class="alert alert-warning mb-0 small">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "إذا كان هناك عملاء مسندين لهذه الشريحة، سيتم فك ارتباطهم بها ليصبحوا بدون شريحة محددة ولن يتم حذف بيانات العملاء أنفسهم." %}
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-trash-alt me-1"></i>{% trans "تأكيد الحذف" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

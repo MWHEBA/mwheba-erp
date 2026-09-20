@@ -14,6 +14,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Count
 
 
+from django.utils.translation import gettext_lazy as _
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 
@@ -81,36 +82,57 @@ def profile(request):
         form = UserProfileForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
-            messages.success(request, "تم تحديث بياناتك الشخصية بنجاح.")
+            messages.success(request, _("تم تحديث بياناتك الشخصية بنجاح."))
             return redirect('users:profile')
         else:
-            messages.error(request, "حدث خطأ في البيانات المدخلة.")
+            messages.error(request, _("حدث خطأ في البيانات المدخلة."))
     else:
         form = UserProfileForm(instance=user)
+
+    header_buttons = [
+        {
+            "toggle": "modal",
+            "target": "#changePasswordModal",
+            "icon": "fa-key",
+            "text": _("تغيير كلمة المرور"),
+            "class": "btn-outline-secondary",
+        }
+    ]
+    if request.user.is_admin or request.user.is_superuser:
+        header_buttons.append({
+            "url": reverse("users:permissions_dashboard") + f"?tab=users&user_id={user.id}",
+            "icon": "fa-user-shield",
+            "text": _("إدارة الصلاحيات"),
+            "class": "btn-outline-primary",
+        })
+
+    header_badges = [
+        {
+            "text": f"{_('عضو منذ')} {user.date_joined.year}",
+            "icon": "fas fa-calendar-alt",
+            "class": "bg-secondary",
+        },
+    ]
+
+    breadcrumb_items = [
+        {
+            "title": _("الرئيسية"),
+            "url": reverse("core:dashboard"),
+            "icon": "fas fa-home",
+        },
+        {"title": _("الملف الشخصي"), "active": True},
+    ]
 
     context = {
         "user": user,
         "form": form,
-        "title": "الملف الشخصي",
-        "page_title": "الملف الشخصي",
-        "page_subtitle": "إدارة معلوماتك الشخصية وإعدادات حسابك",
+        "title": _("الملف الشخصي"),
+        "page_title": _("الملف الشخصي"),
+        "page_subtitle": _("إدارة معلوماتك الشخصية وإعدادات حسابك"),
         "page_icon": "fas fa-user-circle",
-        "header_buttons": [
-            {
-                "text": f"عضو منذ {user.date_joined.year}",
-                "icon": "fa-calendar-alt",
-                "class": "bg-primary",
-                "is_badge": True,
-            },
-        ],
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الملف الشخصي", "active": True},
-        ],
+        "header_buttons": header_buttons,
+        "header_badges": header_badges,
+        "breadcrumb_items": breadcrumb_items,
     }
 
     return render(request, "users/profile.html", context)
@@ -143,21 +165,70 @@ def user_list(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
-    # استخدام select_related لتحسين الأداء وتجنب N+1 queries
-    # only() لجلب الحقول المطلوبة فقط
-    users = User.objects.select_related('role').only(
-        'id', 'first_name', 'last_name', 'username', 'email', 'phone',
-        'is_active', 'last_login', 'role__name', 'role__display_name'
-    ).order_by('-id')
+    from users.services.user_management_service import UserManagementService
+    from core.models import SystemModule
 
-    # التصدير المزدوج: تصدير كافة المستخدمين من الباك إند
+    is_hr_enabled = SystemModule.objects.filter(code='hr', is_enabled=True).exists()
+
+    status = request.GET.get('status', 'active')
+    is_archive_view = (status in ['inactive', 'archived'])
+
+    # استعلام محسن مع select_related و prefetch_related لمنع N+1 queries
+    users_qs = User.objects.select_related('role')
+    if is_hr_enabled:
+        users_qs = users_qs.select_related('employee_profile')
+    users = users_qs.prefetch_related('secondary_roles').order_by('-id')
+
+    # الفلترة حسب الحالة (نشط / مؤرشف)
+    if is_archive_view:
+        users = users.filter(is_active=False)
+    elif status == 'active':
+        users = users.filter(is_active=True)
+    # في حالة status == 'all' لا يتم تطبيق فلترة الحالة
+
+    # البحث بالاسم أو اسم المستخدم أو البريد أو الهاتف أو بيانات الموظف
+    q = request.GET.get('q', '').strip() or request.GET.get('search', '').strip()
+    if q:
+        search_filter = (
+            Q(username__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(email__icontains=q) |
+            Q(phone__icontains=q)
+        )
+        if is_hr_enabled:
+            search_filter |= (
+                Q(employee_profile__name__icontains=q) |
+                Q(employee_profile__employee_number__icontains=q)
+            )
+        users = users.filter(search_filter)
+
+    # الفلترة حسب الدور
+    role_id = request.GET.get('role', '').strip()
+    if role_id:
+        users = users.filter(role_id=role_id)
+
+    # التصدير المزدوج: تصدير المستخدمين حسب القائمة المعروضة
     if request.GET.get('export') == 'excel':
         from utils.export import export_queryset_to_excel
+        export_filename = "archived_users.xlsx" if is_archive_view else "active_users.xlsx"
+        export_fields = ["id", "username", "first_name", "last_name", "email", "phone"]
+        export_headers = ["#", "اسم المستخدم", "الاسم الأول", "الاسم الأخير", "البريد الإلكتروني", "الهاتف"]
+        annotations = {}
+        if is_hr_enabled:
+            export_fields.extend(["employee_name", "employee_number"])
+            export_headers.extend(["الموظف", "رقم الموظف"])
+            annotations["employee_name"] = lambda u: getattr(u, 'employee_profile').name if hasattr(u, 'employee_profile') and u.employee_profile else "-"
+            annotations["employee_number"] = lambda u: getattr(u, 'employee_profile').employee_number if hasattr(u, 'employee_profile') and u.employee_profile else "-"
+        export_fields.append("is_active")
+        export_headers.append("نشط")
+
         return export_queryset_to_excel(
             users,
-            filename="users_export.xlsx",
-            fields=["id", "username", "first_name", "last_name", "email", "phone", "is_active"],
-            headers=["#", "اسم المستخدم", "الاسم الأول", "الاسم الأخير", "البريد الإلكتروني", "الهاتف", "نشط"]
+            filename=export_filename,
+            fields=export_fields,
+            headers=export_headers,
+            annotations=annotations
         )
 
     # Whitelist الفرز الأمني
@@ -179,52 +250,138 @@ def user_list(request):
     )
 
     page_obj = pagination_data['page_obj']
+    active_users_count = User.objects.filter(is_active=True).count()
+    inactive_users_count = User.objects.filter(is_active=False).count()
     
-    # إعداد headers للجدول الموحد
+    # إعداد headers للجدول الموحد مع دعم عامود الموظف الديناميكي
     headers = [
-        {"key": "id", "label": "#", "sortable": True, "width": "8%"},
-        {"key": "get_full_name", "label": "الاسم", "sortable": True, "width": "20%"},
-        {"key": "username", "label": "اسم المستخدم", "sortable": True, "width": "20%"},
-        {"key": "phone", "label": "الهاتف", "sortable": False, "width": "15%"},
-        {"key": "role", "label": "الدور", "sortable": False, "width": "15%", "format": "role_badge"},
+        {"key": "id", "label": "#", "sortable": True, "width": "6%" if is_hr_enabled else "8%"},
+        {"key": "get_full_name", "label": "الاسم", "sortable": True, "width": "20%" if is_hr_enabled else "26%"},
+    ]
+    if is_hr_enabled:
+        headers.append({
+            "key": "employee_profile",
+            "label": "الموظف",
+            "sortable": False,
+            "template": "users/partials/employee_column.html",
+            "width": "20%"
+        })
+    headers.extend([
+        {"key": "username", "label": "اسم المستخدم", "sortable": True, "width": "18%" if is_hr_enabled else "24%"},
+        {"key": "role", "label": "الدور", "sortable": False, "width": "16%" if is_hr_enabled else "20%", "format": "role_badge"},
         {"key": "is_active", "label": "الحالة", "sortable": True, "format": "status", "width": "10%", "class": "text-center"},
         {
             "key": "last_login",
             "label": "آخر دخول",
             "sortable": True,
-            "format": "datetime",
-            "width": "12%",
+            "format": "datetime_12h",
+            "width": "10%" if is_hr_enabled else "12%",
             "class": "text-center"
         }
-    ]
+    ])
 
-    # إعداد action buttons (يظهر للمديرين فقط)
+    # إعداد action buttons حسب وضع العرض (نشط / أرشيف)
     action_buttons = []
     if request.user.can_manage_users():
-        action_buttons = [
-            {
-                "label": "تعديل",
-                "url": "users:user_edit",
-                "class": "btn-sm btn-outline-secondary",
-                "icon": "fa-edit",
-            },
-            {
-                "label": "حذف",
-                "url": "users:user_delete",
-                "class": "btn-sm btn-outline-danger",
-                "icon": "fa-trash",
-                "confirm": "هل أنت متأكد من حذف هذا المستخدم؟",
-            },
-        ]
+        if is_archive_view:
+            action_buttons = [
+                {
+                    "label": "تعديل",
+                    "url": "users:user_edit",
+                    "class": "btn-sm btn-outline-secondary edit-user-btn",
+                    "icon": "fa-edit",
+                },
+                {
+                    "label": "تفعيل",
+                    "type": "button",
+                    "class": "btn-sm btn-outline-success toggle-status-btn",
+                    "icon": "fa-check-circle",
+                    "title": "تفعيل واستعادة من الأرشيف",
+                },
+                {
+                    "label": "حذف",
+                    "type": "button",
+                    "class": "btn-sm btn-outline-danger delete-user-btn",
+                    "icon": "fa-trash",
+                    "title": "حذف نهائي",
+                },
+            ]
+        else:
+            action_buttons = [
+                {
+                    "label": "تعديل",
+                    "url": "users:user_edit",
+                    "class": "btn-sm btn-outline-secondary edit-user-btn",
+                    "icon": "fa-edit",
+                },
+                {
+                    "label": "تعطيل",
+                    "type": "button",
+                    "class": "btn-sm btn-outline-danger toggle-status-btn",
+                    "icon": "fa-user-slash",
+                    "title": "تعطيل ونقل للأرشيف",
+                },
+            ]
+            # زر Login As للـ superuser فقط في القائمة النشطة
+            if request.user.is_superuser:
+                action_buttons.insert(0, {
+                    "label": "دخول كـ",
+                    "type": "button",
+                    "class": "btn-sm btn-outline-warning login-as-btn",
+                    "icon": "fa-user-secret",
+                })
 
-    # زر Login As للـ superuser فقط
-    if request.user.is_superuser:
-        action_buttons.insert(0, {
-            "label": "دخول كـ",
-            "type": "button",
-            "class": "btn-sm btn-outline-warning login-as-btn",
-            "icon": "fa-user-secret",
+    # أزرار الهيدر والبيانات الوصفية
+    header_buttons = []
+    if is_archive_view:
+        page_title = "أرشيف المستخدمين"
+        page_subtitle = f"عرض وإدارة المستخدمين المؤرشفين وغير النشطين ({page_obj.paginator.count} مستخدم مؤرشف)"
+        page_icon = "fas fa-archive"
+        header_buttons.append({
+            "url": reverse("users:user_list"),
+            "icon": "fa-users",
+            "text": f"المستخدمون النشطون ({active_users_count})",
+            "class": "btn-outline-primary",
         })
+    else:
+        page_title = "قائمة المستخدمين"
+        page_subtitle = f"إدارة مستخدمي النظام ({page_obj.paginator.count} مستخدم نشط)"
+        page_icon = "fas fa-users"
+        header_buttons.append({
+            "toggle": "modal",
+            "target": "#createUserModal",
+            "icon": "fa-plus",
+            "text": "إضافة مستخدم",
+            "class": "btn-primary",
+        })
+        header_buttons.append({
+            "url": reverse("users:permissions_dashboard"),
+            "icon": "fa-shield-alt",
+            "text": "إدارة الأدوار",
+            "class": "btn-outline-primary",
+        })
+        archive_btn_text = f"الأرشيف ({inactive_users_count})" if inactive_users_count > 0 else "الأرشيف"
+        header_buttons.append({
+            "url": reverse("users:user_list") + "?status=inactive",
+            "icon": "fa-archive",
+            "text": archive_btn_text,
+            "class": "btn-outline-secondary",
+        })
+
+    # البريدكرمب
+    breadcrumb_items = [
+        {
+            "title": "الرئيسية",
+            "url": reverse("core:dashboard"),
+            "icon": "fas fa-home",
+        },
+        {
+            "title": "المستخدمين",
+            "url": reverse("users:user_list") if is_archive_view else None,
+            "active": not is_archive_view
+        },
+        *([{"title": "الأرشيف", "active": True}] if is_archive_view else []),
+    ]
 
     context = {
         **pagination_data,
@@ -233,33 +390,20 @@ def user_list(request):
         "action_buttons": action_buttons,
         "primary_key": "id",
         "show_export": True,
-        "title": "المستخدمين",
-        "page_title": "قائمة المستخدمين",
-        "page_subtitle": f"إدارة مستخدمي النظام ({page_obj.paginator.count} مستخدم)",
-        "page_icon": "fas fa-users",
-        "header_buttons": [
-            {
-                "url": reverse("users:user_create"),
-                "icon": "fa-plus",
-                "text": "إضافة مستخدم",
-                "class": "btn-primary",
-            },
-            {
-                "url": reverse("users:permissions_dashboard"),
-                "icon": "fa-shield-alt",
-                "text": "إدارة الأدوار",
-                "class": "btn-outline-primary",
-            },
-        ],
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "المستخدمين", "active": True},
-        ],
+        "title": page_title,
+        "page_title": page_title,
+        "page_subtitle": page_subtitle,
+        "page_icon": page_icon,
+        "header_buttons": header_buttons,
+        "breadcrumb_items": breadcrumb_items,
         "is_superuser": request.user.is_superuser,
+        "is_archive_view": is_archive_view,
+        "active_users_count": active_users_count,
+        "inactive_users_count": inactive_users_count,
+        "roles": Role.objects.filter(is_active=True).order_by('display_name'),
+        "selected_role": role_id,
+        "selected_status": status,
+        "search_query": q,
     }
     
     return render_paginated_response(
@@ -273,70 +417,77 @@ def user_list(request):
 @login_required
 def user_create(request):
     """
-    إنشاء مستخدم جديد (للمديرين فقط)
+    إنشاء مستخدم جديد (للمديرين فقط) - معالجة طلبات الإضافة عبر المودال (POST/AJAX)
+    وإعادة التوجيه التلقائي للمودال في قائمة المستخدمين عند طلب الرابط عبر (GET) لمنع التكرار
     """
     if not request.user.can_manage_users():
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.headers.get('accept') == 'application/json':
+            return JsonResponse({'success': False, 'message': 'ليس لديك صلاحية لإضافة مستخدمين'}, status=403)
         return render(
             request,
             "core/permission_denied.html",
             {"title": "غير مصرح", "message": "ليس لديك صلاحية لإضافة مستخدمين"},
         )
     
+    # في حالة طلب الرابط عبر GET يتم التوجيه لقائمة المستخدمين مع فتح المودال تلقائياً
+    if request.method == 'GET':
+        return redirect(reverse('users:user_list') + '?action=create')
+    
     if request.method == 'POST':
         from .forms import UserCreationForm
         form = UserCreationForm(request.POST)
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.headers.get('accept') == 'application/json'
         
         if form.is_valid():
             try:
-                user = form.save()
+                user = form.save(commit=False)
+                
+                # تعيين الهاتف والعنوان
+                phone = request.POST.get('phone', '').strip()
+                if phone:
+                    user.phone = phone
+                address = request.POST.get('address', '').strip()
+                if address:
+                    user.address = address
+                
+                # تعيين حالة التفعيل
+                if 'is_active' in request.POST:
+                    user.is_active = (request.POST.get('is_active') in ['1', 'true', 'on', True])
                 
                 # تعيين الدور إذا تم تحديده
-                role_id = request.POST.get('role')
+                role_id = request.POST.get('role') or request.POST.get('role_id')
                 if role_id:
                     try:
                         role = Role.objects.get(id=role_id)
                         user.role = role
-                        user.save()
-                    except Role.DoesNotExist:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Role with id {role_id} not found")
                     except Role.DoesNotExist:
                         pass
                 
-                messages.success(request, f'تم إنشاء المستخدم "{user.get_full_name()}" بنجاح')
+                user.save()
+                
+                success_msg = f'تم إنشاء المستخدم "{user.get_full_name() or user.username}" بنجاح'
+                if is_ajax:
+                    return JsonResponse({'success': True, 'message': success_msg, 'user_id': user.id})
+                messages.success(request, success_msg)
                 return redirect('users:user_list')
             except Exception as e:
-                messages.error(request, f'حدث خطأ: {str(e)}')
+                error_msg = f'حدث خطأ أثناء حفظ المستخدم: {str(e)}'
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': error_msg}, status=400)
+                messages.error(request, error_msg)
+                return redirect('users:user_list')
         else:
+            errors_list = []
             for field, errors in form.errors.items():
                 for error in errors:
-                    messages.error(request, f'{field}: {error}')
-    else:
-        from .forms import UserCreationForm
-        form = UserCreationForm()
-    
-    # جلب الأدوار المتاحة
-    roles = Role.objects.filter(is_active=True)
-    
-    context = {
-        "form": form,
-        "roles": roles,
-        "page_title": "إضافة مستخدم جديد",
-        "page_subtitle": "إضافة مستخدم جديد للنظام",
-        "page_icon": "fas fa-user-plus",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "المستخدمين", "url": reverse("users:user_list"), "icon": "fas fa-users"},
-            {"title": "إضافة مستخدم", "active": True},
-        ],
-    }
-    
-    return render(request, 'users/user_create.html', context)
+                    field_label = form.fields[field].label if field in form.fields else field
+                    errors_list.append(f'{field_label}: {error}')
+            error_msg = ' | '.join(errors_list) or 'يرجى مراجعة البيانات المدخلة والتحقق من صحتها.'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': error_msg, 'errors': form.errors}, status=400)
+            for err in errors_list:
+                messages.error(request, err)
+            return redirect('users:user_list')
 
 
 @login_required
@@ -345,6 +496,7 @@ def user_edit(request, user_id):
     تعديل بيانات مستخدم (للمديرين فقط)
     """
     from django.http import JsonResponse
+    from users.services.user_management_service import UserManagementService
 
     if not request.user.can_manage_users():
         return JsonResponse({
@@ -357,12 +509,23 @@ def user_edit(request, user_id):
 
     if request.method == 'POST':
         try:
+            target_is_active = request.POST.get('is_active') == 'on'
+
+            # إذا تغيرت حالة النشاط، نمررها عبر السيرفيس المركزية لضمان الأمان والرقابة
+            if target_is_active != user.is_active:
+                toggle_res = UserManagementService.toggle_user_status(
+                    user,
+                    current_user=request.user,
+                    target_active=target_is_active
+                )
+                if not toggle_res.get('success'):
+                    return JsonResponse(toggle_res, status=400)
+
             user.first_name = request.POST.get('first_name', user.first_name)
             user.last_name = request.POST.get('last_name', user.last_name)
             user.email = request.POST.get('email', user.email)
             user.phone = request.POST.get('phone', user.phone)
             user.address = request.POST.get('address', user.address)
-            user.is_active = request.POST.get('is_active') == 'on'
 
             role_id = request.POST.get('role_id')
             if role_id:
@@ -370,11 +533,54 @@ def user_edit(request, user_id):
             elif role_id == '':
                 user.role = None
 
+            # تعديل كلمة المرور للسوبر أدمن فقط
+            new_password = request.POST.get('new_password', '').strip()
+            if new_password:
+                if not request.user.is_superuser:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'ليس لديك صلاحية لتعديل كلمة المرور (مخصصة لمدير النظام الرئيسي فقط).'
+                    }, status=403)
+                
+                if len(new_password) < 6:
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'كلمة المرور الجديدة يجب ألا تقل عن 6 أحرف.'
+                    }, status=400)
+                
+                user.set_password(new_password)
+                
+                # إنهاء جلسات المستخدم الأخرى أو الحفاظ على جلسة السوبر أدمن إذا كان يعدل حسابه الخاص
+                if request.user.id == user.id:
+                    from django.contrib.auth import update_session_auth_hash
+                    update_session_auth_hash(request, user)
+                else:
+                    UserManagementService.invalidate_user_sessions(user.id)
+                
+                # توثيق تغيير كلمة المرور في ActivityLog
+                try:
+                    from users.models import ActivityLog
+                    ActivityLog.objects.create(
+                        user=request.user,
+                        action="تغيير كلمة مرور المستخدم",
+                        model_name='User',
+                        object_id=user.id,
+                        extra_data={
+                            'target_username': user.username,
+                            'target_user_id': user.id,
+                            'changed_by': request.user.username,
+                            'details': f"قام مدير النظام {request.user.username} بتعيين كلمة مرور جديدة للمستخدم {user.username}"
+                        }
+                    )
+                except Exception as log_err:
+                    import logging
+                    logging.getLogger('users.views').warning(f"Could not log password change: {log_err}")
+
             user.save()
 
             return JsonResponse({
                 'success': True,
-                'message': f'تم تحديث بيانات المستخدم "{user.get_full_name()}" بنجاح'
+                'message': f'تم تحديث بيانات المستخدم "{user.get_full_name() or user.username}" بنجاح'
             })
         except Exception as e:
             return JsonResponse({
@@ -382,8 +588,9 @@ def user_edit(request, user_id):
                 'message': f'حدث خطأ: {str(e)}'
             })
 
-    # GET request - إرجاع بيانات المستخدم مع قائمة الأدوار
-    roles = list(Role.objects.filter(is_active=True).values('id', 'display_name'))
+    # GET request - إرجاع بيانات المستخدم مع قائمة الأدوار (تشمل دور المستخدم حتى لو كان الدور معطلاً)
+    roles_qs = Role.objects.filter(Q(is_active=True) | Q(id=user.role_id) if user.role_id else Q(is_active=True)).distinct()
+    roles = list(roles_qs.values('id', 'display_name'))
     return JsonResponse({
         'success': True,
         'user': {
@@ -402,10 +609,65 @@ def user_edit(request, user_id):
 
 
 @login_required
+def user_check_delete(request, user_id):
+    """
+    فحص استباقي لإمكانية حذف المستخدم وبيان العمليات المرتبطة
+    """
+    from django.http import JsonResponse
+    from users.services.user_management_service import UserManagementService
+
+    if not request.user.can_manage_users():
+        return JsonResponse({
+            'success': False,
+            'message': 'ليس لديك صلاحية لحذف المستخدمين'
+        }, status=403)
+
+    user = get_object_or_404(User, id=user_id)
+    can_del, summary, msg = UserManagementService.can_delete_user(user, current_user=request.user)
+
+    return JsonResponse({
+        'success': True,
+        'can_delete': can_del,
+        'user_name': user.get_full_name() or user.username,
+        'username': user.username,
+        'is_active': user.is_active,
+        'operations_summary': summary,
+        'message': msg
+    })
+
+
+@login_required
+def user_toggle_status(request, user_id):
+    """
+    تبديل حالة المستخدم (تعطيل وأرشفة / تفعيل واستعادة) عبر AJAX
+    """
+    from django.http import JsonResponse
+    from users.services.user_management_service import UserManagementService
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'طريقة الطلب غير مسموحة'}, status=405)
+
+    if not request.user.can_manage_users():
+        return JsonResponse({
+            'success': False,
+            'message': 'ليس لديك صلاحية لتعديل حالة المستخدمين'
+        }, status=403)
+
+    user = get_object_or_404(User, id=user_id)
+    result = UserManagementService.toggle_user_status(user, current_user=request.user)
+
+    status_code = 200 if result.get('success') else 400
+    return JsonResponse(result, status=status_code)
+
+
+@login_required
 def user_delete(request, user_id):
     """
-    حذف مستخدم عبر AJAX (للمديرين فقط)
+    حذف مستخدم عبر AJAX بعد التحقق من شروط الحذف الصارمة
     """
+    from django.http import JsonResponse
+    from users.services.user_management_service import UserManagementService
+
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'طريقة غير مسموحة'}, status=405)
     
@@ -416,35 +678,10 @@ def user_delete(request, user_id):
         }, status=403)
     
     user = get_object_or_404(User, id=user_id)
-    
-    # منع حذف نفسك
-    if user == request.user:
-        return JsonResponse({
-            'success': False,
-            'message': 'لا يمكنك حذف حسابك الخاص!'
-        }, status=400)
-    
-    # منع حذف superuser
-    if user.is_superuser:
-        return JsonResponse({
-            'success': False,
-            'message': 'لا يمكن حذف مدير النظام الرئيسي!'
-        }, status=400)
-    
-    try:
-        user_name = user.get_full_name()
-        user.delete()
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'تم حذف المستخدم "{user_name}" بنجاح'
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': f'حدث خطأ أثناء حذف المستخدم: {str(e)}'
-        }, status=500)
+    result = UserManagementService.delete_user(user, current_user=request.user)
+
+    status_code = 200 if result.get('success') else 400
+    return JsonResponse(result, status=status_code)
 
 
 @login_required
@@ -468,6 +705,13 @@ def login_as_user(request, user_id):
 
     target_user = get_object_or_404(User, id=user_id)
 
+    # حظر تسجيل الدخول بحساب معطل ومؤرشف
+    if not target_user.is_active:
+        return JsonResponse({
+            'success': False,
+            'message': 'لا يمكن تسجيل الدخول بحساب مستخدم معطل ومؤرشف'
+        }, status=400)
+
     # منع الدخول كنفسك
     if target_user == request.user:
         return JsonResponse({
@@ -477,6 +721,7 @@ def login_as_user(request, user_id):
 
     # حظر انتحال مدير رئيسي آخر
     if target_user.is_superuser:
+
         return JsonResponse({
             'success': False,
             'message': 'لا يمكن انتحال حساب مدير رئيسي آخر لأسباب أمنية'

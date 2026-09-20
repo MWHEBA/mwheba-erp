@@ -1,6 +1,25 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from .models import Customer, CustomerPayment
+from .models import Customer, CustomerPayment, CustomerTier, PaymentTerm, CustomerGeneralSettings, CustomerCreditProfile
+
+
+@admin.register(CustomerTier)
+class CustomerTierAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "default_credit_limit", "default_risk_category", "discount_percentage", "display_order", "is_active", "is_system")
+    list_filter = ("is_active", "is_system", "default_risk_category")
+    search_fields = ("name", "code", "description")
+
+
+@admin.register(PaymentTerm)
+class PaymentTermAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "days", "is_credit", "discount_percentage", "discount_days", "is_default", "is_active")
+    list_filter = ("is_active", "is_credit", "is_default")
+    search_fields = ("name", "code")
+
+
+@admin.register(CustomerGeneralSettings)
+class CustomerGeneralSettingsAdmin(admin.ModelAdmin):
+    list_display = ("code_prefix", "code_digits", "default_credit_limit", "default_grace_period_days", "credit_limit_enforcement", "updated_at")
 
 
 @admin.register(Customer)

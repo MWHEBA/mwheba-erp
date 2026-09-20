@@ -86,6 +86,14 @@ def validate_transaction_data(data, transaction_type='expense'):
     # الملاحظات (اختيارية)
     notes = data.get('notes', '').strip()
     cleaned_data['notes'] = notes
+
+    # أمر الشغل (اختياري)
+    work_order_id = data.get('work_order') or data.get('work_order_id')
+    if work_order_id:
+        try:
+            cleaned_data['work_order_id'] = int(work_order_id)
+        except (ValueError, TypeError):
+            pass
     
     is_valid = len(errors) == 0
     return is_valid, errors, cleaned_data
@@ -152,7 +160,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
         # إذا فشل، نجربه كـ code
         payment_account = get_object_or_404(ChartOfAccounts, code=payment_value, is_active=True)
     
-    # إنشاء FinancialTransaction أولاً لاستخدامه كـ source
+    # إنشاء FinancialTransaction أولاً لاستخدامه كـ source للقيد
     from ..models import AccountingPeriod, FinancialTransaction
     from django.utils import timezone
     
@@ -166,6 +174,8 @@ def create_journal_entry_for_expense(cleaned_data, user):
     if not active_period:
         raise ValueError(_('لا توجد فترة محاسبية نشطة لهذا التاريخ'))
     
+    work_order_id = cleaned_data.get('work_order_id')
+
     # إنشاء FinancialTransaction كـ source للقيد
     transaction = FinancialTransaction.objects.create(
         transaction_type='expense',
@@ -175,7 +185,8 @@ def create_journal_entry_for_expense(cleaned_data, user):
         to_account=payment_account,
         amount=cleaned_data['amount'],
         date=cleaned_data['date'],
-        category=financial_category
+        category=financial_category,
+        work_order_id=work_order_id
     )
     
     # احتساب ضريبة القيمة المضافة والخصم والتحصيل (FIN-TAX-001)
@@ -232,6 +243,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
     )
     
     # استخدام FinancialTransaction كـ source
+    gateway = AccountingGateway()
     journal_entry = gateway.create_journal_entry(
         source_module='financial',
         source_model='FinancialTransaction',
@@ -245,10 +257,16 @@ def create_journal_entry_for_expense(cleaned_data, user):
         financial_subcategory=financial_subcategory
     )
     
-    # حفظ الملاحظات إذا كانت موجودة
+    # حفظ الملاحظات وأمر الشغل إذا كانت موجودة
+    update_fields = []
     if cleaned_data.get('notes'):
         journal_entry.notes = cleaned_data['notes']
-        journal_entry.save(update_fields=['notes'])
+        update_fields.append('notes')
+    if work_order_id:
+        journal_entry.work_order_id = work_order_id
+        update_fields.append('work_order')
+    if update_fields:
+        journal_entry.save(update_fields=update_fields)
 
     # توثيق الإثبات الضريبي للمصروف
     try:

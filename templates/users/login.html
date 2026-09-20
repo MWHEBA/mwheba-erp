@@ -6,167 +6,12 @@
 {% block title %}تسجيل الدخول | نظام موهبة{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/auth.css' %}">
 <style>
-    .login-container {
-        max-width: 450px;
-        margin: 0 auto;
-        padding: 2rem;
-        background-color: #ffffff;
-        border-radius: 10px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    }
-    
     .login-logo {
+        max-height: 85px;
+        width: auto;
         display: block;
-        margin: 0 auto 1rem;
-        max-width: 100px;
-    }
-    
-    .login-header {
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
-    
-    .login-header h3 {
-        margin-bottom: 0.5rem;
-        color: var(--primary-color, #0e3178);
-        font-weight: 700;
-        font-size: 1.5rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1rem;
-    }
-    
-    .form-group label {
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-        display: block;
-    }
-    
-    .input-group {
-        position: relative;
-        border-radius: 5px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        transition: box-shadow 0.3s ease;
-    }
-    
-    .input-group:focus-within {
-        box-shadow: 0 2px 15px rgba(var(--primary-rgb, 4, 87, 141), 0.1);
-    }
-    
-    .input-group-text {
-        background-color: #f8f9fc;
-        border-color: #eaecf4;
-        color: #6e707e;
-    }
-    
-    .form-control {
-        height: 42px;
-        padding: 0.375rem 1rem;
-        font-size: 1rem;
-        border-color: #eaecf4;
-        transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    }
-    
-    .form-control:focus {
-        border-color: var(--primary-color, #0e3178);
-        box-shadow: none;
-    }
-    
-    .toggle-password {
-        position: absolute;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        z-index: 10;
-        border: none;
-        background: transparent;
-        cursor: pointer;
-        color: #6e707e;
-        padding: 0;
-        font-size: 14px;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .toggle-password:hover {
-        color: var(--primary-color, #0e3178);
-    }
-    
-    .form-check {
-        padding-right: 1.75rem;
-    }
-    
-    .form-check-input {
-        margin-right: -1.75rem;
-    }
-    
-    .btn-primary {
-        height: 42px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        box-shadow: 0 4px 10px rgba(var(--primary-rgb, 4, 87, 141), 0.25);
-        transition: all 0.3s ease;
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(var(--primary-rgb, 4, 87, 141), 0.35);
-    }
-    
-    .forgot-password {
-        display: inline-block;
-        margin-top: 1rem;
-        padding: 6px 12px;
-        border-radius: 30px;
-        color: #6e707e;
-        transition: all 0.3s ease;
-    }
-    
-    .forgot-password:hover {
-        background-color: #f8f9fc;
-        color: var(--primary-color, #0e3178);
-        text-decoration: none;
-    }
-    
-    .auth-body {
-        background: var(--bg-body, #f8f9fc);
-    }
-
-    .welcome-message {
-        text-align: center;
-    }
-
-    .welcome-message h3 {
-        color: var(--primary-color);
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-        font-size: 1.4rem;
-    }
-
-    .welcome-message p {
-        color: var(--text-muted);
-        margin-bottom: 0;
-        font-size: 0.85rem;
-    }
-    
-    .logo-container {
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    
-    .auth-form {
-        max-width: 400px;
         margin: 0 auto;
-    }
-    
-    .form-group.form-check.mb-4 {
-        margin-bottom: 1rem !important;
     }
 </style>
 {% endblock %}
@@ -175,9 +20,9 @@
 <div class="auth-container">
     <div class="logo-container">
         {% if settings.company_logo %}
-            <img src="{{ MEDIA_URL }}{{ settings.company_logo }}" alt="{{ settings.company_name|default:'شعار النظام' }}" class="img-fluid">
+            <img src="{{ MEDIA_URL }}{{ settings.company_logo }}" alt="{{ settings.company_name|default:'شعار النظام' }}" class="img-fluid login-logo">
         {% else %}
-            <img src="{% static 'img/logo.png' %}" alt="شعار نظام موهبة" class="img-fluid">
+            <img src="{% static 'img/logo.png' %}" alt="شعار نظام موهبة" class="img-fluid login-logo">
         {% endif %}
     </div>
     
@@ -194,46 +39,45 @@
             {% endif %}
             
             {% if form.errors %}
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                <strong>خطأ!</strong> اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+            <div class="alert alert-danger alert-dismissible fade show py-2 px-3 mb-3 small" role="alert">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <strong>خطأ!</strong> اسم المستخدم أو كلمة المرور غير صحيحة.
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="إغلاق"></button>
             </div>
             {% endif %}
             
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label for="id_username" class="form-label">اسم المستخدم أو البريد الإلكتروني</label>
                 <div class="position-relative">
-                    <i class="fas fa-user"></i>
-                    <input type="text" name="username" id="id_username" class="form-control input-with-icon" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني" required autofocus autocomplete="username">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" name="username" id="id_username" class="form-control input-with-icon" placeholder="اسم المستخدم أو البريد" required autofocus autocomplete="username">
                 </div>
             </div>
             
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label for="id_password" class="form-label">كلمة المرور</label>
                 <div class="position-relative">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" name="password" id="id_password" class="form-control input-with-icon" placeholder="أدخل كلمة المرور" required autocomplete="current-password">
-                    <span class="toggle-password">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="password" id="id_password" class="form-control input-with-icon" placeholder="كلمة المرور" required autocomplete="current-password">
+                    <span class="toggle-password" role="button" title="عرض/إخفاء كلمة المرور">
                         <i class="fas fa-eye"></i>
                     </span>
                 </div>
             </div>
             
-            <div class="form-group form-check mb-4">
-                <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
-                <label class="form-check-label" for="remember_me">تذكرني</label>
-            </div>
-            
-            <button type="submit" class="auth-button mb-2">
-                <i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول
-            </button>
-            
-            <div class="text-center mt-2">
+            <div class="d-flex align-items-center justify-content-between mb-4 mt-2">
+                <div class="form-check m-0">
+                    <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
+                    <label class="form-check-label" for="remember_me">تذكرني</label>
+                </div>
                 <a href="{% url 'password_reset' %}" class="text-decoration-none text-muted small">
                     <i class="fas fa-key me-1"></i> نسيت كلمة المرور؟
                 </a>
             </div>
+            
+            <button type="submit" class="auth-button">
+                <i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول
+            </button>
         </form>
     </div>
 </div>

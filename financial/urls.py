@@ -38,6 +38,32 @@ urlpatterns = [
         views.cash_account_delete,
         name="cash_account_delete",
     ),
+    # إسناد الخزن والحسابات البنكية للمستخدمين (Granular Treasury Assignments)
+    path(
+        "treasury-assignments/",
+        views.treasury_assignments_list,
+        name="treasury_assignments_list",
+    ),
+    path(
+        "treasury-assignments/matrix/",
+        views.treasury_assignments_list,
+        name="treasury_assignments",
+    ),
+    path(
+        "treasury-assignments/toggle/",
+        views.treasury_assignment_toggle_api,
+        name="treasury_assignment_toggle_api",
+    ),
+    path(
+        "treasury-assignments/bulk-save/",
+        views.treasury_assignment_bulk_save_api,
+        name="treasury_assignment_bulk_save_api",
+    ),
+    path(
+        "treasury-assignments/<int:pk>/delete/",
+        views.treasury_assignment_delete_api,
+        name="treasury_assignment_delete_api",
+    ),
     # التسويات البنكية
     path("bank-reconciliations/", views.bank_reconciliation_list, name="bank_reconciliation_list"),
     path("bank-reconciliations/<int:pk>/", views.bank_reconciliation_detail, name="bank_reconciliation_detail"),

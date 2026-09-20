@@ -1,0 +1,107 @@
+{% load i18n %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="paymentTermsTable">
+    <thead class="table-light">
+      <tr>
+        <th style="width: 40px;" class="text-center">#</th>
+        <th>{% trans "اسم شرط السداد" %}</th>
+        <th class="text-center">{% trans "عدد الأيام" %}</th>
+        <th class="text-center">{% trans "الدفعة المقدمة" %}</th>
+        <th class="text-center">{% trans "خصم السداد المبكر" %}</th>
+        <th class="text-center">{% trans "الافتراضي للنظام" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-end" style="width: 120px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for term in payment_terms %}
+      <tr data-term-id="{{ term.pk }}">
+        <td class="text-center text-muted">
+          <span class="badge bg-light text-dark border">{{ forloop.counter }}</span>
+        </td>
+        <td>
+          <div class="d-flex align-items-center">
+            <span class="badge bg-light text-primary border me-2">
+              <i class="fas fa-calendar-alt"></i>
+            </span>
+            <div>
+              <div class="fw-bold text-dark">{{ term.name }}</div>
+              {% if term.description %}
+              <small class="text-muted d-block text-truncate" style="max-width: 250px;">{{ term.description }}</small>
+              {% endif %}
+            </div>
+            {% if term.is_default %}
+            <span class="badge bg-success ms-2">{% trans "افتراضي" %}</span>
+            {% endif %}
+          </div>
+        </td>
+        <td class="text-center">
+          {% if term.days == 0 %}
+          <span class="badge bg-primary">{% trans "نقداً فوري" %}</span>
+          {% else %}
+          <span class="fw-bold text-dark">{{ term.days }} {% trans "يوم" %}</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if term.advance_percentage > 0 %}
+          <span class="badge bg-warning text-dark">{{ term.advance_percentage }}%</span>
+          {% else %}
+          <span class="text-muted small">-</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if term.discount_percentage > 0 %}
+          <span class="badge bg-info text-dark">{{ term.discount_percentage }}% {% trans "خلال" %} {{ term.discount_days }} {% trans "يوم" %}</span>
+          {% else %}
+          <span class="text-muted small">-</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if term.is_default %}
+          <i class="fas fa-check-circle text-success fa-lg" title="{% trans 'الشرط الافتراضي للنظام' %}"></i>
+          {% else %}
+          <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <div class="form-check form-switch d-inline-block">
+            <input class="form-check-input payment-term-status-toggle" type="checkbox" role="switch"
+                   data-term-id="{{ term.pk }}"
+                   data-url="{% url 'customer:payment_term_toggle_status' term.pk %}"
+                   {% if term.is_active %}checked{% endif %}>
+          </div>
+        </td>
+        <td class="text-end">
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-secondary edit-term-btn"
+                    data-term-id="{{ term.pk }}"
+                    data-url="{% url 'customer:payment_term_edit' term.pk %}"
+                    title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button type="button" class="btn btn-outline-danger delete-term-btn"
+                    data-term-id="{{ term.pk }}"
+                    data-term-name="{{ term.name }}"
+                    data-url="{% url 'customer:payment_term_delete' term.pk %}"
+                    title="{% trans 'حذف' %}">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-5 text-muted">
+          <i class="fas fa-file-invoice-dollar fa-3x mb-3 text-secondary opacity-50"></i>
+          <p class="mb-2 fw-bold">{% trans "لا توجد شروط سداد مسجلة حتى الآن" %}</p>
+          <p class="small text-muted">{% trans "أضف شروط السداد (نقدي، آجل 30 يوم، دفعة مقدمة...) لتسهيل إنشاء الفواتير وأوامر البيع والشراء." %}</p>
+          <button type="button" class="btn btn-primary btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#paymentTermModal">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة شرط سداد" %}
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

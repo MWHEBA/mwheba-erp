@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="stats-card">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-primary text-white">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "إجمالي الشرائح" %}</div>
+            <div class="stats-card-value">{{ stats.tiers_total|default:"0" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-success text-white">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "الشرائح النشطة" %}</div>
+            <div class="stats-card-value">{{ stats.tiers_active|default:"0" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon bg-info text-white">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <div>
+            <div class="stats-card-title">{% trans "شرائح النظام" %}</div>
+            <div class="stats-card-value">{{ stats.tiers_system|default:"0" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-layer-group me-2"></i>{% trans "قائمة الشرائح التجارية" %}</h5>
+      <button type="button" class="btn btn-primary btn-sm" id="btnNewTier">
+        <i class="fas fa-plus me-1"></i>{% trans "إضافة شريحة جديدة" %}
+      </button>
+    </div>
+
+    <div id="tiersTableContainer">
+      {% include "customer/settings/tiers/list_partial.html" %}
+    </div>
+  </div>
+</div>
+
+{% include "customer/settings/tiers/form_modal.html" %}
+{% include "customer/settings/tiers/delete_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  const tierModal = new bootstrap.Modal(document.getElementById('tierModal'));
+  const deleteTierModal = new bootstrap.Modal(document.getElementById('deleteTierModal'));
+
+  // Open Create Modal
+  $('#btnNewTier, .btn-new-tier').on('click', function() {
+    $('#tierForm')[0].reset();
+    $('#tierForm').attr('action', "{% url 'customer:tier_create' %}");
+    $('#tierModalTitleText').text("{% trans 'إضافة شريحة تجارية' %}");
+    $('#tierFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+    tierModal.show();
+  });
+
+  // Open Edit Modal
+  $(document).on('click', '.edit-tier-btn', function() {
+    const editUrl = $(this).data('url');
+    $('#tierFormAlert').addClass('d-none').text('');
+    $('.is-invalid').removeClass('is-invalid');
+
+    $.get(editUrl, function(res) {
+      if (res.success && res.data) {
+        const d = res.data;
+        $('#id_tier_name').val(d.name);
+        $('#id_tier_code').val(d.code);
+        $('#id_tier_display_order').val(d.display_order);
+        $('#id_tier_description').val(d.description);
+        $('#id_tier_default_price_list').val(d.default_price_list || '');
+        $('#id_tier_discount_percentage').val(d.discount_percentage);
+        $('#id_tier_default_payment_term').val(d.default_payment_term || '');
+        $('#id_tier_default_credit_limit').val(d.default_credit_limit);
+        $('#id_tier_default_risk_category').val(d.default_risk_category);
+        $('#id_tier_is_active').prop('checked', d.is_active);
+
+        $('#tierForm').attr('action', editUrl);
+        $('#tierModalTitleText').text("{% trans 'تعديل الشريحة التجارية' %}");
+        tierModal.show();
+      }
+    });
+  });
+
+  // Submit Tier Form (AJAX)
+  $('#tierForm').on('submit', function(e) {
+    e.preventDefault();
+    const form = $(this);
+    const submitBtn = $('#btnSaveTier');
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+    $('.is-invalid').removeClass('is-invalid');
+    $('#tierFormAlert').addClass('d-none');
+
+    $.ajax({
+      url: form.attr('action'),
+      method: 'POST',
+      data: form.serialize(),
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(res) {
+        if (res.success) {
+          tierModal.hide();
+          if (window.showToastr) {
+            window.showToastr(res.message, 'success');
+          } else if (window.showNotification) {
+            window.showNotification(res.message, 'success');
+          }
+          setTimeout(function() {
+            location.reload();
+          }, 3100);
+        }
+      },
+      error: function(xhr) {
+        submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ الشريحة');
+        const res = xhr.responseJSON;
+        if (res && res.errors) {
+          $.each(res.errors, function(field, errList) {
+            const input = $('#id_tier_' + field);
+            input.addClass('is-invalid');
+            $('#error_' + field).text(errList.join(', '));
+          });
+        } else {
+          $('#tierFormAlert').removeClass('d-none').text(res && res.message ? res.message : "{% trans 'حدث خطأ أثناء الحفظ' %}");
+        }
+      }
+    });
+  });
+
+  // Delete Modal
+  $(document).on('click', '.delete-tier-btn', function() {
+    const deleteUrl = $(this).data('url');
+    const tierName = $(this).data('tier-name');
+    $('#deleteTierName').text(tierName);
+    $('#deleteTierForm').attr('action', deleteUrl);
+    deleteTierModal.show();
+  });
+
+  // Toggle status
+  $(document).on('change', '.tier-status-toggle', function() {
+    const checkbox = $(this);
+    const url = checkbox.data('url');
+    $.ajax({
+      url: url,
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      success: function(res) {
+        if (window.showToastr) {
+          window.showToastr(res.message, 'success');
+        }
+      },
+      error: function() {
+        checkbox.prop('checked', !checkbox.prop('checked'));
+        if (window.showToastr) {
+          window.showToastr("{% trans 'تعذر تغيير حالة الشريحة' %}", 'error');
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

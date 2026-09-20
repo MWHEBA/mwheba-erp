@@ -30,7 +30,14 @@
 {% block number_value %}{{ sale.number }}{% endblock %}
 
 {% block date_label %}{% if is_english %}Date{% else %}تاريخ الفاتورة{% endif %}{% endblock %}
-{% block date_value %}{{ sale.date|date:"d-m-Y" }}{% endblock %}
+{% block date_value %}
+{{ sale.date|date:"d-m-Y" }}
+{% if sale.work_order %}
+<div style="font-size: 12px; color: var(--text-dark); font-weight: 600; margin-top: 2px;">
+    {% if is_english %}Work Order: #{% else %}أمر الشغل: #{% endif %}{{ sale.work_order.number }}
+</div>
+{% endif %}
+{% endblock %}
 
 {% block items_rows %}
 {% for item in items %}

@@ -95,9 +95,9 @@ class EmployeeService:
         employee.save()
         
         # إعادة تفعيل حساب المستخدم
-        if employee.user:
-            employee.user.is_active = True
-            employee.user.save()
+        if employee.user and not employee.user.is_active:
+            from users.services.user_management_service import UserManagementService
+            UserManagementService.toggle_user_status(employee.user, current_user=reinstated_by, target_active=True)
         
         return employee
 
@@ -119,8 +119,9 @@ class EmployeeService:
         employee.save()
         
         # تعطيل حساب المستخدم
-        employee.user.is_active = False
-        employee.user.save()
+        if employee.user and employee.user.is_active:
+            from users.services.user_management_service import UserManagementService
+            UserManagementService.toggle_user_status(employee.user, current_user=terminated_by, target_active=False)
         
         return employee
     

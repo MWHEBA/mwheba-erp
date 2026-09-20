@@ -1,0 +1,109 @@
+{% load i18n %}
+
+<div class="modal fade" id="paymentTermModal" tabindex="-1" aria-labelledby="paymentTermModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="paymentTermModalLabel">
+          <i class="fas fa-calendar-alt text-primary me-2"></i><span id="paymentTermModalTitleText">{% trans "إضافة شرط سداد" %}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="paymentTermForm" method="POST" action="{% url 'customer:payment_term_create' %}" novalidate>
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div id="paymentTermFormAlert" class="alert alert-danger d-none"></div>
+
+          <div class="row g-3">
+            <!-- اسم الشرط -->
+            <div class="col-md-8">
+              <label for="id_term_name" class="form-label fw-bold">{% trans "اسم شرط السداد" %} <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="id_term_name" name="name" required placeholder="مثال: آجل 30 يوم، نقدي فوري، دفعة مقدمة 50%">
+              <div class="invalid-feedback" id="error_term_name"></div>
+            </div>
+
+            <!-- عدد الأيام -->
+            <div class="col-md-4">
+              <label for="id_term_days" class="form-label fw-bold">{% trans "عدد أيام الاستحقاق" %} <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="id_term_days" name="days" value="0" min="0" required>
+                <span class="input-group-text">{% trans "يوم" %}</span>
+              </div>
+              <small class="text-muted">{% trans "0 يعني الدفع الفوري (نقداً)" %}</small>
+              <div class="invalid-feedback" id="error_term_days"></div>
+            </div>
+
+            <!-- الوصف -->
+            <div class="col-12">
+              <label for="id_term_description" class="form-label">{% trans "الوصف التفصيلي" %}</label>
+              <textarea class="form-control" id="id_term_description" name="description" rows="2" placeholder="وصف توضيحي لآلية الاستحقاق وشروط التطبيق..."></textarea>
+              <div class="invalid-feedback" id="error_term_description"></div>
+            </div>
+
+            <div class="col-12"><hr class="my-2 text-muted opacity-25"></div>
+            <div class="col-12"><h6 class="fw-bold text-secondary mb-0"><i class="fas fa-percentage me-2"></i>{% trans "الدفعات المقدمة وخصم السداد المبكر" %}</h6></div>
+
+            <!-- نسبة الدفعة المقدمة -->
+            <div class="col-md-4">
+              <label for="id_term_advance_percentage" class="form-label">{% trans "نسبة الدفعة المقدمة (%)" %}</label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="id_term_advance_percentage" name="advance_percentage" value="0.00" step="0.01" min="0" max="100">
+                <span class="input-group-text">%</span>
+              </div>
+              <small class="text-muted">{% trans "مطلوبة عند تأكيد الطلب" %}</small>
+              <div class="invalid-feedback" id="error_term_advance_percentage"></div>
+            </div>
+
+            <!-- نسبة خصم السداد المبكر -->
+            <div class="col-md-4">
+              <label for="id_term_discount_percentage" class="form-label">{% trans "خصم السداد المبكر (%)" %}</label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="id_term_discount_percentage" name="discount_percentage" value="0.00" step="0.01" min="0" max="100">
+                <span class="input-group-text">%</span>
+              </div>
+              <small class="text-muted">{% trans "خصم تعجيل الدفع" %}</small>
+              <div class="invalid-feedback" id="error_term_discount_percentage"></div>
+            </div>
+
+            <!-- مهلة خصم السداد المبكر -->
+            <div class="col-md-4">
+              <label for="id_term_discount_days" class="form-label">{% trans "مهلة الخصم المبكر" %}</label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="id_term_discount_days" name="discount_days" value="0" min="0">
+                <span class="input-group-text">{% trans "يوم" %}</span>
+              </div>
+              <small class="text-muted">{% trans "خلال كم يوم يستحق الخصم" %}</small>
+              <div class="invalid-feedback" id="error_term_discount_days"></div>
+            </div>
+
+            <!-- خيارات الحالة والافتراضي -->
+            <div class="col-md-6 mt-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="id_term_is_default" name="is_default">
+                <label class="form-check-label fw-bold text-dark" for="id_term_is_default">
+                  {% trans "تعيين كشرط سداد افتراضي للنظام" %}
+                </label>
+              </div>
+              <small class="text-muted d-block">{% trans "سيتم اختياره تلقائياً للعملاء الجدد والفواتير الجديدة." %}</small>
+            </div>
+
+            <div class="col-md-6 mt-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="id_term_is_active" name="is_active" checked>
+                <label class="form-check-label fw-bold text-dark" for="id_term_is_active">
+                  {% trans "تفعيل شرط السداد" %}
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSavePaymentTerm">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ شرط السداد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

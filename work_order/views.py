@@ -6,17 +6,94 @@ from django.contrib import messages
 from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
+from django.http import JsonResponse
 from decimal import Decimal
-from django.db.models import Sum
+from django.db.models import Sum, ProtectedError, Q
 
 from .models import WorkOrder
 from .forms import WorkOrderForm
 from .decorators import check_work_orders_enabled
 from customer.models import Customer, CustomerPayment
 from sale.models import Sale, SalePayment, Quotation
+from sale.models.return_model import SaleReturn
 from purchase.models import Purchase
-from financial.models import JournalEntry, ChartOfAccounts
+from purchase.models.return_model import PurchaseReturn
+from financial.models import JournalEntry, ChartOfAccounts, FinancialTransaction
 from governance.services.accounting_gateway import create_customer_payment_entry
+
+
+@login_required
+def api_customer_work_orders(request):
+    """
+    واجهة برمجية لاسترجاع أوامر الشغل الخاصة بعميل معين للدروب داون Select2
+    """
+    customer_id = request.GET.get('customer_id')
+    q = request.GET.get('q', '').strip()
+    
+    queryset = WorkOrder.objects.exclude(status='cancelled').select_related('customer')
+    if customer_id:
+        queryset = queryset.filter(customer_id=customer_id)
+        
+    if q:
+        queryset = queryset.filter(Q(number__icontains=q) | Q(customer__name__icontains=q))
+        
+    results = []
+    for wo in queryset.order_by('-id')[:30]:
+        results.append({
+            "id": wo.id,
+            "text": f"{wo.number} - {wo.customer.name} ({wo.get_status_display()})",
+            "number": wo.number,
+            "status": wo.status,
+        })
+        
+    return JsonResponse({"results": results})
+
+
+@login_required
+@check_work_orders_enabled
+@require_permission('work_order.change_workorder')
+def work_order_change_status(request, pk):
+    """
+    تغيير حالة أمر الشغل مع التحقق من قيود الإلغاء وإعادة الفتح
+    """
+    work_order = get_object_or_404(WorkOrder, pk=pk)
+    
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        valid_statuses = [choice[0] for choice in WorkOrder.STATUS_CHOICES]
+        
+        if new_status not in valid_statuses:
+            msg = _("حالة أمر الشغل غير صالحة.")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("work_order:work_order_detail", pk=work_order.pk)
+            
+        # فحص القيود الصارمة عند الإلغاء
+        if new_status == "cancelled":
+            has_confirmed_sales = work_order.sales.filter(status='confirmed').exists()
+            has_confirmed_purchases = work_order.purchases.filter(status='confirmed').exists()
+            has_payments = work_order.payments.exists()
+            has_approved_transactions = work_order.financial_transactions.filter(status='approved').exists()
+            
+            if has_confirmed_sales or has_confirmed_purchases or has_payments or has_approved_transactions:
+                msg = _("لا يمكن إلغاء أمر الشغل لوجود مستندات مؤكدة أو دفعات مرتبطة به. يرجى إلغاء أو حذف المستندات المرتبطة أولاً.")
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return JsonResponse({"success": False, "message": msg}, status=400)
+                messages.error(request, msg)
+                return redirect("work_order:work_order_detail", pk=work_order.pk)
+                
+        work_order.status = new_status
+        work_order.save(update_fields=["status", "updated_at"])
+        
+        success_msg = _("تم تحديث حالة أمر الشغل إلى: {}").format(work_order.get_status_display())
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": True, "message": success_msg, "status": work_order.status, "status_display": work_order.get_status_display()})
+            
+        messages.success(request, success_msg)
+        return redirect("work_order:work_order_detail", pk=work_order.pk)
+        
+    return redirect("work_order:work_order_detail", pk=work_order.pk)
 
 
 @login_required
@@ -34,6 +111,9 @@ def work_order_list(request):
         queryset = queryset.filter(status=status)
         
     customer_id = request.GET.get('customer')
+    if customer_id:
+        queryset = queryset.filter(customer_id=customer_id)
+        
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(queryset, request)
     page_obj = pagination_context["page_obj"]
@@ -161,15 +241,25 @@ def work_order_delete(request, pk):
     work_order = get_object_or_404(WorkOrder, pk=pk)
     
     # فحص الارتباطات قبل الحذف
-    if work_order.sales.exists() or work_order.quotations.exists() or work_order.purchases.exists() or work_order.payments.exists():
-        messages.error(request, _("لا يمكن حذف أمر الشغل هذا لوجود مستندات مالية أو تجارية مرتبطة به."))
+    if (
+        work_order.sales.exists()
+        or work_order.quotations.exists()
+        or work_order.purchases.exists()
+        or work_order.payments.exists()
+        or work_order.financial_transactions.exists()
+    ):
+        messages.error(request, _("لا يمكن حذف أمر الشغل لوجود مستندات مالية أو تجارية أو مصروفات مرتبطة به."))
         return redirect("work_order:work_order_detail", pk=work_order.pk)
 
     if request.method == "POST":
-        number = work_order.number
-        work_order.delete()
-        messages.success(request, _("تم حذف أمر الشغل {} بنجاح.").format(number))
-        return redirect("work_order:work_order_list")
+        try:
+            number = work_order.number
+            work_order.delete()
+            messages.success(request, _("تم حذف أمر الشغل {} بنجاح.").format(number))
+            return redirect("work_order:work_order_list")
+        except ProtectedError:
+            messages.error(request, _("لا يمكن حذف أمر الشغل لأنه محمي ومقيد بسجلات أخرى في النظام."))
+            return redirect("work_order:work_order_detail", pk=work_order.pk)
 
     return render(request, "work_order/work_order_confirm_delete.html", {"work_order": work_order})
 
@@ -180,11 +270,12 @@ def work_order_delete(request, pk):
 def work_order_detail(request, pk):
     """
     تفاصيل أمر الشغل ولوحة معلومات مركز التكلفة
+    حسابات مالية دقيقة وفق معيار المحاسبة الدولي IAS 21 ومبدأ الربح التشغيلي الإجمالي الصافي
     """
     work_order = get_object_or_404(WorkOrder.objects.select_related("customer", "created_by"), pk=pk)
 
     # 1. عروض الأسعار المرتبطة
-    quotations = work_order.quotations.select_related("customer", "salesman", "created_by").all()
+    quotations = work_order.quotations.select_related("customer", "salesman", "currency", "created_by").all()
 
     # فحص الصلاحية المالية: تكاليف وهوامش ربح
     can_view_financials = (
@@ -195,38 +286,68 @@ def work_order_detail(request, pk):
     )
 
     if can_view_financials:
-        # 2. فواتير المبيعات المرتبطة (إيرادات)
-        sales = work_order.sales.select_related("customer", "warehouse", "salesman", "created_by").filter(status='confirmed')
-        sales_total = sales.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        # 2. فواتير المبيعات المؤكدة (الإيراد التشغيلي الصافي قبل الضريبة وفق IAS 21)
+        sales = work_order.sales.select_related("customer", "warehouse", "salesman", "currency", "created_by").filter(status='confirmed')
+        sales_operating_egp = Decimal('0.00')
+        for s in sales:
+            ex_rate = s.exchange_rate if s.exchange_rate and s.exchange_rate > 0 else Decimal('1.000000')
+            subtotal_net = (s.subtotal - s.discount) if (s.subtotal is not None and s.discount is not None) else (s.total or Decimal('0.00'))
+            sales_operating_egp += (subtotal_net * ex_rate).quantize(Decimal('0.01'))
 
-        # 3. فواتير المشتريات المرتبطة (تكلفة خامات)
-        purchases = work_order.purchases.select_related("supplier", "warehouse", "created_by").filter(status='confirmed')
-        purchases_total = purchases.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+        # خصم مرتجعات المبيعات المؤكدة
+        sale_returns = SaleReturn.objects.filter(sale__in=sales, status='confirmed').select_related("sale")
+        sale_returns_operating_egp = Decimal('0.00')
+        for sr in sale_returns:
+            sr_ex_rate = sr.sale.exchange_rate if sr.sale and sr.sale.exchange_rate and sr.sale.exchange_rate > 0 else Decimal('1.000000')
+            sr_subtotal_net = (sr.subtotal - sr.discount) if (sr.subtotal is not None and sr.discount is not None) else (sr.total or Decimal('0.00'))
+            sale_returns_operating_egp += (sr_subtotal_net * sr_ex_rate).quantize(Decimal('0.01'))
 
-        # 4. المصروفات والإيرادات المباشرة
-        financial_transactions = work_order.financial_transactions.filter(status='approved')
+        net_sales_revenue = sales_operating_egp - sale_returns_operating_egp
+
+        # 3. فواتير المشتريات المؤكدة (تكلفة الخامات والخدمات الخارجية وفق IAS 21)
+        purchases = work_order.purchases.select_related("supplier", "warehouse", "currency", "created_by").filter(status='confirmed')
+        raw_materials_egp = Decimal('0.00')
+        services_egp = Decimal('0.00')
+
+        for p in purchases:
+            p_ex_rate = p.exchange_rate if p.exchange_rate and p.exchange_rate > 0 else Decimal('1.000000')
+            p_subtotal_net = (p.subtotal - p.discount) if (p.subtotal is not None and p.discount is not None) else (p.total or Decimal('0.00'))
+            amount_egp = (p_subtotal_net * p_ex_rate).quantize(Decimal('0.01'))
+            if getattr(p, 'is_service', False):
+                services_egp += amount_egp
+            else:
+                raw_materials_egp += amount_egp
+
+        # خصم مرتجعات المشتريات المؤكدة
+        purchase_returns = PurchaseReturn.objects.filter(purchase__in=purchases, status='confirmed').select_related("purchase")
+        purchase_returns_egp = Decimal('0.00')
+        for pr in purchase_returns:
+            pr_ex_rate = pr.purchase.exchange_rate if pr.purchase and pr.purchase.exchange_rate and pr.purchase.exchange_rate > 0 else Decimal('1.000000')
+            pr_subtotal_net = (pr.subtotal - pr.discount) if (pr.subtotal is not None and pr.discount is not None) else (pr.total or Decimal('0.00'))
+            purchase_returns_egp += (pr_subtotal_net * pr_ex_rate).quantize(Decimal('0.01'))
+
+        net_raw_materials_cost = max(Decimal('0.00'), raw_materials_egp - purchase_returns_egp)
+        net_purchases_cost = net_raw_materials_cost + services_egp
+
+        # 4. المعاملات والمصروفات المالية المباشرة المعتمدة
+        financial_transactions = work_order.financial_transactions.select_related("category", "account", "to_account").filter(status='approved')
         incomes_direct = financial_transactions.filter(transaction_type='income')
-        incomes_direct_total = incomes_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
+        incomes_direct_total = incomes_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
         expenses_direct = financial_transactions.filter(transaction_type='expense')
-        expenses_direct_total = expenses_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
+        expenses_direct_total = expenses_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        # 5. الحسابات المالية الكلية
-        total_revenue = sales_total + incomes_direct_total
-        total_cost = purchases_total + expenses_direct_total
+        # 5. الحسابات المالية الكلية للربح التشغيلي
+        total_revenue = net_sales_revenue + incomes_direct_total
+        total_cost = net_purchases_cost + expenses_direct_total
         net_profit = total_revenue - total_cost
-        profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else Decimal('0.00')
+        profit_margin = ((net_profit / total_revenue) * Decimal('100.00')).quantize(Decimal('0.01')) if total_revenue > Decimal('0.00') else Decimal('0.00')
 
         # 6. نظام الدفعات المقدمة (الحصالة)
-        payments = work_order.payments.all()
+        payments = work_order.payments.select_related("financial_account", "created_by").all()
         total_deposits = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
-        # حساب المستهلك من الدفعات المقدمة في فواتير المبيعات
-        total_allocated = Decimal('0.00')
-        for payment in payments:
-            total_allocated += payment.allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            
-        remaining_deposit = total_deposits - total_allocated
+        total_allocated = payments.aggregate(total=Sum('allocated_currency_amount_cached'))['total'] or Decimal('0.00')
+        remaining_deposit = max(Decimal('0.00'), total_deposits - total_allocated)
     else:
         # حجب الاستعلامات والتفاصيل المالية لترشيد الأداء وحماية السرية
         sales = work_order.sales.none()
@@ -234,8 +355,11 @@ def work_order_detail(request, pk):
         financial_transactions = work_order.financial_transactions.none()
         incomes_direct = work_order.financial_transactions.none()
         expenses_direct = work_order.financial_transactions.none()
-        sales_total = None
-        purchases_total = None
+        sales_operating_egp = None
+        net_sales_revenue = None
+        net_raw_materials_cost = None
+        services_egp = None
+        net_purchases_cost = None
         incomes_direct_total = None
         expenses_direct_total = None
         total_revenue = None
@@ -262,8 +386,18 @@ def work_order_detail(request, pk):
         "payments": payments,
         "can_view_financials": can_view_financials,
         
-        "sales_total": sales_total,
-        "purchases_total": purchases_total,
+        "sales_total": net_sales_revenue,
+        "sales_operating_egp": sales_operating_egp,
+        "sale_returns_operating_egp": sale_returns_operating_egp,
+        "net_sales_revenue": net_sales_revenue,
+        
+        "purchases_total": net_purchases_cost,
+        "raw_materials_egp": raw_materials_egp,
+        "purchase_returns_egp": purchase_returns_egp,
+        "net_raw_materials_cost": net_raw_materials_cost,
+        "services_egp": services_egp,
+        "net_purchases_cost": net_purchases_cost,
+        
         "incomes_direct_total": incomes_direct_total,
         "expenses_direct_total": expenses_direct_total,
         

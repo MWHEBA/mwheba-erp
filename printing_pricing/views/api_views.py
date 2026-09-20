@@ -1760,7 +1760,7 @@ class ApprovedOrdersAPIView(BaseAPIView):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك باستعراض طلبات التسعير المعتمدة')}, status=403)
         try:
             customer_id = request.GET.get('customer_id')
-            qs = PrintingOrder.objects.filter(status='approved', is_active=True).select_related('customer')
+            qs = PrintingOrder.objects.filter(status='approved', is_active=True).select_related('customer', 'work_order')
             if customer_id:
                 qs = qs.filter(customer_id=customer_id)
 
@@ -1793,6 +1793,8 @@ class ApprovedOrdersAPIView(BaseAPIView):
                     'design_service_name': o.get_design_service_type_display() if o.design_service_type else '',
                     'has_design': has_design,
                     'product_id': prod_id,
+                    'work_order_id': o.work_order_id if o.work_order else None,
+                    'work_order_number': o.work_order.number if o.work_order else '',
                 })
             return JsonResponse({'success': True, 'orders': orders_data})
         except Exception as e:

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from users.decorators import require_permission
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from django.db import transaction
 from django.db.models import Sum, Q
 from django.urls import reverse
@@ -37,8 +38,9 @@ def customer_list(request):
     search = request.GET.get('search', '')
     currency_id = request.GET.get('currency', '')
     customer_type = request.GET.get('customer_type', '')
+    tier_id = request.GET.get('tier', '')
 
-    customers_qs = Customer.objects.select_related('default_currency').all().order_by('-created_at')
+    customers_qs = Customer.objects.select_related('default_currency', 'tier').all().order_by('-created_at')
 
     if status == 'active':
         customers_qs = customers_qs.filter(is_active=True)
@@ -51,6 +53,9 @@ def customer_list(request):
 
     if customer_type:
         customers_qs = customers_qs.filter(customer_type=customer_type)
+
+    if tier_id:
+        customers_qs = customers_qs.filter(tier_id=tier_id)
 
     if search:
         from utils.search import smart_search_filter
@@ -66,8 +71,9 @@ def customer_list(request):
     elif has_debt == '0':
         customers_qs = customers_qs.filter(balance__lte=0)
 
-    # جلب العملات والتصنيفات المستخدمة فقط في العملاء
+    # جلب العملات والتصنيفات والشرائح
     from financial.models.currency import Currency
+    from .models import CustomerTier
     used_currency_ids = Customer.objects.exclude(default_currency__isnull=True).values_list('default_currency_id', flat=True).distinct()
     currencies = Currency.objects.filter(id__in=used_currency_ids).order_by('name')
 
@@ -76,14 +82,16 @@ def customer_list(request):
     if not customer_types:
         customer_types = Customer.CUSTOMER_TYPES
 
+    tiers = CustomerTier.objects.all().order_by('display_order', 'name')
+
     # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
         from utils.export import export_queryset_to_excel
         return export_queryset_to_excel(
             customers_qs,
             filename="customers_export.xlsx",
-            fields=["code", "name", "phone", "address", "default_currency__code", "balance", "is_active"],
-            headers=["الكود", "اسم العميل", "رقم الهاتف", "العنوان", "العملة", "المديونية", "نشط"]
+            fields=["code", "name", "phone", "tier__name", "address", "default_currency__code", "balance", "is_active"],
+            headers=["الكود", "اسم العميل", "رقم الهاتف", "الشريحة", "العنوان", "العملة", "المديونية", "نشط"]
         )
 
     active_customers = Customer.objects.filter(is_active=True).count()
@@ -101,6 +109,13 @@ def customer_list(request):
             "url": "customer:customer_detail",
         },
         {"key": "code", "label": "الكود", "sortable": True},
+        {
+            "key": "tier_display",
+            "label": "الشريحة التجارية",
+            "sortable": False,
+            "format": "html",
+            "class": "text-center",
+        },
         {
             "key": "customer_type_display",
             "label": "نوع العميل",
@@ -183,6 +198,10 @@ def customer_list(request):
         customer_dtos = exposure_map.get(c.pk, [])
         c.actual_balance_display = CurrencyExposurePresenter.render_html_badges(customer_dtos)
         c.customer_type_display = type_badges.get(c.customer_type, f'<span class="badge bg-secondary">{c.get_customer_type_display()}</span>')
+        if c.tier:
+            c.tier_display = f'<span class="badge" style="background-color: var(--primary-color); color: var(--color-white, #fff);"><i class="{c.tier.icon or "fas fa-tag"} me-1"></i>{c.tier.name}</span>'
+        else:
+            c.tier_display = '<span class="text-muted small">-</span>'
 
     customers = page_obj
 
@@ -206,6 +225,13 @@ def customer_list(request):
                 "icon": "fa-plus",
                 "text": "إضافة عميل",
                 "class": "btn-primary",
+            })
+        if request.user.is_superuser or request.user.has_perm('customer.change_customertier'):
+            header_buttons.append({
+                "url": reverse("customer:settings_index"),
+                "icon": "fa-cog",
+                "text": "إعدادات العملاء",
+                "class": "btn-outline-secondary",
             })
         header_buttons.append({
             "url": reverse("customer:customer_list") + "?status=inactive",
@@ -236,6 +262,7 @@ def customer_list(request):
         'total_debt': total_debt,
         'currencies': currencies,
         'customer_types': customer_types,
+        'tiers': tiers,
         'show_export': True,
         'page_title': page_title,
         'page_subtitle': page_subtitle,

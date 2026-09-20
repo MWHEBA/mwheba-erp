@@ -49,6 +49,8 @@ class ActivityLogSignalsTest(TestCase):
             email="newuser_del_sig@example.com",
             password="password123"
         )
+        another_user.is_active = False
+        another_user.save()
         user_id = another_user.id
         another_user.delete()
         

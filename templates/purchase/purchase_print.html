@@ -32,6 +32,15 @@
 {% block date_label %}{% trans "تاريخ الفاتورة" %}{% endblock %}
 {% block date_value %}{{ purchase.date|date:"d-m-Y" }}{% endblock %}
 
+{% block extra_meta_info %}
+{% if purchase.work_order %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "أمر الشغل" %}:</span>
+    <span class="meta-value fw-bold">#{{ purchase.work_order.number }}</span>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block items_rows %}
 {% for item in purchase.items.all %}
 <tr>

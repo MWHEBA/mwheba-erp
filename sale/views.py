@@ -11,6 +11,12 @@ from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
+from django.http import JsonResponse
+from django.db import models
+from django.db.models import Sum, Q
+import json
+import uuid
+from datetime import datetime
 from decimal import Decimal
 import logging
 
@@ -21,6 +27,7 @@ from sale.services import SaleService
 from product.models import Product, Warehouse, SerialNumber
 from customer.models import Customer
 from core.models import SystemSetting
+from financial.models import CostCenter
 from users.decorators import require_permission
 from users.services.data_scoping_service import DataScopingService
 
@@ -177,6 +184,8 @@ def sale_create(request, customer_id=None):
             selected_customer = selected_work_order.customer
         except WorkOrder.DoesNotExist:
             pass
+    elif selected_so and getattr(selected_so, 'quotation_reference', None) and getattr(selected_so.quotation_reference, 'work_order', None):
+        selected_work_order = selected_so.quotation_reference.work_order
 
     posted_items = []
     if request.method == "POST":
@@ -553,7 +562,7 @@ def add_payment(request, pk):
     sale = get_object_or_404(DataScopingService.get_scoped_sales(request.user), pk=pk)
 
     # التحقق من الصلاحيات: السماح لمندوب المبيعات بتسجيل العربون/الدفعة على فاتورته المفتوحة
-    is_owner_draft = (sale.created_by_id == request.user.id and not sale.is_posted)
+    is_owner_draft = (sale.created_by_id == request.user.id and (getattr(sale, 'status', '') == 'draft' or not getattr(sale, 'is_posted', False)))
     has_perm = (
         request.user.is_superuser
         or getattr(request.user, 'is_admin', False)
@@ -798,7 +807,7 @@ def sale_detail(request, pk):
             ] if (sale.payment_status != 'paid') and (
                 request.user.has_perm('sale.add_salepayment')
                 or request.user.has_perm('customer.add_customerpayment')
-                or (sale.created_by_id == request.user.id and not sale.is_posted)
+                or (sale.created_by_id == request.user.id and (getattr(sale, 'status', '') == 'draft' or not getattr(sale, 'is_posted', False)))
                 or request.user.is_superuser
             ) else [])
             + [
@@ -976,7 +985,7 @@ def sale_list(request):
         })
 
         # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل ومع الصلاحية)
-        is_owner_draft_row = (sale.created_by_id == request.user.id and not getattr(sale, 'is_posted', False))
+        is_owner_draft_row = (sale.created_by_id == request.user.id and (getattr(sale, 'status', '') == 'draft' or not getattr(sale, 'is_posted', False)))
         can_add_pay_row = (
             request.user.has_perm('sale.add_salepayment')
             or request.user.has_perm('customer.add_customerpayment')
@@ -1167,6 +1176,7 @@ def get_sale_print_context(request, pk):
         company_name_active = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or company_name
         company_address_active = SystemSetting.get_company_address_en() or company_address
         invoice_title_active = SystemSetting.get_invoice_title_sale_en()
+        default_notes = SystemSetting.get_sale_invoice_notes_en() or SystemSetting.get_setting('default_sale_invoice_notes', '')
         currency_symbol_active = getattr(sale.currency, 'code', None) or SystemSetting.get_currency_symbol_en()
         status_map = {
             'paid': 'PAID',
@@ -1333,7 +1343,7 @@ def sale_print_thermal(request, pk):
     qr.make(fit=True)
     img = qr.make_image(fill_color="black", back_color="white")
     buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
+    img.save(buffer)
     qr_code_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     
     is_service_invoice = all(item.product.is_service for item in items)
@@ -1412,6 +1422,7 @@ def sale_edit(request, pk):
                     'tax': form.cleaned_data.get('tax', 0) or Decimal('0'),
                     'notes': form.cleaned_data.get('notes', ''),
                     'price_list_id': form.cleaned_data.get('price_list').id if form.cleaned_data.get('price_list') else (request.POST.get('price_list') or None),
+                    'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
                     'items': [],
                 }
                 

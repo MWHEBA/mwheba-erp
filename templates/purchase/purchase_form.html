@@ -197,6 +197,19 @@
                                                 <div class="invalid-feedback d-block">{{ form.financial_category.errors.0 }}</div>
                                             {% endif %}
                                         </div>
+                                    <!-- أمر الشغل المرتبط -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label" for="id_work_order">
+                                            <i class="fas fa-hammer me-1 text-secondary"></i>أمر الشغل المرتبط
+                                        </label>
+                                        <select name="work_order" id="id_work_order" class="form-select select2" dir="rtl">
+                                            <option value="">-- بدون أمر شغل --</option>
+                                            {% for wo in form.fields.work_order.queryset %}
+                                                <option value="{{ wo.id }}" {% if form.work_order.value == wo.id|stringformat:'s' or selected_work_order.id == wo.id or purchase.work_order_id == wo.id %}selected{% endif %}>
+                                                    {{ wo.number }} - {{ wo.customer.name }} ({{ wo.name|default:wo.get_status_display }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
                             </div>
@@ -243,7 +256,7 @@
                                     
                                     <!-- طريقة الدفع -->
                                     <div class="col-12 col-md-6" id="payment-method-field" style="display: none;">
-                                        {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="طريقة الدفع" allow_custody=True required=False selected_value=form.payment_method.value %}
+                                        {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="طريقة الدفع" allow_custody=True required=False selected_value=form.payment_method.value action_type="disburse" %}
                                     </div>
 
                                     <!-- العملة وسعر الصرف -->

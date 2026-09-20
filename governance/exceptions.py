@@ -31,17 +31,27 @@ class AuthorityViolationError(GovernanceError):
     Raised when authority boundaries are violated.
     Indicates unauthorized access to protected resources.
     """
-    def __init__(self, service: str, model: str, operation: str, context: dict = None):
-        message = f"Service '{service}' is not authorized to perform '{operation}' on '{model}'"
+    def __init__(
+        self,
+        service: str = None,
+        model: str = None,
+        operation: str = None,
+        context: dict = None,
+        message: str = None,
+        error_code: str = None
+    ):
+        if message is None:
+            message = f"Service '{service}' is not authorized to perform '{operation}' on '{model}'"
+        ctx = {
+            'service': service,
+            'model': model,
+            'operation': operation,
+            **(context or {})
+        }
         super().__init__(
             message=message,
-            error_code="AUTHORITY_VIOLATION",
-            context={
-                'service': service,
-                'model': model,
-                'operation': operation,
-                **(context or {})
-            }
+            error_code=error_code or "AUTHORITY_VIOLATION",
+            context=ctx
         )
 
 

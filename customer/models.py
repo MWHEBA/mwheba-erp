@@ -7,6 +7,77 @@ from financial.mixins import MonetaryTransactionMixin
 
 
 
+
+class CustomerTier(models.Model):
+    """
+    الشرائح والتصنيفات التجارية للعملاء
+    تحدد تلقائياً المعاملات المالية وقوائم الأسعار وشروط الدفع وسقوف الائتمان ومصفوفة المخاطر
+    """
+    RISK_CHOICES = (
+        ("LOW", _("منخفض المخاطر")),
+        ("MEDIUM", _("متوسط المخاطر")),
+        ("HIGH", _("مرتفع المخاطر")),
+    )
+
+    name = models.CharField(_("اسم الشريحة"), max_length=100)
+    code = models.CharField(_("الرمز"), max_length=50, unique=True)
+    description = models.TextField(_("الوصف"), blank=True)
+    icon = models.CharField(_("الأيقونة"), max_length=50, default="fas fa-users")
+    color = models.CharField(_("اللون"), max_length=50, default="var(--primary-color)")
+    display_order = models.PositiveIntegerField(_("ترتيب العرض"), default=0)
+    
+    default_price_list = models.ForeignKey(
+        'sale.PriceList',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("قائمة الأسعار الافتراضية"),
+        related_name="customer_tiers"
+    )
+    default_payment_term = models.ForeignKey(
+        'customer.PaymentTerm',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("شروط الدفع الافتراضية"),
+        related_name="customer_tiers"
+    )
+    default_credit_limit = models.DecimalField(
+        _("الحد الائتماني الافتراضي"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+    default_risk_category = models.CharField(
+        _("تصنيف المخاطر الافتراضي"),
+        max_length=20,
+        choices=RISK_CHOICES,
+        default="LOW"
+    )
+    discount_percentage = models.DecimalField(
+        _("نسبة خصم الشريحة %"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+    is_active = models.BooleanField(_("نشط"), default=True)
+    is_system = models.BooleanField(_("شريحة نظامية"), default=False)
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("شريحة عملاء")
+        verbose_name_plural = _("شرائح العملاء")
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def customers_count(self):
+        return self.customers.count()
+
+
 class Customer(models.Model):
     """
     نموذج العميل المحسن مع التكامل مع النظام المرجعي
@@ -130,6 +201,16 @@ class Customer(models.Model):
         choices=CUSTOMER_TYPES,
         default="individual",
         help_text=_("تصنيف الكيان القانوني: فرد (شخص طبيعي) أو شركة أو جهة حكومية"),
+    )
+    # الشريحة والتصنيف التجاري
+    tier = models.ForeignKey(
+        'customer.CustomerTier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("الشريحة التجارية"),
+        related_name="customers",
+        help_text=_("الشريحة التجارية المعتمدة للعميل التي تحدد إعدادات التسعير وشروط الدفع والائتمان تلقائياً")
     )
     # تمييز العميل (VIP)
     is_vip = models.BooleanField(
@@ -526,11 +607,12 @@ class PaymentTerm(models.Model):
     شروط الدفع المعيارية للعملاء والموردين
     """
     name = models.CharField(_("اسم شرط الدفع"), max_length=100, unique=True)
-    code = models.CharField(_("كود الشرط"), max_length=20, unique=True)
+    code = models.CharField(_("كود الشرط"), max_length=50, unique=True, blank=True)
     days = models.IntegerField(_("عدد أيام الإمهال"), default=30)
     is_credit = models.BooleanField(_("يعتبر بيعاً ائتمانياً"), default=True)
     discount_percentage = models.DecimalField(_("نسبة خصم التعجيل %"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
     discount_days = models.IntegerField(_("أيام خصم التعجيل"), default=0)
+    is_default = models.BooleanField(_("الشرط الافتراضي للنظام"), default=False)
     is_active = models.BooleanField(_("نشط"), default=True)
 
     class Meta:
@@ -540,6 +622,23 @@ class PaymentTerm(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.days} يوم)"
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            base_code = f"NET{self.days}" if self.days > 0 else "CASH"
+            code = base_code
+            counter = 1
+            while PaymentTerm.objects.filter(code=code).exclude(pk=self.pk).exists():
+                code = f"{base_code}_{counter}"
+                counter += 1
+            self.code = code
+        else:
+            self.code = self.code.strip().upper()
+
+        if self.is_default:
+            PaymentTerm.objects.exclude(pk=self.pk).filter(is_default=True).update(is_default=False)
+        super().save(*args, **kwargs)
+
 
 
 class CustomerCreditStatusHistory(models.Model):
@@ -622,3 +721,35 @@ class CreditAuditLog(models.Model):
         if self.pk:
             raise ValueError("FIN-AR-001 Immutability Guard: CreditAuditLog records are strictly INSERT-ONLY.")
         super().save(*args, **kwargs)
+
+
+class CustomerGeneralSettings(models.Model):
+    """
+    إعدادات العملاء وسياسات التكويد والائتمان العامة
+    """
+    ENFORCEMENT_CHOICES = (
+        ("HARD_STOP", _("إيقاف آلي صارم للبيع")),
+        ("WARNING", _("تحذير فقط مع طلب اعتماد")),
+    )
+
+    code_prefix = models.CharField(_("بادئة كود العميل"), max_length=10, default="CUST-", help_text=_("مثال: CUST- أو CLI-"))
+    code_digits = models.PositiveIntegerField(_("عدد خانات الترقيم"), default=4, help_text=_("عدد الخانات الرقمية مثل 4 لإنتاج CUST-0001"))
+    default_credit_limit = models.DecimalField(_("الحد الائتماني الافتراضي للعملاء الجدد"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    default_grace_period_days = models.IntegerField(_("فترة السماح الافتراضية (أيام)"), default=0)
+    credit_limit_enforcement = models.CharField(_("سياسة تجاوز سقف الائتمان"), max_length=20, choices=ENFORCEMENT_CHOICES, default="HARD_STOP")
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("إعدادات العملاء والائتمان العامة")
+        verbose_name_plural = _("إعدادات العملاء والائتمان العامة")
+
+    def __str__(self):
+        return f"Customer General Settings (Prefix: {self.code_prefix})"
+
+    @classmethod
+    def get_settings(cls):
+        settings_obj = cls.objects.first()
+        if not settings_obj:
+            settings_obj = cls.objects.create()
+        return settings_obj
+

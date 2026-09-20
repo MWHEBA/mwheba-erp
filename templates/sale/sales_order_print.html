@@ -46,6 +46,11 @@
     {% if is_english %}Expected Delivery:{% else %}تاريخ التوريد المتوقع:{% endif %} {{ so.expected_delivery_date|date:"d-m-Y" }}
 </div>
 {% endif %}
+{% if so.quotation_reference.work_order %}
+<div style="font-size: 12px; color: var(--text-dark); font-weight: 600; margin-top: 2px;">
+    {% if is_english %}Work Order: #{% else %}أمر الشغل: #{% endif %}{{ so.quotation_reference.work_order.number }}
+</div>
+{% endif %}
 {% endblock %}
 
 {% block header_custom_fields %}

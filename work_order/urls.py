@@ -9,5 +9,8 @@ urlpatterns = [
     path("<int:pk>/", views.work_order_detail, name="work_order_detail"),
     path("<int:pk>/edit/", views.work_order_edit, name="work_order_edit"),
     path("<int:pk>/delete/", views.work_order_delete, name="work_order_delete"),
+    path("<int:pk>/change-status/", views.work_order_change_status, name="work_order_change_status"),
     path("<int:pk>/record-deposit/", views.work_order_record_deposit, name="work_order_record_deposit"),
+    path("api/customer-work-orders/", views.api_customer_work_orders, name="api_customer_work_orders"),
 ]
+

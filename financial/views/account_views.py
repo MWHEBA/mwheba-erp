@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
-from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.db import models
@@ -24,6 +24,9 @@ import json
 from ..forms.expense_forms import ExpenseForm, ExpenseEditForm, ExpenseFilterForm
 from ..forms.income_forms import IncomeForm, IncomeEditForm, IncomeFilterForm
 from ..services.expense_income_service import ExpenseIncomeService
+from ..services.account_helper import AccountHelperService
+from ..services.role_registry import AccountRoleRegistry
+from ..services.exchange_rate_service import ExchangeRateService
 
 # استيراد النماذج الأساسية (موجودة بالتأكيد)
 from ..models import (
@@ -471,6 +474,19 @@ def quick_add_cash_bank_account(request):
                 draft_entry.posted_by = request.user
                 draft_entry.save()
 
+        # إسناد الخزينة المنشأة تلقائياً للمستخدم المنشئ
+        from financial.models.treasury_access import UserTreasuryAccess
+        UserTreasuryAccess.objects.get_or_create(
+            user=request.user,
+            treasury=account,
+            defaults={
+                'can_deposit': True,
+                'can_disburse': True,
+                'assigned_by': request.user,
+                'notes': 'إسناد تلقائي عند إنشاء الخزينة'
+            }
+        )
+
         return JsonResponse({
             "success": True,
             "message": f'تم إضافة {account.name} بنجاح (كود: {account.code})',
@@ -504,40 +520,8 @@ def cash_and_bank_accounts_list(request):
     base_currency_code = func_currency.code if func_currency else "EGP"
     base_currency_symbol = (func_currency.symbol or func_currency.code) if func_currency else "ج.م"
 
-    try:
-        accounts = (
-            ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-            .filter(
-                Q(is_cash_account=True)
-                | Q(is_bank_account=True)
-                | (
-                    Q(is_leaf=True)
-                    & (
-                        Q(account_type__name__icontains="نقدي")
-                        | Q(account_type__name__icontains="بنك")
-                        | Q(account_type__name__icontains="صندوق")
-                        | Q(account_type__name__icontains="خزن")
-                    )
-                )
-            )
-            .exclude(is_control_account=True)
-            .select_related("account_type", "currency")
-            .order_by("code")
-        )
-        list(accounts[:1])
-    except Exception:
-        accounts = (
-            ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-            .filter(
-                Q(account_type__name__icontains="نقدي")
-                | Q(account_type__name__icontains="بنك")
-                | Q(account_type__name__icontains="صندوق")
-                | Q(account_type__name__icontains="خزن")
-            )
-            .exclude(is_control_account=True)
-            .select_related("account_type", "currency")
-            .order_by("code")
-        )
+    from financial.services.treasury_security_service import TreasurySecurityService
+    accounts = TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").select_related("account_type", "currency").order_by("code")
 
     try:
         cash_accounts_count = accounts.filter(is_cash_account=True).count()
@@ -635,6 +619,25 @@ def cash_and_bank_accounts_list(request):
 
         account.last_movement_date = last_movement_map.get(account.id)
 
+    from financial.models.treasury_access import UserTreasuryAccess
+    user_access_map = {}
+    assigned_users_count_map = {}
+
+    if request.user.is_authenticated:
+        user_accesses = UserTreasuryAccess.objects.filter(user=request.user, treasury_id__in=account_ids)
+        for ua in user_accesses:
+            user_access_map[ua.treasury_id] = ua
+
+        if request.user.is_superuser or request.user.has_perm("financial.change_chartofaccounts"):
+            from django.db.models import Count
+            counts = UserTreasuryAccess.objects.filter(treasury_id__in=account_ids).values('treasury_id').annotate(cnt=Count('id'))
+            for c in counts:
+                assigned_users_count_map[c['treasury_id']] = c['cnt']
+
+    for account in accounts_list:
+        account.user_access = user_access_map.get(account.id)
+        account.assigned_users_count = assigned_users_count_map.get(account.id, 0)
+
     currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
     cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 
@@ -661,15 +664,23 @@ def cash_and_bank_accounts_list(request):
             {"title": "قائمة الخزن", "active": True},
         ],
         "header_buttons": [
+            *(
+                [{
+                    "url": reverse("financial:treasury_assignments_list"),
+                    "icon": "fas fa-user-shield",
+                    "text": "مصفوفة إسناد الخزن",
+                    "class": "btn-outline-primary me-2",
+                }] if (request.user.has_perm("financial.change_chartofaccounts") or request.user.is_superuser) else []
+            ),
             {
                 "onclick": "openTransferModal()",
-                "icon": "fa-exchange-alt",
+                "icon": "fas fa-exchange-alt",
                 "text": "تحويل بين الخزائن",
                 "class": "btn-primary me-2",
             },
             {
                 "onclick": "openQuickAddModal()",
-                "icon": "fa-plus",
+                "icon": "fas fa-plus",
                 "text": "إضافة خزنة جديدة",
                 "class": "btn-success",
             }
@@ -1328,7 +1339,13 @@ def chart_of_accounts_detail(request, pk):
 
     account = get_object_or_404(ChartOfAccounts, pk=pk)
 
-    # متغيرات الحركات
+    # فحص السرية التامة والحجب للخزن والبنوك والعهد غير المصرح بها للمستخدم (Stealth 404)
+    is_treasury = getattr(account, 'is_cash_account', False) or getattr(account, 'is_bank_account', False) or (account.account_type and getattr(account.account_type, 'code', '').lower() in ['cash', 'bank']) or (str(account.code).startswith('1145') or str(account.code).startswith('1051'))
+    if is_treasury and not request.user.is_superuser:
+        from financial.services.treasury_security_service import TreasurySecurityService
+        if not TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists():
+            from django.http import Http404
+            raise Http404("الحساب غير موجود أو غير مصرح لك بالوصول إليه.")
     movements = []
     filter_form = None
     balance_summary = None
@@ -2484,6 +2501,13 @@ def cash_account_movements(request, pk):
     """
     account = get_object_or_404(ChartOfAccounts, pk=pk)
 
+    # فحص السرية التامة والحجب (Stealth 404)
+    if not request.user.is_superuser:
+        from financial.services.treasury_security_service import TreasurySecurityService
+        if not TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists():
+            from django.http import Http404
+            raise Http404("الحساب غير موجود أو غير مصرح لك بالوصول إليه.")
+
     # التحقق من أن الحساب نقدي أو بنكي
     if not (account.is_cash_account or account.is_bank_account):
         messages.error(request, "هذا الحساب ليس حساباً نقدياً أو بنكياً")
@@ -2506,6 +2530,10 @@ def cash_account_movements(request, pk):
     date_to = request.GET.get("date_to")
     search = request.GET.get("search", "").strip()
     category_filter = request.GET.get("category")
+    cashier_filter = request.GET.get("cashier")
+
+    if cashier_filter:
+        movements = movements.filter(journal_entry__created_by_id=cashier_filter)
 
     if date_from:
         movements = movements.filter(journal_entry__date__gte=date_from)
@@ -2711,6 +2739,12 @@ def cash_account_movements(request, pk):
                 "class": "btn-outline-primary me-2"
             },
             {
+                "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
+                "icon": "fa-user-shield",
+                "text": "إسناد الخزينة",
+                "class": "btn-outline-info me-2"
+            },
+            {
                 "onclick": f"confirmToggleCashAccount('{account.id}', false)",
                 "icon": "fa-ban",
                 "text": "تعطيل الخزينة",
@@ -2734,6 +2768,12 @@ def cash_account_movements(request, pk):
             "icon": "fa-edit",
             "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
             "class": "btn-outline-secondary me-2"
+        })
+        header_buttons.append({
+            "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
+            "icon": "fa-user-shield",
+            "text": "إسناد الخزينة",
+            "class": "btn-outline-info me-2"
         })
 
         # إذا كانت الخزينة معطلة: يظهر زر إعادة التفعيل
@@ -2915,7 +2955,13 @@ def cash_account_edit(request, pk):
                 "url": reverse("financial:cash_account_movements", args=[account.pk]),
                 "icon": "fa-arrow-right",
                 "text": "العودة للحركات",
-                "class": "btn-secondary",
+                "class": "btn-secondary me-2",
+            },
+            {
+                "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
+                "icon": "fa-user-shield",
+                "text": "إسناد الخزينة",
+                "class": "btn-outline-info",
             }
         ],
         "breadcrumb_items": [
@@ -4637,3 +4683,318 @@ def transfer_between_accounts(request):
         })
     except Exception as e:
         return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+# ==========================================
+# مصفوفة إسناد الخزن والحسابات البنكية للمستخدمين
+# Granular Zero-Trust Treasury Assignment System
+# ==========================================
+
+@login_required
+@require_permission('financial.view_chartofaccounts')
+def treasury_assignments_list(request):
+    """
+    شاشة مصفوفة إسناد الخزن والحسابات البنكية للمستخدمين مع الرقابة والسرية التامة
+    """
+    from django.contrib.auth import get_user_model
+    from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
+    from financial.services.treasury_security_service import TreasurySecurityService
+
+    User = get_user_model()
+
+    # جلب جميع الخزن والحسابات النقدية والبنكية
+    treasuries = AccountHelperService.get_cash_and_bank_accounts()
+    
+    # جلب المستخدمين النشطين
+    users_qs = User.objects.filter(is_active=True).order_by('username')
+    
+    # الفلاتر
+    user_filter = request.GET.get('user')
+    treasury_filter = request.GET.get('treasury')
+    perm_type_filter = request.GET.get('perm_type')  # 'deposit', 'disburse', 'both'
+
+    assignments = UserTreasuryAccess.objects.select_related('user', 'treasury', 'assigned_by', 'treasury__currency').order_by('user__username', 'treasury__code')
+
+    if user_filter:
+        assignments = assignments.filter(user_id=user_filter)
+    if treasury_filter:
+        assignments = assignments.filter(treasury_id=treasury_filter)
+    if perm_type_filter == 'deposit':
+        assignments = assignments.filter(can_deposit=True)
+    elif perm_type_filter == 'disburse':
+        assignments = assignments.filter(can_disburse=True)
+    elif perm_type_filter == 'both':
+        assignments = assignments.filter(can_deposit=True, can_disburse=True)
+
+    # إحصائيات سريعة
+    total_assignments_count = UserTreasuryAccess.objects.count()
+    users_with_access_count = UserTreasuryAccess.objects.values('user').distinct().count()
+    deposit_perms_count = UserTreasuryAccess.objects.filter(can_deposit=True).count()
+    disburse_perms_count = UserTreasuryAccess.objects.filter(can_disburse=True).count()
+
+    # سجلات التدقيق الأخيرة
+    recent_audits = TreasuryAccessAuditLog.objects.select_related('user', 'treasury', 'performed_by').order_by('-created_at')[:10]
+
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(assignments, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
+
+    header_buttons = [
+        {
+            "url": reverse("financial:cash_and_bank_accounts_list"),
+            "icon": "fas fa-money-bill-wave",
+            "text": _("الحسابات النقدية والبنكية"),
+            "class": "btn-outline-secondary me-2",
+        },
+        {
+            "toggle": "modal",
+            "target": "#bulkAssignmentModal",
+            "icon": "fas fa-plus-circle",
+            "text": _("إسناد خزينة جديد / جماعي"),
+            "class": "btn-primary fw-bold",
+        }
+    ]
+
+    breadcrumb_items = [
+        {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+        {"title": _("الإدارة المالية"), "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
+        {"title": _("الحسابات النقدية"), "url": reverse("financial:cash_and_bank_accounts_list"), "icon": "fas fa-money-bill-wave"},
+        {"title": _("إسناد الخزن والبنوك"), "active": True},
+    ]
+
+    context = {
+        "assignments": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
+        "treasuries": treasuries,
+        "users": users_qs,
+        "total_assignments_count": total_assignments_count,
+        "users_with_access_count": users_with_access_count,
+        "deposit_perms_count": deposit_perms_count,
+        "disburse_perms_count": disburse_perms_count,
+        "recent_audits": recent_audits,
+        "title": _("مصفوفة إسناد الخزن والحسابات البنكية"),
+        "page_title": _("مصفوفة إسناد الخزن والحسابات البنكية"),
+        "subtitle": _("حوكمة مالية ورقابة شاملة على صلاحيات الإيداع والصرف للمستخدمين"),
+        "page_subtitle": _("حوكمة مالية ورقابة شاملة على صلاحيات الإيداع والصرف للمستخدمين"),
+        "icon": "fas fa-user-shield",
+        "page_icon": "fas fa-user-shield",
+        "header_buttons": header_buttons,
+        "breadcrumb_items": breadcrumb_items,
+        "selected_user": user_filter,
+        "selected_treasury": treasury_filter,
+        "selected_perm_type": perm_type_filter,
+    }
+
+    return render(request, "financial/treasury/treasury_assignments.html", context)
+
+
+@login_required
+@require_permission('financial.change_chartofaccounts')
+@require_http_methods(["POST"])
+def treasury_assignment_toggle_api(request):
+    """
+    تعديل فوري لصلاحية إيداع أو صرف عبر AJAX مع تسجيل التدقيق
+    """
+    try:
+        from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
+        from financial.services.treasury_security_service import TreasurySecurityService
+
+        data = json.loads(request.body)
+        assignment_id = data.get('assignment_id')
+        field = data.get('field')  # 'can_deposit' or 'can_disburse' or 'is_default'
+        value = bool(data.get('value'))
+
+        assignment = get_object_or_404(UserTreasuryAccess, id=assignment_id)
+        
+        old_perms = {
+            'can_deposit': assignment.can_deposit,
+            'can_disburse': assignment.can_disburse,
+            'is_default': assignment.is_default
+        }
+
+        if field == 'can_deposit':
+            assignment.can_deposit = value
+        elif field == 'can_disburse':
+            assignment.can_disburse = value
+        elif field == 'is_default':
+            if value:
+                # إلغاء الافتراضي عن باقي خزن هذا المستخدم بنفس العملة
+                UserTreasuryAccess.objects.filter(
+                    user=assignment.user,
+                    treasury__currency=assignment.treasury.currency
+                ).exclude(id=assignment.id).update(is_default=False)
+            assignment.is_default = value
+        else:
+            return JsonResponse({'success': False, 'error': 'حقل غير معروف'}, status=400)
+
+        # التحقق من وجود صلاحية واحدة على الأقل
+        if not assignment.can_deposit and not assignment.can_disburse:
+            return JsonResponse({'success': False, 'error': 'يجب منح المستخدم صلاحية واحدة على الأقل (إيداع أو صرف).'}, status=400)
+
+        assignment.save()
+
+        # تسجيل التدقيق
+        TreasuryAccessAuditLog.objects.create(
+            user=assignment.user,
+            treasury=assignment.treasury,
+            action="UPDATED",
+            old_permissions=old_perms,
+            new_permissions={
+                'can_deposit': assignment.can_deposit,
+                'can_disburse': assignment.can_disburse,
+                'is_default': assignment.is_default
+            },
+            performed_by=request.user,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            notes=f"تعديل صلاحية {field} إلى {value} من مصفوفة الإسناد"
+        )
+
+        TreasurySecurityService.invalidate_user_cache(assignment.user_id)
+
+        return JsonResponse({
+            'success': True,
+            'message': 'تم تحديث الصلاحية بنجاح.',
+            'can_deposit': assignment.can_deposit,
+            'can_disburse': assignment.can_disburse,
+            'is_default': assignment.is_default
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_permission('financial.add_chartofaccounts')
+@require_http_methods(["POST"])
+def treasury_assignment_bulk_save_api(request):
+    """
+    إسناد جماعي لخزينة أو عدة مستخدمين مع تحديد الأسقف المالية والصلاحيات
+    """
+    try:
+        from django.contrib.auth import get_user_model
+        from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
+        from financial.services.treasury_security_service import TreasurySecurityService
+
+        User = get_user_model()
+        data = json.loads(request.body)
+
+        user_ids = data.get('user_ids', [])
+        treasury_id = data.get('treasury_id')
+        can_deposit = bool(data.get('can_deposit', True))
+        can_disburse = bool(data.get('can_disburse', False))
+        valid_from = data.get('valid_from') or None
+        valid_until = data.get('valid_until') or None
+        max_single_limit = data.get('max_single_disbursement_limit') or None
+        daily_limit = data.get('daily_disbursement_limit') or None
+        is_default = bool(data.get('is_default', False))
+        notes = data.get('notes', '')
+
+        if not user_ids or not treasury_id:
+            return JsonResponse({'success': False, 'error': 'يرجى اختيار المستخدمين والخزينة المستهدفة.'}, status=400)
+
+        if not can_deposit and not can_disburse:
+            return JsonResponse({'success': False, 'error': 'يجب تحديد صلاحية واحدة على الأقل (إيداع أو صرف).'}, status=400)
+
+        treasury = get_object_or_404(ChartOfAccounts, id=treasury_id)
+        current_balance = treasury.get_balance() if hasattr(treasury, 'get_balance') else Decimal('0.00')
+
+        created_count = 0
+        updated_count = 0
+
+        with transaction.atomic():
+            for u_id in user_ids:
+                user_obj = get_object_or_404(User, id=u_id)
+                access, created = UserTreasuryAccess.objects.get_or_create(
+                    user=user_obj,
+                    treasury=treasury,
+                    defaults={
+                        'can_deposit': can_deposit,
+                        'can_disburse': can_disburse,
+                        'valid_from': valid_from,
+                        'valid_until': valid_until,
+                        'max_single_disbursement_limit': max_single_limit,
+                        'daily_disbursement_limit': daily_limit,
+                        'is_default': is_default,
+                        'assigned_by': request.user,
+                        'notes': notes,
+                    }
+                )
+
+                if not created:
+                    old_p = {'can_deposit': access.can_deposit, 'can_disburse': access.can_disburse}
+                    access.can_deposit = can_deposit
+                    access.can_disburse = can_disburse
+                    access.valid_from = valid_from
+                    access.valid_until = valid_until
+                    access.max_single_disbursement_limit = max_single_limit
+                    access.daily_disbursement_limit = daily_limit
+                    if is_default:
+                        access.is_default = True
+                    access.assigned_by = request.user
+                    if notes:
+                        access.notes = notes
+                    access.save()
+                    updated_count += 1
+                else:
+                    old_p = {}
+                    created_count += 1
+
+                TreasuryAccessAuditLog.objects.create(
+                    user=user_obj,
+                    treasury=treasury,
+                    action="ASSIGNED" if created else "UPDATED",
+                    old_permissions=old_p,
+                    new_permissions={'can_deposit': can_deposit, 'can_disburse': can_disburse},
+                    book_balance_at_change=current_balance,
+                    performed_by=request.user,
+                    ip_address=request.META.get('REMOTE_ADDR'),
+                    notes=notes or "إسناد من نافذة الإسناد الجماعي"
+                )
+
+                TreasurySecurityService.invalidate_user_cache(user_obj.id)
+
+        return JsonResponse({
+            'success': True,
+            'message': f'تمت العملية بنجاح! تم إنشاء {created_count} إسناد وتحديث {updated_count} إسناد.'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_permission('financial.delete_chartofaccounts')
+@require_http_methods(["POST"])
+def treasury_assignment_delete_api(request, pk):
+    """
+    إلغاء إسناد خزينة لمستخدم مع توثيق الرصيد الدفتري في سجل التدقيق
+    """
+    try:
+        from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
+        from financial.services.treasury_security_service import TreasurySecurityService
+
+        assignment = get_object_or_404(UserTreasuryAccess, id=pk)
+        user_obj = assignment.user
+        treasury = assignment.treasury
+        current_balance = treasury.get_balance() if hasattr(treasury, 'get_balance') else Decimal('0.00')
+
+        TreasuryAccessAuditLog.objects.create(
+            user=user_obj,
+            treasury=treasury,
+            action="REVOKED",
+            old_permissions={'can_deposit': assignment.can_deposit, 'can_disburse': assignment.can_disburse},
+            new_permissions={},
+            book_balance_at_change=current_balance,
+            performed_by=request.user,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            notes="إلغاء الإسناد وسحب الصلاحيات بالكامل"
+        )
+
+        user_id = assignment.user_id
+        assignment.delete()
+
+        TreasurySecurityService.invalidate_user_cache(user_id)
+
+        return JsonResponse({'success': True, 'message': 'تم إلغاء إسناد الخزينة بنجاح.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
