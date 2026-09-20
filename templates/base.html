@@ -202,9 +202,9 @@
                 </div>
                 <style>
                 .impersonation-bar {
-                    background-color: #fff3cd;
-                    border-bottom: 2px solid #ffc107;
-                    color: #664d03;
+                    background-color: var(--bs-warning-bg-subtle, var(--warning-soft));
+                    border-bottom: 2px solid var(--bs-warning-border-subtle, var(--warning-color));
+                    color: var(--bs-warning-text-emphasis, var(--warning-dark));
                 }
                 </style>
                 {% endif %}
@@ -222,10 +222,6 @@
     <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
     <script src="{% static 'js/csrf-handler.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-    
-    <!-- Error handlers - بعد jQuery وBootstrap مباشرة -->
-    <script src="{% static 'js/suppress-json-errors.js' %}"></script>
-    <script src="{% static 'js/error-suppressor.js' %}"></script>
     
     <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>

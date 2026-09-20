@@ -2,7 +2,8 @@
 عرض لوحة معلومات إحصائيات التحقق من المعاملات المالية
 """
 from django.shortcuts import render
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from django.urls import reverse
@@ -13,7 +14,7 @@ from financial.models.validation_audit_log import ValidationAuditLog
 
 
 @login_required
-@permission_required('financial.view_validationauditlog', raise_exception=True)
+@require_permission('financial.view_validationauditlog')
 def validation_dashboard(request):
     """
     لوحة معلومات إحصائيات التحقق من المعاملات المالية

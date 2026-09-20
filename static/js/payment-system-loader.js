@@ -1,4 +1,4 @@
-﻿/**
+/**
  * محمل نظام المدفوعات - Payment System Loader
  * يحمل جميع ملفات JavaScript المطلوبة لنظام المدفوعات بالترتيب الصحيح
  */
@@ -8,7 +8,6 @@
 
     // قائمة الملفات المطلوبة بالترتيب (مسارات نسبية)
     const requiredScripts = [
-        'js/suppress-json-errors.js',
         'js/error-handler-config.js',
         'js/connection-monitor.js',
         'js/payment-error-recovery.js',

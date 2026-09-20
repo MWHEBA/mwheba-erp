@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from core.security.file_validators import validate_secure_image, secure_upload_path
 
 
@@ -17,6 +18,15 @@ class Role(models.Model):
         verbose_name=_("الصلاحيات"),
         blank=True,
         related_name="user_roles"
+    )
+    parent_role = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='child_roles',
+        verbose_name=_("الدور الأب (الوراثة)"),
+        help_text=_("يرث هذا الدور كافة صلاحيات الدور الأب تلقائياً")
     )
     is_system_role = models.BooleanField(
         _("دور نظام"),
@@ -40,6 +50,41 @@ class Role(models.Model):
     
     def __str__(self):
         return self.display_name
+
+    def clean(self):
+        super().clean()
+        if self.parent_role_id and self.pk and self.parent_role_id == self.pk:
+            raise ValidationError(_("لا يمكن أن يرث الدور من نفسه."))
+        
+        if self.parent_role_id:
+            visited = {self.pk} if self.pk else set()
+            depth = 1
+            current = self.parent_role
+            while current:
+                if current.pk in visited:
+                    raise ValidationError(_("تم اكتشاف حلقة تكرارية في وراثة الأدوار."))
+                visited.add(current.pk)
+                depth += 1
+                if depth > 4:
+                    raise ValidationError(_("تجاوزت وراثة الأدوار الحد الأقصى المسموح به (4 مستويات)."))
+                current = current.parent_role
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def get_all_descendant_roles(self):
+        """الحصول على كافة الأدوار التابعة (الأبناء والأحفاد) بشكل متسلسل"""
+        descendants = set()
+        if not self.pk:
+            return descendants
+        queue = list(self.child_roles.all())
+        while queue:
+            child = queue.pop(0)
+            if child not in descendants:
+                descendants.add(child)
+                queue.extend(list(child.child_roles.all()))
+        return descendants
     
     @property
     def users_count(self):
@@ -112,12 +157,26 @@ class User(AbstractUser):
         related_name="users",
         help_text=_("الدور الأساسي للمستخدم")
     )
+    secondary_roles = models.ManyToManyField(
+        Role,
+        blank=True,
+        related_name="secondary_users",
+        verbose_name=_("الأدوار الثانوية"),
+        help_text=_("أدوار إضافية مدمجة للموظفين متعددي المهام")
+    )
     custom_permissions = models.ManyToManyField(
         Permission,
         verbose_name=_("صلاحيات إضافية"),
         blank=True,
         related_name="users_with_custom_permissions",
         help_text=_("صلاحيات إضافية خارج الدور الأساسي")
+    )
+    revoked_permissions = models.ManyToManyField(
+        Permission,
+        verbose_name=_("صلاحيات مستثناة/محجوبة"),
+        blank=True,
+        related_name="users_with_revoked_permissions",
+        help_text=_("صلاحيات محجوبة من هذا المستخدم حتى لو كانت ممنوحة له من أدواره")
     )
 
     class Meta:
@@ -140,67 +199,94 @@ class User(AbstractUser):
 
     @property
     def is_admin(self):
-        return self.is_superuser or bool(self.role and self.role.name == "admin")
+        return (
+            self.is_superuser or
+            bool(self.role and self.role.name == "admin") or
+            bool(self.pk and self.secondary_roles.filter(name="admin").exists())
+        )
 
     @property
     def is_sales_rep(self):
-        return bool(self.role and self.role.name == "sales_rep")
+        return bool(
+            (self.role and self.role.name == "sales_rep") or
+            (self.pk and self.secondary_roles.filter(name="sales_rep").exists()) or
+            self.has_perm("sale.add_salesorder")
+        )
 
     @property
     def is_accountant(self):
-        return bool(self.role and self.role.name == "accountant")
+        return bool(
+            (self.role and self.role.name == "accountant") or
+            (self.pk and self.secondary_roles.filter(name="accountant").exists()) or
+            self.has_perm("financial.view_journalentry")
+        )
 
     @property
     def is_financial_manager(self):
-        return bool(self.role and self.role.name == "financial_manager")
+        return bool(
+            (self.role and self.role.name == "financial_manager") or
+            (self.pk and self.secondary_roles.filter(name="financial_manager").exists()) or
+            self.has_perm("financial.change_accountingperiod")
+        )
 
     @property
     def is_procurement_officer(self):
-        return bool(self.role and self.role.name == "procurement_officer")
+        return bool(
+            (self.role and self.role.name == "procurement_officer") or
+            (self.pk and self.secondary_roles.filter(name="procurement_officer").exists()) or
+            self.has_perm("purchase.add_purchase")
+        )
 
     @property
     def is_inventory_manager(self):
-        return bool(self.role and self.role.name == "inventory_manager")
+        return bool(
+            (self.role and self.role.name == "inventory_manager") or
+            (self.pk and self.secondary_roles.filter(name="inventory_manager").exists()) or
+            self.has_perm("product.change_inventoryadjustment")
+        )
 
     @property
     def is_production_supervisor(self):
-        return bool(self.role and self.role.name == "production_supervisor")
+        return bool(
+            (self.role and self.role.name == "production_supervisor") or
+            (self.pk and self.secondary_roles.filter(name="production_supervisor").exists()) or
+            self.has_perm("work_order.change_workorder")
+        )
 
     @property
     def is_sales_manager(self):
-        return bool(self.role and self.role.name == "sales_manager")
+        return bool(
+            (self.role and self.role.name == "sales_manager") or
+            (self.pk and self.secondary_roles.filter(name="sales_manager").exists()) or
+            self.has_perm("sale.cancel_approved_sale")
+        )
 
     @property
     def is_hr_officer(self):
-        return bool(self.role and self.role.name == "hr_officer")
+        return bool(
+            (self.role and self.role.name == "hr_officer") or
+            (self.pk and self.secondary_roles.filter(name="hr_officer").exists()) or
+            self.has_perm("hr.add_employee")
+        )
 
     @property
     def is_viewer(self):
-        return bool(self.role and self.role.name == "viewer")
+        return bool(
+            (self.role and self.role.name == "viewer") or
+            (self.pk and self.secondary_roles.filter(name="viewer").exists())
+        )
 
     def get_all_permissions(self, obj=None):
         """
         الحصول على جميع صلاحيات المستخدم كنصوص قياسية بصيغة 'app_label.codename'
-        متوافقة 100% مع عقد جانغو القياسي.
+        متوافقة 100% مع عقد جانغو القياسي، وتفوض جلب الصلاحيات للباك إند الموحد.
         """
         if not self.is_authenticated or not self.is_active:
             return set()
 
-        if self.is_superuser or self.is_admin:
-            return {f"{p.content_type.app_label}.{p.codename}" for p in Permission.objects.all()}
-
-        perms = set()
-        if self.role:
-            perms.update(
-                f"{p.content_type.app_label}.{p.codename}"
-                for p in self.role.permissions.select_related('content_type')
-            )
-        if hasattr(self, 'custom_permissions'):
-            perms.update(
-                f"{p.content_type.app_label}.{p.codename}"
-                for p in self.custom_permissions.select_related('content_type')
-            )
-        return perms
+        from users.backends import RolePermissionBackend
+        backend = RolePermissionBackend()
+        return backend.get_all_permissions(self, obj)
 
     def get_all_permission_objects(self):
         """

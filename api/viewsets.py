@@ -24,7 +24,7 @@ from .serializers import (
     PurchaseListSerializer, PurchaseDetailSerializer, PurchaseItemSerializer,
     ChartOfAccountsSerializer, JournalEntryListSerializer, JournalEntryDetailSerializer
 )
-from .permissions import IsManagerOrReadOnly, IsAdminOrReadOnly
+from .permissions import RoleBasedModelPermissions, IsManagerOrReadOnly, IsAdminOrReadOnly
 
 User = get_user_model()
 
@@ -37,7 +37,7 @@ class UserViewSet(viewsets.ModelViewSet):
     يوفر عمليات CRUD كاملة للمستخدمين
     """
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['role', 'is_active', 'is_staff']
     search_fields = ['username', 'email', 'first_name', 'last_name', 'phone']
@@ -55,6 +55,21 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
     
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def salesmen(self, request):
+        """الحصول على قائمة المناديب فقط للنماذج الميدانية دون كشف بيانات المستخدمين الكاملة"""
+        from users.services.data_scoping_service import DataScopingService
+        salesmen = DataScopingService.get_scoped_salesmen().only('id', 'first_name', 'last_name', 'username')
+        data = [
+            {
+                'id': u.id,
+                'name': u.get_full_name() or u.username,
+                'username': u.username
+            }
+            for u in salesmen
+        ]
+        return Response(data)
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """إحصائيات المستخدمين"""
@@ -77,7 +92,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     """ViewSet للتصنيفات"""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_at']
@@ -87,7 +102,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     """ViewSet للمنتجات"""
     queryset = Product.objects.select_related('category').all()
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'is_active']
     search_fields = ['name', 'sku', 'barcode', 'description']
@@ -145,7 +160,7 @@ class StockViewSet(viewsets.ModelViewSet):
     """ViewSet للمخزون"""
     queryset = Stock.objects.select_related('product', 'warehouse').all()
     serializer_class = StockSerializer
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['product', 'warehouse']
     ordering_fields = ['quantity', 'last_updated']
@@ -168,7 +183,7 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
         'product', 'warehouse', 'created_by'
     ).all()
     serializer_class = StockMovementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['product', 'warehouse', 'movement_type']
     ordering_fields = ['created_at']
@@ -179,7 +194,7 @@ class WarehouseViewSet(viewsets.ModelViewSet):
     """ViewSet للمخازن"""
     queryset = Warehouse.objects.all()
     serializer_class = WarehouseSerializer
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'code', 'location']
     ordering_fields = ['name', 'created_at']
@@ -200,7 +215,7 @@ class SupplierTypeViewSet(viewsets.ModelViewSet):
     """ViewSet لأنواع الموردين"""
     queryset = SupplierType.objects.all()
     serializer_class = SupplierTypeSerializer
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'description']
 
@@ -208,7 +223,7 @@ class SupplierTypeViewSet(viewsets.ModelViewSet):
 class SupplierViewSet(viewsets.ModelViewSet):
     """ViewSet للموردين"""
     queryset = Supplier.objects.select_related('primary_type', 'financial_account').all()
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['primary_type', 'is_active']
     search_fields = ['name', 'phone', 'email', 'tax_number']
@@ -247,7 +262,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 class PurchaseViewSet(viewsets.ModelViewSet):
     """ViewSet للمشتريات"""
     queryset = Purchase.objects.select_related('supplier').prefetch_related('items').all()
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['supplier', 'status', 'payment_method']
     search_fields = ['invoice_number', 'supplier__name']
@@ -290,7 +305,7 @@ class ChartOfAccountsViewSet(viewsets.ModelViewSet):
     """ViewSet لدليل الحسابات"""
     queryset = ChartOfAccounts.objects.select_related('parent').all()
     serializer_class = ChartOfAccountsSerializer
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['account_type', 'is_active']
     search_fields = ['code', 'name', 'name_en']
@@ -328,7 +343,7 @@ class ChartOfAccountsViewSet(viewsets.ModelViewSet):
 class JournalEntryViewSet(viewsets.ModelViewSet):
     """ViewSet للقيود المحاسبية"""
     queryset = JournalEntry.objects.prefetch_related('lines').all()
-    permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
+    permission_classes = [IsAuthenticated, RoleBasedModelPermissions]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['status', 'reference_type']
     search_fields = ['entry_number', 'description']

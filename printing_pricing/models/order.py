@@ -783,6 +783,24 @@ class PrintingOrder(BaseModel):
             return f"{self.product_size.name} ({w_str}×{h_str} سم){fold_info} - {orient}"
         return f"مقاس مخصص ({w_str}×{h_str} سم){fold_info} - {orient}"
 
+    class Meta:
+        verbose_name = _("طلب تسعير مطبوعات")
+        verbose_name_plural = _("طلبات تسعير المطبوعات")
+        ordering = ["-created_at"]
+        permissions = [
+            ("view_cost_breakdown", _("عرض تفاصيل تكلفة الخامات")),
+            ("view_profit_margins", _("عرض هوامش الربح الصافي للطلبات")),
+            ("view_all_orders", _("عرض طلبات تسعير كافة المناديب")),
+            ("override_pricing_rules", _("تجاوز معادلات التسعير التلقائية")),
+            ("manage_pricing_settings", _("إدارة إعدادات ومقاسات ومعدلات التسعير")),
+        ]
+        indexes = [
+            models.Index(fields=["order_number"]),
+            models.Index(fields=["customer", "status"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["due_date"]),
+        ]
+
 
 __all__ = [
     "PrintingOrder"

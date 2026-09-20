@@ -19,8 +19,10 @@ from financial.services.opening_balance_service import OpeningBalancePostingServ
 from financial.exceptions import ImmutableLedgerError
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from users.decorators import require_permission
 
 @login_required
+@require_permission('financial.view_journalentry')
 def opening_balance_list(request):
     """عرض قائمة دفعات الأرصدة الافتتاحية المنسقة"""
     batches_qs = OpeningBalanceBatch.objects.select_related('fiscal_year', 'journal_entry', 'reversal_journal_entry', 'created_by', 'posted_by').order_by('-created_at')
@@ -63,11 +65,12 @@ def opening_balance_list(request):
                 'text': _("إضافة دفعة افتتاحية جديدة"),
                 'class': 'btn-primary',
             }
-        ]
+        ] if request.user.has_perm('financial.add_journalentry') else []
     })
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 def opening_balance_wizard(request, pk=None):
     """معالج وتفاصيل إدخال وتدقيق الأرصدة الافتتاحية"""
     if pk:
@@ -302,6 +305,7 @@ def _get_opening_balance_rendered_response(request, batch, message=""):
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 @require_POST
 def opening_balance_add_line_action(request, pk):
     """إضافة سطر رصيد افتتاحي تفاعلياً للدفعة المسودة"""
@@ -398,6 +402,7 @@ def opening_balance_add_line_action(request, pk):
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 @require_POST
 def opening_balance_delete_line_action(request, pk, line_pk):
     """حذف سطر رصيد افتتاحي من الدفعة المسودة"""
@@ -412,6 +417,7 @@ def opening_balance_delete_line_action(request, pk, line_pk):
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 @require_POST
 def opening_balance_import_excel_action(request, pk):
     """رفع واستيراد شيت الأرصدة الافتتاحية من Excel/CSV"""
@@ -470,6 +476,7 @@ def opening_balance_retry_inventory_sync_action(request, pk):
 
 
 @login_required
+@require_permission('financial.post_journalentry')
 @require_POST
 def opening_balance_post_action(request, pk):
     """إجراء ترحيل الدفعة عبر OpeningBalancePostingService"""
@@ -486,6 +493,7 @@ def opening_balance_post_action(request, pk):
 
 
 @login_required
+@require_permission('financial.reverse_journalentry')
 @require_POST
 def opening_balance_reverse_action(request, pk):
     """إجراء عكس الدفعة المرحّلة عبر OpeningBalancePostingService"""
@@ -518,6 +526,7 @@ def opening_balance_get_balancing_options(request, pk):
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 @require_POST
 def opening_balance_apply_balancing_action(request, pk):
     """تطبيق الموازنة الذكية (كاملة أو Split أو دمج) عبر AJAX"""

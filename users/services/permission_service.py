@@ -82,15 +82,20 @@ class PermissionService:
             'close_accounting_period', 'reopen_accounting_period', 'run_fx_revaluation',
             'post_journal_entry', 'reverse_journal_entry',
             'add_journalentry', 'change_journalentry', 'view_journalentry',
-            'add_paymentvoucher', 'view_paymentvoucher',
-            'add_receiptvoucher', 'view_receiptvoucher',
+            'add_paymentvoucher', 'view_paymentvoucher', 'change_paymentvoucher',
+            'add_receiptvoucher', 'view_receiptvoucher', 'change_receiptvoucher',
+            'view_chartofaccounts', 'add_chartofaccounts', 'change_chartofaccounts',
+            'view_currency', 'add_currency', 'change_currency',
             
-            # Sales & Pricing
+            # Sales, Pricing & Delivery
             'change_unit_price', 'apply_special_discount', 'cancel_approved_sale',
             'print_sale_invoice', 'view_all_sales', 'change_sale_salesman',
             'change_quotation_price', 'view_all_quotations', 'convert_to_order',
             'add_sale', 'change_sale', 'view_sale',
             'add_quotation', 'change_quotation', 'view_quotation',
+            'add_salesorder', 'change_salesorder', 'view_salesorder', 'approve_salesorder',
+            'add_deliverynote', 'change_deliverynote', 'view_deliverynote',
+            'add_salereturn', 'change_salereturn', 'view_salereturn',
             
             # Printing & Work Order
             'view_cost_breakdown', 'view_profit_margins', 'view_all_orders',
@@ -99,19 +104,31 @@ class PermissionService:
             'add_workorder', 'change_workorder', 'view_workorder',
             'add_printingorder', 'change_printingorder', 'view_printingorder',
             
-            # Purchases & Suppliers
+            # Purchases, Suppliers & GRN
             'approve_purchase', 'change_unit_cost', 'cancel_approved_purchase',
             'add_purchase', 'change_purchase', 'view_purchase',
+            'add_purchaseorder', 'change_purchaseorder', 'view_purchaseorder', 'approve_purchaseorder',
+            'add_goodsreceivednote', 'change_goodsreceivednote', 'view_goodsreceivednote',
+            'add_purchasereturn', 'change_purchasereturn', 'view_purchasereturn',
             'add_supplier', 'change_supplier', 'view_supplier',
             
-            # Products & Customers
+            # Products, Warehouses & Inventory
             'add_product', 'change_product', 'view_product',
+            'add_warehouse', 'change_warehouse', 'view_warehouse',
+            'view_stock', 'add_stockmovement', 'view_stockmovement',
+            'add_unit', 'change_unit', 'view_unit',
+            'add_inventoryadjustment', 'change_inventoryadjustment', 'view_inventoryadjustment', 'approve_inventory_adjustment',
+            'add_batchvoucher', 'change_batchvoucher', 'view_batchvoucher',
+            'add_landedcostdocument', 'change_landedcostdocument', 'view_landedcostdocument',
+            
+            # Customers & Payments
             'add_customer', 'change_customer', 'view_customer',
             'add_customerpayment', 'change_customerpayment', 'view_customerpayment',
             
-            # HR and Users
+            # HR, Roles & System Users
             'add_employee', 'change_employee', 'view_employee',
             'add_user', 'change_user', 'view_user',
+            'add_role', 'change_role', 'view_role', 'delete_role',
         ]
         
         specific_query = Q()
@@ -125,24 +142,23 @@ class PermissionService:
             'core', 'users', 'governance'
         ]
         
-        # Combine all queries
+        # Combine all queries with select_related('content_type') to eliminate N+1 queries
         simplified_permissions = Permission.objects.filter(
             (Q(content_type__app_label__in=business_apps) & (pattern_query | specific_query))
         ).exclude(
             # Exclude Django system apps
             Q(content_type__app_label__in=['admin', 'auth', 'contenttypes', 'sessions', 'token_blacklist'])
         ).exclude(
-            # Exclude very detailed permissions we don't need
+            # Exclude low-level internal models only (do NOT exclude 'permission' codename which would hide role permissions)
+            Q(content_type__model__in=['logentry', 'contenttype', 'session']) |
             Q(codename__icontains='logentry') |
-            Q(codename__icontains='permission') |
-            Q(codename__icontains='group') |
-            Q(codename__icontains='contenttype') |
-            # Exclude audit log permissions - these should be automatic for all users
+            Q(codename__icontains='token') |
+            # Exclude audit log permissions - these are automatic
             Q(codename__icontains='audit') |
             Q(codename__icontains='log') |
             Q(name__icontains='audit') |
             Q(name__icontains='سجل')
-        ).distinct()
+        ).select_related('content_type').distinct()
         
         return simplified_permissions
     
@@ -157,91 +173,100 @@ class PermissionService:
         """
         custom_permissions = cls.get_custom_permissions_only()
         
-        # Define categories with icons and descriptions
+        # Define canonical enterprise modules with icons and descriptions
         categories = {
-            'financial': {
-                'name': 'الإدارة المالية',
-                'name_en': 'Financial Management',
-                'icon': 'fas fa-calculator',
-                'description': 'إدارة الحسابات والمدفوعات والمعاملات المالية',
+            'sale': {
+                'name': 'المبيعات وعروض الأسعار',
+                'name_en': 'Sales & Quotations',
+                'icon': 'fas fa-cash-register',
+                'description': 'إدارة فواتير المبيعات وعروض الأسعار وأوامر البيع والعملاء',
                 'permissions': []
             },
-            'inventory': {
-                'name': 'المبيعات والمخزون',
-                'name_en': 'Sales & Inventory',
+            'purchase': {
+                'name': 'المشتريات والموردين',
+                'name_en': 'Purchases & Suppliers',
+                'icon': 'fas fa-shopping-cart',
+                'description': 'إدارة فواتير الشراء وأوامر الشراء وإشعارات الموردين',
+                'permissions': []
+            },
+            'financial': {
+                'name': 'الإدارة المالية والحسابات',
+                'name_en': 'Financial & Accounting',
+                'icon': 'fas fa-calculator',
+                'description': 'إدارة الحسابات والقيود والمدفوعات والمقبوضات ومراكز التكلفة',
+                'permissions': []
+            },
+            'product': {
+                'name': 'المخازن والمنتجات',
+                'name_en': 'Inventory & Products',
                 'icon': 'fas fa-boxes',
-                'description': 'إدارة المنتجات والمبيعات والمشتريات والمخزون',
+                'description': 'إدارة المخزون والمنتجات وحركات الأصناف والتحويلات المخزنية',
+                'permissions': []
+            },
+            'customer': {
+                'name': 'العملاء',
+                'name_en': 'Customers',
+                'icon': 'fas fa-users',
+                'description': 'إدارة سجلات العملاء وسقوف الائتمان والحسابات المرتبطة',
+                'permissions': []
+            },
+            'supplier': {
+                'name': 'الموردين',
+                'name_en': 'Suppliers',
+                'icon': 'fas fa-truck',
+                'description': 'إدارة بيانات الموردين وقوائم الأسعار المعتمَدة',
+                'permissions': []
+            },
+            'printing_pricing': {
+                'name': 'التسعير وتكاليف الطباعة',
+                'name_en': 'Printing Pricing',
+                'icon': 'fas fa-print',
+                'description': 'إدارة حاسبات التسعير وتكاليف الخامات والزنكات وماكينات الطباعة',
+                'permissions': []
+            },
+            'work_order': {
+                'name': 'أوامر العمل والتشغيل',
+                'name_en': 'Work Orders & Production',
+                'icon': 'fas fa-cogs',
+                'description': 'متابعة مراحل الإنتاج بصالة الماكينات وأوامر التشغيل الفنية',
                 'permissions': []
             },
             'hr': {
-                'name': 'الموارد البشرية',
+                'name': 'الموارد البشرية والرواتب',
                 'name_en': 'Human Resources',
                 'icon': 'fas fa-user-tie',
-                'description': 'إدارة الموظفين والرواتب والشؤون الإدارية',
-                'permissions': []
-            },
-            'suppliers': {
-                'name': 'الموردين والعملاء',
-                'name_en': 'Suppliers & Customers',
-                'icon': 'fas fa-handshake',
-                'description': 'إدارة الموردين والعملاء والعلاقات التجارية',
-                'permissions': []
-            },
-            'reports': {
-                'name': 'التقارير والمراقبة',
-                'name_en': 'Reports & Monitoring',
-                'icon': 'fas fa-chart-bar',
-                'description': 'عرض التقارير وتصدير البيانات ومراقبة النظام',
+                'description': 'إدارة الموظفين والإجازات ومسيرات الرواتب والعمليات الإدارية',
                 'permissions': []
             },
             'system': {
                 'name': 'إدارة النظام والمستخدمين',
-                'name_en': 'System & User Management',
-                'icon': 'fas fa-cogs',
-                'description': 'إدارة المستخدمين والأدوار وإعدادات النظام',
+                'name_en': 'System & Users',
+                'icon': 'fas fa-shield-alt',
+                'description': 'إدارة المستخدمين والأدوار وصلاحيات النظام والإعدادات العامة',
                 'permissions': []
             }
         }
         
-        # Categorize permissions based on codename and model
+        # Categorize permissions based on exact app_label mapping
+        app_to_category = {
+            'sale': 'sale',
+            'purchase': 'purchase',
+            'financial': 'financial',
+            'governance': 'financial',
+            'product': 'product',
+            'customer': 'customer',
+            'supplier': 'supplier',
+            'printing_pricing': 'printing_pricing',
+            'work_order': 'work_order',
+            'hr': 'hr',
+            'users': 'system',
+            'core': 'system',
+        }
+        
         for permission in custom_permissions:
-            codename = permission.codename.lower()
-            model = permission.content_type.model.lower()
             app_label = permission.content_type.app_label.lower()
-            
-            # Financial Management
-            if (any(keyword in codename for keyword in ['financial', 'payment', 'account', 'transaction', 'invoice', 'مالية', 'مدفوعات', 'حساب']) or 
-                  app_label == 'financial' or
-                  any(keyword in model for keyword in ['payment', 'account', 'financial', 'transaction', 'invoice'])):
-                categories['financial']['permissions'].append(permission)
-            
-            # Sales, Purchases & Inventory
-            elif (any(keyword in codename for keyword in ['purchase', 'product', 'inventory', 'stock', 'supplier', 'مشتريات', 'منتجات', 'مخزون', 'موردين']) or
-                  app_label in ['product', 'purchase', 'supplier'] or
-                  any(keyword in model for keyword in ['product', 'purchase', 'supplier', 'inventory'])):
-                categories['inventory']['permissions'].append(permission)
-            
-            # HR Management (إدارة الموارد البشرية)
-            elif (any(keyword in codename for keyword in ['employee', 'salary', 'hr', 'staff', 'موظف', 'راتب', 'موارد_بشرية']) or 
-                  app_label == 'hr' or
-                  any(keyword in model for keyword in ['employee', 'salary', 'staff'])):
-                categories['hr']['permissions'].append(permission)
-            
-            # Activities & Transportation — removed (modules deleted)
-            # Reports & Analytics (التقارير والتحليلات)
-            elif (any(keyword in codename for keyword in ['report', 'export', 'audit', 'monitor', 'dashboard', 'تقارير', 'تصدير', 'مراقبة']) or
-                  'view_report' in codename or 'can_export' in codename):
-                categories['reports']['permissions'].append(permission)
-            
-            # System Administration (إدارة النظام)
-            elif (any(keyword in codename for keyword in ['user', 'role', 'permission', 'admin', 'manage', 'مستخدم', 'دور', 'صلاحية', 'ادارة']) or
-                  app_label in ['users', 'core'] or
-                  'can_manage' in codename):
-                categories['system']['permissions'].append(permission)
-            
-            # Default to System for any uncategorized permissions
-            else:
-                categories['system']['permissions'].append(permission)
+            cat_key = app_to_category.get(app_label, 'system')
+            categories[cat_key]['permissions'].append(permission)
         
         # Add permission counts to each category
         for category_key, category_data in categories.items():
@@ -302,14 +327,14 @@ class PermissionService:
     def _get_cached_user_permissions(cls, user_id: int) -> frozenset:
         """Get cached user permissions as frozenset for hashability."""
         try:
-            user = User.objects.select_related('role').prefetch_related(
-                'role__permissions',
-                'custom_permissions',
-                'groups__permissions'
-            ).get(id=user_id)
-            
+            user = User.objects.select_related('role').get(id=user_id)
             permissions = user.get_all_permissions()
-            return frozenset((perm.codename, perm.name) for perm in permissions)
+            # permissions are set of 'app_label.codename' strings
+            pairs = []
+            for p in permissions:
+                codename = p.split('.')[-1] if '.' in p else p
+                pairs.append((codename, p))
+            return frozenset(pairs)
         except User.DoesNotExist:
             return frozenset()
     
@@ -547,6 +572,8 @@ class PermissionService:
                 # Assign permissions
                 if permissions:
                     role.permissions.set(permissions)
+                    from users.services.permission_dependency import PermissionDependencyService
+                    PermissionDependencyService.auto_resolve_dependencies_for_role(role)
                 
                 # Log the creation
                 AuditService.log_operation(
@@ -595,6 +622,8 @@ class PermissionService:
                 
                 # Update permissions
                 role.permissions.set(permissions)
+                from users.services.permission_dependency import PermissionDependencyService
+                PermissionDependencyService.auto_resolve_dependencies_for_role(role)
                 
                 # Invalidate role cache
                 cls._invalidate_role_cache(role.id)

@@ -19,8 +19,8 @@ from ..services.bundle_analytics_service import BundleAnalyticsService, BundleCh
 
 
 def is_admin_user(user):
-    """التحقق من أن المستخدم مدير"""
-    return user.is_staff or user.is_superuser
+    """التحقق من أن المستخدم مدير أو يملك صلاحية المنتجات"""
+    return getattr(user, 'is_admin', False) or user.is_superuser or user.has_perm('product.view_product')
 
 
 @login_required

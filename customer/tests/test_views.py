@@ -20,7 +20,9 @@ class CustomerListViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -90,7 +92,9 @@ class CustomerAddViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -147,7 +151,9 @@ class CustomerEditViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -206,7 +212,9 @@ class CustomerDeleteViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -271,7 +279,9 @@ class CustomerDetailViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -328,7 +338,9 @@ class CustomerViewsIntegrationTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -393,7 +405,9 @@ class CustomerAddAjaxViewTest(TestCase):
         self.client = DjangoClient()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
 

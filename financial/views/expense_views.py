@@ -3,6 +3,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -21,6 +22,7 @@ from .shared_helpers import (
 
 
 @login_required
+@require_permission('financial.view_expensetransaction')
 def expense_list(request):
     """عرض قائمة المصروفات من القيود المحاسبية"""
     
@@ -171,6 +173,7 @@ def expense_list(request):
 
 
 @login_required
+@require_permission('financial.add_expensetransaction')
 def expense_create(request):
     """إنشاء مصروف جديد - يدعم AJAX"""
     
@@ -222,6 +225,7 @@ def expense_create(request):
 
 
 @login_required
+@require_permission('financial.view_expensetransaction')
 def expense_detail(request, pk):
     """عرض تفاصيل مصروف معين"""
     
@@ -265,6 +269,7 @@ def expense_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.change_expensetransaction')
 def expense_edit(request, pk):
     """تعديل مصروف"""
     from ..models import FinancialCategory, FinancialSubcategory

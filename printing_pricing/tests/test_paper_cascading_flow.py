@@ -22,7 +22,8 @@ class TestPaperCascadingFlow:
             username="test_cascading_admin",
             email="admin@cascading.com",
             password="StrongPassword123",
-            is_staff=True
+            is_staff=True,
+            is_superuser=True
         )
         self.client = Client()
         self.client.login(username="test_cascading_admin", password="StrongPassword123")

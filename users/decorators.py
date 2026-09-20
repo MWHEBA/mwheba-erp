@@ -26,11 +26,12 @@ def require_permission(permission_name: str, return_json: bool = False):
     Decorator to require specific permission for view access.
     
     Args:
-        permission_name: Permission codename required
+        permission_name: Permission codename or 'app_label.codename' required
         return_json: Whether to return JSON response for AJAX requests
         
     Usage:
         @require_permission('can_manage_users')
+        @require_permission('customer.view_customer')
     """
     def decorator(view_func: Callable) -> Callable:
         @wraps(view_func)
@@ -38,13 +39,33 @@ def require_permission(permission_name: str, return_json: bool = False):
         def wrapper(request, *args, **kwargs):
             user = request.user
             
-            # Check permission using PermissionService
-            if not PermissionService.check_user_permission(user, permission_name):
-                error_message = f"ليس لديك صلاحية: {permission_name}"
+            # 0. Superuser or Admin bypass (Corporate Emergency/Break-Glass)
+            if user.is_superuser or getattr(user, 'is_admin', False):
+                return view_func(request, *args, **kwargs)
+
+            # 1. Fast check via standard Django auth backend (Tier-1/Tier-2 cached)
+            has_perm = user.has_perm(permission_name)
+            if not has_perm and '.' not in permission_name:
+                # Check codename matching if unqualified
+                has_perm = any(p.split('.')[-1] == permission_name for p in user.get_all_permissions())
+            if not has_perm:
+                # Fallback to PermissionService for any legacy mapped codenames
+                has_perm = PermissionService.check_user_permission(user, permission_name)
                 
-                if return_json or request.headers.get('Content-Type') == 'application/json':
+            if not has_perm:
+                error_message = f"غير مصرح لك بتنفيذ هذا الإجراء. يتطلب صلاحية: {permission_name}"
+                is_ajax = (
+                    return_json
+                    or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    or request.headers.get('Accept') == 'application/json'
+                    or getattr(request, 'content_type', '') == 'application/json'
+                    or request.GET.get('precheck') == '1'
+                    or request.GET.get('ajax') == '1'
+                )
+                if is_ajax:
                     return JsonResponse({
                         'success': False,
+                        'can_delete': False,
                         'error': 'permission_denied',
                         'message': error_message
                     }, status=403)
@@ -52,7 +73,7 @@ def require_permission(permission_name: str, return_json: bool = False):
                 return render(request, 'core/permission_denied.html', {
                     'title': 'غير مصرح',
                     'message': error_message
-                })
+                }, status=403)
             
             return view_func(request, *args, **kwargs)
         

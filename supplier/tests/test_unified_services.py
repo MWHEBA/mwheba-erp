@@ -47,7 +47,7 @@ class SupplierServiceIndustrialPricingTest(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        self.user = User.objects.create_user(username='admin_test_pricing', password='password123', is_staff=True)
+        self.user = User.objects.create_user(username='admin_test_pricing', password='password123', is_staff=True, is_superuser=True)
         self.client.login(username='admin_test_pricing', password='password123')
 
         from core.models import SystemModule

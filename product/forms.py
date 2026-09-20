@@ -758,9 +758,11 @@ class TransferVoucherForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         from product.models import Product, Warehouse
         from product.models.stock_management import Stock
+        from users.services.data_scoping_service import DataScopingService
 
         products_with_stock = Stock.objects.filter(
             quantity__gt=0
@@ -772,10 +774,11 @@ class TransferVoucherForm(forms.Form):
         ).order_by('name')
         self.fields['product'].empty_label = 'اختر المنتج'
 
-        warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
-        self.fields['from_warehouse'].queryset = warehouses
+        from_warehouses = DataScopingService.get_managed_warehouses(user) if user else Warehouse.objects.filter(is_active=True).order_by('name')
+        to_warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+        self.fields['from_warehouse'].queryset = from_warehouses
         self.fields['from_warehouse'].empty_label = 'اختر المخزن المصدر'
-        self.fields['to_warehouse'].queryset = warehouses
+        self.fields['to_warehouse'].queryset = to_warehouses
         self.fields['to_warehouse'].empty_label = 'اختر المخزن الهدف'
 
     def clean(self):

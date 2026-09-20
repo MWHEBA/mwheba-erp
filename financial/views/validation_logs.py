@@ -2,7 +2,8 @@
 عرض سجل الحركات الفاشلة في التحقق من المعاملات المالية
 """
 from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.db.models import Q
 from django.utils import timezone
 from django.urls import reverse
@@ -12,7 +13,7 @@ from financial.models.validation_audit_log import ValidationAuditLog
 
 
 @login_required
-@permission_required('financial.view_validationauditlog', raise_exception=True)
+@require_permission('financial.view_validationauditlog')
 def validation_logs_list(request):
     """
     عرض قائمة مفصلة بجميع محاولات التحقق الفاشلة
@@ -177,7 +178,7 @@ def validation_logs_list(request):
 
 
 @login_required
-@permission_required('financial.view_validationauditlog', raise_exception=True)
+@require_permission('financial.view_validationauditlog')
 def validation_log_detail(request, pk):
     """
     عرض تفاصيل محاولة تحقق فاشلة
@@ -242,7 +243,7 @@ def validation_log_detail(request, pk):
 
 
 @login_required
-@permission_required('financial.view_validationauditlog', raise_exception=True)
+@require_permission('financial.view_validationauditlog')
 def validation_audit_tool(request):
     """
     أداة تدقيق المعاملات المالية الموجودة

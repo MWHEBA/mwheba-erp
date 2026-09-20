@@ -20,6 +20,8 @@ from sale.models.pricing import PriceList, PriceListItem, DiscountRule, PricingA
 from product.models.product_core import Product, Category
 from customer.models import Customer
 
+from users.decorators import require_permission
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +31,17 @@ def check_pricing_permissions(view_func):
     """
     def _wrapped(request, *args, **kwargs):
         u = request.user
-        if not (u.is_superuser or u.is_staff or u.has_perm("sale.manage_pricing") or u.groups.filter(name__in=["Managers", "Admins", "CFO", "Sales Manager"]).exists()):
+        has_perm = (
+            u.is_superuser
+            or getattr(u, 'is_admin', False)
+            or u.has_perm("sale.change_pricelist")
+            or u.has_perm("sale.add_pricelist")
+            or u.has_perm("sale.view_pricelist")
+            or u.has_perm("sale.change_discountrule")
+            or u.has_perm("sale.add_discountrule")
+            or u.has_perm("sale.view_discountrule")
+        )
+        if not has_perm:
             messages.error(request, _("عفواً، لا تملك الصلاحيات الإدارية الكافية للوصول لسياسات الأسعار والخصومات."))
             return redirect("sale:sale_list")
         return view_func(request, *args, **kwargs)
@@ -39,6 +51,7 @@ def check_pricing_permissions(view_func):
 # ==================== قوائم الأسعار (Price Lists) ====================
 
 @login_required
+@require_permission("sale.view_pricelist")
 def price_list_list(request):
     """
     قائمة قوائم أسعار المبيعات مع الفلاتر والإحصائيات والجدول الموحد ودعم AJAX
@@ -224,6 +237,7 @@ def price_list_list(request):
 
 
 @login_required
+@require_permission("sale.view_pricelist")
 def price_list_detail(request, pk):
     """
     تفاصيل قائمة الأسعار والبنود المسجلة بها
@@ -256,6 +270,7 @@ def price_list_detail(request, pk):
 
 
 @login_required
+@require_permission("sale.add_pricelist")
 def price_list_create(request):
     """
     إنشاء قائمة أسعار جديدة مع بنود الأسعار
@@ -318,6 +333,7 @@ def price_list_create(request):
 
 
 @login_required
+@require_permission("sale.change_pricelist")
 def price_list_edit(request, pk):
     """
     تعديل قائمة الأسعار الحالية
@@ -380,7 +396,7 @@ def price_list_edit(request, pk):
 # ==================== قواعد الخصم (Discount Rules) ====================
 
 @login_required
-@check_pricing_permissions
+@require_permission("sale.view_discountrule")
 def discount_rule_list(request):
     """
     قائمة قواعد وسياسات الخصم مع الفلاتر والإحصائيات ودعم AJAX الموحد
@@ -636,7 +652,7 @@ def discount_rule_list(request):
 
 
 @login_required
-@check_pricing_permissions
+@require_permission("sale.add_discountrule")
 def discount_rule_create(request):
     """
     إنشاء قاعدة خصم جديدة
@@ -717,7 +733,7 @@ def discount_rule_create(request):
 
 
 @login_required
-@check_pricing_permissions
+@require_permission("sale.change_discountrule")
 def discount_rule_edit(request, pk):
     """
     تعديل قاعدة خصم قائمة
@@ -785,6 +801,7 @@ def discount_rule_edit(request, pk):
 
 
 @login_required
+@require_permission("sale.change_discountrule")
 @require_POST
 def discount_rule_toggle_status(request, pk):
     """
@@ -807,6 +824,7 @@ def discount_rule_toggle_status(request, pk):
 
 
 @login_required
+@require_permission("sale.delete_discountrule")
 @require_POST
 def discount_rule_delete(request, pk):
     """

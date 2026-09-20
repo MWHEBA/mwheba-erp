@@ -3,6 +3,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -489,7 +490,7 @@ def quick_add_cash_bank_account(request):
 # ============== قائمة الخزن والحسابات النقدية ==============
 
 @login_required
-@permission_required('financial.view_chartofaccounts', raise_exception=True)
+@require_permission('financial.view_chartofaccounts')
 def cash_and_bank_accounts_list(request):
     """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن) متوافقة 100% مع العملات المتعددة"""
     from decimal import Decimal
@@ -682,6 +683,7 @@ def cash_and_bank_accounts_list(request):
 # ============== دليل الحسابات ==============
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def chart_of_accounts_list(request):
     """عرض قائمة دليل الحسابات بشكل فائق السرعة مع شجرة هرمية تفاعلية وتجميع أرصدة الأمهات في الذاكرة"""
     from django.db.models import Sum, Count, Q
@@ -909,18 +911,20 @@ def chart_of_accounts_list(request):
         "page_subtitle": "إدارة دليل الحسابات المحاسبي الشامل",
         "page_icon": "fas fa-sitemap",
         "header_buttons": [
-            {
-                "url": reverse("financial:account_types_list"),
-                "icon": "fa-layer-group",
-                "text": "أنواع الحسابات",
-                "class": "btn-outline-secondary",
-            },
-            {
-                "url": reverse("financial:chart_of_accounts_create"),
-                "icon": "fa-plus",
-                "text": "إضافة حساب جديد",
-                "class": "btn-primary",
-            },
+            b for b in [
+                {
+                    "url": reverse("financial:account_types_list"),
+                    "icon": "fa-layer-group",
+                    "text": "أنواع الحسابات",
+                    "class": "btn-outline-secondary",
+                },
+                {
+                    "url": reverse("financial:chart_of_accounts_create"),
+                    "icon": "fa-plus",
+                    "text": "إضافة حساب جديد",
+                    "class": "btn-primary",
+                } if request.user.has_perm("financial.add_chartofaccounts") else None,
+            ] if b is not None
         ],
         "breadcrumb_items": [
             {
@@ -1047,6 +1051,7 @@ def chart_tree_api(request):
 
 
 @login_required
+@require_permission('financial.add_chartofaccounts')
 def chart_of_accounts_create(request):
     """إنشاء حساب جديد في دليل الحسابات"""
     from financial.models.currency import Currency
@@ -1314,6 +1319,7 @@ def chart_of_accounts_create(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def chart_of_accounts_detail(request, pk):
     """عرض تفاصيل حساب مع الحركات للحسابات النقدية"""
     if ChartOfAccounts is None:
@@ -1491,30 +1497,32 @@ def chart_of_accounts_detail(request, pk):
         "page_subtitle": f"كود الحساب: {account.code} - {account.account_type.name if account.account_type else 'غير محدد'}",
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": [
-            {
-                "url": f"{reverse('financial:ledger_report')}?account={account.pk}",
-                "icon": "fa-file-invoice-dollar",
-                "text": "كشف الحساب",
-                "class": "btn-outline-info",
-            },
-            {
-                "url": reverse("financial:account_edit", args=[account.pk]),
-                "icon": "fa-edit",
-                "text": "تعديل",
-                "class": "btn-outline-warning",
-            },
-            {
-                "url": reverse("financial:account_delete", args=[account.pk]),
-                "icon": "fa-trash-alt",
-                "text": "حذف",
-                "class": "btn-outline-danger",
-            },
-            {
-                "url": reverse("financial:chart_of_accounts_list"),
-                "icon": "fa-arrow-right",
-                "text": "العودة للقائمة",
-                "class": "btn-outline-secondary",
-            },
+            b for b in [
+                {
+                    "url": f"{reverse('financial:ledger_report')}?account={account.pk}",
+                    "icon": "fa-file-invoice-dollar",
+                    "text": "كشف الحساب",
+                    "class": "btn-outline-info",
+                },
+                {
+                    "url": reverse("financial:account_edit", args=[account.pk]),
+                    "icon": "fa-edit",
+                    "text": "تعديل",
+                    "class": "btn-outline-warning",
+                } if request.user.has_perm("financial.change_chartofaccounts") else None,
+                {
+                    "url": reverse("financial:account_delete", args=[account.pk]),
+                    "icon": "fa-trash-alt",
+                    "text": "حذف",
+                    "class": "btn-outline-danger",
+                } if request.user.has_perm("financial.delete_chartofaccounts") else None,
+                {
+                    "url": reverse("financial:chart_of_accounts_list"),
+                    "icon": "fa-arrow-right",
+                    "text": "العودة للقائمة",
+                    "class": "btn-outline-secondary",
+                },
+            ] if b is not None
         ],
         "breadcrumb_items": [
             {
@@ -1535,6 +1543,7 @@ def chart_of_accounts_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.delete_chartofaccounts')
 def chart_of_accounts_delete(request, pk):
     """
     حذف أو أرشفة حساب من دليل الحسابات مع حماية القيود وشجرة الحسابات
@@ -1873,6 +1882,7 @@ def get_account_analytics(account, period_days=30):
 
 
 @login_required
+@require_permission('financial.change_chartofaccounts')
 def account_edit(request, pk):
     """
     تعديل حساب مالي - استخدام النظام الجديد
@@ -2467,6 +2477,7 @@ def enhanced_balances_audit(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def cash_account_movements(request, pk):
     """
     عرض حركات حساب خزن معين من القيود المحاسبية
@@ -2797,6 +2808,7 @@ def cash_account_movements(request, pk):
 
 
 @login_required
+@require_permission('financial.change_chartofaccounts')
 def cash_account_edit(request, pk):
     """
     تعديل بيانات الخزينة أو الحساب البنكي بشاشة مخصصة وهادئة
@@ -2932,6 +2944,7 @@ def cash_account_edit(request, pk):
 
 @login_required
 @require_POST
+@require_permission('financial.change_chartofaccounts')
 def cash_account_toggle_active(request, pk):
     """
     تعطيل أو إعادة تفعيل الخزينة / الحساب البنكي بدون شروط
@@ -2955,6 +2968,7 @@ def cash_account_toggle_active(request, pk):
 
 @login_required
 @require_POST
+@require_permission('financial.delete_chartofaccounts')
 def cash_account_delete(request, pk):
     """
     حذف الخزينة / الحساب البنكي
@@ -4130,6 +4144,8 @@ def partner_transaction_detail(request, pk):
     return render(request, 'financial/partner/transaction_detail.html', context)
 
 
+@login_required
+@require_permission('financial.view_chartofaccounts')
 def get_partner_balance(request):
     """
     API لجلب رصيد الشريك
@@ -4365,6 +4381,7 @@ def payment_history(request, payment_type, payment_id):
 
 @login_required
 @require_http_methods(["GET"])
+@require_permission('financial.view_chartofaccounts')
 def get_cash_bank_accounts_api(request):
     """
     API endpoint للحصول على قائمة الحسابات النقدية والبنكية
@@ -4402,8 +4419,7 @@ def get_cash_bank_accounts_api(request):
 
 @login_required
 @require_http_methods(["POST"])
-@login_required
-@require_http_methods(["POST"])
+@require_permission('financial.add_journalentry')
 def transfer_between_accounts(request):
     """
     API endpoint لتحويل مالي بين الخزائن والحسابات البنكية لدعم العملات المتعددة وفروق العملة (IAS 21)

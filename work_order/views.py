@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.db import transaction
@@ -20,15 +21,11 @@ from governance.services.accounting_gateway import create_customer_payment_entry
 
 @login_required
 @check_work_orders_enabled
+@require_permission('work_order.view_workorder')
 def work_order_list(request):
     """
     قائمة أوامر الشغل
     """
-    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض أوامر الشغل")
-        })
-
     queryset = WorkOrder.objects.all().select_related('customer', 'created_by')
     
     # الفلاتر
@@ -68,7 +65,7 @@ def work_order_list(request):
         ],
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+            {"title": _("الإنتاج والتشغيل"), "url": reverse("work_order:work_order_list"), "icon": "fas fa-cogs"},
             {"title": _("أوامر الشغل"), "active": True},
         ]
     }
@@ -77,15 +74,11 @@ def work_order_list(request):
 
 @login_required
 @check_work_orders_enabled
+@require_permission('work_order.add_workorder')
 def work_order_create(request):
     """
     إنشاء أمر شغل جديد
     """
-    if not request.user.has_perm('sale.add_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لإنشاء أمر شغل")
-        })
-
     customer_id = request.GET.get('customer_id')
     quotation_id = request.GET.get('quotation_id')
 
@@ -127,16 +120,16 @@ def work_order_create(request):
 
 @login_required
 @check_work_orders_enabled
+@require_permission('work_order.change_workorder')
 def work_order_edit(request, pk):
     """
     تعديل أمر شغل
     """
-    if not request.user.has_perm('sale.change_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لتعديل أمر شغل")
-        })
-
     work_order = get_object_or_404(WorkOrder, pk=pk)
+
+    if work_order.status in ['completed', 'cancelled'] and not request.user.is_superuser:
+        messages.error(request, _("لا يمكن تعديل أمر شغل مكتمل أو ملغي."))
+        return redirect("work_order:work_order_detail", pk=work_order.pk)
 
     if request.method == "POST":
         form = WorkOrderForm(request.POST, instance=work_order)
@@ -160,15 +153,11 @@ def work_order_edit(request, pk):
 
 @login_required
 @check_work_orders_enabled
+@require_permission('work_order.delete_workorder')
 def work_order_delete(request, pk):
     """
     حذف أمر شغل
     """
-    if not request.user.has_perm('sale.delete_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لحذف أمر شغل")
-        })
-
     work_order = get_object_or_404(WorkOrder, pk=pk)
     
     # فحص الارتباطات قبل الحذف
@@ -187,56 +176,80 @@ def work_order_delete(request, pk):
 
 @login_required
 @check_work_orders_enabled
+@require_permission('work_order.view_workorder')
 def work_order_detail(request, pk):
     """
     تفاصيل أمر الشغل ولوحة معلومات مركز التكلفة
     """
-    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض تفاصيل أمر الشغل")
-        })
-
     work_order = get_object_or_404(WorkOrder.objects.select_related("customer", "created_by"), pk=pk)
 
     # 1. عروض الأسعار المرتبطة
     quotations = work_order.quotations.select_related("customer", "salesman", "created_by").all()
 
-    # 2. فواتير المبيعات المرتبطة (إيرادات)
-    sales = work_order.sales.select_related("customer", "warehouse", "salesman", "created_by").filter(status='confirmed')
-    sales_total = sales.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    # فحص الصلاحية المالية: تكاليف وهوامش ربح
+    can_view_financials = (
+        request.user.is_superuser
+        or request.user.has_perm('printing_pricing.view_cost_breakdown')
+        or request.user.has_perm('printing_pricing.view_profit_margins')
+        or request.user.has_perm('financial.view_account')
+    )
 
-    # 3. فواتير المشتريات المرتبطة (تكلفة خامات)
-    purchases = work_order.purchases.select_related("supplier", "warehouse", "created_by").filter(status='confirmed')
-    purchases_total = purchases.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+    if can_view_financials:
+        # 2. فواتير المبيعات المرتبطة (إيرادات)
+        sales = work_order.sales.select_related("customer", "warehouse", "salesman", "created_by").filter(status='confirmed')
+        sales_total = sales.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
 
-    # 4. المصروفات والإيرادات المباشرة
-    financial_transactions = work_order.financial_transactions.filter(status='approved')
-    incomes_direct = financial_transactions.filter(transaction_type='income')
-    incomes_direct_total = incomes_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
-    
-    expenses_direct = financial_transactions.filter(transaction_type='expense')
-    expenses_direct_total = expenses_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
+        # 3. فواتير المشتريات المرتبطة (تكلفة خامات)
+        purchases = work_order.purchases.select_related("supplier", "warehouse", "created_by").filter(status='confirmed')
+        purchases_total = purchases.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
 
-    # 5. الحسابات المالية الكلية
-    total_revenue = sales_total + incomes_direct_total
-    total_cost = purchases_total + expenses_direct_total
-    net_profit = total_revenue - total_cost
-    profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else Decimal('0.00')
-
-    # 6. نظام الدفعات المقدمة (الحصالة)
-    payments = work_order.payments.all()
-    total_deposits = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    
-    # حساب المستهلك من الدفعات المقدمة في فواتير المبيعات
-    total_allocated = Decimal('0.00')
-    for payment in payments:
-        total_allocated += payment.allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        # 4. المصروفات والإيرادات المباشرة
+        financial_transactions = work_order.financial_transactions.filter(status='approved')
+        incomes_direct = financial_transactions.filter(transaction_type='income')
+        incomes_direct_total = incomes_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
         
-    remaining_deposit = total_deposits - total_allocated
+        expenses_direct = financial_transactions.filter(transaction_type='expense')
+        expenses_direct_total = expenses_direct.aggregate(total=Sum('net_amount'))['total'] or Decimal('0.00')
+
+        # 5. الحسابات المالية الكلية
+        total_revenue = sales_total + incomes_direct_total
+        total_cost = purchases_total + expenses_direct_total
+        net_profit = total_revenue - total_cost
+        profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else Decimal('0.00')
+
+        # 6. نظام الدفعات المقدمة (الحصالة)
+        payments = work_order.payments.all()
+        total_deposits = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        
+        # حساب المستهلك من الدفعات المقدمة في فواتير المبيعات
+        total_allocated = Decimal('0.00')
+        for payment in payments:
+            total_allocated += payment.allocations.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+        remaining_deposit = total_deposits - total_allocated
+    else:
+        # حجب الاستعلامات والتفاصيل المالية لترشيد الأداء وحماية السرية
+        sales = work_order.sales.none()
+        purchases = work_order.purchases.none()
+        financial_transactions = work_order.financial_transactions.none()
+        incomes_direct = work_order.financial_transactions.none()
+        expenses_direct = work_order.financial_transactions.none()
+        sales_total = None
+        purchases_total = None
+        incomes_direct_total = None
+        expenses_direct_total = None
+        total_revenue = None
+        total_cost = None
+        net_profit = None
+        profit_margin = None
+        payments = work_order.payments.none()
+        total_deposits = None
+        total_allocated = None
+        remaining_deposit = None
 
     # حسابات نقدية/بنكية لتسجيل الدفعات
     from financial.services.account_helper import AccountHelperService
-    cash_accounts = AccountHelperService.get_cash_and_bank_accounts()
+    cash_accounts = AccountHelperService.get_cash_and_bank_accounts() if can_view_financials else []
 
     context = {
         "work_order": work_order,
@@ -247,6 +260,7 @@ def work_order_detail(request, pk):
         "incomes_direct": incomes_direct,
         "expenses_direct": expenses_direct,
         "payments": payments,
+        "can_view_financials": can_view_financials,
         
         "sales_total": sales_total,
         "purchases_total": purchases_total,
@@ -271,6 +285,105 @@ def work_order_detail(request, pk):
     if est_cost_str.endswith(".00"):
         est_cost_str = est_cost_str[:-3]
 
+    header_badges = [
+        {
+            "text": work_order.get_status_display(),
+            "class": "bg-success" if work_order.status == 'completed' else (
+                "bg-primary" if work_order.status == 'in_progress' else (
+                    "bg-warning text-dark" if work_order.status == 'pending' else (
+                        "bg-danger" if work_order.status == 'cancelled' else "bg-secondary"
+                    )
+                )
+            ),
+        },
+        {
+            "text": _("تاريخ البدء: {}").format(work_order.start_date.strftime("%Y-%m-%d") if work_order.start_date else "-"),
+            "icon": "fas fa-calendar-alt",
+            "class": "bg-light text-secondary border",
+        },
+        {
+            "text": _("التسليم المتوقع: {}").format(work_order.delivery_date.strftime("%Y-%m-%d") if work_order.delivery_date else "-"),
+            "icon": "fas fa-calendar-check",
+            "class": "bg-light text-secondary border",
+        },
+    ]
+
+    if can_view_financials:
+        header_badges.append({
+            "text": _("التكلفة التقديرية: {} {}").format(est_cost_str, currency),
+            "icon": "fas fa-calculator",
+            "class": "bg-light text-primary border",
+        })
+
+    # بناء أزرار الترويسة بحسب الصلاحيات الفردية
+    dropdown_items = []
+    if request.user.is_superuser or request.user.has_perm('sale.add_quotation'):
+        dropdown_items.append({
+            "url": reverse("sale:quotation_create") + f"?work_order={work_order.id}",
+            "icon": "fa-file-signature",
+            "icon_class": "text-warning bg-warning-subtle",
+            "text": _("عرض سعر"),
+            "desc": _("إنشاء عرض سعر جديد لهذا العميل مرتبط بأمر الشغل"),
+        })
+
+    if request.user.is_superuser or request.user.has_perm('sale.add_sale'):
+        dropdown_items.append({
+            "url": reverse("sale:sale_create") + f"?work_order={work_order.id}",
+            "icon": "fa-file-invoice-dollar",
+            "icon_class": "text-success bg-success-subtle",
+            "text": _("فاتورة مبيعات"),
+            "desc": _("إصدار فاتورة مبيعات جديدة لطلب مستحقات أمر الشغل"),
+        })
+
+    if request.user.is_superuser or request.user.has_perm('purchase.add_purchase'):
+        dropdown_items.append({
+            "url": reverse("purchase:purchase_create") + f"?work_order={work_order.id}",
+            "icon": "fa-file-invoice",
+            "icon_class": "text-danger bg-danger-subtle",
+            "text": _("فاتورة مشتريات"),
+            "desc": _("تسجيل فاتورة شراء مواد أو خدمات خاصة بأمر الشغل"),
+        })
+
+    can_record_deposit = (
+        request.user.is_superuser
+        or request.user.has_perm('customer.add_customerpayment')
+        or request.user.has_perm('financial.add_receiptvoucher')
+        or request.user.has_perm('work_order.change_workorder')
+    )
+    if can_record_deposit and can_view_financials:
+        if dropdown_items:
+            dropdown_items.append({"divider": True})
+        dropdown_items.append({
+            "url": "#",
+            "icon": "fa-piggy-bank",
+            "icon_class": "text-info bg-info-subtle",
+            "text": _("تسجيل دفعة مقدمة"),
+            "desc": _("تسجيل دفعة مقدمة (عربون) من العميل لحساب أمر الشغل"),
+            "data_toggle": "modal",
+            "data_target": "#recordDepositModal",
+        })
+
+    header_buttons = []
+    if dropdown_items:
+        header_buttons.append({
+            "dropdown": True,
+            "chic_dropdown": True,
+            "icon": "fa-plus",
+            "text": _("إضافة"),
+            "class": "btn-primary",
+            "items": dropdown_items,
+        })
+
+    header_buttons.append({
+        "url": "#",
+        "icon": "fa-ellipsis-v",
+        "text": "",
+        "class": "btn-outline-secondary",
+        "id": "actions-menu-btn",
+        "toggle": "modal",
+        "target": "#actionsModal",
+    })
+
     context.update({
         "title": _("أمر شغل {}").format(work_order.number),
         "page_title": _("أمر شغل {}").format(work_order.number),
@@ -280,86 +393,8 @@ def work_order_detail(request, pk):
         ),
         "page_icon": "fas fa-briefcase",
         "active_menu": "work_orders",
-        "header_badges": [
-            {
-                "text": work_order.get_status_display(),
-                "class": "bg-success" if work_order.status == 'completed' else (
-                    "bg-primary" if work_order.status == 'in_progress' else (
-                        "bg-warning text-dark" if work_order.status == 'pending' else (
-                            "bg-danger" if work_order.status == 'cancelled' else "bg-secondary"
-                        )
-                    )
-                ),
-            },
-            {
-                "text": _("تاريخ البدء: {}").format(work_order.start_date.strftime("%Y-%m-%d") if work_order.start_date else "-"),
-                "icon": "fas fa-calendar-alt",
-                "class": "bg-light text-secondary border",
-            },
-            {
-                "text": _("التسليم المتوقع: {}").format(work_order.delivery_date.strftime("%Y-%m-%d") if work_order.delivery_date else "-"),
-                "icon": "fas fa-calendar-check",
-                "class": "bg-light text-secondary border",
-            },
-            {
-                "text": _("التكلفة التقديرية: {} {}").format(est_cost_str, currency),
-                "icon": "fas fa-calculator",
-                "class": "bg-light text-primary border",
-            }
-        ],
-        "header_buttons": [
-            {
-                "dropdown": True,
-                "chic_dropdown": True,
-                "icon": "fa-plus",
-                "text": _("إضافة"),
-                "class": "btn-primary",
-                "items": [
-                    {
-                        "url": reverse("sale:quotation_create") + f"?work_order={work_order.id}",
-                        "icon": "fa-file-signature",
-                        "icon_class": "text-warning bg-warning-subtle",
-                        "text": _("عرض سعر"),
-                        "desc": _("إنشاء عرض سعر جديد لهذا العميل مرتبط بأمر الشغل"),
-                    },
-                    {
-                        "url": reverse("sale:sale_create") + f"?work_order={work_order.id}",
-                        "icon": "fa-file-invoice-dollar",
-                        "icon_class": "text-success bg-success-subtle",
-                        "text": _("فاتورة مبيعات"),
-                        "desc": _("إصدار فاتورة مبيعات جديدة لطلب مستحقات أمر الشغل"),
-                    },
-                    {
-                        "url": reverse("purchase:purchase_create") + f"?work_order={work_order.id}",
-                        "icon": "fa-file-invoice",
-                        "icon_class": "text-danger bg-danger-subtle",
-                        "text": _("فاتورة مشتريات"),
-                        "desc": _("تسجيل فاتورة شراء مواد أو خدمات خاصة بأمر الشغل"),
-                    },
-                    {
-                        "divider": True,
-                    },
-                    {
-                        "url": "#",
-                        "icon": "fa-piggy-bank",
-                        "icon_class": "text-info bg-info-subtle",
-                        "text": _("تسجيل دفعة مقدمة"),
-                        "desc": _("تسجيل دفعة مقدمة (عربون) من العميل لحساب أمر الشغل"),
-                        "data_toggle": "modal",
-                        "data_target": "#recordDepositModal",
-                    }
-                ]
-            },
-            {
-                "url": "#",
-                "icon": "fa-ellipsis-v",
-                "text": "",
-                "class": "btn-outline-secondary",
-                "id": "actions-menu-btn",
-                "toggle": "modal",
-                "target": "#actionsModal",
-            }
-        ],
+        "header_badges": header_badges,
+        "header_buttons": header_buttons,
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": _("أوامر الشغل"), "url": reverse("work_order:work_order_list")},
@@ -375,10 +410,18 @@ def work_order_record_deposit(request, pk):
     """
     تسجيل دفعة مقدمة (عربون) لأمر الشغل
     """
-    if not request.user.has_perm('sale.add_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    has_deposit_perm = (
+        request.user.is_superuser
+        or request.user.has_perm('customer.add_customerpayment')
+        or request.user.has_perm('financial.add_receiptvoucher')
+        or request.user.has_perm('work_order.change_workorder')
+    )
+    if not has_deposit_perm:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json':
+            return JsonResponse({'success': False, 'error': _('ليس لديك صلاحية لتسجيل مدفوعات')}, status=403)
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لتسجيل مدفوعات")
-        })
+        }, status=403)
 
     work_order = get_object_or_404(WorkOrder, pk=pk)
 

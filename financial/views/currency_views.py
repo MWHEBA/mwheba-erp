@@ -7,6 +7,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -33,6 +34,7 @@ def format_clean_rate(val):
 
 
 @login_required
+@require_permission('financial.view_currency')
 def currency_list(request):
     """عرض قائمة العملات المعتمدة بالمؤسسة"""
     currencies = Currency.objects.all().order_by("-is_functional", "code")
@@ -120,6 +122,7 @@ def currency_list(request):
 
 
 @login_required
+@require_permission('financial.add_currency')
 def currency_create(request):
     """إضافة عملة"""
     if request.method == "POST":
@@ -140,6 +143,7 @@ def currency_create(request):
 
 
 @login_required
+@require_permission('financial.change_currency')
 def currency_update(request, code):
     """تعديل بيانات العملة"""
     currency = get_object_or_404(Currency, code=code)
@@ -161,6 +165,7 @@ def currency_update(request, code):
 
 
 @login_required
+@require_permission('financial.change_currency')
 def currency_toggle_active(request, code):
     """تغيير حالة تفعيل العملة (تفعيل / تعطيل)"""
     currency = get_object_or_404(Currency, code=code)
@@ -175,6 +180,7 @@ def currency_toggle_active(request, code):
 
 
 @login_required
+@require_permission('financial.view_currency')
 def exchange_rate_list(request):
     """السجل التاريخي لأسعار الصرف"""
     rates = ExchangeRate.objects.select_related("from_currency", "to_currency", "created_by").all().order_by("-effective_date", "-created_at")
@@ -224,6 +230,7 @@ def exchange_rate_list(request):
 
 
 @login_required
+@require_permission('financial.change_currency')
 def exchange_rate_create(request):
     """إدخال سعر صرف جديد"""
     if request.method == "POST":
@@ -245,6 +252,7 @@ def exchange_rate_create(request):
 
 
 @login_required
+@require_permission('financial.change_currency')
 def api_sync_exchange_rates(request):
     """API لمزامنة أسعار الصرف الرسمية من البنك المركزي المصري (CBE API)"""
     if request.method in ["POST", "GET"]:
@@ -255,6 +263,7 @@ def api_sync_exchange_rates(request):
 
 
 @login_required
+@require_permission('financial.run_fx_revaluation')
 def fx_revaluation_view(request):
     """لوحة تدقيق ومحاكاة تقييم أسعار الصرف غير المحققة (IAS 21 Audit & Simulation Center)"""
     from django.urls import reverse

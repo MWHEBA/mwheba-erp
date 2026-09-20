@@ -9,6 +9,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from users.decorators import require_permission
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.urls import reverse
@@ -26,16 +27,19 @@ from sale.services import SaleService
 from sale.services.sales_service import SalesService
 from product.models.product_core import Product
 from product.models.stock_management import Warehouse
+from functools import wraps
 from customer.models import Customer
 from core.models import SystemSetting
 from financial.models import Currency, CostCenter
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.exceptions import FinancialCoreError
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
 
 def check_sales_orders_enabled(view_func):
+    @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         from core.models import SystemSetting
         enabled = SystemSetting.get_bool('enable_sales_orders', False)
@@ -49,14 +53,17 @@ def check_sales_orders_enabled(view_func):
 
 
 @login_required
+@require_permission("sale.view_salesorder")
 @check_sales_orders_enabled
 def sales_order_list(request):
     """
     قائمة أوامر البيع مع الفلاتر والإحصائيات ودعم AJAX
     """
-    queryset = SalesOrder.objects.select_related(
+    from users.services.data_scoping_service import DataScopingService
+    base_orders = DataScopingService.get_scoped_sales_orders(request.user)
+    queryset = base_orders.select_related(
         "customer", "warehouse", "created_by", "quotation_reference", "salesman"
-    ).all().order_by("-order_date", "-id")
+    ).order_by("-order_date", "-id")
 
     # فلاتر البحث
     customer_id = request.GET.get("customer")
@@ -94,13 +101,12 @@ def sales_order_list(request):
             code_fields=['order_number', 'customer__code', 'customer__phone']
         )
 
-    # حساب الإحصائيات العامة
-    all_orders = SalesOrder.objects.all()
-    total_count = all_orders.count()
-    total_value = all_orders.aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
-    draft_count = all_orders.filter(status__in=["DRAFT", "PENDING_APPROVAL"]).count()
-    approved_count = all_orders.filter(status__in=["APPROVED", "CONFIRMED"]).count()
-    delivered_count = all_orders.filter(status__in=["DELIVERED", "PARTIALLY_DELIVERED", "FULLY_DELIVERED", "COMPLETED"]).count()
+    # حساب الإحصائيات المعزولة بنطاق صلاحيات المستخدم
+    total_count = base_orders.count()
+    total_value = base_orders.aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+    draft_count = base_orders.filter(status__in=["DRAFT", "PENDING_APPROVAL"]).count()
+    approved_count = base_orders.filter(status__in=["APPROVED", "CONFIRMED"]).count()
+    delivered_count = base_orders.filter(status__in=["DELIVERED", "PARTIALLY_DELIVERED", "FULLY_DELIVERED", "COMPLETED"]).count()
 
     stats = {
         "total_count": total_count,
@@ -122,7 +128,7 @@ def sales_order_list(request):
         {"title": _("أوامر البيع"), "active": True},
     ]
 
-    header_buttons = [
+    header_buttons = ([
         {
             "url": reverse("sale:sales_order_create"),
             "text": _("إنشاء أمر بيع جديد"),
@@ -130,7 +136,7 @@ def sales_order_list(request):
             "icon": "fa-plus",
             "class": "btn-primary",
         }
-    ]
+    ] if request.user.has_perm('sale.add_salesorder') or request.user.is_superuser else [])
 
     from django.contrib.auth import get_user_model
     User = get_user_model()
@@ -150,7 +156,7 @@ def sales_order_list(request):
         "status_choices": SalesOrder.STATUS_CHOICES,
         "customers": Customer.objects.filter(is_active=True).only("id", "name"),
         "warehouses": Warehouse.objects.filter(is_active=True).only("id", "name"),
-        "salesmen": User.objects.filter(is_active=True).only("id", "first_name", "last_name", "username"),
+        "salesmen": DataScopingService.get_scoped_salesmen(),
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
         "search_query": search_query or "",
@@ -174,6 +180,7 @@ def sales_order_list(request):
 
 
 @login_required
+@require_permission("sale.add_salesorder")
 @check_sales_orders_enabled
 def sales_order_create(request, quotation_id=None):
     """
@@ -283,7 +290,7 @@ def sales_order_create(request, quotation_id=None):
 
         try:
             customer = get_object_or_404(Customer, pk=customer_id)
-            warehouse = get_object_or_404(Warehouse, pk=warehouse_id)
+            warehouse = get_object_or_404(DataScopingService.get_transaction_warehouses(request.user), pk=warehouse_id)
 
             items_data = []
             for i in range(len(product_ids)):
@@ -310,6 +317,33 @@ def sales_order_create(request, quotation_id=None):
             if not items_data:
                 messages.error(request, _("يجب إضافة بند واحد على الأقل في أمر البيع."))
                 return redirect(request.path)
+
+            # التدقيق السعري وحوكمة الخصومات في أوامر البيع
+            from sale.services.pricing_validator import PricingSecurityValidator
+            subtotal_approx = sum(
+                (Decimal(str(it['ordered_qty'])) * Decimal(str(it['unit_price'])))
+                for it in items_data
+            )
+            PricingSecurityValidator.validate_document_pricing(
+                user=request.user,
+                items_data=[
+                    {
+                        "product_id": it["product"].id,
+                        "unit_price": it["unit_price"],
+                        "quantity": it["ordered_qty"],
+                    }
+                    for it in items_data
+                ],
+                customer=customer,
+                price_list=price_list_id,
+                currency=currency_code,
+                exchange_rate=exchange_rate,
+                discount=discount_amount,
+                discount_type=discount_type,
+                payment_method='credit',
+                subtotal=subtotal_approx,
+                doc_type='sales_order'
+            )
 
             so = SalesService.create_sales_order(
                 customer=customer,
@@ -385,7 +419,7 @@ def sales_order_create(request, quotation_id=None):
         c.current_rate = ExchangeRateService.get_exchange_rate(c)
 
     customers = Customer.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    warehouses = DataScopingService.get_transaction_warehouses(request.user)
     products = Product.objects.filter(is_active=True).order_by("name")
     price_lists = PriceList.objects.filter(is_active=True).order_by("name")
     cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "objects") else []
@@ -465,15 +499,35 @@ def sales_order_create(request, quotation_id=None):
 
 
 @login_required
+@require_permission("sale.change_salesorder")
 @check_sales_orders_enabled
 def sales_order_edit(request, pk):
     """
     تعديل أمر بيع قائم (في حالة المسودة)
     """
+    scoped_sos = DataScopingService.get_scoped_sales_orders(request.user)
     so = get_object_or_404(
-        SalesOrder.objects.prefetch_related("items__product").select_related("customer", "warehouse"),
+        scoped_sos.prefetch_related("items__product").select_related("customer", "warehouse"),
         pk=pk
     )
+
+    # قفل الملكية في تعديل أوامر البيع
+    is_owner = (so.created_by_id == request.user.id) or (so.salesman_id == request.user.id)
+    has_all_perms = request.user.is_superuser or request.user.has_perm('sale.view_all_salesorders')
+    if not is_owner and not has_all_perms:
+        return render(request, "core/permission_denied.html", {
+            "title": _("غير مصرح"), "message": _("غير مصرح لك بتعديل أمر بيع مسجل بواسطة مستخدم آخر.")
+        })
+
+    # قفل التعديل إذا كان أمر الشغل دخل حيز التشغيل الفعلي في صالة الإنتاج
+    has_active_wo = False
+    if so.quotation_reference and getattr(so.quotation_reference, 'work_order', None):
+        has_active_wo = so.quotation_reference.work_order.status in ['in_progress', 'completed']
+
+    if has_active_wo:
+        if not request.user.has_perm('sale.change_approved_sale') and not request.user.is_superuser:
+            messages.error(request, _("عفواً، لا يمكن تعديل أمر البيع نظراً لأن أمر الشغل المرتبط به قيد التشغيل أو مكتمل في صالة الإنتاج لمنع إهدار الخامات."))
+            return redirect("sale:sales_order_detail", pk=so.pk)
 
     if so.status not in ["DRAFT", "PENDING_APPROVAL"]:
         messages.error(request, _("لا يمكن تعديل أمر البيع بعد اعتماده أو تنفيذه جزئياً."))
@@ -535,7 +589,7 @@ def sales_order_edit(request, pk):
 
         try:
             customer = get_object_or_404(Customer, pk=customer_id)
-            warehouse = get_object_or_404(Warehouse, pk=warehouse_id)
+            warehouse = get_object_or_404(DataScopingService.get_transaction_warehouses(request.user), pk=warehouse_id)
 
             with transaction.atomic():
                 so.customer = customer
@@ -563,6 +617,35 @@ def sales_order_edit(request, pk):
                 so.custom_fields = SaleService.parse_custom_fields(request.POST.get("custom_fields_json", "[]"))
 
                 # Recreate items
+                # التدقيق السعري وحوكمة الخصومات في تعديل أوامر البيع
+                from sale.services.pricing_validator import PricingSecurityValidator
+                items_validation_list = []
+                for i in range(len(product_ids)):
+                    if product_ids[i] and str(product_ids[i]).isdigit():
+                        p_id = int(product_ids[i])
+                        qty = Decimal(str(quantities[i]).replace(',', '').strip())
+                        price = Decimal(str(unit_prices[i]).replace(',', '').strip())
+                        items_validation_list.append({
+                            "product_id": p_id,
+                            "quantity": qty,
+                            "unit_price": price,
+                        })
+
+                subtotal_approx_edit = sum(it["quantity"] * it["unit_price"] for it in items_validation_list)
+                PricingSecurityValidator.validate_document_pricing(
+                    user=request.user,
+                    items_data=items_validation_list,
+                    customer=customer,
+                    price_list=so.price_list_id,
+                    currency=currency_val,
+                    exchange_rate=exchange_rate,
+                    discount=so.discount_amount,
+                    discount_type=so.discount_type,
+                    payment_method='credit',
+                    subtotal=subtotal_approx_edit,
+                    doc_type='sales_order'
+                )
+
                 so.items.all().delete()
                 subtotal_val = Decimal("0.00")
 
@@ -619,7 +702,7 @@ def sales_order_edit(request, pk):
         c.current_rate = ExchangeRateService.get_exchange_rate(c)
 
     customers = Customer.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    warehouses = DataScopingService.get_transaction_warehouses(request.user)
     products = Product.objects.filter(is_active=True).order_by("name")
     price_lists = PriceList.objects.filter(is_active=True).order_by("name")
     cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "objects") else []
@@ -677,6 +760,7 @@ def sales_order_edit(request, pk):
 
 
 @login_required
+@require_permission("sale.view_salesorder")
 @check_sales_orders_enabled
 def sales_order_detail(request, pk):
     """
@@ -693,6 +777,20 @@ def sales_order_detail(request, pk):
         ),
         pk=pk
     )
+
+    # عزل السجلات للمناديب مع تمكين أصحاب الاختصاصات التشغيلية (محاسب / أمين مخزن / إنتاج)
+    is_owner = (so.created_by_id == request.user.id) or (so.salesman_id == request.user.id)
+    has_supervisor_perm = request.user.is_superuser or request.user.has_perm('sale.view_all_salesorders')
+    has_operational_role = (
+        request.user.has_perm('sale.add_salepayment') or
+        request.user.has_perm('financial.add_financialtransaction') or
+        request.user.has_perm('sale.add_deliverynote') or
+        request.user.has_perm('work_order.add_workorder') or
+        request.user.has_perm('work_order.view_workorder')
+    )
+    if not is_owner and not has_supervisor_perm and not has_operational_role:
+        from django.http import Http404
+        raise Http404(_("أمر البيع غير موجود أو غير مصرح لك بالاطلاع عليه."))
 
     # التحقق من فواتير البيع المنشأة من هذا الأمر
     linked_sales = Sale.objects.filter(sales_order=so).select_related("customer", "warehouse", "created_by").order_by("-id")
@@ -737,53 +835,59 @@ def sales_order_detail(request, pk):
     ]
 
     if so.status in ["DRAFT", "PENDING_APPROVAL"]:
-        header_buttons.append({
-            "url": reverse("sale:sales_order_edit", args=[so.pk]),
-            "text": _("تعديل أمر البيع"),
-            "label": _("تعديل أمر البيع"),
-            "icon": "fa-edit",
-            "class": "btn-outline-primary",
-        })
-        header_buttons.append({
-            "onclick": "confirmApproveOrder()",
-            "text": _("اعتماد أمر البيع"),
-            "label": _("اعتماد أمر البيع"),
-            "icon": "fa-check",
-            "class": "btn-success",
-        })
+        if request.user.has_perm("sale.change_salesorder") or request.user.is_superuser:
+            header_buttons.append({
+                "url": reverse("sale:sales_order_edit", args=[so.pk]),
+                "text": _("تعديل أمر البيع"),
+                "label": _("تعديل أمر البيع"),
+                "icon": "fa-edit",
+                "class": "btn-outline-primary",
+            })
+        if request.user.has_perm("sale.approve_sales_order") or request.user.is_superuser:
+            header_buttons.append({
+                "onclick": "confirmApproveOrder()",
+                "text": _("اعتماد أمر البيع"),
+                "label": _("اعتماد أمر البيع"),
+                "icon": "fa-check",
+                "class": "btn-success",
+            })
 
     if so.status in ["APPROVED", "CONFIRMED", "PARTIALLY_DELIVERED"]:
-        header_buttons.append({
-            "url": f"{reverse('sale:delivery_note_create')}?so_id={so.pk}",
-            "text": _("إصدار إذن تسليم"),
-            "label": _("إصدار إذن تسليم"),
-            "icon": "fa-truck",
-            "class": "btn-info text-white",
-        })
-        header_buttons.append({
-            "url": reverse("sale:sales_order_convert_to_sale", args=[so.pk]),
-            "text": _("إصدار فاتورة مبيعات"),
-            "label": _("إصدار فاتورة مبيعات"),
-            "icon": "fa-file-invoice-dollar",
-            "class": "btn-primary",
-        })
+        if request.user.has_perm("sale.add_deliverynote") or request.user.is_superuser:
+            header_buttons.append({
+                "url": f"{reverse('sale:delivery_note_create')}?so_id={so.pk}",
+                "text": _("إصدار إذن تسليم"),
+                "label": _("إصدار إذن تسليم"),
+                "icon": "fa-truck",
+                "class": "btn-info text-white",
+            })
+        if request.user.has_perm("sale.add_sale") or request.user.is_superuser:
+            header_buttons.append({
+                "url": reverse("sale:sales_order_convert_to_sale", args=[so.pk]),
+                "text": _("إصدار فاتورة مبيعات"),
+                "label": _("إصدار فاتورة مبيعات"),
+                "icon": "fa-file-invoice-dollar",
+                "class": "btn-primary",
+            })
 
     if so.status not in ["CANCELLED", "FULLY_DELIVERED", "INVOICED"]:
-        header_buttons.append({
-            "onclick": "confirmCancelOrder()",
-            "text": _("إلغاء أمر البيع"),
-            "label": _("إلغاء أمر البيع"),
-            "icon": "fa-times-circle",
-            "class": "btn-outline-danger",
-        })
+        if request.user.has_perm("sale.change_salesorder") or request.user.is_superuser:
+            header_buttons.append({
+                "onclick": "confirmCancelOrder()",
+                "text": _("إلغاء أمر البيع"),
+                "label": _("إلغاء أمر البيع"),
+                "icon": "fa-times-circle",
+                "class": "btn-outline-danger",
+            })
 
     can_collect_down_payment = (
         request.user.has_perm("financial.add_financialtransaction") or 
-        request.user.is_superuser or 
-        request.user.is_staff
+        request.user.has_perm("sale.add_salepayment") or
+        request.user.is_superuser
     )
     can_override_down_payment = (
-        request.user.has_perm("sale.change_salesorder") or 
+        request.user.has_perm("sale.approve_sales_order") or 
+        request.user.has_perm("financial.approve_workflow") or
         request.user.is_superuser
     )
 
@@ -832,8 +936,8 @@ def sales_order_collect_down_payment(request, pk):
 
     can_collect = (
         request.user.has_perm("financial.add_financialtransaction") or 
-        request.user.is_superuser or 
-        request.user.is_staff
+        request.user.has_perm("sale.add_salepayment") or
+        request.user.is_superuser
     )
     if not can_collect:
         messages.error(request, _("ليس لديك صلاحية تسجيل حركات الخزينة وسندات القبض."))
@@ -900,7 +1004,11 @@ def sales_order_override_down_payment(request, pk):
     """
     so = get_object_or_404(SalesOrder, pk=pk)
 
-    can_override = request.user.has_perm("sale.change_salesorder") or request.user.is_superuser
+    can_override = (
+        request.user.has_perm("sale.approve_sales_order") or 
+        request.user.has_perm("financial.approve_workflow") or 
+        request.user.is_superuser
+    )
     if not can_override:
         messages.error(request, _("ليس لديك صلاحية اعتماد التجاوز الإداري لشروط المبيعات."))
         return redirect("sale:sales_order_detail", pk=pk)
@@ -917,6 +1025,7 @@ def sales_order_override_down_payment(request, pk):
 
 
 @login_required
+@require_permission("sale.approve_sales_order")
 @require_POST
 @check_sales_orders_enabled
 def sales_order_confirm(request, pk):
@@ -933,6 +1042,7 @@ def sales_order_confirm(request, pk):
 
 
 @login_required
+@require_permission("sale.change_salesorder")
 @require_POST
 @check_sales_orders_enabled
 def sales_order_cancel(request, pk):
@@ -949,6 +1059,7 @@ def sales_order_cancel(request, pk):
 
 
 @login_required
+@require_permission("sale.view_salesorder")
 @check_sales_orders_enabled
 def sales_order_print(request, pk):
     """
@@ -959,6 +1070,20 @@ def sales_order_print(request, pk):
         .prefetch_related("items__product__unit"),
         pk=pk
     )
+
+    # عزل الطباعة للمناديب
+    is_owner = (so.created_by_id == request.user.id) or (so.salesman_id == request.user.id)
+    has_supervisor_perm = request.user.is_superuser or request.user.has_perm('sale.view_all_salesorders')
+    has_operational_role = (
+        request.user.has_perm('sale.add_salepayment') or
+        request.user.has_perm('financial.add_financialtransaction') or
+        request.user.has_perm('sale.add_deliverynote') or
+        request.user.has_perm('work_order.add_workorder') or
+        request.user.has_perm('work_order.view_workorder')
+    )
+    if not is_owner and not has_supervisor_perm and not has_operational_role:
+        from django.http import Http404
+        raise Http404(_("أمر البيع غير موجود أو غير مصرح لك بالاطلاع عليه."))
 
     print_lang = request.GET.get("lang", "ar")
     is_english = print_lang == "en"
@@ -1034,12 +1159,20 @@ def sales_order_print(request, pk):
 
 
 @login_required
+@require_permission("sale.add_sale")
 @check_sales_orders_enabled
 def sales_order_convert_to_sale(request, pk):
     """
     تحويل أمر البيع إلى فاتورة مبيعات مباشرة مع ربط sales_order
     """
     so = get_object_or_404(SalesOrder.objects.prefetch_related("items__product"), pk=pk)
+
+    # عزل التحويل للمناديب
+    is_owner = (so.created_by_id == request.user.id) or (so.salesman_id == request.user.id)
+    has_supervisor_perm = request.user.is_superuser or request.user.has_perm('sale.view_all_salesorders')
+    if not is_owner and not has_supervisor_perm:
+        from django.http import Http404
+        raise Http404(_("أمر البيع غير موجود أو غير مصرح لك بالاطلاع عليه."))
 
     # توجيه إلى صفحة إنشاء الفاتورة مع تعبئة البيانات مسبقاً
     sale_data = {

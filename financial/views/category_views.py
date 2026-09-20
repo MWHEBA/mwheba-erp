@@ -3,6 +3,7 @@ Financial Category Views
 واجهات إدارة التصنيفات المالية
 """
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from users.mixins import SmartPermissionRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -14,7 +15,8 @@ from ..models.categories import FinancialCategory
 from ..models.chart_of_accounts import ChartOfAccounts
 
 
-class CategoryListView(LoginRequiredMixin, UnifiedPaginationMixin, ListView):
+class CategoryListView(SmartPermissionRequiredMixin, UnifiedPaginationMixin, ListView):
+    permission_required = "financial.view_chartofaccounts"
     """قائمة التصنيفات المالية"""
     model = FinancialCategory
     template_name = 'financial/categories/list.html'

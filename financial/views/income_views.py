@@ -3,6 +3,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -20,6 +21,7 @@ from .shared_helpers import (
 )
 
 @login_required
+@require_permission('financial.view_incometransaction')
 def income_list(request):
     """
     عرض قائمة الإيرادات من القيود المحاسبية
@@ -178,6 +180,7 @@ def income_list(request):
 
 
 @login_required
+@require_permission('financial.view_incometransaction')
 def income_detail(request, pk):
     """
     ❌ تم إلغاء هذه الصفحة - الموديل Income غير موجود
@@ -188,6 +191,7 @@ def income_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.add_incometransaction')
 def income_create(request):
     """إنشاء إيراد جديد - يدعم AJAX"""
     
@@ -239,6 +243,7 @@ def income_create(request):
 
 
 @login_required
+@require_permission('financial.change_incometransaction')
 def income_edit(request, pk):
     """تعديل إيراد"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)

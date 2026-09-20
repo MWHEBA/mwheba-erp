@@ -2,6 +2,7 @@
 from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, Http404
 from django.db.models import Q, Sum, Count, F, Prefetch
@@ -181,6 +182,8 @@ def _calculate_bundle_stock_from_prefetch(bundle_product):
     return int(min_bundles) if min_bundles != float('inf') else 0
 
 
+@login_required
+@require_permission('product.view_product')
 def product_list(request):
     """
     عرض قائمة المنتجات (بدون الخدمات) - مع Ajax search و DB-level pagination
@@ -550,30 +553,65 @@ def product_list(request):
 @require_POST
 def product_bulk_edit(request):
     """
-    تعديل جماعي للمنتجات - الأسعار والحالة والتصنيف
+    تعديل جماعي للمنتجات - الأسعار والحالة والتصنيف مع التدقيق السيادي وحفظ السجل
     """
+    # 1. التدقيق السيادي الأساسي: تعديل المنتجات يتطلب حتماً صلاحية تغيير المنتجات
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('product.change_product')):
+        return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل بيانات المنتجات', 'message': 'يتطلب هذا الإجراء صلاحية تعديل المنتجات'}, status=403)
+
     product_ids = request.POST.getlist('product_ids')
     field = request.POST.get('field')
     value = request.POST.get('value', '').strip()
 
+    # دعم طلبات JSON بجانب طلبات النماذج العادية
+    if (not product_ids or not field) and request.body:
+        try:
+            import json
+            body_data = json.loads(request.body.decode('utf-8'))
+            if isinstance(body_data, dict):
+                if 'product_ids' in body_data:
+                    product_ids = body_data['product_ids']
+                if 'field' in body_data:
+                    field = body_data['field']
+                if 'value' in body_data:
+                    value = str(body_data['value']).strip()
+                if 'products' in body_data and isinstance(body_data['products'], list) and body_data['products']:
+                    items = body_data['products']
+                    product_ids = [item['id'] for item in items if 'id' in item]
+                    for k, v in items[0].items():
+                        if k != 'id':
+                            field = k
+                            value = str(v).strip()
+                            break
+        except Exception:
+            pass
+
     if not product_ids:
-        return JsonResponse({'success': False, 'error': 'لم يتم تحديد أي منتجات'})
+        return JsonResponse({'success': False, 'error': 'لم يتم تحديد أي منتجات'}, status=400)
 
     if not field:
-        return JsonResponse({'success': False, 'error': 'لم يتم تحديد الحقل المراد تعديله'})
+        return JsonResponse({'success': False, 'error': 'لم يتم تحديد الحقل المراد تعديله'}, status=400)
 
     allowed_fields = {
         'selling_price', 'cost_price',
         'is_active', 'category',
     }
     if field not in allowed_fields:
-        return JsonResponse({'success': False, 'error': 'حقل غير مسموح بتعديله'})
+        return JsonResponse({'success': False, 'error': 'حقل غير مسموح بتعديله'}, status=400)
+
+    # 2. التدقيق الأمني المتقدم المتخصص للأسعار والتكاليف
+    if field == 'selling_price':
+        if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('sale.change_unit_price')):
+            return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل أسعار البيع للمنتجات'}, status=403)
+    elif field == 'cost_price':
+        if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('purchase.change_unit_cost')):
+            return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل أسعار التكلفة لحماية التقييم المالي (WAC)'}, status=403)
 
     products = Product.objects.filter(id__in=product_ids, is_service=False)
     count = products.count()
 
     if count == 0:
-        return JsonResponse({'success': False, 'error': 'لم يتم العثور على المنتجات المحددة'})
+        return JsonResponse({'success': False, 'error': 'لم يتم العثور على المنتجات المحددة'}, status=404)
 
     try:
         with transaction.atomic():
@@ -581,21 +619,36 @@ def product_bulk_edit(request):
                 try:
                     decimal_value = Decimal(value)
                     if decimal_value < 0:
-                        return JsonResponse({'success': False, 'error': 'القيمة يجب أن تكون موجبة'})
+                        return JsonResponse({'success': False, 'error': 'القيمة يجب أن تكون موجبة'}, status=400)
                 except Exception:
-                    return JsonResponse({'success': False, 'error': 'قيمة السعر غير صحيحة'})
+                    return JsonResponse({'success': False, 'error': 'قيمة السعر غير صحيحة'}, status=400)
+                
+                # حفظ في PriceHistory لحماية الامتثال المالي
+                for p in products:
+                    old_p = getattr(p, field, Decimal('0.00')) or Decimal('0.00')
+                    if old_p != decimal_value:
+                        PriceHistory.objects.create(
+                            product=p,
+                            source_type="CATALOG_BASE",
+                            old_price=old_p,
+                            new_price=decimal_value,
+                            change_amount=(decimal_value - old_p),
+                            change_reason="bulk_update",
+                            notes=f"تعديل جماعي لحقل {field} بواسطة {request.user.username}",
+                            changed_by=request.user
+                        )
                 products.update(**{field: decimal_value})
 
             elif field == 'is_active':
                 if value not in ('true', 'false'):
-                    return JsonResponse({'success': False, 'error': 'قيمة الحالة غير صحيحة'})
+                    return JsonResponse({'success': False, 'error': 'قيمة الحالة غير صحيحة'}, status=400)
                 products.update(is_active=(value == 'true'))
 
             elif field == 'category':
                 try:
                     category = Category.objects.get(pk=int(value), is_active=True)
                 except (Category.DoesNotExist, ValueError):
-                    return JsonResponse({'success': False, 'error': 'التصنيف غير موجود'})
+                    return JsonResponse({'success': False, 'error': 'التصنيف غير موجود'}, status=400)
                 products.update(category=category)
 
         field_labels = {
@@ -610,10 +663,11 @@ def product_bulk_edit(request):
         })
 
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'حدث خطأ: {str(e)}'})
+        return JsonResponse({'success': False, 'error': f'حدث خطأ: {str(e)}'}, status=500)
 
 
 @login_required
+@require_permission('product.add_product')
 def product_create(request):
     """
     إضافة منتج أو خدمة جديدة
@@ -708,6 +762,7 @@ def product_create(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def service_list(request):
     """
     عرض قائمة الخدمات فقط
@@ -973,6 +1028,7 @@ def service_list(request):
 
 
 @login_required
+@require_permission('product.add_product')
 def product_create_modal(request):
     """
     إضافة منتج جديد عبر المودال
@@ -1028,6 +1084,7 @@ def product_create_modal(request):
 
 
 @login_required
+@require_permission('product.change_product')
 def product_edit(request, pk):
     """
     تعديل منتج أو خدمة
@@ -1143,14 +1200,23 @@ def product_detail(request, pk):
     # إجمالي المخزون
     total_stock = stock_items.aggregate(total=Sum("quantity"))["total"] or 0
 
-    # أسعار الموردين (مرتبة حسب السعر)
-    try:
-        supplier_prices = (
-            SupplierProductPrice.objects.filter(product=product, is_active=True)
-            .select_related("supplier")
-            .order_by("cost_price", "-is_default")
-        )
-    except:
+    # أسعار الموردين (مرتبة حسب السعر) - محجوبة لمن لا يملك صلاحية المشتريات أو الإدارة
+    can_view_supplier_costs = (
+        request.user.is_superuser
+        or getattr(request.user, 'is_admin', False)
+        or request.user.has_perm('purchase.view_purchase')
+        or request.user.has_perm('printing_pricing.view_cost_breakdown')
+    )
+    if can_view_supplier_costs:
+        try:
+            supplier_prices = (
+                SupplierProductPrice.objects.filter(product=product, is_active=True)
+                .select_related("supplier")
+                .order_by("cost_price", "-is_default")
+            )
+        except:
+            supplier_prices = []
+    else:
         supplier_prices = []
 
     # أسعار العملات المخصصة الاسترشادية
@@ -1233,26 +1299,28 @@ def product_detail(request, pk):
                 "icon": "fas fa-check-circle",
             },
         ]
-        context["header_buttons"] = [
-            {
+        detail_header_buttons = []
+        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('product.change_product'):
+            detail_header_buttons.append({
                 "url": reverse("product:product_edit", kwargs={"pk": product.pk}),
                 "icon": "fa-edit",
                 "text": "تعديل",
                 "class": "btn-primary",
-            },
-            {
+            })
+        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('product.delete_product'):
+            detail_header_buttons.append({
                 "url": reverse("product:product_delete", kwargs={"pk": product.pk}),
                 "icon": "fa-trash-alt",
                 "text": "حذف",
                 "class": "btn-danger",
-            },
-            {
-                "url": reverse("product:product_list"),
-                "icon": "fa-arrow-right",
-                "text": "العودة للقائمة",
-                "class": "btn-outline-secondary",
-            },
-        ]
+            })
+        detail_header_buttons.append({
+            "url": reverse("product:product_list"),
+            "icon": "fa-arrow-right",
+            "text": "العودة للقائمة",
+            "class": "btn-outline-secondary",
+        })
+        context["header_buttons"] = detail_header_buttons
         context["breadcrumb_items"] = [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
@@ -1368,6 +1436,7 @@ def product_image_upload(request, pk):
 
 
 @login_required
+@require_permission('product.delete_product')
 def product_delete(request, pk):
     """
     حذف منتج - حذف فعلي إذا لم يكن مرتبط بمعاملات، وإلا تعطيل فقط
@@ -3124,10 +3193,27 @@ def stock_detail(request, pk):
 @login_required
 def stock_adjust(request, pk):
     """
-    تسوية المخزون
+    تسوية المخزون - مقصورة على المخولين وحاملي صلاحية تسوية المخزون
     """
+    can_adjust = (
+        request.user.is_superuser
+        or request.user.has_perm('product.approve_inventory_adjustment')
+        or request.user.has_perm('product.change_stock')
+        or getattr(request.user, 'is_financial_manager', False)
+    )
+    if not can_adjust:
+        messages.error(request, _("غير مصرح لك بإجراء تسويات الجرد المخزني"))
+        return redirect('product:stock_detail', pk=pk)
+
     try:
         stock = get_object_or_404(Stock, pk=pk)
+
+        # عزل المخزن المسند
+        from users.services.data_scoping_service import DataScopingService
+        managed_warehouses = DataScopingService.get_managed_warehouses(request.user)
+        if managed_warehouses is not None and stock.warehouse not in managed_warehouses:
+            messages.error(request, _("غير مصرح لك بتسوية مخزون في مخزن غير مسند إليك"))
+            return redirect('product:stock_list')
 
         if request.method == "POST":
             try:
@@ -4378,7 +4464,8 @@ def delete_product_image(request, pk):
         logger.error(f"Error in delete_product_image: {str(e)}", exc_info=True)
         return JsonResponse({"success": False, "error": _("حدث خطأ أثناء حذف الصورة")})
 
-    return JsonResponse({"success": False, "error": _("طريقة طلب غير مدعومة")})
+@login_required
+@require_permission('product.view_product')
 def get_stock_by_warehouse(request):
     """
     API للحصول على المخزون المتاح في مخزن معين
@@ -5078,6 +5165,8 @@ def _save_component_alternatives(request, bundle, components):
                 continue
 
 
+@login_required
+@require_permission('product.add_product')
 def bundle_create(request):
     """
     إنشاء منتج مجمع جديد مع مكوناته
@@ -5632,6 +5721,7 @@ def generate_sku_ajax(request):
         })
 
 
+@login_required
 def get_subcategories_ajax(request):
     """
     إرجاع التصنيفات الفرعية لتصنيف رئيسي معين عبر AJAX

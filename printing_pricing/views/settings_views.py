@@ -6,7 +6,7 @@ import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin as DjangoLoginRequiredMixin
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.db import models
@@ -14,20 +14,18 @@ from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, View
 from django.shortcuts import render
 
-class LoginRequiredMixin(DjangoLoginRequiredMixin, UserPassesTestMixin):
+class LoginRequiredMixin(DjangoLoginRequiredMixin, PermissionRequiredMixin):
     """Mixin to ensure authorized users can access pricing master settings."""
+    permission_required = 'printing_pricing.manage_pricing_settings'
     raise_exception = True
 
-    def test_func(self):
+    def has_permission(self):
         user = self.request.user
         if not user.is_authenticated:
             return False
-        return (
-            user.is_superuser or
-            getattr(user, 'is_admin', False) or
-            user.is_staff or
-            user.has_perm('printing_pricing.manage_pricing_settings')
-        )
+        if user.is_superuser or getattr(user, 'is_admin', False):
+            return True
+        return super().has_permission()
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
 from django.core.paginator import Paginator
@@ -918,7 +916,7 @@ class PieceSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
 @login_required
 def settings_home(request):
     """الصفحة الرئيسية للإعدادات"""
-    if not (request.user.is_staff or request.user.is_superuser):
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or getattr(request.user, 'is_staff', False) or request.user.has_perm('printing_pricing.manage_pricing_settings')):
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied(_("غير مصرح لك بالوصول إلى هذه الصفحة."))
     from django.urls import reverse

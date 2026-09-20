@@ -29,6 +29,13 @@ class BatchVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permissio
             'warehouse', 'target_warehouse', 'created_by', 'approved_by'
         ).prefetch_related('items')
         
+        # عزل المخازن المسندة لأمين المخزن
+        from users.services.data_scoping_service import DataScopingService
+        from django.db.models import Q
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            queryset = queryset.filter(Q(warehouse__in=managed_warehouses) | Q(target_warehouse__in=managed_warehouses))
+
         # الفلاتر
         voucher_type = self.request.GET.get('voucher_type')
         status = self.request.GET.get('status')
@@ -48,7 +55,12 @@ class BatchVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permissio
         
         # إضافة المخازن للفلاتر
         from product.models import Warehouse
-        context['warehouses'] = Warehouse.objects.filter(is_active=True)
+        from users.services.data_scoping_service import DataScopingService
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        warehouses_qs = Warehouse.objects.filter(is_active=True)
+        if managed_warehouses is not None:
+            warehouses_qs = warehouses_qs.filter(id__in=[w.id for w in managed_warehouses])
+        context['warehouses'] = warehouses_qs
         
         context.update({
             'active_menu': 'product',
@@ -73,6 +85,14 @@ class BatchVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
     form_class = BatchVoucherForm
     template_name = 'product/batch_vouchers/batch_voucher_form.html'
     permission_required = 'product.add_batchvoucher'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        from users.services.data_scoping_service import DataScopingService
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None and 'warehouse' in form.fields:
+            form.fields['warehouse'].queryset = managed_warehouses
+        return form
 
     def get_initial(self):
         initial = super().get_initial()
@@ -107,6 +127,10 @@ class BatchVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         from core.models import SystemSetting
 
         warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+        from users.services.data_scoping_service import DataScopingService
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            warehouses = warehouses.filter(id__in=[w.id for w in managed_warehouses])
         currency_symbol = SystemSetting.get_currency_symbol()
         product_categories = Category.objects.filter(
             is_active=True, products__is_active=True, products__is_service=False, products__is_bundle=False
@@ -367,8 +391,18 @@ class BatchVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View)
     
     def post(self, request, pk):
         voucher = get_object_or_404(BatchVoucher, pk=pk)
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json'
+        
+        from users.services.data_scoping_service import DataScopingService
+        managed_warehouses = DataScopingService.get_managed_warehouses(request.user)
+        if managed_warehouses is not None and voucher.warehouse not in managed_warehouses:
+            err_msg = 'غير مصرح لك باعتماد أذون لمخزن غير مسند إليك'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': err_msg}, status=403)
+            messages.error(request, err_msg)
+            return redirect('product:batch_voucher_detail', pk=pk)
+
         service = BatchVoucherService()
-        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         
         try:
             service.approve_batch_voucher(voucher, request.user)

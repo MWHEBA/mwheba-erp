@@ -12,8 +12,10 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, PermissionDenied
 import logging
+
+from sale.services.pricing_validator import PricingSecurityValidator
 
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
 from governance.services.accounting_gateway import AccountingGateway
@@ -76,6 +78,27 @@ class SaleService:
             if currency_obj and not currency_obj.is_functional:
                 from financial.services.exchange_rate_service import ExchangeRateService
                 sys_rate = Decimal(str(ExchangeRateService.get_exchange_rate(currency_obj) or 1.0))
+
+            # التدقيق السعري والائتماني والحوكمة في طبقة الخدمات
+            from customer.models import Customer
+            customer_obj = Customer.objects.filter(id=data.get('customer_id')).first() if data.get('customer_id') else None
+            subtotal_approx = sum(
+                (Decimal(str(it.get('quantity', 0))) * Decimal(str(it.get('unit_price', 0)))) - Decimal(str(it.get('discount', 0)))
+                for it in items_data
+            )
+            PricingSecurityValidator.validate_document_pricing(
+                user=user,
+                items_data=items_data,
+                customer=customer_obj,
+                price_list=data.get('price_list_id') or data.get('price_list'),
+                currency=currency_obj,
+                exchange_rate=sys_rate,
+                discount=Decimal(str(data.get('discount', 0))),
+                discount_type=data.get('discount_type', 'fixed'),
+                payment_method=data.get('payment_method', 'credit'),
+                subtotal=subtotal_approx,
+                doc_type='sale'
+            )
 
             sale = Sale.objects.create(
                 date=data.get('date', timezone.now().date()),
@@ -312,9 +335,45 @@ class SaleService:
         if sale.returns.filter(status='confirmed').exists():
             raise ValidationError("لا يمكن تعديل فاتورة تمت عليها عمليات مرتجع مؤكدة")
 
+        # 0.1 قفل الملكية الصارم في طبقة الخدمات (Strict Mutation Lock)
+        is_owner = (sale.created_by_id == user.id) or (sale.salesman_id == user.id)
+        has_all_perms = user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm('sale.view_all_sales')
+        if not is_owner and not has_all_perms:
+            raise PermissionDenied("غير مصرح لك بتعديل فاتورة مسجلة بواسطة مستخدم آخر.")
+
+        # 0.2 حراسة مسار الإنتاج (Production In-Progress Lock)
+        if sale.work_order_id and sale.work_order:
+            wo_status = getattr(sale.work_order, 'status', None)
+            if wo_status in ['in_progress', 'completed']:
+                has_prod_override = user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm('sale.override_production_lock')
+                if not has_prod_override:
+                    raise ValidationError(
+                        f"لا يمكن تعديل الفاتورة رقم {sale.number} لأن أمر الشغل المرتبط ({sale.work_order.number}) في مرحلة التشغيل الفعلي ({sale.work_order.get_status_display()}). "
+                        "أي زيادة في الكميات أو التكاليف تتطلب إصدار أمر شغل ملحق (Addendum) أو اعتماد مدير الإنتاج."
+                    )
+
         items_data = data.get('items', [])
         if not items_data:
             raise ValidationError("يجب أن تحتوي الفاتورة على بند واحد على الأقل")
+
+        # 0.3 التدقيق السعري وحوكمة الخصومات في التعديل
+        subtotal_approx = sum(
+            (Decimal(str(it.get('quantity', 0))) * Decimal(str(it.get('unit_price', 0)))) - Decimal(str(it.get('discount', 0)))
+            for it in items_data
+        )
+        PricingSecurityValidator.validate_document_pricing(
+            user=user,
+            items_data=items_data,
+            customer=sale.customer,
+            price_list=data.get('price_list_id') or sale.price_list_id,
+            currency=sale.currency,
+            exchange_rate=sale.exchange_rate,
+            discount=Decimal(str(data.get('discount', sale.discount))),
+            discount_type=data.get('discount_type', sale.discount_type),
+            payment_method=data.get('payment_method', sale.payment_method),
+            subtotal=subtotal_approx,
+            doc_type='sale'
+        )
 
         # 1. إلغاء حركات المخزن القديمة للبنود الفيزيائية
         movement_service = MovementService()
@@ -1220,6 +1279,22 @@ class SaleService:
             sale: الفاتورة المراد حذفها
             user: المستخدم
         """
+        # 0.1 قفل الملكية الصارم في الحذف (Strict Mutation Lock)
+        is_owner = (sale.created_by_id == user.id) or (sale.salesman_id == user.id)
+        has_all_perms = user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm('sale.view_all_sales')
+        if not is_owner and not has_all_perms:
+            raise PermissionDenied("غير مصرح لك بحذف فاتورة مسجلة بواسطة مستخدم آخر.")
+
+        # 0.2 حراسة مسار الإنتاج (Production In-Progress Lock)
+        if sale.work_order_id and sale.work_order:
+            wo_status = getattr(sale.work_order, 'status', None)
+            if wo_status in ['in_progress', 'completed']:
+                has_prod_override = user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm('sale.override_production_lock')
+                if not has_prod_override:
+                    raise ValidationError(
+                        f"لا يمكن حذف الفاتورة رقم {sale.number} لأن أمر الشغل المرتبط ({sale.work_order.number}) في مرحلة التشغيل الفعلي ({sale.work_order.get_status_display()})."
+                    )
+
         try:
             customer = sale.customer
             # 1. حذف القيد المحاسبي
@@ -1387,3 +1462,25 @@ class SaleService:
                 merged.append(old_field)
                 
         return merged
+
+    @staticmethod
+    @transaction.atomic
+    def delete_sale(sale, user):
+        """
+        حذف فاتورة المبيعات بأمان تام ومطابقة لمبدأ الثبات المحاسبي
+        """
+        if not user.has_perm('sale.delete_sale') and not user.is_superuser:
+            raise PermissionDenied("ليس لديك صلاحية حذف فاتورة المبيعات.")
+
+        # حظر حذف الفواتير المرحلة أو المكتملة
+        if sale.status in ['completed', 'confirmed'] or sale.journal_entry_id or sale.payments.filter(status='posted').exists():
+            raise ValidationError("لا يمكن حذف فاتورة مبيعات مرحلة أو معتمدة أو تحتوي على قيود/مدفوعات. الإلغاء يتم حصراً عبر مردودات المبيعات وإشعار دائن.")
+
+        # إذا كانت مسودة فقط
+        if sale.status != 'draft':
+            raise ValidationError("يُسمح بحذف فواتير المبيعات بحالة مسودة فقط.")
+
+        sale_number = sale.number
+        sale.delete()
+        logger.info(f"Sale invoice #{sale_number} deleted by {user.username}.")
+        return True

@@ -33,7 +33,8 @@ class LedgerServiceTestCase(TestCase):
         # إنشاء مستخدم
         self.user = User.objects.create_user(
             username='testuser',
-            password='testpass123'
+            password='testpass123',
+            is_staff=True
         )
 
         # إنشاء فترة محاسبية مفتوحة
@@ -237,8 +238,9 @@ class LedgerReportViewTestCase(TestCase):
         إعداد بيانات الاختبار
         """
         # إنشاء مستخدم
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser',
+            email='test@mwheba.com',
             password='testpass123'
         )
         self.client = Client()

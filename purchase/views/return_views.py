@@ -4,7 +4,9 @@ Purchase Return Views
 """
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
+from users.decorators import require_permission
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -18,11 +20,13 @@ from supplier.models import Supplier
 from purchase.models import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from purchase.forms import PurchaseReturnForm
 from core.models import SystemSetting
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_permission("purchase.add_purchasereturn")
 def purchase_return(request, pk):
     """
     إرجاع فاتورة المشتريات
@@ -239,11 +243,14 @@ def purchase_return(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchasereturn")
 def purchase_return_list(request):
     """
     عرض وإدارة مرتجعات المشتريات وفق النظام الموحد ERP
     """
-    queryset = PurchaseReturn.objects.select_related("purchase", "purchase__supplier").order_by("-date", "-id")
+    scoped_purchases = DataScopingService.get_scoped_purchases(request.user)
+    base_qs = PurchaseReturn.objects.filter(purchase__in=scoped_purchases)
+    queryset = base_qs.select_related("purchase", "purchase__supplier").order_by("-date", "-id")
 
     # الفلترة
     supplier_id = request.GET.get("supplier")
@@ -268,11 +275,11 @@ def purchase_return_list(request):
         except ValueError:
             pass
 
-    # الكروت الإحصائية
-    total_returns_count = PurchaseReturn.objects.count()
-    total_returns_amount = PurchaseReturn.objects.aggregate(total=Sum("total"))["total"] or 0
-    confirmed_returns_count = PurchaseReturn.objects.filter(status="confirmed").count()
-    draft_returns_count = PurchaseReturn.objects.filter(status="draft").count()
+    # الكروت الإحصائية المعزولة أمنياً
+    total_returns_count = base_qs.count()
+    total_returns_amount = base_qs.aggregate(total=Sum("total"))["total"] or 0
+    confirmed_returns_count = base_qs.filter(status="confirmed").count()
+    draft_returns_count = base_qs.filter(status="draft").count()
 
     # Pagination SSR
     from core.utils import paginate_queryset
@@ -360,11 +367,15 @@ def purchase_return_list(request):
 
 
 @login_required
+@require_permission("purchase.view_purchasereturn")
 def purchase_return_detail(request, pk):
     """
     عرض تفاصيل مرتجع المشتريات
     """
-    purchase_return = get_object_or_404(PurchaseReturn, pk=pk)
+    purchase_return = get_object_or_404(
+        PurchaseReturn.objects.filter(purchase__in=DataScopingService.get_scoped_purchases(request.user)),
+        pk=pk
+    )
 
     context = {
         "purchase_return": purchase_return,
@@ -411,11 +422,16 @@ def purchase_return_detail(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchasereturn")
+@require_POST
 def purchase_return_confirm(request, pk):
     """
     تأكيد مرتجع المشتريات وتغيير حالته من مسودة إلى مؤكد
     """
-    purchase_return = get_object_or_404(PurchaseReturn, pk=pk)
+    purchase_return = get_object_or_404(
+        PurchaseReturn.objects.filter(purchase__in=DataScopingService.get_scoped_purchases(request.user)),
+        pk=pk
+    )
 
     # التأكد من أن المرتجع في حالة مسودة
     if purchase_return.status != "draft":
@@ -440,11 +456,16 @@ def purchase_return_confirm(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchasereturn")
+@require_POST
 def purchase_return_cancel(request, pk):
     """
     إلغاء مرتجع المشتريات وتغيير حالته إلى ملغي
     """
-    purchase_return = get_object_or_404(PurchaseReturn, pk=pk)
+    purchase_return = get_object_or_404(
+        PurchaseReturn.objects.filter(purchase__in=DataScopingService.get_scoped_purchases(request.user)),
+        pk=pk
+    )
 
     # التأكد من أن المرتجع في حالة مسودة
     if purchase_return.status != "draft":

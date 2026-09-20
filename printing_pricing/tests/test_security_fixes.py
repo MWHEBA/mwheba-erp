@@ -21,6 +21,10 @@ class PrintingPricingSecurityTests(TestCase):
             password="StaffPassword123",
             is_staff=True
         )
+        from django.contrib.auth.models import Permission
+        perms = Permission.objects.filter(codename__in=['manage_pricing_settings', 'approve_pricingorder', 'view_all_orders'])
+        for p in perms:
+            self.staff_user.user_permissions.add(p)
         self.regular_user = User.objects.create_user(
             username="regular_user_test",
             email="user@test.com",
@@ -139,11 +143,15 @@ class PrintingPricingSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_empty_order_approval_rejection(self):
-        """اختبار التحقق من صحة واكتمال الطلب قبل اعتماده"""
+        """اختبار منع الاعتماد الذاتي للمندوب العادي واكتمال الطلب قبل اعتماده للمشرف"""
         url_app = reverse('printing_pricing:approve_order', kwargs={'pk': self.order.id})
         
-        # الطلب خالي من المواد والتكلفة الإجمالية صفر، لذا يجب رفض الاعتماد وإرجاع 400 Bad Request
-        response = self.client_regular.post(url_app)
+        # 1. المندوب العادي يجب أن يُرفض فوراً بـ 403 لمنع الاعتماد الذاتي
+        response_regular = self.client_regular.post(url_app)
+        self.assertEqual(response_regular.status_code, 403)
+
+        # 2. المشرف المصرح له باعتماد الطلبات: الطلب خالي من المواد والتكلفة صفر، لذا يجب رفض الاعتماد بـ 400 Bad Request
+        response = self.client_staff.post(url_app)
         self.assertEqual(response.status_code, 400)
         data = response.json()
         self.assertFalse(data['success'])

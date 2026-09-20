@@ -1,9 +1,7 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from .models import User, Role
 
 
@@ -92,12 +90,26 @@ class UserProfileForm(forms.ModelForm):
         }
 
 
+BUSINESS_APPS = [
+    'sale',
+    'purchase',
+    'financial',
+    'product',
+    'customer',
+    'supplier',
+    'users',
+    'hr',
+    'printing_pricing',
+    'work_order',
+]
+
+
 class RoleForm(forms.ModelForm):
     """
     نموذج إنشاء وتعديل الأدوار
     """
     permissions = forms.ModelMultipleChoiceField(
-        queryset=Permission.objects.all(),
+        queryset=Permission.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label=_("الصلاحيات")
@@ -105,7 +117,7 @@ class RoleForm(forms.ModelForm):
     
     class Meta:
         model = Role
-        fields = ['name', 'display_name', 'description', 'permissions', 'is_active']
+        fields = ['name', 'display_name', 'description', 'parent_role', 'permissions', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -120,14 +132,28 @@ class RoleForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'وصف مختصر للدور وصلاحياته'
             }),
+            'parent_role': forms.Select(attrs={
+                'class': 'form-select select2-filter',
+                'dir': 'rtl'
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['permissions'].queryset = Permission.objects.select_related(
+        self.fields['permissions'].queryset = Permission.objects.filter(
+            content_type__app_label__in=BUSINESS_APPS
+        ).select_related(
             'content_type'
         ).order_by('content_type__app_label', 'codename')
+
+        self.fields['parent_role'].queryset = Role.objects.filter(is_active=True).order_by('display_name')
+        if self.instance and self.instance.pk:
+            # استبعاد الدور نفسه وجميع أحفاده لمنع الحلقات التكرارية
+            exclude_ids = {self.instance.pk}
+            if hasattr(self.instance, 'get_all_descendant_roles'):
+                exclude_ids.update(r.pk for r in self.instance.get_all_descendant_roles())
+            self.fields['parent_role'].queryset = self.fields['parent_role'].queryset.exclude(pk__in=exclude_ids)
         
     def get_grouped_permissions(self):
         """تجميع الصلاحيات حسب التطبيق المعياري"""
@@ -149,16 +175,37 @@ class RoleForm(forms.ModelForm):
             group_name = app_labels_ar.get(app_label, app_label)
             if group_name not in groups:
                 groups[group_name] = []
-            groups[group_name].append(perm)
         return groups
+
+    def save(self, commit=True):
+        role = super().save(commit=commit)
+        if commit:
+            from users.services.permission_dependency import PermissionDependencyService
+            PermissionDependencyService.auto_resolve_dependencies_for_role(role)
+        else:
+            original_save_m2m = getattr(self, 'save_m2m', None)
+            def _save_m2m():
+                if original_save_m2m:
+                    original_save_m2m()
+                from users.services.permission_dependency import PermissionDependencyService
+                PermissionDependencyService.auto_resolve_dependencies_for_role(role)
+            self.save_m2m = _save_m2m
+        return role
+
 
 
 class UserRoleForm(forms.ModelForm):
     """
     نموذج تعيين دور وصلاحيات إضافية للمستخدم
     """
+    secondary_roles = forms.ModelMultipleChoiceField(
+        queryset=Role.objects.none(),
+        widget=forms.SelectMultiple(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'}),
+        required=False,
+        label=_("الأدوار الثانوية")
+    )
     custom_permissions = forms.ModelMultipleChoiceField(
-        queryset=Permission.objects.all(),
+        queryset=Permission.objects.none(),
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label=_("صلاحيات إضافية")
@@ -166,14 +213,39 @@ class UserRoleForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['role', 'custom_permissions']
+        fields = ['role', 'secondary_roles', 'custom_permissions']
         widgets = {
-            'role': forms.Select(attrs={'class': 'form-select'}),
+            'role': forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'}),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['role'].queryset = Role.objects.filter(is_active=True)
-        self.fields['custom_permissions'].queryset = Permission.objects.select_related(
+        self.fields['role'].queryset = Role.objects.filter(is_active=True).order_by('display_name')
+        self.fields['secondary_roles'].queryset = Role.objects.filter(is_active=True).order_by('display_name')
+        self.fields['custom_permissions'].queryset = Permission.objects.filter(
+            content_type__app_label__in=BUSINESS_APPS
+        ).select_related(
             'content_type'
         ).order_by('content_type__app_label', 'codename')
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            if 'secondary_roles' in self.cleaned_data:
+                user.secondary_roles.set(self.cleaned_data['secondary_roles'])
+            self._resolve_user_custom_permission_deps(user)
+        else:
+            original_save_m2m = getattr(self, 'save_m2m', None)
+            def _save_m2m():
+                if original_save_m2m:
+                    original_save_m2m()
+                if 'secondary_roles' in self.cleaned_data:
+                    user.secondary_roles.set(self.cleaned_data['secondary_roles'])
+                self._resolve_user_custom_permission_deps(user)
+            self.save_m2m = _save_m2m
+        return user
+
+    def _resolve_user_custom_permission_deps(self, user):
+        from users.services.permission_dependency import PermissionDependencyService
+        PermissionDependencyService.auto_resolve_dependencies_for_user(user)
+

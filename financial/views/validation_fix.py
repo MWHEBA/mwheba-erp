@@ -2,7 +2,8 @@
 عرض لإصلاح المعاملات الفاشلة في التحقق
 """
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.db import transaction
 from django.urls import reverse
@@ -15,7 +16,7 @@ from financial.services.entity_mapper import EntityAccountMapper
 
 
 @login_required
-@permission_required('financial.change_chartofaccounts', raise_exception=True)
+@require_permission('financial.change_chartofaccounts')
 def validation_fix_dashboard(request):
     """
     لوحة معلومات إصلاح المشاكل
@@ -89,7 +90,7 @@ def validation_fix_dashboard(request):
 
 
 @login_required
-@permission_required('financial.change_chartofaccounts', raise_exception=True)
+@require_permission('financial.change_chartofaccounts')
 def fix_missing_account(request, entity_type, entity_id):
     """
     إصلاح مشكلة الحساب المحاسبي المفقود
@@ -180,7 +181,7 @@ def fix_missing_account(request, entity_type, entity_id):
 
 
 @login_required
-@permission_required('financial.change_chartofaccounts', raise_exception=True)
+@require_permission('financial.change_chartofaccounts')
 def fix_inactive_account(request, entity_type, entity_id):
     """
     إصلاح مشكلة الحساب المحاسبي غير المفعّل
@@ -315,7 +316,7 @@ def fix_inactive_account(request, entity_type, entity_id):
 
 
 @login_required
-@permission_required('financial.add_accountingperiod', raise_exception=True)
+@require_permission('financial.add_accountingperiod')
 def fix_missing_period(request):
     """
     إصلاح مشكلة الفترة المحاسبية المفقودة

@@ -22,7 +22,12 @@ User = get_user_model()
 
 @pytest.fixture
 def test_user(db):
-    return User.objects.create_user(username='estimator_sync', password='password123', is_staff=True)
+    user = User.objects.create_user(username='estimator_sync', password='password123', is_staff=True)
+    from django.contrib.auth.models import Permission
+    perm = Permission.objects.filter(codename='change_supplierservice').first()
+    if perm:
+        user.user_permissions.add(perm)
+    return user
 
 
 @pytest.fixture

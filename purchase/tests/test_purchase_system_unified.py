@@ -168,10 +168,9 @@ class PurchaseAPITest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser',
-            password='test123',
-            is_staff=True
+            password='test123'
         )
         self.client.login(username='testuser', password='test123')
         

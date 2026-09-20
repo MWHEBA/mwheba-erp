@@ -17,10 +17,11 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q
 
 from product.models import Product, Category
-from product.models.supplier_pricing import SupplierProductPrice, PriceHistory
+from users.decorators import require_permission
 
 
 @login_required
+@require_permission('product.view_product')
 def price_manager(request):
     """
     واجهة مدير الأسعار — مفلترة بالتصنيف
@@ -133,7 +134,16 @@ def price_manager(request):
 def price_manager_update_api(request):
     """
     تحديث سعر منتج/خدمة واحدة — يُستدعى عند تغيير الخلية (onchange)
+    يشترط الصلاحية الاستراتيجية لتعديل المنتجات product.change_product
     """
+    can_change_price = (
+        request.user.is_superuser
+        or request.user.has_perm('product.change_product')
+        or getattr(request.user, 'is_financial_manager', False)
+    )
+    if not can_change_price:
+        return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل الأسعار الأساسية لكتالوج الأصناف'}, status=403)
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -160,21 +170,22 @@ def price_manager_update_api(request):
     if old_val == new_val:
         return JsonResponse({'success': True, 'changed': False})
 
-    setattr(product, field, new_val)
-    product.save(update_fields=[field])  # updated_at هو auto_now — Django يتعامل معه تلقائياً
+    with transaction.atomic():
+        setattr(product, field, new_val)
+        product.save(update_fields=[field])  # updated_at هو auto_now — Django يتعامل معه تلقائياً
 
-    # تسجيل حركة التغير في سجل تاريخ الأسعار الموحد PriceHistory
-    if field in ('cost_price', 'selling_price'):
-        from product.services.pricing_service import PricingService
-        PricingService.log_price_change(
-            product=product,
-            old_price=old_val,
-            new_price=new_val,
-            source_type="CATALOG_BASE",
-            change_reason="manual_update",
-            notes=f"تحديث {field} من مدير الأسعار",
-            user=request.user,
-        )
+        # تسجيل حركة التغير في سجل تاريخ الأسعار الموحد PriceHistory
+        if field in ('cost_price', 'selling_price'):
+            from product.services.pricing_service import PricingService
+            PricingService.log_price_change(
+                product=product,
+                old_price=old_val,
+                new_price=new_val,
+                source_type="CATALOG_BASE",
+                change_reason="manual_update",
+                notes=f"تحديث {field} من مدير الأسعار",
+                user=request.user,
+            )
 
     # حساب هامش الربح المحدّث
     profit_margin = None
@@ -195,7 +206,16 @@ def price_manager_update_api(request):
 def price_manager_bulk_update_api(request):
     """
     تحديث جماعي — زيادة/خفض بنسبة مئوية أو سعر ثابت على منتجات محددة
+    يشترط الصلاحية الاستراتيجية لتعديل المنتجات product.change_product
     """
+    can_change_price = (
+        request.user.is_superuser
+        or request.user.has_perm('product.change_product')
+        or getattr(request.user, 'is_financial_manager', False)
+    )
+    if not can_change_price:
+        return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل الأسعار الأساسية لكتالوج الأصناف'}, status=403)
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError):
@@ -223,6 +243,8 @@ def price_manager_bulk_update_api(request):
     products = Product.objects.filter(pk__in=product_ids)
     updated  = 0
 
+    from product.services.pricing_service import PricingService
+
     with transaction.atomic():
         for product in products:
             old_price = getattr(product, field)
@@ -238,6 +260,16 @@ def price_manager_bulk_update_api(request):
 
             setattr(product, field, new_price)
             product.save(update_fields=[field])  # updated_at هو auto_now
+            
+            PricingService.log_price_change(
+                product=product,
+                old_price=old_price,
+                new_price=new_price,
+                source_type="CATALOG_BASE",
+                change_reason="bulk_update",
+                notes=f"تحديث جماعي ({mode}) لـ {field} بقيمة {val}",
+                user=request.user,
+            )
             updated += 1
 
     return JsonResponse({'success': True, 'updated': updated})

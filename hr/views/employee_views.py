@@ -5,6 +5,7 @@ from .base_imports import *
 from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricLog, BiometricUserMapping
 from ..forms.employee_forms import EmployeeForm
 from ..decorators import hr_manager_required, _is_hr_manager, require_hr
+from users.decorators import require_permission
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
@@ -27,6 +28,7 @@ __all__ = [
 
 
 @login_required
+@require_permission('hr.view_employee')
 def employee_list(request):
     """
     قائمة الموظفين مع Query Optimization
@@ -262,16 +264,30 @@ def employee_list(request):
 
 
 @login_required
+@require_permission('hr.view_employee')
 def employee_detail(request, pk):
     """تفاصيل الموظف"""
     
     employee = get_object_or_404(Employee, pk=pk)
 
-    can_edit = _is_hr_manager(request.user) or (hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'hr') or request.user.has_perm('hr.change_employee')
-    can_delete = request.user.is_superuser or getattr(request.user, 'is_admin', False) or \
-        request.user.has_perm('hr.delete_employee') or \
-        (hasattr(request.user, 'role') and request.user.role and
-         request.user.role.permissions.filter(codename='delete_employee').exists())
+    can_edit = (
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin', False) or
+        request.user.has_perm('hr.change_employee') or
+        request.user.has_perm('hr.can_manage_employees')
+    )
+    can_delete = (
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin', False) or
+        request.user.has_perm('hr.delete_employee')
+    )
+    can_view_salaries = (
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin', False) or
+        request.user.has_perm('hr.view_payroll') or
+        request.user.has_perm('hr.can_process_payroll') or
+        (employee.user == request.user)
+    )
 
     # جلب المستخدمين غير المرتبطين للربط
     unlinked_users = UserEmployeeService.get_unlinked_users()
@@ -336,24 +352,25 @@ def employee_detail(request, pk):
     
     context = {
         'employee': employee,
+        'can_view_salaries': can_view_salaries,
         'is_hr_only': hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'hr',
         'unlinked_users': unlinked_users,
         'biometric_logs_count': biometric_logs_count,
         'biometric_logs_last_30_days': biometric_logs_last_30_days,
         'recent_biometric_logs': recent_biometric_logs,
         'biometric_mappings': biometric_mappings,
-        'contracts': contracts,
-        'active_contract': active_contract,
-        'salary_components_preview': salary_components_preview,
-        'payroll_slips': payroll_slips,
-        'total_payrolls': total_payrolls,
-        'paid_payrolls': paid_payrolls,
-        'approved_payrolls': approved_payrolls,
-        'advances': advances,
-        'total_advances': total_advances,
-        'paid_advances': paid_advances,
-        'approved_advances_count': approved_advances_count,
-        'total_advances_amount': total_advances_amount,
+        'contracts': contracts if can_view_salaries else contracts.none(),
+        'active_contract': active_contract if can_view_salaries else None,
+        'salary_components_preview': salary_components_preview if can_view_salaries else [],
+        'payroll_slips': payroll_slips if can_view_salaries else [],
+        'total_payrolls': total_payrolls if can_view_salaries else 0,
+        'paid_payrolls': paid_payrolls if can_view_salaries else 0,
+        'approved_payrolls': approved_payrolls if can_view_salaries else 0,
+        'advances': advances if can_view_salaries else [],
+        'total_advances': total_advances if can_view_salaries else 0,
+        'paid_advances': paid_advances if can_view_salaries else 0,
+        'approved_advances_count': approved_advances_count if can_view_salaries else 0,
+        'total_advances_amount': total_advances_amount if can_view_salaries else 0,
         
         # بيانات التأمين للموظفين الخارجيين
         'insurance_component': (
@@ -454,10 +471,15 @@ def employee_delete(request, pk):
 
 
 @login_required
-@require_hr
 def employee_form(request, pk=None):
     """نموذج موحد لإضافة/تعديل موظف"""
     employee = get_object_or_404(Employee, pk=pk) if pk else None
+    
+    # فحص الصلاحية بدقة: إنشاء يحتاج add_employee، وتعديل يحتاج change_employee
+    perm_needed = 'hr.change_employee' if employee else 'hr.add_employee'
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm(perm_needed) or request.user.has_perm('hr.can_manage_employees')):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied(_("ليس لديك الصلاحية المطلوبة لتنفيذ هذا الإجراء"))
     
     if request.method == 'POST':
         form = EmployeeForm(request.POST, request.FILES, instance=employee)

@@ -7,6 +7,7 @@ from ..models import Contract, Employee, Department, SalaryComponent, ContractSa
 from ..models.contract import ContractDocument, ContractAmendment, ContractIncrease
 from ..decorators import can_manage_contracts, hr_manager_required, _is_hr_manager
 from django.core.exceptions import PermissionDenied
+from django.utils.translation import gettext_lazy as _
 from ..services.unified_contract_service import UnifiedContractService
 from ..services.unified_salary_component_service import UnifiedSalaryComponentService
 from ..services.smart_contract_analyzer import SmartContractAnalyzer
@@ -68,7 +69,11 @@ __all__ = [
 ]
 
 
+from users.decorators import require_permission
+
+
 @login_required
+@require_permission('hr.view_contract')
 def contract_list(request):
     """قائمة العقود"""
     contracts = Contract.objects.select_related(
@@ -139,12 +144,14 @@ def contract_list(request):
     except Exception:
         currency_symbol = 'جنيه'
 
-    # التحقق من صلاحية عرض الأجور - مخفية عن مسؤول الموارد البشرية (hr role)
+    # التحقق من صلاحية عرض الأجور
     user = request.user
     can_view_salary_columns = (
         user.is_superuser or
         getattr(user, 'is_admin', False) or
-        not (hasattr(user, 'role') and user.role and user.role.name == 'hr')
+        user.has_perm('hr.view_payroll') or
+        user.has_perm('hr.can_process_payroll') or
+        user.has_perm('hr.can_manage_salaries')
     )
 
     # رؤوس الجدول
@@ -160,12 +167,17 @@ def contract_list(request):
         headers.insert(3, {'key': 'insurable_salary_display', 'label': 'الأجر التأميني', 'sortable': False, 'template': 'hr/contract/cells/insurance_salary.html', 'class': 'text-center'})
         headers.insert(3, {'key': 'basic_salary',             'label': 'الأجر الأساسي',  'sortable': True,  'template': 'hr/contract/cells/basic_salary.html',     'class': 'text-center'})
 
-    is_hr_only = hasattr(user, 'role') and user.role and user.role.name == 'hr'
+    can_edit_contracts = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.change_contract') or
+        user.has_perm('hr.can_manage_contracts')
+    )
 
     action_buttons = [
         {'url': 'hr:contract_detail', 'icon': 'fa-eye', 'label': 'عرض', 'class': 'action-view'},
     ]
-    if not is_hr_only:
+    if can_edit_contracts:
         action_buttons.append(
             {'url': 'hr:contract_form_edit', 'icon': 'fa-edit', 'label': 'تعديل', 'class': 'action-edit', 'condition': "status != 'active'"}
         )
@@ -204,6 +216,7 @@ def contract_list(request):
 
 
 @login_required
+@require_permission('hr.view_contract')
 def contract_detail(request, pk):
     """تفاصيل العقد"""
     contract = get_object_or_404(Contract, pk=pk)
@@ -263,11 +276,25 @@ def contract_detail(request, pk):
         'renewed': {'text': 'مجدد', 'class': 'bg-info', 'icon': 'fa-redo'},
     }.get(contract.status, {'text': contract.get_status_display(), 'class': 'bg-secondary', 'icon': 'fa-circle'})
     
-    # تحديد الأزرار حسب حالة العقد (بدون status badge)
-    is_hr_only = hasattr(request.user, 'role') and request.user.role and request.user.role.name == 'hr'
+    # تحديد الأزرار حسب حالة العقد وحسب الصلاحيات
+    user = request.user
+    can_edit_contracts = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.change_contract') or
+        user.has_perm('hr.can_manage_contracts')
+    )
+    can_view_salaries = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.view_payroll') or
+        user.has_perm('hr.can_process_payroll') or
+        user.has_perm('hr.can_manage_salaries') or
+        (contract.employee.user == user)
+    )
     header_buttons = []
     
-    if not is_hr_only:
+    if can_edit_contracts:
         # زر التعديل - فقط للعقود غير النشطة
         if contract.status != 'active':
             header_buttons.append({
@@ -335,7 +362,9 @@ def contract_detail(request, pk):
     
     context = {
         'contract': contract,
-        'is_hr_only': is_hr_only,
+        'is_hr_only': not can_view_salaries,
+        'can_view_salaries': can_view_salaries,
+        'can_edit_contracts': can_edit_contracts,
         'system_settings': {'currency_symbol': currency_symbol},
         'documents_headers': documents_headers,
         'primary_key': 'id',
@@ -521,6 +550,7 @@ def contract_amendment_create(request, pk):
 # ==================== دوال العقود الإضافية ====================
 
 @login_required
+@require_permission('hr.view_contract')
 def get_salary_component_templates(request):
     """API لجلب قوالب مكونات الراتب"""
     
@@ -979,13 +1009,19 @@ def contract_activate_with_components(request, pk):
 @login_required
 def contract_form(request, pk=None):
     """نموذج موحد لإضافة/تعديل عقد - مبسط باستخدام UnifiedContractService"""
-    # hr role يضيف فقط - لا يعدل على عقود موجودة
     user = request.user
-    is_hr_only = hasattr(user, 'role') and user.role and user.role.name == 'hr'
-    if is_hr_only and pk:
-        raise PermissionDenied("صلاحيات HR Manager مطلوبة لتعديل العقود")
-    if not is_hr_only and not _is_hr_manager(user):
-        raise PermissionDenied("صلاحيات HR Manager مطلوبة للوصول لهذه الصفحة")
+    can_manage = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.can_manage_contracts') or
+        _is_hr_manager(user)
+    )
+    if pk:
+        if not (can_manage or user.has_perm('hr.change_contract')):
+            raise PermissionDenied(_("صلاحيات تعديل العقود مطلوبة"))
+    else:
+        if not (can_manage or user.has_perm('hr.add_contract')):
+            raise PermissionDenied(_("صلاحيات إضافة العقود مطلوبة"))
 
     contract = get_object_or_404(Contract, pk=pk) if pk else None
     unified_service = UnifiedContractService()

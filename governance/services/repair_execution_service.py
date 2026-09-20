@@ -500,33 +500,9 @@ class RepairExecutionService:
             return False
     
     def _relink_application_fee(self, entry, description: str, result: RepairExecutionResult) -> bool:
-        """Attempt to relink application fee journal entry"""
-        try:
-            # This entry already has proper linkage according to the report
-            # qr_applications.QRApplication#1 - let's verify it exists
-            QRApplication = apps.get_model('qr_applications', 'QRApplication')
-            
-            try:
-                app = QRApplication.objects.get(id=1)
-                # The linkage is already correct, just verify it
-                if entry.source_module == 'qr_applications' and entry.source_model == 'QRApplication' and entry.source_id == 1:
-                    logger.info(f"Journal entry {entry.id} already has correct linkage to QRApplication")
-                    return True
-                else:
-                    # Fix the linkage
-                    entry.source_module = 'qr_applications'
-                    entry.source_model = 'QRApplication'
-                    entry.source_id = 1
-                    entry.save()
-                    return True
-                    
-            except QRApplication.DoesNotExist:
-                logger.warning("Referenced QRApplication does not exist")
-                return False
-            
-        except Exception as e:
-            logger.error(f"Error relinking application fee: {e}")
-            return False
+        """Attempt to relink application fee journal entry (Legacy - model removed)"""
+        logger.warning("qr_applications module has been decommissioned. Relinking skipped.")
+        return False
     
     def _generic_relink_attempt(self, entry, issue: Dict, result: RepairExecutionResult) -> bool:
         """Generic relinking attempt for unknown entry types"""

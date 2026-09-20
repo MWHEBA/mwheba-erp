@@ -33,13 +33,9 @@ class SourceLinkageService:
         'hr.Payroll',  # Added for POC testing - HR payroll records
         'product.StockMovement',
         'product.InventoryMovement',
-        'transportation.TransportationFee',
         'financial.FinancialTransaction',  # Added for TransactionService
         'financial.BankReconciliation',  # Added for BankReconciliationService
         'financial.PartnerTransaction',  # Added for partner transactions
-        'courses.CourseEnrollment',  # Added for CourseAccountingService
-        'qr_applications.QRApplication',  # Added for QR application payments
-        'activities.ActivityExpense',  # Added for activity expense tracking
         'sale.Sale',  # Added for sale invoices
         'sale.SalePayment',  # Added for sale payments
         'sale.SaleReturn',  # Added for sale returns

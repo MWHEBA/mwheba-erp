@@ -21,7 +21,7 @@ class SaleViewsTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username="testuser_sale_views", password="testpass123", email="test@example.com"
         )
         self.client.login(username="testuser_sale_views", password="testpass123")
@@ -103,8 +103,8 @@ class SaleReturnViewsTest(TestCase):
 
     def setUp(self):
         self.client = Client()
-        self.user = User.objects.create_user(
-            username="testuser_return_views", password="testpass123"
+        self.user = User.objects.create_superuser(
+            username="testuser_return_views", password="testpass123", email="ret_test@example.com"
         )
         self.client.login(username="testuser_return_views", password="testpass123")
 

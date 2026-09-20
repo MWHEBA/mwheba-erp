@@ -20,7 +20,7 @@ class TestSprint65ProcurementHardening:
 
     @pytest.fixture
     def setup_hardening_data(self):
-        user = User.objects.create_user(username="pur_hard_user65", password="password123")
+        user = User.objects.create_superuser(username="pur_hard_user65", password="password123", email="pur65@test.com")
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "Asset", "category": "ASSET"})
         liability_type, _ = AccountType.objects.get_or_create(code="LIABILITY", defaults={"name": "Liability", "category": "LIABILITY"})

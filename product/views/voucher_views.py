@@ -14,6 +14,8 @@ from django.http import JsonResponse
 from decimal import Decimal
 
 from core.utils import UnifiedPaginationMixin
+from users.mixins import SmartPermissionRequiredMixin
+from users.services.data_scoping_service import DataScopingService
 from product.models.inventory_movement import InventoryMovement
 from product.models.stock_management import Stock, Warehouse
 from product.models.product_core import Product
@@ -21,8 +23,9 @@ from product.forms import ReceiptVoucherForm, IssueVoucherForm
 from financial.models.chart_of_accounts import ChartOfAccounts
 
 
-class GetProductWarehousesView(LoginRequiredMixin, View):
+class GetProductWarehousesView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """الحصول على المخازن المتاحة للمنتج"""
+    permission_required = 'product.view_inventorymovement'
     
     def get(self, request):
         product_id = request.GET.get('product_id')
@@ -56,8 +59,9 @@ class GetProductWarehousesView(LoginRequiredMixin, View):
             return JsonResponse({'warehouses': [], 'unit': '', 'error': str(e)})
 
 
-class GetAvailableProductsView(LoginRequiredMixin, View):
+class GetAvailableProductsView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """الحصول على المنتجات المتاحة (التي لها stock)"""
+    permission_required = 'product.view_inventorymovement'
     
     def get(self, request):
         try:
@@ -93,7 +97,7 @@ class GetAvailableProductsView(LoginRequiredMixin, View):
             return JsonResponse({'products': [], 'error': str(e)})
 
 
-class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedPaginationMixin, ListView):
+class ReceiptVoucherListView(LoginRequiredMixin, SmartPermissionRequiredMixin, UnifiedPaginationMixin, ListView):
     """قائمة أذون الاستلام"""
     model = InventoryMovement
     template_name = 'product/vouchers/receipt_voucher_list.html'
@@ -106,6 +110,11 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, Unifie
         ).select_related(
             'product', 'warehouse', 'created_by', 'approved_by'
         ).order_by('-movement_date', '-created_at')
+        
+        # عزل المخازن المسندة لأمين المخزن
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            queryset = queryset.filter(warehouse__in=managed_warehouses)
         
         # فلترة حسب المخزن
         warehouse_id = self.request.GET.get('warehouse')
@@ -124,6 +133,12 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, Unifie
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         page_items = context.get('page_obj') or context.get('vouchers')
+        
+        warehouses_qs = Warehouse.objects.filter(is_active=True)
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            warehouses_qs = warehouses_qs.filter(id__in=[w.id for w in managed_warehouses])
+
         context.update({
             'active_menu': 'product',
             'title': 'أذون الاستلام الداخلية والتسويات',
@@ -147,7 +162,7 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, Unifie
                 {'title': 'المخزون', 'url': reverse('product:product_list'), 'icon': 'fas fa-boxes'},
                 {'title': 'أذون الاستلام الداخلية والتسويات', 'active': True}
             ],
-            'warehouses': Warehouse.objects.filter(is_active=True),
+            'warehouses': warehouses_qs,
             'table_headers': self._get_table_headers(),
             'table_data': self._prepare_table_data(page_items),
             'primary_key': 'id',
@@ -204,13 +219,20 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, Unifie
         return table_data
 
 
-class ReceiptVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+class ReceiptVoucherCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, CreateView):
     """إنشاء إذن استلام جديد"""
     model = InventoryMovement
     form_class = ReceiptVoucherForm
     template_name = 'product/vouchers/receipt_voucher_form.html'
     permission_required = 'product.add_inventorymovement'
-    
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None and 'warehouse' in form.fields:
+            form.fields['warehouse'].queryset = managed_warehouses
+        return form
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update({
@@ -252,7 +274,7 @@ class ReceiptVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Crea
         return reverse('product:receipt_voucher_detail', args=[self.object.pk])
 
 
-class ReceiptVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+class ReceiptVoucherDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, DetailView):
     """تفاصيل إذن استلام"""
     model = InventoryMovement
     template_name = 'product/vouchers/receipt_voucher_detail.html'
@@ -299,7 +321,7 @@ class ReceiptVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Deta
         return context
 
 
-class ReceiptVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+class ReceiptVoucherUpdateView(LoginRequiredMixin, SmartPermissionRequiredMixin, UpdateView):
     """تعديل إذن استلام (قبل الاعتماد فقط)"""
     model = InventoryMovement
     form_class = ReceiptVoucherForm
@@ -348,7 +370,7 @@ class ReceiptVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Upda
         return reverse('product:receipt_voucher_detail', args=[self.object.pk])
 
 
-class ReceiptVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class ReceiptVoucherApproveView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """اعتماد إذن استلام"""
     permission_required = 'product.change_inventorymovement'
     
@@ -359,6 +381,11 @@ class ReceiptVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vie
             messages.warning(request, 'الإذن معتمد مسبقاً')
             return redirect('product:receipt_voucher_detail', pk=pk)
         
+        managed_warehouses = DataScopingService.get_managed_warehouses(request.user)
+        if managed_warehouses is not None and voucher.warehouse not in managed_warehouses:
+            messages.error(request, 'غير مصرح لك باعتماد أذون استلام لمخزن غير مسند إليك')
+            return redirect('product:receipt_voucher_detail', pk=pk)
+
         try:
             with transaction.atomic():
                 # اعتماد الإذن أولاً (يحدث المخزون)
@@ -376,7 +403,7 @@ class ReceiptVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vie
         return redirect('product:receipt_voucher_detail', pk=pk)
 
 
-class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedPaginationMixin, ListView):
+class IssueVoucherListView(LoginRequiredMixin, SmartPermissionRequiredMixin, UnifiedPaginationMixin, ListView):
     """قائمة أذون الصرف"""
     model = InventoryMovement
     template_name = 'product/vouchers/issue_voucher_list.html'
@@ -390,6 +417,11 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedP
             'product', 'warehouse', 'created_by', 'approved_by'
         ).order_by('-movement_date', '-created_at')
         
+        # عزل المخازن المسندة لأمين المخزن
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            queryset = queryset.filter(warehouse__in=managed_warehouses)
+
         warehouse_id = self.request.GET.get('warehouse')
         if warehouse_id:
             queryset = queryset.filter(warehouse_id=warehouse_id)
@@ -405,6 +437,12 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedP
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         page_items = context.get('page_obj') or context.get('vouchers')
+
+        warehouses_qs = Warehouse.objects.filter(is_active=True)
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None:
+            warehouses_qs = warehouses_qs.filter(id__in=[w.id for w in managed_warehouses])
+
         context.update({
             'active_menu': 'product',
             'title': 'أذون الصرف',
@@ -422,7 +460,7 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedP
                 {'title': 'المخزون', 'url': reverse('product:product_list'), 'icon': 'fas fa-boxes'},
                 {'title': 'أذون الصرف', 'active': True}
             ],
-            'warehouses': Warehouse.objects.filter(is_active=True),
+            'warehouses': warehouses_qs,
             'table_headers': self._get_table_headers(),
             'table_data': self._prepare_table_data(page_items),
             'primary_key': 'id',
@@ -475,12 +513,19 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedP
         return table_data
 
 
-class IssueVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
+class IssueVoucherCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, CreateView):
     """إنشاء إذن صرف جديد"""
     model = InventoryMovement
     form_class = IssueVoucherForm
     template_name = 'product/vouchers/issue_voucher_form.html'
     permission_required = 'product.add_inventorymovement'
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
+        if managed_warehouses is not None and 'warehouse' in form.fields:
+            form.fields['warehouse'].queryset = managed_warehouses
+        return form
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -547,7 +592,7 @@ class IssueVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         return reverse('product:issue_voucher_detail', args=[self.object.pk])
 
 
-class IssueVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
+class IssueVoucherDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, DetailView):
     """تفاصيل إذن صرف"""
     model = InventoryMovement
     template_name = 'product/vouchers/issue_voucher_detail.html'
@@ -588,7 +633,7 @@ class IssueVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
         return context
 
 
-class IssueVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View):
+class IssueVoucherApproveView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """اعتماد إذن صرف"""
     permission_required = 'product.change_inventorymovement'
     
@@ -599,6 +644,11 @@ class IssueVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View)
             messages.warning(request, 'الإذن معتمد مسبقاً')
             return redirect('product:issue_voucher_detail', pk=pk)
         
+        managed_warehouses = DataScopingService.get_managed_warehouses(request.user)
+        if managed_warehouses is not None and voucher.warehouse not in managed_warehouses:
+            messages.error(request, 'غير مصرح لك باعتماد أذون صرف لمخزن غير مسند إليك')
+            return redirect('product:issue_voucher_detail', pk=pk)
+
         try:
             with transaction.atomic():
                 # اعتماد الإذن أولاً (يحدث المخزون)

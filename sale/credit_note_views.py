@@ -12,20 +12,24 @@ from django.core.paginator import Paginator
 from customer.models import Customer
 from sale.models import Sale, CreditNote
 from sale.services.sales_reversal_service import SalesReversalService
+from users.decorators import require_permission
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger("sale.credit_note_views")
 
 
 @login_required
+@require_permission("sale.view_creditnote")
 def credit_note_list(request):
     """
-    قائمة الإشعارات الدائنة والخصومات المالية وفق نظام ERP الموحد
+    قائمة الإشعارات الدائنة والخصومات المالية وفق نظام ERP الموحد مع عزل البيانات
     """
     from django.db.models import Sum
     from datetime import datetime
     from core.models import SystemSetting
 
-    queryset = CreditNote.objects.select_related('customer', 'sale', 'created_by').order_by('-created_at', '-id')
+    base_qs = DataScopingService.get_scoped_credit_notes(request.user)
+    queryset = base_qs.select_related('customer', 'sale', 'created_by').order_by('-created_at', '-id')
 
     customer_id = request.GET.get('customer')
     status_filter = request.GET.get('status', '').strip()
@@ -49,9 +53,11 @@ def credit_note_list(request):
         except ValueError:
             pass
 
-    # الكروت الإحصائية
-    total_credit_notes_count = CreditNote.objects.count()
-    total_credit_notes_amount = CreditNote.objects.aggregate(total=Sum('total_amount'))['total'] or 0
+    # الكروت الإحصائية المعزولة أمنياً
+    total_credit_notes_count = base_qs.count()
+    total_credit_notes_amount = base_qs.aggregate(total=Sum('total_amount'))['total'] or 0
+    posted_credit_notes_count = base_qs.filter(status='POSTED').count()
+    draft_credit_notes_count = base_qs.filter(status='DRAFT').count()
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(queryset, request)
     page_obj = pagination_context["page_obj"]
@@ -158,6 +164,7 @@ def credit_note_list(request):
 
 
 @login_required
+@require_permission("sale.add_creditnote")
 def credit_note_create(request):
     """
     إصدار إشعار دائن مالي جديد
@@ -165,7 +172,7 @@ def credit_note_create(request):
     sale_id = request.GET.get('sale_id')
     selected_sale = None
     if sale_id:
-        selected_sale = get_object_or_404(Sale, pk=sale_id)
+        selected_sale = get_object_or_404(DataScopingService.get_scoped_sales(request.user), pk=sale_id)
 
     if request.method == "POST":
         customer_id = request.POST.get('customer')
@@ -180,6 +187,8 @@ def credit_note_create(request):
                 raise ValueError(_("مبلغ الإشعار الدائن يجب أن يكون أكبر من صفر."))
 
             if post_sale_id:
+                # التحقق من صلاحية الوصول للفاتورة المحددة
+                get_object_or_404(DataScopingService.get_scoped_sales(request.user), pk=post_sale_id)
                 cn = SalesReversalService.create_credit_note_for_sale(
                     sale_id=int(post_sale_id),
                     amount=amount,
@@ -232,11 +241,12 @@ def credit_note_create(request):
 
 
 @login_required
+@require_permission("sale.view_creditnote")
 def credit_note_detail(request, pk):
     """
     عرض تفاصيل الإشعار الدائن ومتابعة التوافق المالي
     """
-    credit_note = get_object_or_404(CreditNote, pk=pk)
+    credit_note = get_object_or_404(DataScopingService.get_scoped_credit_notes(request.user), pk=pk)
 
     context = {
         "credit_note": credit_note,
@@ -262,11 +272,12 @@ def credit_note_detail(request, pk):
 
 
 @login_required
+@require_permission("sale.approve_creditnote")
 def credit_note_post(request, pk):
     """
     ترحيل الإشعار الدائن للحسابات العامة وأستاذ العملاء الفرعي
     """
-    credit_note = get_object_or_404(CreditNote, pk=pk)
+    credit_note = get_object_or_404(DataScopingService.get_scoped_credit_notes(request.user), pk=pk)
     try:
         SalesReversalService.post_credit_note(credit_note.id, user=request.user)
         messages.success(request, _("تم ترحيل الإشعار الدائن رقم {} بنجاح للدفاتر المحاسبية").format(credit_note.credit_note_number))
@@ -278,11 +289,12 @@ def credit_note_post(request, pk):
 
 
 @login_required
+@require_permission("sale.cancel_creditnote")
 def credit_note_reverse(request, pk):
     """
     عكس الإشعار الدائن المرحل وفق الحوكمة المحاسبية والأثر الرجعي
     """
-    credit_note = get_object_or_404(CreditNote, pk=pk)
+    credit_note = get_object_or_404(DataScopingService.get_scoped_credit_notes(request.user), pk=pk)
     if request.method == "POST":
         reason = request.POST.get("reason", "Credit note cancellation and reversal")
         try:

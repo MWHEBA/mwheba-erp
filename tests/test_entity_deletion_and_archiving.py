@@ -19,7 +19,10 @@ class TestEntityDeletionAndArchiving:
 
     @pytest.fixture(autouse=True)
     def setup_base(self):
-        self.user, _ = User.objects.get_or_create(username="test_admin", defaults={"email": "admin@test.com"})
+        self.user, _ = User.objects.get_or_create(username="test_admin", defaults={"email": "admin@test.com", "is_superuser": True})
+        if not self.user.is_superuser:
+            self.user.is_superuser = True
+            self.user.save()
         self.warehouse, _ = Warehouse.objects.get_or_create(
             name="مخزن رئيسي تجريبي",
             defaults={"code": "WH-MAIN-TEST", "is_active": True}

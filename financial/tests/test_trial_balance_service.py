@@ -23,7 +23,7 @@ User = get_user_model()
 def setup_tb_test_data(db):
     """إعداد بيئة متكاملة لاختبارات ميزان المراجعة"""
     # 1. مستخدم
-    user = User.objects.create_user(username='tb_tester', password='password123')
+    user = User.objects.create_user(username='tb_tester', password='password123', is_staff=True, is_superuser=True)
 
     # 2. عملة وظيفية
     currency, _ = Currency.objects.get_or_create(

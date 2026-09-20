@@ -3,6 +3,8 @@ Financial Subcategory Views
 واجهات إدارة التصنيفات المالية الفرعية
 """
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from users.mixins import SmartPermissionRequiredMixin
+from users.decorators import require_permission
 from django.views.generic import ListView, CreateView, UpdateView
 from django.urls import reverse_lazy, reverse
 from django.contrib import messages
@@ -14,7 +16,8 @@ from django.views.decorators.http import require_POST
 from ..models.categories import FinancialCategory, FinancialSubcategory
 
 
-class SubcategoryListView(LoginRequiredMixin, ListView):
+class SubcategoryListView(SmartPermissionRequiredMixin, ListView):
+    permission_required = "financial.view_chartofaccounts"
     """قائمة التصنيفات الفرعية لتصنيف معين"""
     model = FinancialSubcategory
     template_name = 'financial/subcategories/list.html'
@@ -140,6 +143,7 @@ class SubcategoryUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateV
 
 
 @require_POST
+@require_permission('financial.delete_financialcategory')
 def subcategory_delete(request, pk):
     """حذف تصنيف فرعي - مع التحقق من عدم وجود حركات مالية"""
     from ..models.journal_entry import JournalEntryLine

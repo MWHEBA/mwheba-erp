@@ -8,6 +8,7 @@ from io import BytesIO
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 import logging
+from users.decorators import require_permission
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,8 @@ def _get(hmap, row, ws, *keys):
 
 # ---- Template Download ----
 
+@login_required
+@require_permission('hr.add_contract')
 def contract_import_template(request):
     """تحميل قالب Excel للاستيراد"""
     wb = openpyxl.Workbook()
@@ -183,6 +186,7 @@ def contract_import_template(request):
 # ---- Main Import View ----
 
 @login_required
+@require_permission('hr.add_contract')
 def contract_import(request):
     """استيراد عقود جماعية من Excel"""
     if request.method == 'POST':

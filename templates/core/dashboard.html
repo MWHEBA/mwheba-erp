@@ -343,7 +343,7 @@
                 {% endif %}
                 
                 {% if suppliers_purchases_enabled %}
-                {% if perms.purchase.view_purchase or perms.purchase.add_purchase or user.is_superuser or user.is_admin %}
+                {% if perms.purchase.view_purchase or perms.purchase.add_purchase %}
                 <a href="{% url 'purchase:purchase_create' %}" class="btn btn-outline-light">
                     <i class="fas fa-cart-plus me-1"></i> فاتورة شراء
                 </a>
@@ -380,7 +380,7 @@
                 
                 <!-- إحصائيات المشتريات -->
                 {% if suppliers_purchases_enabled %}
-                {% if perms.purchase.view_purchase or user.is_superuser or user.is_admin %}
+                {% if perms.purchase.view_purchase %}
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="stats-card stats-card-success">
                         <div class="stats-card-header"></div>
@@ -399,7 +399,7 @@
                 
                 <!-- إحصائيات المخزون -->
                 {% if warehouses_enabled %}
-                {% if perms.product.view_product or user.is_superuser or user.is_admin %}
+                {% if perms.product.view_product %}
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="stats-card stats-card-warning">
                         <div class="stats-card-header"></div>
@@ -418,7 +418,7 @@
                 
                 <!-- إحصائيات الموردين -->
                 {% if suppliers_purchases_enabled %}
-                {% if perms.supplier.view_supplier or user.is_superuser or user.is_admin %}
+                {% if perms.supplier.view_supplier %}
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="stats-card stats-card-info">
                         <div class="stats-card-header"></div>
@@ -479,7 +479,7 @@
                         {% endif %}
                         
                         {% if suppliers_purchases_enabled %}
-                        {% if perms.supplier.view_supplier or perms.purchase.view_purchase or user.is_superuser or user.is_admin %}
+                        {% if perms.supplier.view_supplier or perms.purchase.view_purchase %}
                         <div class="col-md-3">
                             <div class="financial-card">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -516,8 +516,8 @@
     <div class="row">
         <!-- فواتير المبيعات المستحقة -->
         {% if customers_sales_enabled %}
-        {% if perms.sale.view_sale or user.is_superuser or user.is_admin %}
-        <div class="{% if suppliers_purchases_enabled and perms.purchase.view_purchase or user.is_superuser or user.is_admin %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
+        {% if perms.sale.view_sale %}
+        <div class="{% if suppliers_purchases_enabled and perms.purchase.view_purchase %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
             <div class="dashboard-card h-100">
                 <div class="card-header">
                     <h5 class="card-title">
@@ -543,8 +543,8 @@
         
         <!-- فواتير المشتريات المستحقة -->
         {% if suppliers_purchases_enabled %}
-        {% if perms.purchase.view_purchase or user.is_superuser or user.is_admin %}
-        <div class="{% if customers_sales_enabled and perms.sale.view_sale or user.is_superuser or user.is_admin %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
+        {% if perms.purchase.view_purchase %}
+        <div class="{% if customers_sales_enabled and perms.sale.view_sale %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
             <div class="dashboard-card h-100">
                 <div class="card-header">
                     <h5 class="card-title">
@@ -572,7 +572,7 @@
     <div class="row">
         <!-- المنتجات منخفضة المخزون -->
         {% if warehouses_enabled %}
-        {% if perms.product.view_product or user.is_superuser or user.is_admin %}
+        {% if perms.product.view_product %}
         <div class="col-lg-6 mb-4">
             <div class="dashboard-card h-100">
                 <div class="card-header">
@@ -611,7 +611,7 @@
         {% endif %}
         
         <!-- آخر العمليات -->
-        <div class="{% if warehouses_enabled and perms.product.view_product or user.is_superuser or user.is_admin %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
+        <div class="{% if warehouses_enabled and perms.product.view_product %}col-lg-6{% else %}col-lg-12{% endif %} mb-4">
             <div class="dashboard-card h-100">
                 <div class="card-header">
                     <h5 class="card-title">

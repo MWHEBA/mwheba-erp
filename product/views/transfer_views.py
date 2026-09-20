@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from decimal import Decimal
 import logging
@@ -19,6 +20,7 @@ from product.models.stock_management import Stock, Warehouse
 from product.models.product_core import Product
 from product.forms import TransferVoucherForm
 from product.services.transfer_service import TransferService
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,21 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
         ).select_related(
             'product', 'warehouse', 'created_by', 'approved_by', 'reference_movement'
         ).order_by('-movement_date', '-created_at')
+
+        # عزل التحويلات وفقاً للمخازن المسندة للمستخدم
+        user = self.request.user
+        is_global_viewer = (
+            user.is_superuser or 
+            getattr(user, 'is_admin', False) or 
+            user.has_perm('product.view_all_warehouses')
+        )
+        if not is_global_viewer:
+            managed_warehouses = DataScopingService.get_managed_warehouses(user)
+            queryset = queryset.filter(
+                Q(warehouse__in=managed_warehouses) | 
+                Q(reference_movement__warehouse__in=managed_warehouses) |
+                Q(created_by=user)
+            ).distinct()
         
         # فلترة حسب المخزن المصدر
         from_warehouse_id = self.request.GET.get('from_warehouse')
@@ -62,9 +79,9 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # إنشاء form instance للمودال
+        # إنشاء form instance للمودال مع تمرير المستخدم الحالي
         from product.forms import TransferVoucherForm
-        form = TransferVoucherForm()
+        form = TransferVoucherForm(user=self.request.user)
         
         context.update({
             'active_menu': 'product',
@@ -83,7 +100,7 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
                 {'title': 'المخزون', 'url': reverse('product:product_list'), 'icon': 'fas fa-boxes'},
                 {'title': 'أذون التحويل', 'active': True}
             ],
-            'warehouses': Warehouse.objects.filter(is_active=True),
+            'warehouses': DataScopingService.get_managed_warehouses(self.request.user),
             'form': form,
             'table_headers': self._get_table_headers(),
             'table_data': self._prepare_table_data(),
@@ -153,7 +170,7 @@ class TransferVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Vie
     
     def get(self, request):
         from product.forms import TransferVoucherForm
-        form = TransferVoucherForm()
+        form = TransferVoucherForm(user=request.user)
         context = {
             'active_menu': 'product',
             'title': 'تحويل مخزني جديد',
@@ -164,7 +181,7 @@ class TransferVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Vie
     
     def post(self, request):
         from product.forms import TransferVoucherForm
-        form = TransferVoucherForm(request.POST)
+        form = TransferVoucherForm(request.POST, user=request.user)
         
         if not form.is_valid():
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

@@ -10,6 +10,7 @@ from typing import Dict, Any, List, Optional
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum
+from django.core.exceptions import PermissionDenied, ValidationError
 
 from purchase.models.procurement_models import (
     PurchaseOrder,
@@ -195,6 +196,9 @@ class ProcurementService:
         """
         اعتماد أمر الشراء للتجهيز والتوريد (Approved State Transition)
         """
+        if not user.has_perm("purchase.approve_purchaseorder") and not user.has_perm("purchase.approve_purchase") and not user.is_superuser:
+            raise PermissionDenied("ليس لديك صلاحية اعتماد أوامر الشراء.")
+
         with transaction.atomic():
             po = PurchaseOrder.objects.select_for_update().get(pk=po_id)
             if po.status not in ["DRAFT", "SUBMITTED"]:

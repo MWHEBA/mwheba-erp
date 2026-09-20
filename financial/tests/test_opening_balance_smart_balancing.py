@@ -22,7 +22,9 @@ def setup_smart_balancing_env(db):
     user = User.objects.create_user(
         username=f"user_{uid}",
         email=f"user_{uid}@example.com",
-        password="password123"
+        password="password123",
+        is_staff=True,
+        is_superuser=True
     )
 
     curr_egp, _ = Currency.objects.get_or_create(

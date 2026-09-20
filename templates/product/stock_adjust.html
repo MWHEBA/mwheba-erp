@@ -86,9 +86,11 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% if perms.product.approve_inventory_adjustment or perms.product.change_stock or user.is_superuser %}
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-check-circle me-2"></i>تسوية المخزون
                         </button>
+                        {% endif %}
                         <a href="{% url 'product:stock_detail' stock.pk %}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>إلغاء
                         </a>

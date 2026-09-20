@@ -20,7 +20,7 @@ class SaleViewsTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser_views',
             password='testpass123',
             email='views@example.com'

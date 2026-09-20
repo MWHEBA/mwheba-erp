@@ -10,6 +10,7 @@
       "description": "Test environment for MWHEBA ERP",
       "active": true,
       "created_date": "2026-08-17",
+      "last_deploy": "2026-08-27 04:16:01",
       "notes": "بيئة اختبار وتجربة"
     },
     "elbaraka": {
@@ -22,6 +23,7 @@
       "description": "ERP system for El Baraka Trading",
       "active": true,
       "created_date": "2026-05-02",
+      "last_deploy": "2026-07-18 22:51:10",
       "notes": ""
     },
     "megroup": {
@@ -34,6 +36,7 @@
       "description": "ERP system for MEGroup",
       "active": true,
       "created_date": "2026-07-02",
+      "last_deploy": "2026-09-20 11:44:20",
       "notes": ""
     }
   },
@@ -47,6 +50,7 @@
     "description": "وصف العميل",
     "active": true,
     "created_date": "YYYY-MM-DD",
+    "last_deploy": null,
     "notes": "ملاحظات"
   }
 }

@@ -384,7 +384,7 @@
                                     target="_blank">
                                     <i class="fas fa-download"></i>
                                 </a>
-                                {% if journal_entry.status == 'draft' and not journal_entry.is_period_locked %}
+                                {% if journal_entry.status == 'draft' and not journal_entry.is_period_locked and perms.financial.change_journalentry %}
                                 <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 fs-8"
                                     onclick="deleteAttachmentFromDetail('{{ att.pk }}')" title="حذف المرفق">
                                     <i class="fas fa-trash-alt"></i>

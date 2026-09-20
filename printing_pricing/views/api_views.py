@@ -44,10 +44,20 @@ class BaseAPIView(LoginRequiredMixin, View):
         return super().dispatch(request, *args, **kwargs)
     
     def has_order_permission(self, request, order):
-        """التحقق من صلاحية الوصول لطلب معين لمنع ثغرات IDOR"""
-        if request.user.is_superuser or getattr(request.user, 'is_staff', False):
+        """التحقق من صلاحية الوصول لطلب معين لمنع ثغرات IDOR مع دعم التحقق الهيكلي"""
+        if (
+            request.user.is_superuser or
+            getattr(request.user, 'is_admin', False) or
+            request.user.has_perm('printing_pricing.view_all_orders') or
+            request.user.has_perm('printing_pricing.manage_pricing_settings')
+        ):
             return True
-        return order.created_by == request.user
+        if order.created_by == request.user:
+            return True
+        # إذا كانت الطلبية يتيمة (created_by is None)، يُتاح الوصول لمن يحمل صلاحية استعراض أوامر الطباعة
+        if order.created_by is None and request.user.has_perm('printing_pricing.view_printingorder'):
+            return True
+        return False
     
     def handle_exception(self, e, context=""):
         """معالجة موحدة للأخطاء مع رسائل مفصلة"""
@@ -162,55 +172,72 @@ class OrderSummaryAPIView(BaseAPIView):
             }
             
             # المواد والخدمات
+            can_view_costs = (
+                request.user.is_superuser or
+                getattr(request.user, 'is_admin', False) or
+                request.user.has_perm('printing_pricing.view_cost_breakdown')
+            )
+            
             materials = []
             for material in order.materials.filter(is_active=True):
-                materials.append({
+                mat_dict = {
                     'id': material.id,
                     'type': material.material_type,
                     'name': material.material_name,
                     'quantity': float(material.quantity),
                     'unit': material.unit,
-                    'unit_cost': float(material.unit_cost),
-                    'total_cost': float(material.total_cost)
-                })
+                }
+                if can_view_costs:
+                    mat_dict['unit_cost'] = float(material.unit_cost)
+                    mat_dict['total_cost'] = float(material.total_cost)
+                materials.append(mat_dict)
             
             services = []
             for service in order.services.filter(is_active=True):
-                services.append({
+                srv_dict = {
                     'id': service.id,
                     'category': service.service_category,
                     'name': service.service_name,
                     'quantity': float(service.quantity),
                     'unit': service.unit,
                     'unit_price': float(service.unit_price),
-                    'total_cost': float(service.total_cost),
                     'is_optional': service.is_optional
-                })
+                }
+                if can_view_costs:
+                    srv_dict['total_cost'] = float(service.total_cost)
+                services.append(srv_dict)
             
             # الحسابات الحالية
             calculations = {}
-            for calc in order.calculations.filter(is_current=True):
-                calculations[calc.calculation_type] = {
-                    'base_cost': float(calc.base_cost),
-                    'additional_costs': float(calc.additional_costs),
-                    'total_cost': float(calc.total_cost),
-                    'calculation_date': calc.calculation_date.isoformat()
-                }
+            if can_view_costs:
+                for calc in order.calculations.filter(is_current=True):
+                    calculations[calc.calculation_type] = {
+                        'base_cost': float(calc.base_cost),
+                        'additional_costs': float(calc.additional_costs),
+                        'total_cost': float(calc.total_cost),
+                        'calculation_date': calc.calculation_date.isoformat()
+                    }
             
             # ملخص التكاليف
             try:
                 summary = order.summary
-                cost_summary = {
-                    'material_cost': float(summary.material_cost),
-                    'printing_cost': float(summary.printing_cost),
-                    'finishing_cost': float(summary.finishing_cost),
-                    'design_cost': float(summary.design_cost),
-                    'subtotal': float(summary.subtotal),
-                    'total_cost': float(summary.total_cost),
-                    'profit_margin': float(summary.profit_margin_percentage),
-                    'profit_amount': float(summary.net_profit),
-                    'final_price': float(summary.final_price)
-                }
+                if can_view_costs:
+                    cost_summary = {
+                        'material_cost': float(summary.material_cost),
+                        'printing_cost': float(summary.printing_cost),
+                        'finishing_cost': float(summary.finishing_cost),
+                        'design_cost': float(summary.design_cost),
+                        'subtotal': float(summary.subtotal),
+                        'total_cost': float(summary.total_cost),
+                        'profit_margin': float(summary.profit_margin_percentage),
+                        'profit_amount': float(summary.net_profit),
+                        'final_price': float(summary.final_price)
+                    }
+                else:
+                    cost_summary = {
+                        'subtotal': float(summary.final_price),
+                        'final_price': float(summary.final_price)
+                    }
             except OrderSummary.DoesNotExist:
                 cost_summary = None
             
@@ -1649,13 +1676,21 @@ class CustomerInfoAPIView(BaseAPIView):
                     'date': po.created_at.strftime('%Y-%m-%d')
                 })
                 
+            # حجب نسبة هامش الربح إلا لمن يملك صلاحية عرض هوامش الربح
+            can_view_margins = (
+                request.user.is_superuser or
+                getattr(request.user, 'is_admin', False) or
+                request.user.has_perm('printing_pricing.view_profit_margins')
+            )
+            returned_margin = default_profit_margin if can_view_margins else None
+
             return JsonResponse({
                 'success': True,
                 'customer_id': customer.id,
                 'customer_name': customer.name,
                 'customer_type': customer_type,
                 'category': category,
-                'default_profit_margin': default_profit_margin,
+                'default_profit_margin': returned_margin,
                 'credit_limit': float(getattr(customer, 'credit_limit', 0) or 0),
                 'balance': float(getattr(customer, 'balance', 0) or 0),
                 'currency_code': customer.default_currency.code if getattr(customer, 'default_currency', None) else 'EGP',
@@ -1670,6 +1705,8 @@ class BulkPriceUpdateAPIView(BaseAPIView):
     API لتحديث أسعار خدمات الموردين بشكل مجمع
     """
     def post(self, request):
+        if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('supplier.change_supplierservice') or request.user.has_perm('printing_pricing.manage_pricing_settings')):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك بتحديث أسعار الموردين')}, status=403)
         try:
             data = json.loads(request.body) if request.body else {}
             updates = data.get('updates', [])
@@ -1688,6 +1725,9 @@ class GenerateVendorPOsAPIView(BaseAPIView):
         try:
             order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
             if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالوصول لهذا الطلب')}, status=403)
+
+            if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('purchase.add_purchase') or request.user.has_perm('purchase.add_purchaseorder') or request.user.has_perm('printing_pricing.change_printingorder')):
                 return JsonResponse({'success': False, 'error': _('غير مصرح لك بإصدار أوامر الشراء')}, status=403)
 
             data = json.loads(request.body) if request.body else {}
@@ -1716,6 +1756,8 @@ class ApprovedOrdersAPIView(BaseAPIView):
     API جلب طلبات التسعير المعتمدة لربطها بشاشات المبيعات وعروض الأسعار
     """
     def get(self, request):
+        if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('printing_pricing.view_printingorder') or request.user.has_perm('sale.view_quotation') or request.user.has_perm('sale.add_sale')):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك باستعراض طلبات التسعير المعتمدة')}, status=403)
         try:
             customer_id = request.GET.get('customer_id')
             qs = PrintingOrder.objects.filter(status='approved', is_active=True).select_related('customer')
@@ -1763,6 +1805,8 @@ class SyncOrderUnitPricesAPIView(BaseAPIView):
     يطبق حصرياً على سعر الوحدة الصافي للخدمة/الخامة وليس إجمالي أمر الشغل.
     """
     def post(self, request, *args, **kwargs):
+        if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('supplier.change_supplierservice') or request.user.has_perm('printing_pricing.manage_pricing_settings')):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك بمزامنة أسعار الموردين')}, status=403)
         try:
             data = json.loads(request.body)
         except Exception:

@@ -19,7 +19,7 @@ User = get_user_model()
 @pytest.fixture
 def user(db):
     """Create test user"""
-    return User.objects.create_user(
+    return User.objects.create_superuser(
         username='testuser',
         email='test@example.com',
         password='testpass123'
@@ -422,9 +422,24 @@ class TestSaleServiceCreateReturn:
 class TestSaleServiceDeleteSale:
     """Test SaleService.delete_sale()"""
     
-    def test_delete_sale(self, user, customer, warehouse, product, chart_of_accounts):
-        """Test deleting a sale"""
-        # Create a sale first
+    def test_delete_draft_sale(self, user, customer, warehouse):
+        """Test deleting a draft sale without journal entries"""
+        sale = Sale.objects.create(
+            number="SALE-DRAFT-001",
+            date=timezone.now().date(),
+            customer=customer,
+            warehouse=warehouse,
+            status="draft",
+            subtotal=Decimal("300.00"),
+            total=Decimal("300.00"),
+            created_by=user
+        )
+        sale_number = sale.number
+        SaleService.delete_sale(sale, user)
+        assert not Sale.objects.filter(number=sale_number).exists()
+
+    def test_delete_completed_sale_blocked(self, user, customer, warehouse, product, chart_of_accounts):
+        """Test that deleting a completed/posted sale is blocked by accounting immutability"""
         sale_data = {
             'date': timezone.now().date(),
             'customer_id': customer.id,
@@ -443,25 +458,9 @@ class TestSaleServiceDeleteSale:
             ]
         }
         sale = SaleService.create_sale(data=sale_data, user=user)
-        sale_number = sale.number
-        journal_entry_id = sale.journal_entry.id if sale.journal_entry else None
-        
-        # Delete sale
-        SaleService.delete_sale(sale, user)
-        
-        # Verify sale deleted
-        assert not Sale.objects.filter(number=sale_number).exists()
-        
-        # Verify journal entry deleted
-        if journal_entry_id:
-            assert not JournalEntry.objects.filter(id=journal_entry_id).exists()
-        
-        # Verify stock movements deleted
-        from product.models import StockMovement
-        movements = StockMovement.objects.filter(
-            notes__contains=sale_number
-        )
-        assert movements.count() == 0
+        from django.core.exceptions import ValidationError
+        with pytest.raises(ValidationError):
+            SaleService.delete_sale(sale, user)
 
 
 @pytest.mark.django_db

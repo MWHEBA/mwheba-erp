@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from users.decorators import require_permission
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -25,7 +26,10 @@ from core.services.sequence_service import SequenceService
 from core.enums.document_types import DocumentType
 from financial.exceptions import FinancialCoreError
 
+from functools import wraps
+
 def check_purchase_orders_enabled(view_func):
+    @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         from core.models import SystemSetting
         enabled = SystemSetting.get_bool('enable_purchase_orders', False)
@@ -39,6 +43,7 @@ def check_purchase_orders_enabled(view_func):
 
 
 @login_required
+@require_permission("purchase.view_purchaseorder")
 @check_purchase_orders_enabled
 def po_list(request):
     """عرض قائمة أوامر الشراء المحوكمة (PO List View)"""
@@ -135,6 +140,7 @@ def po_list(request):
 
 
 @login_required
+@require_permission("purchase.add_purchaseorder")
 @check_purchase_orders_enabled
 def po_create(request):
     """إنشاء أمر شراء جديد (PO Create) مع دعم الحوكمة والمعايير المحاسبية الموحدة"""
@@ -371,6 +377,7 @@ def po_create(request):
 
 
 @login_required
+@require_permission("purchase.change_purchaseorder")
 @check_purchase_orders_enabled
 def po_edit(request, pk):
     """تعديل أمر شراء قائم مع تطبيق خوارزمية التحديث غير المدمر وحوكمة الحالات"""
@@ -602,6 +609,7 @@ def po_edit(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchaseorder")
 @check_purchase_orders_enabled
 def po_detail(request, pk):
     """تفاصيل أمر الشراء مع التتبع الرباعي ودورة الحياة (PO Detail View)"""
@@ -710,6 +718,7 @@ def po_detail(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchaseorder")
 @check_purchase_orders_enabled
 def po_print(request, pk):
     """طباعة وتصدير أمر الشراء الرسمي للمورد (PO Print View)"""
@@ -730,6 +739,7 @@ def po_print(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchaseorder")
 @check_purchase_orders_enabled
 def po_pdf_download(request, pk):
     """تصدير وتحميل أمر الشراء كملف PDF رسمي"""
@@ -762,6 +772,7 @@ def po_pdf_download(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchaseorder")
 @check_purchase_orders_enabled
 def po_email_pdf(request, pk):
     """إرسال أمر الشراء عبر البريد الإلكتروني للمورد مباشرة"""
@@ -786,6 +797,7 @@ def po_email_pdf(request, pk):
 
 
 @login_required
+@require_permission("purchase.add_purchaseorder")
 @check_purchase_orders_enabled
 def po_duplicate(request, pk):
     """تكرار أمر الشراء لإنشاء أمر جديد بنفس البنود والأسعار"""
@@ -794,6 +806,7 @@ def po_duplicate(request, pk):
 
 
 @login_required
+@require_permission("purchase.delete_purchaseorder")
 @check_purchase_orders_enabled
 def po_delete(request, pk):
     """حذف أمر الشراء إذا كان مسودة أو ملغى ولم تُسجل عليه أي أذون استلام"""
@@ -825,6 +838,7 @@ def po_delete(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchaseorder")
 @check_purchase_orders_enabled
 def po_submit(request, pk):
     """تقديم أمر الشراء للاعتماد (POST only)"""
@@ -842,6 +856,7 @@ def po_submit(request, pk):
 
 
 @login_required
+@require_permission("purchase.approve_purchaseorder")
 @check_purchase_orders_enabled
 def po_approve(request, pk):
     """اعتماد أمر الشراء (POST only)"""
@@ -862,6 +877,7 @@ def po_approve(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchaseorder")
 @check_purchase_orders_enabled
 def po_short_close(request, pk):
     """الإغلاق المبكر لأمر الشراء عند تعذر استكمال التوريد (POST only)"""
@@ -882,6 +898,7 @@ def po_short_close(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchaseorder")
 @check_purchase_orders_enabled
 def po_cancel(request, pk):
     """إلغاء أمر الشراء (POST only)"""

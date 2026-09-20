@@ -437,6 +437,8 @@ def employee_unlink_user(request, pk):
 @login_required
 def check_employee_email(request):
     """التحقق من تكرار البريد الإلكتروني"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('hr.view_employee') or request.user.has_perm('hr.add_employee') or request.user.has_perm('hr.can_manage_employees')):
+        return JsonResponse({'available': False, 'message': 'غير مصرح لك بالتحقق'}, status=403)
     email = request.GET.get('email', '')
     employee_id = request.GET.get('employee_id', None)
     
@@ -458,6 +460,8 @@ def check_employee_email(request):
 @login_required
 def check_employee_mobile(request):
     """التحقق من تكرار رقم الموبايل"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('hr.view_employee') or request.user.has_perm('hr.add_employee') or request.user.has_perm('hr.can_manage_employees')):
+        return JsonResponse({'available': False, 'message': 'غير مصرح لك بالتحقق'}, status=403)
     mobile = request.GET.get('mobile', '')
     employee_id = request.GET.get('employee_id', None)
     
@@ -479,6 +483,8 @@ def check_employee_mobile(request):
 @login_required
 def check_employee_national_id(request):
     """التحقق من تكرار الرقم القومي"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('hr.view_employee') or request.user.has_perm('hr.add_employee') or request.user.has_perm('hr.can_manage_employees')):
+        return JsonResponse({'available': False, 'message': 'غير مصرح لك بالتحقق'}, status=403)
     national_id = request.GET.get('national_id', '')
     employee_id = request.GET.get('employee_id', None)
     

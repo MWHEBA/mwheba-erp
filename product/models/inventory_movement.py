@@ -467,6 +467,9 @@ class InventoryAdjustment(models.Model):
         verbose_name = _("تسوية مخزون")
         verbose_name_plural = _("تسويات المخزون")
         ordering = ["-adjustment_date", "-created_at"]
+        permissions = [
+            ("approve_inventory_adjustment", _("اعتماد تسوية فروق الجرد المخزني")),
+        ]
         indexes = [
             models.Index(fields=["warehouse", "adjustment_date"]),
             models.Index(fields=["status", "adjustment_type"]),

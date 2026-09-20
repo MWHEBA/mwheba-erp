@@ -128,34 +128,71 @@ class PeriodControlService:
     @transaction.atomic
     def close_period(cls, period_id: int, user=None, force: bool = False) -> AccountingPeriod:
         """
-        إغلاق فترة محاسبية مع حماية القيود المسودة (Draft Guard)
+        إغلاق فترة محاسبية مع حماية القيود والعمليات المسودة (Draft Guard) والتحقق من الصلاحيات
         """
+        if user and not (user.is_superuser or user.has_perm("financial.close_accounting_period")):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("ليس لديك الصلاحية المطلوبة لإغلاق الفترة المحاسبية."))
+
         period = AccountingPeriod.objects.select_for_update().get(pk=period_id)
 
         if period.status in ['closed', 'hard_closed']:
             logger.info(f"الفترة المحاسبية {period.name} مغلقة بالفعل.")
             return period
 
-        # فحص وجود مسودات قيود غير منشورة في الفترة
+        # 1. فحص وجود مسودات قيود غير منشورة في الفترة
         draft_entries = JournalEntry.objects.filter(
             accounting_period=period,
             status='draft'
         )
-
         if draft_entries.exists() and not force:
             draft_count = draft_entries.count()
             raise PeriodClosedError(
                 f"لا يمكن إغلاق الفترة المحاسبية {period.name}: يوجد {draft_count} قيد مسودة غير مرحل."
             )
 
-        # 1. أتمتة مزامنة أسعار الصرف الرسمية
+        # 2. فحص وجود فواتير مبيعات ومشتريات مسودة غير مرحلة في نطاق الفترة
+        if not force:
+            try:
+                from sale.models import Sale
+                draft_sales = Sale.objects.filter(
+                    invoice_date__gte=period.start_date,
+                    invoice_date__lte=period.end_date,
+                    status='draft'
+                )
+                if draft_sales.exists():
+                    raise PeriodClosedError(
+                        f"لا يمكن إغلاق الفترة {period.name}: يوجد {draft_sales.count()} فاتورة مبيعات بحالة مسودة ضمن الفترة."
+                    )
+            except (ImportError, Exception) as err:
+                if isinstance(err, PeriodClosedError):
+                    raise
+                logger.debug(f"تخطي فحص مبيعات المسودة: {err}")
+
+            try:
+                from purchase.models import Purchase
+                draft_purchases = Purchase.objects.filter(
+                    date__gte=period.start_date,
+                    date__lte=period.end_date,
+                    status='draft'
+                )
+                if draft_purchases.exists():
+                    raise PeriodClosedError(
+                        f"لا يمكن إغلاق الفترة {period.name}: يوجد {draft_purchases.count()} فاتورة مشتريات بحالة مسودة ضمن الفترة."
+                    )
+            except (ImportError, Exception) as err:
+                if isinstance(err, PeriodClosedError):
+                    raise
+                logger.debug(f"تخطي فحص مشتريات المسودة: {err}")
+
+        # 3. أتمتة مزامنة أسعار الصرف الرسمية
         try:
             from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
             ExchangeRateSyncService.sync_official_cbe_rates(user=user)
         except Exception as sync_err:
             logger.warning(f"ملاحظة أثناء مزامنة أسعار الصرف عند إغلاق الفترة {period.name}: {sync_err}")
 
-        # 2. تشغيل واعتماد وترحيل تقييم أسعار الصرف غير المحققة (IAS 21) تلقائياً بالمسار المحوكم
+        # 4. تشغيل واعتماد وترحيل تقييم أسعار الصرف غير المحققة (IAS 21) تلقائياً بالمسار المحوكم
         try:
             from financial.fx.services import FXCalculationService, FXValidationService, FXPostingService
             fx_run = FXCalculationService.calculate_and_create_run(period=period, user=user)
@@ -178,6 +215,10 @@ class PeriodControlService:
         """
         إعادة فتح فترة محاسبية مغلقة (مخولة للمدير المالي) مع ترحيل قيد التقييم العكسي
         """
+        if user and not (user.is_superuser or user.has_perm("financial.reopen_accounting_period")):
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("ليس لديك الصلاحية المطلوبة لإعادة فتح الفترة المحاسبية."))
+
         period = AccountingPeriod.objects.select_for_update().get(pk=period_id)
 
         if period.status != 'closed':

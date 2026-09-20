@@ -112,14 +112,7 @@ window.EntityDeleteArchiveController = (function() {
         if (!modalEl) return;
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
-        // Reset UI State to Loading
-        document.getElementById('entityModalLoading').style.display = 'block';
-        document.getElementById('entityModalContent').style.display = 'none';
-        document.getElementById('entityConfirmSubmitBtn').disabled = true;
-
-        modal.show();
-
-        // Perform AJAX Pre-check
+        // Perform AJAX Pre-check FIRST before opening the modal to prevent backdrop glitches and flicker
         const precheckUrl = currentConfig.deleteUrl + (currentConfig.deleteUrl.includes('?') ? '&' : '?') + 'precheck=1';
         
         fetch(precheckUrl, {
@@ -128,39 +121,42 @@ window.EntityDeleteArchiveController = (function() {
                 'Accept': 'application/json'
             }
         })
-        .then(response => {
+        .then(async response => {
             if (!response.ok) {
-                throw new Error('HTTP error ' + response.status);
+                let errorData = null;
+                try {
+                    errorData = await response.json();
+                } catch (e) {}
+                const errorMsg = (errorData && (errorData.message || errorData.error)) 
+                    ? (errorData.message || errorData.error) 
+                    : (response.status === 403 ? 'غير مصرح لك بتنفيذ هذا الإجراء.' : 'HTTP error ' + response.status);
+                throw new Error(errorMsg);
             }
             return response.json();
         })
         .then(data => {
             if (!data.success) {
+                const msg = data.message || 'فشل فحص الكيان';
                 if (window.showNotification) {
-                    window.showNotification(data.message || 'فشل فحص الكيان', 'error');
+                    window.showNotification(msg, 'error', 'تنبيه');
                 } else if (window.toastr) {
-                    window.toastr.error(data.message || 'فشل فحص الكيان');
+                    window.toastr.error(msg);
                 }
-                if (document.activeElement && modalEl.contains(document.activeElement)) {
-                    document.activeElement.blur();
-                }
-                modal.hide();
                 return;
             }
 
+            // Precheck passed - render content and display modal smoothly
             renderModalContent(data);
+            modal.show();
         })
         .catch(err => {
             console.error('Error pre-checking entity:', err);
+            const userMsg = err.message && !err.message.startsWith('HTTP error') ? err.message : 'حدث خطأ أثناء فحص سجلات الكيان';
             if (window.showNotification) {
-                window.showNotification('حدث خطأ أثناء فحص سجلات الكيان', 'error');
+                window.showNotification(userMsg, 'error', 'غير مصرح');
             } else if (window.toastr) {
-                window.toastr.error('حدث خطأ أثناء فحص سجلات الكيان');
+                window.toastr.error(userMsg);
             }
-            if (document.activeElement && modalEl.contains(document.activeElement)) {
-                document.activeElement.blur();
-            }
-            modal.hide();
         });
     }
 
@@ -280,15 +276,22 @@ window.EntityDeleteArchiveController = (function() {
             } catch (e) {
                 data = { success: false, message: 'حدث خطأ غير متوقع في استجابة الخادم (' + response.status + ')' };
             }
-            if (!response.ok && data && !data.message) {
-                data.message = 'حدث خطأ في الخادم (' + response.status + ')';
+            if (!response.ok) {
+                if (response.status === 403) {
+                    data.message = (data && data.message) ? data.message : 'غير مصرح لك بتنفيذ هذا الإجراء.';
+                    data.error = 'permission_denied';
+                } else if (data && !data.message) {
+                    data.message = 'حدث خطأ في الخادم (' + response.status + ')';
+                }
             }
             return data;
         })
         .then(data => {
             const modalEl = document.getElementById('entityDeleteArchiveModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal && data.success) modal.hide();
+            if (modal && (data.success || data.error === 'permission_denied')) {
+                modal.hide();
+            }
 
             if (data.success) {
                 if (window.showNotification) {
@@ -316,7 +319,9 @@ window.EntityDeleteArchiveController = (function() {
                 } else if (window.doSearch && !data.table_html) {
                     window.doSearch();
                 } else if (!data.table_html && data.redirect_url) {
-                    window.location.href = data.redirect_url;
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 3100);
                 }
             } else {
                 if (window.showNotification) {

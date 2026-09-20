@@ -9,9 +9,13 @@ from ..decorators import can_approve_leaves
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
 from datetime import date
+from django.core.exceptions import PermissionDenied
+from django.utils.translation import gettext_lazy as _
 import logging
 
 logger = logging.getLogger(__name__)
+
+from .leave_bulk_operations import bulk_approve_leaves, bulk_reject_leaves
 
 __all__ = [
     'leave_list',
@@ -27,7 +31,11 @@ __all__ = [
 ]
 
 
+from users.decorators import require_permission
+
+
 @login_required
+@require_permission('hr.view_leave')
 def leave_list(request):
     """قائمة الإجازات"""
     # Query Optimization - استثناء الموظفين المنهي خدمتهم
@@ -121,16 +129,28 @@ def leave_list(request):
 
 @login_required
 def leave_request(request):
-    """تسجيل إجازة جديدة - HR يطلب نيابة عن الموظف"""
-
+    """تسجيل طلب إجازة جديدة مع دعم التقديم الذاتي"""
     current_year = date.today().year
 
     if request.method == 'POST':
         form = LeaveRequestForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                employee = form.cleaned_data['employee']
                 leave = form.save(commit=False)
+                employee = leave.employee
+                
+                # فحص الصلاحية: التقديم الذاتي مسموح، أما تقديم إجازة لموظف آخر فيتطلب hr.add_leave
+                is_self_service = (employee.user == request.user)
+                can_manage_leaves = (
+                    request.user.is_superuser or
+                    getattr(request.user, 'is_admin', False) or
+                    request.user.has_perm('hr.add_leave') or
+                    request.user.has_perm('hr.can_approve_leaves') or
+                    request.user.has_perm('hr.can_manage_employees')
+                )
+                if not (is_self_service or can_manage_leaves):
+                    from django.core.exceptions import PermissionDenied
+                    raise PermissionDenied(_("ليس لديك صلاحية تسجيل إجازة لموظف آخر"))
                 leave.employee = employee
                 leave.requested_by = request.user
 
@@ -189,6 +209,8 @@ def leave_request(request):
             except ValueError as e:
                 logger.error(f"خطأ في البيانات عند طلب إجازة: {str(e)}")
                 messages.error(request, f'خطأ في البيانات: {str(e)}')
+            except PermissionDenied:
+                raise
             except Exception as e:
                 logger.exception(f"خطأ غير متوقع عند طلب إجازة: {str(e)}")
                 messages.error(request, f'حدث خطأ غير متوقع: {str(e)}')
@@ -225,6 +247,19 @@ def leave_request(request):
 def leave_detail(request, pk):
     """تفاصيل الإجازة"""
     leave = get_object_or_404(Leave, pk=pk)
+    
+    # فحص الصلاحية: صاحب الطلب أو من يملك صلاحية عرض الإجازات
+    is_owner = (leave.employee.user == request.user)
+    can_view = (
+        request.user.is_superuser or
+        getattr(request.user, 'is_admin', False) or
+        request.user.has_perm('hr.view_leave') or
+        request.user.has_perm('hr.can_approve_leaves') or
+        request.user.has_perm('hr.can_manage_employees') or
+        is_owner
+    )
+    if not can_view:
+        raise PermissionDenied(_("ليس لديك صلاحية استعراض هذه الإجازة"))
     
     # تحديد الأزرار حسب حالة الإجازة
     header_buttons = []
@@ -332,6 +367,21 @@ def employee_leave_info_api(request, employee_id):
     from django.http import JsonResponse
     try:
         employee = Employee.objects.select_related('department', 'job_title').get(pk=employee_id, status='active')
+        
+        # فحص الصلاحية: صاحب الطلب أو من يملك صلاحية عرض/إضافة الإجازات
+        is_owner = (employee.user == request.user)
+        can_view = (
+            request.user.is_superuser or
+            getattr(request.user, 'is_admin', False) or
+            request.user.has_perm('hr.view_leave') or
+            request.user.has_perm('hr.add_leave') or
+            request.user.has_perm('hr.can_approve_leaves') or
+            request.user.has_perm('hr.can_manage_employees') or
+            is_owner
+        )
+        if not can_view:
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك باستعراض أرصدة هذا الموظف')}, status=403)
+        
         current_year = date.today().year
 
         # جلب كل أنواع الإجازات النشطة

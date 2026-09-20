@@ -5,6 +5,7 @@ Purchase Invoice Views
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from users.decorators import require_permission
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -19,16 +20,20 @@ from purchase.forms import PurchaseForm
 from product.models import Product, Warehouse
 from supplier.models import Supplier
 from core.models import SystemSetting
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_permission("purchase.view_purchase")
 def purchase_list(request):
     """
     عرض قائمة فواتير المشتريات
     """
-    purchases_query = Purchase.objects.with_list_details().all().order_by("-date", "-id")
+    purchases_query = DataScopingService.get_scoped_purchases(
+        request.user, Purchase.objects.with_list_details().all()
+    ).order_by("-date", "-id")
 
     # تصفية حسب نص البحث
     search = request.GET.get("search") or request.GET.get("q")
@@ -109,26 +114,6 @@ def purchase_list(request):
 
     purchases = pagination_data['page_obj']
 
-    # إحصائيات للعرض في الصفحة
-    paid_purchases_count = Purchase.objects.filter(payment_status="paid").count()
-    partially_paid_purchases_count = Purchase.objects.filter(
-        payment_status="partially_paid"
-    ).count()
-    unpaid_purchases_count = Purchase.objects.filter(payment_status="unpaid").count()
-
-    # عدد الفواتير المرتجعة
-    returned_purchases_count = (
-        Purchase.objects.filter(returns__status="confirmed").distinct().count()
-    )
-
-    # إجمالي المشتريات
-    total_amount = Purchase.objects.aggregate(Sum("total"))["total__sum"] or 0
-    
-    # إحصائيات الخدمات
-    services_count = Purchase.objects.filter(is_service=True).count()
-    products_count = Purchase.objects.filter(is_service=False).count()
-    courses_count = Purchase.objects.filter(service_type='course').count()
-
     # الحصول على قائمة الموردين للفلترة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
 
@@ -197,7 +182,8 @@ def purchase_list(request):
             'label': 'عرض التفاصيل',
             'class': 'action-view',
         })
-        if purchase.payment_status != 'paid':
+        can_add_supplier_pay = request.user.has_perm('supplier.add_supplierpayment') or request.user.has_perm('purchase.change_purchase') or request.user.is_superuser
+        if purchase.payment_status != 'paid' and can_add_supplier_pay:
             actions.append({
                 'url': reverse('purchase:purchase_add_payment', args=[purchase.pk]),
                 'icon': 'fa-money-bill-wave',
@@ -212,12 +198,13 @@ def purchase_list(request):
                 'class': 'action-print',
                 'target': '_blank',
             })
-        actions.append({
-            'url': reverse('purchase:purchase_duplicate', args=[purchase.pk]),
-            'icon': 'fa-copy',
-            'label': 'نسخ الفاتورة',
-            'class': 'action-copy',
-        })
+        if request.user.has_perm('purchase.add_purchase') or request.user.is_superuser:
+            actions.append({
+                'url': reverse('purchase:purchase_duplicate', args=[purchase.pk]),
+                'icon': 'fa-copy',
+                'label': 'نسخ الفاتورة',
+                'class': 'action-copy',
+            })
         
         # Build items badges
         items = purchase.items.select_related('product').all()
@@ -255,30 +242,22 @@ def purchase_list(request):
         "purchases": purchases,
         "table_headers": purchase_headers,
         "table_data": table_data,
-        "paid_purchases_count": paid_purchases_count,
-        "partially_paid_purchases_count": partially_paid_purchases_count,
-        "unpaid_purchases_count": unpaid_purchases_count,
-        "returned_purchases_count": returned_purchases_count,
-        "total_amount": total_amount,
         "suppliers": suppliers,
-        "warehouses": Warehouse.objects.filter(is_active=True).order_by("name"),
+        "warehouses": DataScopingService.get_transaction_warehouses(request.user),
         "purchase_headers": purchase_headers,
-        "services_count": services_count,
-        "products_count": products_count,
-        "courses_count": courses_count,
         "service_types": Purchase.SERVICE_TYPES,
         "show_export": True,
         "page_title": "فواتير المشتريات",
         "page_subtitle": "قائمة بجميع فواتير المشتريات في النظام",
         "page_icon": "fas fa-shopping-cart",
-        "header_buttons": [
+        "header_buttons": ([
             {
                 "url": reverse("purchase:purchase_create"),
                 "icon": "fa-plus",
                 "text": "إضافة فاتورة",
                 "class": "btn-primary",
             }
-        ],
+        ] if request.user.has_perm('purchase.add_purchase') or request.user.is_superuser else []),
         "breadcrumb_items": [
             {
                 "title": _("الرئيسية"),
@@ -298,6 +277,7 @@ def purchase_list(request):
 
 
 @login_required
+@require_permission("purchase.add_purchase")
 def purchase_create(request, supplier_id=None):
     """
     إنشاء فاتورة مشتريات جديدة
@@ -475,6 +455,12 @@ def purchase_create(request, supplier_id=None):
                                 unit_price = Decimal(str(raw_price).replace(',', ''))
                             except (ValueError, TypeError):
                                 unit_price = Decimal("0")
+
+                            # فحص صلاحية تعديل تكلفة الشراء
+                            if not request.user.has_perm('purchase.change_unit_cost') and not request.user.is_superuser:
+                                official_cost = getattr(product, 'cost_price', Decimal('0.00')) or Decimal('0.00')
+                                if official_cost > Decimal('0.00') and unit_price != official_cost:
+                                    raise ValidationError(f"غير مصرح لك بتعديل تكلفة شراء الصنف '{product.name}'. السعر المعتمد هو {official_cost} ج.م")
 
                             try:
                                 raw_disc = discounts[i] if i < len(discounts) and discounts[i] else "0"
@@ -729,11 +715,13 @@ def purchase_create(request, supplier_id=None):
 
 
 @login_required
+@require_permission("purchase.view_purchase")
 def purchase_detail(request, pk):
     """
     عرض تفاصيل فاتورة المشتريات
     """
-    purchase = get_object_or_404(Purchase.objects.with_details(), pk=pk)
+    from users.services.data_scoping_service import DataScopingService
+    purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user).with_details(), pk=pk)
     # الحصول على المدفوعات مرتبة حسب تاريخ الإنشاء من الأحدث إلى الأقدم
     payments = purchase.payments.all().order_by("-created_at")
 
@@ -754,56 +742,69 @@ def purchase_detail(request, pk):
         ),
         "page_icon": purchase.invoice_type_icon,
         "show_post_alert": show_post_alert,
-        "header_buttons": ([{
-            "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
-            "icon": "fa-money-bill",
-            "text": "إضافة دفعة",
-            "class": "btn-success",
-        }] if purchase.payment_status != 'paid' else []) + [
-            {
-                "url": reverse("purchase:purchase_print", kwargs={"pk": purchase.pk}),
-                "icon": "fa-print",
-                "text": "طباعة",
-                "class": "btn-info",
-            },
-            {
-                "dropdown": True,
-                "icon": "fa-file-pdf",
-                "text": "مشاركة",
-                "class": "btn-success",
-                "items": [
-                    {
-                        "onclick": f"downloadDocumentPDF('{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}', '{purchase.number}')",
-                        "icon": "fas fa-file-download text-primary",
-                        "text": "تحميل PDF"
-                    },
-                    {
-                        "onclick": f"shareWhatsAppPDF('{purchase.supplier.phone if purchase.supplier and purchase.supplier.phone else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
-                        "icon": "fab fa-whatsapp text-success",
-                        "text": "إرسال واتساب"
-                    },
-                    {
-                        "onclick": f"sendEmailPDF('{reverse('purchase:purchase_email_pdf', kwargs={'pk': purchase.pk})}', '{purchase.supplier.email if purchase.supplier and purchase.supplier.email else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
-                        "icon": "far fa-envelope text-primary",
-                        "text": "إرسال بريد"
-                    }
-                ]
-            },
-            {
-                "url": reverse("purchase:purchase_duplicate", kwargs={"pk": purchase.pk}),
-                "icon": "fa-copy",
-                "text": "نسخ",
-                "class": "btn-outline-primary",
-            },
-            {
-                "url": "#",
-                "icon": "fa-ellipsis-v",
-                "text": "",
-                "class": "btn-outline-secondary",
-                "toggle": "modal",
-                "target": "#actionsModal",
-            },
-        ],
+        "header_buttons": (
+            ([
+                {
+                    "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
+                    "icon": "fa-money-bill",
+                    "text": "إضافة دفعة",
+                    "class": "btn-success",
+                }
+            ] if (purchase.payment_status != 'paid') and (
+                request.user.has_perm('supplier.add_supplierpayment')
+                or request.user.has_perm('purchase.change_purchase')
+                or request.user.is_superuser
+            ) else [])
+            + [
+                {
+                    "url": reverse("purchase:purchase_print", kwargs={"pk": purchase.pk}),
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-info",
+                },
+                {
+                    "dropdown": True,
+                    "icon": "fa-file-pdf",
+                    "text": "مشاركة",
+                    "class": "btn-success",
+                    "items": [
+                        {
+                            "onclick": f"downloadDocumentPDF('{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}', '{purchase.number}')",
+                            "icon": "fas fa-file-download text-primary",
+                            "text": "تحميل PDF"
+                        },
+                        {
+                            "onclick": f"shareWhatsAppPDF('{purchase.supplier.phone if purchase.supplier and purchase.supplier.phone else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
+                            "icon": "fab fa-whatsapp text-success",
+                            "text": "إرسال واتساب"
+                        },
+                        {
+                            "onclick": f"sendEmailPDF('{reverse('purchase:purchase_email_pdf', kwargs={'pk': purchase.pk})}', '{purchase.supplier.email if purchase.supplier and purchase.supplier.email else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
+                            "icon": "far fa-envelope text-primary",
+                            "text": "إرسال بريد"
+                        }
+                    ]
+                },
+            ]
+            + ([
+                {
+                    "url": reverse("purchase:purchase_duplicate", kwargs={"pk": purchase.pk}),
+                    "icon": "fa-copy",
+                    "text": "نسخ",
+                    "class": "btn-outline-primary",
+                }
+            ] if (request.user.has_perm('purchase.add_purchase') or request.user.is_superuser) else [])
+            + [
+                {
+                    "url": "#",
+                    "icon": "fa-ellipsis-v",
+                    "text": "",
+                    "class": "btn-outline-secondary",
+                    "toggle": "modal",
+                    "target": "#actionsModal",
+                },
+            ]
+        ),
         "header_badges": [
             *([{"text": purchase.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": purchase.work_order.pk})}] if hasattr(purchase, 'work_order') and purchase.work_order else []),
             *([{"text": purchase.get_status_display(), "class": "bg-warning text-dark" if purchase.status == 'draft' else "bg-danger text-white", "icon": "fas fa-info-circle"}] if purchase.status != 'confirmed' else []),
@@ -836,6 +837,7 @@ def purchase_detail(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchase")
 def allocate_supplier_prepaid_balance(request, pk):
     """
     تخصيص وتسوية رصيد مسبق/دفعة مقدمة للمورد على فاتورة مشتريات بنسبة 1:1 للعملات المتطابقة
@@ -894,11 +896,13 @@ def allocate_supplier_prepaid_balance(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_purchase")
 def purchase_update(request, pk):
     """
     تعديل فاتورة مشتريات مع دعم القيود التصحيحية للفواتير المرحّلة
     """
-    purchase = get_object_or_404(Purchase, pk=pk)
+    from users.services.data_scoping_service import DataScopingService
+    purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user), pk=pk)
 
     # التحقق من الصلاحيات
     if not request.user.has_perm("purchase.change_purchase"):
@@ -970,6 +974,12 @@ def purchase_update(request, pk):
                             unit_price = Decimal(str(raw_price).replace(',', ''))
                         except (ValueError, TypeError):
                             unit_price = Decimal("0")
+
+                        # فحص صلاحية تعديل تكلفة الشراء
+                        if not request.user.has_perm('purchase.change_unit_cost') and not request.user.is_superuser:
+                            official_cost = getattr(product, 'cost_price', Decimal('0.00')) or Decimal('0.00')
+                            if official_cost > Decimal('0.00') and unit_price != official_cost:
+                                raise ValidationError(f"غير مصرح لك بتعديل تكلفة شراء الصنف '{product.name}'. السعر المعتمد هو {official_cost} ج.م")
 
                         try:
                             raw_disc = discounts[i] if i < len(discounts) and discounts[i] else "0"
@@ -1149,7 +1159,7 @@ def purchase_update(request, pk):
 
     # جلب البيانات المطلوبة للقوائم المنسدلة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    warehouses = DataScopingService.get_transaction_warehouses(request.user)
     products = Product.objects.filter(is_active=True).order_by("name")
 
     from financial.models import Currency
@@ -1185,100 +1195,59 @@ def purchase_update(request, pk):
 
 
 @login_required
+@require_permission("purchase.delete_purchase")
 def purchase_delete(request, pk):
     """
-    حذف فاتورة المشتريات
+    حذف فاتورة المشتريات (مقتصر حصراً على فواتير المسودة مع الحفاظ على الثبات المحاسبي)
     """
-    purchase = get_object_or_404(Purchase, pk=pk)
+    from users.services.data_scoping_service import DataScopingService
+    purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user), pk=pk)
 
-    # التحقق مما إذا كانت الفاتورة لها مرتجعات مؤكدة
-    has_confirmed_returns = purchase.returns.filter(status="confirmed").exists()
-
-    if has_confirmed_returns:
-        messages.error(request, "لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات مؤكدة")
+    # التحقق من الملكية
+    is_owner = (purchase.created_by_id == request.user.id)
+    has_all = request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('purchase.view_all_purchases')
+    if not is_owner and not has_all:
+        messages.error(request, "غير مصرح لك بحذف فاتورة مسجلة بواسطة مستخدم آخر.")
         return redirect("purchase:purchase_detail", pk=purchase.pk)
 
-    # التحقق من وجود دفعات مرحلة
-    has_posted_payments = purchase.payments.filter(status="posted").exists()
+    # 1. الحظر المطلق لحذف الفواتير المرحلة أو المعتمدة أو التي تولد عنها قيد
+    if purchase.status == "posted" or purchase.journal_entry_id:
+        messages.error(
+            request,
+            "عفواً، لا يمكن حذف فاتورة مشتريات مرحلة أو مولدة لقيود محاسبية حفاظاً على الثبات المحاسبي والأستاذ العام. يرجى استخدام مسار مردودات المشتريات (Purchase Return) وإشعار التسوية."
+        )
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
 
+    # 2. التحقق مما إذا كانت الفاتورة لها مرتجعات مؤكدة
+    has_confirmed_returns = purchase.returns.filter(status="confirmed").exists()
+    if has_confirmed_returns:
+        messages.error(request, "لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات مؤكدة.")
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+    # 3. التحقق من وجود دفعات مرحلة
+    has_posted_payments = purchase.payments.filter(status="posted").exists()
     if has_posted_payments:
         messages.error(
             request,
-            "لا يمكن حذف الفاتورة لأنها تحتوي على دفعات مرحلة. يجب إلغاء ترحيل الدفعات أولاً."
+            "لا يمكن حذف الفاتورة لأنها تحتوي على دفعات مسجلة أو مرحلة. يجب إلغاء الدفعات أولاً."
         )
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+    # 4. السماح فقط بفواتير المسودة
+    if purchase.status != "draft":
+        messages.error(request, "يُسمح بحذف فواتير المشتريات بحالة مسودة فقط.")
         return redirect("purchase:purchase_detail", pk=purchase.pk)
 
     if request.method == "POST":
         try:
-            # استيراد Stock محلياً لتجنب مشاكل الاستيراد الدائري
-            from product.models import Stock
-            
-            # التحقق من المخزون المتاح قبل الحذف
-            insufficient_stock_items = []
-            for item in purchase.items.all():
-                stock = Stock.objects.filter(
-                    product=item.product,
-                    warehouse=purchase.warehouse
-                ).first()
-                
-                current_quantity = stock.quantity if stock else 0
-                
-                if current_quantity < item.quantity:
-                    insufficient_stock_items.append({
-                        'product': item.product.name,
-                        'required': item.quantity,
-                        'available': current_quantity,
-                        'sold': item.quantity - current_quantity
-                    })
-            
-            # إذا كان هناك منتجات تم بيعها، منع الحذف
-            if insufficient_stock_items:
-                error_message = "لا يمكن حذف الفاتورة - تم بيع جزء من المنتجات:\n\n"
-                for item_info in insufficient_stock_items:
-                    error_message += (
-                        f"• {item_info['product']}: "
-                        f"الكمية المطلوب إرجاعها {item_info['required']}، "
-                        f"المتاح في المخزون {item_info['available']}، "
-                        f"تم بيع {item_info['sold']}\n"
-                    )
-                error_message += "\nيجب إنشاء مرتجع مشتريات بدلاً من حذف الفاتورة."
-                messages.error(request, error_message)
-                return redirect("purchase:purchase_detail", pk=purchase.pk)
-            
             with transaction.atomic():
-                # signal handle_deleted_purchase_item سيتولى إنشاء الحركات المعاكسة
-
-                # إلغاء ترحيل وحذف القيد المحاسبي المرتبط بالفاتورة إذا وُجد
-                journal_entry_info = ""
-                if purchase.journal_entry:
-                    journal_entry = purchase.journal_entry
-                    journal_entry_number = journal_entry.number
-                    journal_entry_status = journal_entry.status
-                    
-                    # إلغاء ترحيل القيد أولاً إذا كان مرحلاً
-                    if journal_entry_status == "posted":
-                        try:
-                            journal_entry.status = "draft"
-                            journal_entry.save(update_fields=['status'])
-                            logger.info(f"✅ تم إلغاء ترحيل القيد المحاسبي {journal_entry_number}")
-                            journal_entry_info = f" وتم إلغاء ترحيل وحذف القيد المحاسبي {journal_entry_number}"
-                        except Exception as e:
-                            logger.error(f"❌ فشل في إلغاء ترحيل القيد {journal_entry_number}: {e}")
-                            journal_entry_info = f" وتم حذف القيد المحاسبي {journal_entry_number} (فشل إلغاء الترحيل)"
-                    else:
-                        journal_entry_info = f" وتم حذف القيد المحاسبي {journal_entry_number}"
-                    
-                    # حذف القيد المحاسبي وخطوطه
-                    journal_entry.delete()
-                    logger.info(f"✅ تم حذف القيد المحاسبي {journal_entry_number} المرتبط بفاتورة المشتريات {purchase.number}")
-
-                # حذف الفاتورة (CASCADE سيحذف البنود و signals ستعالج المخزون)
                 purchase_number = purchase.number
+                # مسح الفاتورة المسودة وبنودها فقط
                 purchase.delete()
 
                 messages.success(
                     request,
-                    f"تم حذف فاتورة المشتريات {purchase_number} بنجاح{journal_entry_info}. تم إرجاع المخزون بشكل صحيح.",
+                    f"تم حذف مسودة فاتورة المشتريات {purchase_number} بنجاح.",
                 )
                 return redirect("purchase:purchase_list")
 
@@ -1315,7 +1284,8 @@ def purchase_delete(request, pk):
 
 
 def get_purchase_print_context(request, pk):
-    purchase = get_object_or_404(Purchase, pk=pk)
+    from users.services.data_scoping_service import DataScopingService
+    purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user), pk=pk)
     items = purchase.items.all().select_related('product', 'product__unit', 'product__category')
 
     default_lang = SystemSetting.get_default_print_language()
@@ -1357,6 +1327,7 @@ def get_purchase_print_context(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchase")
 def purchase_print(request, pk):
     """
     طباعة فاتورة المشتريات (عربي / إنجليزي / ثنائي اللغة)
@@ -1366,6 +1337,7 @@ def purchase_print(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchase")
 def purchase_pdf_download(request, pk):
     """
     تصدير/تحميل فاتورة مشتريات مباشرة كـ PDF بنسق نقي
@@ -1388,6 +1360,7 @@ def purchase_pdf_download(request, pk):
 
 
 @login_required
+@require_permission("purchase.view_purchase")
 def purchase_email_pdf(request, pk):
     """
     إرسال فاتورة المشتريات عبر البريد الإلكتروني للمورد مباشرة
@@ -1409,6 +1382,7 @@ def purchase_email_pdf(request, pk):
 
 
 @login_required
+@require_permission("purchase.add_purchase")
 def purchase_duplicate(request, pk):
     """
     نسخ فاتورة مشتريات - فتح صفحة الإنشاء مع تحميل بيانات الفاتورة الأصلية

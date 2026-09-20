@@ -97,6 +97,7 @@ class SystemHealthAPIView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+@login_required
 def get_dashboard_stats(request):
     """
     API لجلب إحصائيات لوحة التحكم
@@ -126,6 +127,7 @@ def get_dashboard_stats(request):
     return JsonResponse({"status": "success", "stats": stats})
 
 
+@login_required
 def get_recent_activity(request, days=7):
     """
     API لجلب نشاطات المستخدم الأخيرة
@@ -156,6 +158,7 @@ def get_recent_activity(request, days=7):
 # API لإدارة الإشعارات
 
 
+@login_required
 def mark_notification_read(request, notification_id):
     """
     API لتعليم إشعار كمقروء
@@ -189,6 +192,7 @@ def mark_notification_read(request, notification_id):
         return JsonResponse({"success": False, "message": str(e)})
 
 
+@login_required
 def mark_notification_unread(request, notification_id):
     """
     API لتعليم إشعار كغير مقروء
@@ -219,6 +223,7 @@ def mark_notification_unread(request, notification_id):
         return JsonResponse({"success": False, "message": str(e)})
 
 
+@login_required
 def mark_all_notifications_read(request):
     """
     API لتعليم جميع الإشعارات كمقروءة

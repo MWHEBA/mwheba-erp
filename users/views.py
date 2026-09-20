@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from .decorators import require_permission
 from .models import User, ActivityLog, Role
 from django.urls import reverse, reverse_lazy
 from django.contrib import messages
@@ -116,7 +117,7 @@ def profile(request):
 
 
 @login_required
-@permission_required('users.view_user', raise_exception=True)
+@require_permission('users.view_user')
 def user_list(request):
     """
     عرض قائمة المستخدمين (للمديرين فقط)
@@ -348,8 +349,9 @@ def user_edit(request, user_id):
     if not request.user.can_manage_users():
         return JsonResponse({
             'success': False,
+            'error': 'permission_denied',
             'message': 'ليس لديك صلاحية لتعديل المستخدمين'
-        })
+        }, status=403)
 
     user = get_object_or_404(User, id=user_id)
 
@@ -449,12 +451,20 @@ def user_delete(request, user_id):
 def login_as_user(request, user_id):
     """
     تسجيل الدخول كمستخدم آخر (للـ superuser فقط)
+    مع توثيق رقابي كامل ومسح كاش الصلاحيات
     """
     if not request.user.is_superuser:
         return JsonResponse({
             'success': False,
             'message': 'هذه الميزة متاحة للمدير الرئيسي فقط'
         }, status=403)
+
+    # منع الانتحال المتداخل
+    if request.session.get('is_impersonating') or request.session.get('impersonated_by'):
+        return JsonResponse({
+            'success': False,
+            'message': 'يجب إنهاء جلسة الانتحال الحالية أولاً قبل انتحال مستخدم آخر'
+        }, status=400)
 
     target_user = get_object_or_404(User, id=user_id)
 
@@ -465,16 +475,51 @@ def login_as_user(request, user_id):
             'message': 'أنت بالفعل مسجل الدخول بهذا الحساب'
         }, status=400)
 
-    # حفظ معرف المستخدم الأصلي في الـ session قبل التبديل
+    # حظر انتحال مدير رئيسي آخر
+    if target_user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'message': 'لا يمكن انتحال حساب مدير رئيسي آخر لأسباب أمنية'
+        }, status=403)
+
     from django.contrib.auth import login as auth_login
-    original_user_id = request.session.get('original_user_id') or request.user.id
+    from users.services.permission_cache import PermissionCacheService
+    original_user = request.user
+    original_user_id = original_user.id
+
+    # تسجيل حركة بدء الانتحال في سجل النشاطات (Non-Repudiation Audit)
+    try:
+        ActivityLog.objects.create(
+            user=original_user,
+            action='IMPERSONATION_START',
+            model_name='User',
+            object_id=target_user.id,
+            ip_address=request.META.get('REMOTE_ADDR'),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            extra_data={
+                'impersonator_id': original_user_id,
+                'impersonator_username': original_user.username,
+                'target_user_id': target_user.id,
+                'target_username': target_user.username,
+                'details': f"بدأ المشرف {original_user.username} جلسة انتحال هوية للمستخدم {target_user.username}"
+            }
+        )
+    except Exception:
+        pass
 
     # تسجيل الدخول كالمستخدم المستهدف
     target_user.backend = 'users.backends.EmailOrUsernameModelBackend'
     auth_login(request, target_user)
 
+    # تنظيف كاش الصلاحيات فوراً لمنع تسرب الصلاحيات بين الحسابين
+    PermissionCacheService.invalidate_user_cache(original_user_id)
+    PermissionCacheService.invalidate_user_cache(target_user.id)
+    if hasattr(request, '_perm_cache'):
+        delattr(request, '_perm_cache')
+
     # حفظ معرف المستخدم الأصلي للرجوع لاحقاً
     request.session['original_user_id'] = original_user_id
+    request.session['impersonated_by'] = original_user_id
     request.session['is_impersonating'] = True
 
     return JsonResponse({
@@ -487,25 +532,58 @@ def login_as_user(request, user_id):
 @login_required
 def stop_impersonation(request):
     """
-    إيقاف انتحال الهوية والرجوع للمستخدم الأصلي
+    إيقاف انتحال الهوية والرجوع للمستخدم الأصلي مع التوثيق ومسح الكاش
     """
-    original_user_id = request.session.get('original_user_id')
+    original_user_id = request.session.get('impersonated_by') or request.session.get('original_user_id')
     if not original_user_id:
         return redirect('core:dashboard')
+
+    current_target_user = request.user
 
     try:
         original_user = User.objects.get(id=original_user_id)
         from django.contrib.auth import login as auth_login
+        from users.services.permission_cache import PermissionCacheService
+
+        # توثيق إنهاء جلسة الانتحال
+        try:
+            ActivityLog.objects.create(
+                user=original_user,
+                action='IMPERSONATION_STOP',
+                model_name='User',
+                object_id=current_target_user.id if current_target_user.is_authenticated else None,
+                ip_address=request.META.get('REMOTE_ADDR'),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                extra_data={
+                    'impersonator_id': original_user.id,
+                    'impersonator_username': original_user.username,
+                    'target_user_id': current_target_user.id if current_target_user.is_authenticated else None,
+                    'target_username': current_target_user.username if current_target_user.is_authenticated else '',
+                    'details': f"أنهى المشرف {original_user.username} جلسة انتحال الهوية"
+                }
+            )
+        except Exception:
+            pass
+
         original_user.backend = 'users.backends.EmailOrUsernameModelBackend'
         auth_login(request, original_user)
 
+        # تنظيف كاش الصلاحيات
+        PermissionCacheService.invalidate_user_cache(original_user.id)
+        if current_target_user.is_authenticated:
+            PermissionCacheService.invalidate_user_cache(current_target_user.id)
+        if hasattr(request, '_perm_cache'):
+            delattr(request, '_perm_cache')
+
         # تنظيف الـ session
         request.session.pop('original_user_id', None)
+        request.session.pop('impersonated_by', None)
         request.session.pop('is_impersonating', None)
 
         messages.success(request, f'تم الرجوع لحسابك الأصلي: {original_user.get_full_name() or original_user.username}')
     except User.DoesNotExist:
         request.session.pop('original_user_id', None)
+        request.session.pop('impersonated_by', None)
         request.session.pop('is_impersonating', None)
 
     return redirect('core:dashboard')

@@ -28,7 +28,7 @@ class TestSprint6ProcurementEngine:
 
     @pytest.fixture
     def setup_procurement_data(self):
-        user = User.objects.create_user(username="pur_user6", password="password123")
+        user = User.objects.create_superuser(username="pur_user6", password="password123", email="pur6@test.com")
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "Asset", "category": "ASSET"})
         liability_type, _ = AccountType.objects.get_or_create(code="LIABILITY", defaults={"name": "Liability", "category": "LIABILITY"})

@@ -3,6 +3,9 @@ Profitability Report Views
 واجهات تقارير الربحية حسب التصنيفات المالية
 """
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
+from users.mixins import SmartPermissionRequiredMixin
 from django.views.generic import TemplateView
 from django.urls import reverse_lazy
 from django.http import HttpResponse
@@ -15,8 +18,9 @@ from ..services.category_profitability_service import CategoryProfitabilityServi
 from ..models.categories import FinancialCategory
 
 
-class ProfitabilityDashboardView(LoginRequiredMixin, TemplateView):
+class ProfitabilityDashboardView(SmartPermissionRequiredMixin, TemplateView):
     """لوحة تقارير الربحية"""
+    permission_required = 'financial.view_chartofaccounts'
     template_name = 'financial/reports/profitability_dashboard.html'
     
     def get_context_data(self, **kwargs):
@@ -83,8 +87,9 @@ class ProfitabilityDashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class CategoryDetailReportView(LoginRequiredMixin, TemplateView):
+class CategoryDetailReportView(SmartPermissionRequiredMixin, TemplateView):
     """تقرير تفصيلي لتصنيف واحد"""
+    permission_required = 'financial.view_chartofaccounts'
     template_name = 'financial/reports/category_detail.html'
     
     def get_context_data(self, **kwargs):
@@ -158,6 +163,8 @@ class CategoryDetailReportView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@login_required
+@require_permission('financial.view_chartofaccounts')
 def export_profitability_excel(request):
     """تصدير تقرير الربحية إلى Excel"""
     # الحصول على فلاتر التاريخ
@@ -335,6 +342,8 @@ def export_profitability_excel(request):
     return response
 
 
+@login_required
+@require_permission('financial.view_chartofaccounts')
 def export_category_detail_excel(request, code):
     """تصدير التقرير التفصيلي لتصنيف إلى Excel"""
     # الحصول على فلاتر التاريخ

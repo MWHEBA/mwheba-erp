@@ -152,14 +152,9 @@ class SaleForm(forms.ModelForm):
             )
         self.can_change_salesman = can_change_salesman
 
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        salesman_qs = User.objects.filter(is_active=True).order_by('first_name', 'username')
-        if self.instance and self.instance.pk and self.instance.salesman_id:
-            salesman_qs = User.objects.filter(
-                models.Q(is_active=True) | models.Q(pk=self.instance.salesman_id)
-            ).order_by('first_name', 'username')
-        self.fields['salesman'].queryset = salesman_qs
+        from users.services.data_scoping_service import DataScopingService
+        include_id = self.instance.salesman_id if self.instance and self.instance.pk else None
+        self.fields['salesman'].queryset = DataScopingService.get_scoped_salesmen(include_user_id=include_id)
 
         if not self.instance.pk and user and not self.initial.get('salesman'):
             self.initial['salesman'] = user.pk
@@ -179,8 +174,9 @@ class SaleForm(forms.ModelForm):
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
 
-        # تعيين أول مخزن بشكل افتراضي
-        warehouses = Warehouse.objects.filter(is_active=True)
+        # تعيين المخازن المتاحة للمعاملات
+        warehouses = DataScopingService.get_transaction_warehouses(user)
+        self.fields['warehouse'].queryset = warehouses
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
 
@@ -828,14 +824,9 @@ class QuotationForm(forms.ModelForm):
             )
         self.can_change_salesman = can_change_salesman
 
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        salesman_qs = User.objects.filter(is_active=True).order_by('first_name', 'username')
-        if self.instance and self.instance.pk and self.instance.salesman_id:
-            salesman_qs = User.objects.filter(
-                models.Q(is_active=True) | models.Q(pk=self.instance.salesman_id)
-            ).order_by('first_name', 'username')
-        self.fields['salesman'].queryset = salesman_qs
+        from users.services.data_scoping_service import DataScopingService
+        include_id = self.instance.salesman_id if self.instance and self.instance.pk else None
+        self.fields['salesman'].queryset = DataScopingService.get_scoped_salesmen(include_user_id=include_id)
 
         if not self.instance.pk and user and not self.initial.get('salesman'):
             self.initial['salesman'] = user.pk

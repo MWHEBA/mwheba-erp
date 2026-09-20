@@ -779,7 +779,7 @@
 document.addEventListener('DOMContentLoaded', function() {
   const orderId = "{{ order.pk }}";
   const isGatedReady = '{% if po_gating and po_gating.is_gated_ready %}1{% else %}0{% endif %}' === '1';
-  const canOverrideGating = '{% if request.user.is_superuser or request.user.is_staff %}1{% else %}0{% endif %}' === '1';
+  const canOverrideGating = '{% if perms.printing_pricing.override_pricing_rules %}1{% else %}0{% endif %}' === '1';
 
   // 1. إعادة حساب التكلفة عبر AJAX
   window.recalculateOrderCost = function(pk) {

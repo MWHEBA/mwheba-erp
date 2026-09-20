@@ -32,7 +32,8 @@
                     <input type="text" inputmode="decimal" class="price-cell"
                            data-field="selling_price" data-id="{{ item.pk }}"
                            data-raw="{{ item.selling_price }}"
-                           value="{{ item.selling_price|smart_float }}" step="0.01" min="0">
+                           value="{{ item.selling_price|smart_float }}" step="0.01" min="0"
+                           {% if not perms.product.change_product and not user.is_superuser %}disabled readonly{% endif %}>
                 </td>
                 <td class="text-center align-middle profit-cell" data-id="{{ item.pk }}"
                     style="background:rgba(var(--bs-secondary-rgb),0.06);">
@@ -42,13 +43,15 @@
                     <input type="text" inputmode="decimal" class="price-cell"
                            data-field="tax_rate" data-id="{{ item.pk }}"
                            data-raw="{{ item.tax_rate }}"
-                           value="{{ item.tax_rate|smart_float }}" step="0.1" min="0" max="100">
+                           value="{{ item.tax_rate|smart_float }}" step="0.1" min="0" max="100"
+                           {% if not perms.product.change_product and not user.is_superuser %}disabled readonly{% endif %}>
                 </td>
                 <td class="text-center align-middle">
                     <input type="text" inputmode="decimal" class="price-cell"
                            data-field="discount_rate" data-id="{{ item.pk }}"
                            data-raw="{{ item.discount_rate }}"
-                           value="{{ item.discount_rate|smart_float }}" step="0.1" min="0" max="100">
+                           value="{{ item.discount_rate|smart_float }}" step="0.1" min="0" max="100"
+                           {% if not perms.product.change_product and not user.is_superuser %}disabled readonly{% endif %}>
                 </td>
             </tr>
             {% empty %}

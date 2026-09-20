@@ -101,7 +101,7 @@ class TestCustomerSupplierFilters(TestCase):
 
     def test_supplier_list_search_and_ajax(self):
         from users.models import User
-        user = User.objects.create_user(username="test_search_user", password="password123")
+        user = User.objects.create_user(username="test_search_user", password="password123", is_superuser=True)
         self.client.force_login(user)
 
         # 1. Direct GET search

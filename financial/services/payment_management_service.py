@@ -30,7 +30,7 @@ class PaymentManagementService:
 
         with transaction.atomic():
             # 1. التحقق من صلاحيات المستخدم (RBAC Guard)
-            if user and not (user.is_superuser or user.is_staff or user.has_perm("financial.delete_payment") or user.has_perm("sale.delete_salepayment") or user.has_perm("purchase.delete_purchasepayment")):
+            if user and not (user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm("financial.delete_payment") or user.has_perm("sale.delete_salepayment") or user.has_perm("purchase.delete_purchasepayment")):
                 raise ValidationError(_("ليس لديك الصلاحية الكافية لحذف هذه الدفعة المالية."))
 
             # 2. التحقق من حظر الفترات المالية المغلقة

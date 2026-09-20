@@ -247,6 +247,9 @@ class SalesService:
         """
         اعتماد أمر البيع عبر محرك الاعتمادات المؤسسي FIN-CORE-017
         """
+        if user and hasattr(user, 'has_perm') and not (user.is_superuser or user.has_perm("sale.approve_sales_order")):
+            raise FinancialCoreError("ليس لديك صلاحية اعتماد أوامر البيع.")
+
         with transaction.atomic():
             so = SalesOrder.objects.select_for_update().get(pk=so_id)
             if so.status not in ["DRAFT", "PENDING_APPROVAL"]:
@@ -673,6 +676,9 @@ class SalesService:
         """
         إلغاء أمر البيع وفك حجز المخزون (Release ATP Inventory Reservations)
         """
+        if user and hasattr(user, 'has_perm') and not (user.is_superuser or user.has_perm("sale.change_salesorder")):
+            raise FinancialCoreError("ليس لديك صلاحية إلغاء أوامر البيع.")
+
         with transaction.atomic():
             so = SalesOrder.objects.select_for_update().get(pk=so_id)
             if so.status in ["CANCELLED", "FULLY_DELIVERED", "INVOICED"]:
@@ -711,6 +717,9 @@ class SalesService:
         """
         إلغاء إذن التسليم المخزني وعكس قيد التكلفة (Reverse COGS) وإعادة البضاعة للمخزن
         """
+        if user and hasattr(user, 'has_perm') and not (user.is_superuser or user.has_perm("sale.change_deliverynote")):
+            raise FinancialCoreError("ليس لديك صلاحية إلغاء أذونات التسليم المخزنية.")
+
         with transaction.atomic():
             dn = DeliveryNote.objects.select_for_update().get(pk=dn_id)
             if dn.status == "CANCELLED":

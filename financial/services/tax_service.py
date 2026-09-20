@@ -91,7 +91,7 @@ class TaxDeterminationService:
         if lines is None:
             lines = []
 
-        date_val = transaction_date or timezone.now().date()
+        date_val = transaction_date or timezone.localdate()
         doc_num = f"{document_type}-{document_id}"
 
         # 1. Resolve Jurisdiction

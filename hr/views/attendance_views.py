@@ -3,7 +3,6 @@ Views إدارة الحضور
 """
 from .base_imports import *
 from django.views.decorators.http import require_POST
-from django.contrib.auth.decorators import permission_required
 from django.db.models import Count
 from decimal import Decimal, ROUND_HALF_UP
 from ..models import Employee, Department, Shift, BiometricLog, AttendanceSummary, Attendance, RamadanSettings, AttendancePenalty
@@ -35,7 +34,11 @@ __all__ = [
 ]
 
 
+from users.decorators import require_permission
+
+
 @login_required
+@require_permission('hr.view_attendance')
 def attendance_list(request):
     """قائمة الحضور - من سجلات Attendance المعالجة"""
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -1330,7 +1333,7 @@ def attendance_check_out(request):
 # ============================================
 
 @login_required
-@permission_required('hr.can_process_payroll', raise_exception=True)
+@require_permission('hr.can_process_payroll')
 @require_POST
 def calculate_attendance_summaries(request):
     """حساب ملخصات الحضور لجميع الموظفين"""

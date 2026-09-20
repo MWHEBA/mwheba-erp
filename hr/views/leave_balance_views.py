@@ -20,8 +20,11 @@ __all__ = [
     'leave_balance_get_api',
 ]
 
+from users.decorators import require_permission
+
 
 @login_required
+@require_permission('hr.view_leavebalance')
 def leave_balance_list(request):
     """قائمة أرصدة الإجازات"""
     current_year = date.today().year
@@ -200,6 +203,7 @@ def leave_balance_list(request):
 
 
 @login_required
+@require_permission('hr.view_leavebalance')
 def leave_balance_employee(request, employee_id):
     """أرصدة إجازات موظف محدد"""
     employee = get_object_or_404(Employee, pk=employee_id)
@@ -251,6 +255,7 @@ def leave_balance_employee(request, employee_id):
 
 
 @login_required
+@require_permission('hr.change_leavebalance')
 def leave_balance_update_all(request):
     """تحديث أرصدة الإجازات لجميع الموظفين تلقائياً"""
     if request.method == 'POST':
@@ -333,6 +338,8 @@ def leave_balance_get_api(request):
     return JsonResponse({'found': False})
 
 
+@login_required
+@require_permission('hr.change_leavebalance')
 def leave_balance_update(request):
     """تحديث أرصدة الإجازات"""
     from django.urls import reverse

@@ -73,6 +73,7 @@
         )</span>
         {% endif %}
     </td>
+    {% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
     <td style="text-align: center;">{{ item.unit_price|currency:purchase.currency_symbol }}</td>
     {% if has_item_discounts or purchase.has_item_discounts %}
     <td style="text-align: center;">
@@ -84,6 +85,13 @@
     </td>
     {% endif %}
     <td style="text-align: center; font-weight: 700;">{{ item.total|currency:purchase.currency_symbol }}</td>
+    {% else %}
+    <td style="text-align: center;" class="text-muted">***</td>
+    {% if has_item_discounts or purchase.has_item_discounts %}
+    <td style="text-align: center;" class="text-muted">***</td>
+    {% endif %}
+    <td style="text-align: center;" class="text-muted">***</td>
+    {% endif %}
 </tr>
 {% endfor %}
 {% endblock %}
@@ -100,6 +108,7 @@
 {% endblock %}
 
 {% block summary_rows %}
+{% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
 <tr>
     <td>{% trans "المجموع الفرعي" %}</td>
     <td>{{ purchase.subtotal|currency:purchase.currency_symbol }}</td>
@@ -138,6 +147,13 @@
     <td>{% trans "الإجمالي النهائي للمشتريات" %}</td>
     <td>{{ purchase.total|currency:purchase.currency_symbol }}</td>
 </tr>
+{% else %}
+<tr>
+    <td colspan="2" class="text-center text-muted py-3">
+        <i class="fas fa-lock me-1"></i> {% trans "البيانات المالية محجوبة لأغراض رقابية (استلام مخزني أعمى)" %}
+    </td>
+</tr>
+{% endif %}
 {% endblock %}
 
 {% block terms_and_conditions %}

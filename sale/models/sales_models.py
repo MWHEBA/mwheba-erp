@@ -87,6 +87,11 @@ class SalesOrder(models.Model):
         verbose_name = _("أمر بيع")
         verbose_name_plural = _("أوامر البيع")
         ordering = ["-order_date", "-id"]
+        permissions = [
+            ("approve_sales_order", _("اعتماد أمر البيع")),
+            ("change_sales_order_price", _("تعديل أسعار أوامر البيع")),
+            ("view_all_salesorders", _("الاطلاع على أوامر بيع كافة المناديب")),
+        ]
 
     @property
     def currency_code(self) -> str:

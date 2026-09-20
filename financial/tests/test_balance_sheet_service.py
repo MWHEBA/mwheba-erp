@@ -39,7 +39,10 @@ class TestBalanceSheetService:
         self.acc_cogs, _ = ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "تكلفة البضاعة", "account_type": self.type_exp, "is_leaf": True, "level": 3})
 
         # 3. إنشاء مستخدم
-        self.user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@mwheba.com"})
+        self.user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@mwheba.com", "is_staff": True, "is_superuser": True})
+        if not self.user.is_superuser:
+            self.user.is_superuser = True
+            self.user.save()
 
     def test_balance_sheet_generation_and_equation(self):
         """اختبار صحة توليد الميزانية والتطابق التام للمعادلة المحاسبية"""

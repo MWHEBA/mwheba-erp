@@ -189,3 +189,98 @@ def log_user_login_failed(sender, credentials, request, **kwargs):
         pass
     except Exception as e:
         logger.error(f"Error logging failed login: {e}", exc_info=True)
+
+
+from django.db.models.signals import m2m_changed
+from django.core.cache import cache
+from users.models import Role
+
+
+@receiver(post_save, sender=Role)
+@receiver(post_delete, sender=Role)
+def invalidate_role_cache_on_role_change(sender, instance, **kwargs):
+    """تفريغ الكاش عند تعديل الدور أو حذفه مع توريث التفريغ لكافة الأدوار التابعة والمستخدمين الثانويين"""
+    try:
+        roles = {instance}
+        if hasattr(instance, 'get_all_descendant_roles'):
+            roles.update(instance.get_all_descendant_roles())
+
+        user_ids = set()
+        for r in roles:
+            user_ids.update(r.users.values_list('id', flat=True))
+            if hasattr(r, 'secondary_users'):
+                user_ids.update(r.secondary_users.values_list('id', flat=True))
+
+        keys_to_delete = []
+        for uid in user_ids:
+            keys_to_delete.extend([
+                f"user_perms_{uid}",
+                f"perm_cache:user_perms:{uid}",
+                f"perm_cache:user_summary:{uid}",
+            ])
+        keys_to_delete.append("all_system_permissions_set")
+        if keys_to_delete:
+            cache.delete_many(keys_to_delete)
+    except Exception as e:
+        logger.error(f"Error invalidating role cache: {e}")
+
+
+@receiver(m2m_changed, sender=Role.permissions.through)
+def invalidate_role_permissions_m2m(sender, instance, **kwargs):
+    """تفريغ الكاش المجمع لكافة مستخدمي الدور وأدواره التابعة عند تعديل صلاحيات الدور"""
+    try:
+        if isinstance(instance, Role):
+            roles = {instance}
+            if hasattr(instance, 'get_all_descendant_roles'):
+                roles.update(instance.get_all_descendant_roles())
+
+            user_ids = set()
+            for r in roles:
+                user_ids.update(r.users.values_list('id', flat=True))
+                if hasattr(r, 'secondary_users'):
+                    user_ids.update(r.secondary_users.values_list('id', flat=True))
+
+            keys_to_delete = []
+            for uid in user_ids:
+                keys_to_delete.extend([
+                    f"user_perms_{uid}",
+                    f"perm_cache:user_perms:{uid}",
+                    f"perm_cache:user_summary:{uid}",
+                ])
+            keys_to_delete.append("all_system_permissions_set")
+            if keys_to_delete:
+                cache.delete_many(keys_to_delete)
+    except Exception as e:
+        logger.error(f"Error invalidating m2m role permissions cache: {e}")
+
+
+@receiver(m2m_changed, sender=User.secondary_roles.through)
+@receiver(m2m_changed, sender=User.revoked_permissions.through)
+@receiver(m2m_changed, sender=User.user_permissions.through)
+def invalidate_user_m2m_permissions_cache(sender, instance, **kwargs):
+    """تفريغ كاش المستخدم عند تعديل أدواره الثانوية أو صلاحياته المحجوبة أو المخصصة"""
+    try:
+        if isinstance(instance, User):
+            cache_keys = [
+                f"user_perms_{instance.id}",
+                f"perm_cache:user_perms:{instance.id}",
+                f"perm_cache:user_summary:{instance.id}",
+            ]
+            cache.delete_many(cache_keys)
+    except Exception as e:
+        logger.error(f"Error invalidating user m2m cache: {e}")
+
+
+@receiver(post_save, sender=User)
+@receiver(post_delete, sender=User)
+def invalidate_user_permissions_cache(sender, instance, **kwargs):
+    """تفريغ كاش المستخدم الفردي عند تعديله"""
+    try:
+        cache_keys = [
+            f"user_perms_{instance.id}",
+            f"perm_cache:user_perms:{instance.id}",
+            f"perm_cache:user_summary:{instance.id}",
+        ]
+        cache.delete_many(cache_keys)
+    except Exception as e:
+        logger.error(f"Error invalidating user cache: {e}")

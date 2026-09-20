@@ -115,6 +115,12 @@
                             <i class="fas fa-user-slash me-1"></i>بدون دور
                         </span>
                     {% endif %}
+
+                    {% for sec_role in user.secondary_roles.all %}
+                        <span class="badge bg-light text-dark border ms-1 px-2 py-1" title="دور ثانوي مدمج">
+                            <i class="fas fa-plus text-primary me-1"></i>{{ sec_role.display_name }}
+                        </span>
+                    {% endfor %}
                 </div>
                 
                 <!-- Custom Permissions Count -->
@@ -125,7 +131,7 @@
                             كل الصلاحيات
                         </span>
                     {% else %}
-                        {% with role_perms=user.role.permissions.count|default:0 custom_perms=user.user_permissions.count|default:0 %}
+                        {% with role_perms=user_data.role_permissions_count|default:0 custom_perms=user_data.direct_permissions_count|default:0 %}
                         <span class="badge bg-info" title="صلاحيات الدور + الصلاحيات المخصصة">
                             <i class="fas fa-key me-1"></i>
                             {% if user.role %}
@@ -141,13 +147,30 @@
                 <!-- Action Buttons -->
                 <div class="btn-group btn-group-sm">
                     {% if not user.is_superuser %}
+                        {% if request.user.is_superuser and user != request.user %}
+                        <button type="button" class="btn btn-outline-info login-as-user-btn" 
+                                data-user-id="{{ user.id }}" 
+                                data-user-name="{{ user.get_full_name|default:user.username }}"
+                                data-bs-toggle="tooltip" 
+                                title="دخول باسم المستخدم (انتحال هوية)">
+                            <i class="fas fa-user-secret"></i>
+                        </button>
+                        {% endif %}
                         <button type="button" class="btn btn-outline-primary assign-role-btn" 
                                 data-user-id="{{ user.id }}" 
                                 data-user-name="{{ user.get_full_name|default:user.username }}"
                                 data-current-role="{{ user.role.id|default:'' }}"
+                                data-secondary-roles="[{% for r in user.secondary_roles.all %}{{ r.id }}{% if not forloop.last %},{% endif %}{% endfor %}]"
                                 data-bs-toggle="tooltip" 
                                 title="تعيين دور">
                             <i class="fas fa-user-tag"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary edit-user-perms-btn" 
+                                data-user-id="{{ user.id }}" 
+                                data-user-name="{{ user.get_full_name|default:user.username }}"
+                                data-bs-toggle="tooltip" 
+                                title="تخصيص الصلاحيات">
+                            <i class="fas fa-key"></i>
                         </button>
                     {% else %}
                         <button type="button" class="btn btn-outline-warning" disabled

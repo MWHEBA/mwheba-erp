@@ -10,6 +10,7 @@ import logging
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from users.decorators import require_admin
 from .daftra_sync import DaftraSync
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ def sync_progress_generator(sync_type='customers', user=None):
 
 
 @csrf_exempt
+@require_admin(return_json=True)
 @require_http_methods(["POST"])
 def sync_customers(request):
     """مزامنة العملاء مع Daftra - مع تقدم مباشر"""
@@ -112,6 +114,7 @@ def sync_customers(request):
 
 
 @csrf_exempt
+@require_admin(return_json=True)
 @require_http_methods(["POST"])
 def sync_suppliers(request):
     """مزامنة الموردين مع Daftra - مع تقدم مباشر"""
@@ -128,6 +131,7 @@ def sync_suppliers(request):
 
 
 @csrf_exempt
+@require_admin(return_json=True)
 @require_http_methods(["POST"])
 def sync_suppliers_old(request):
     """مزامنة الموردين مع Daftra (النسخة القديمة)"""
@@ -172,6 +176,7 @@ def sync_suppliers_old(request):
 
 
 @csrf_exempt
+@require_admin(return_json=True)
 @require_http_methods(["POST"])
 def test_daftra_connection(request):
     """اختبار الاتصال بـ Daftra API بالإعدادات المُدخلة"""

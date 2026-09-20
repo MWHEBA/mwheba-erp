@@ -16,14 +16,24 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="assignRoleSelect" class="form-label">الدور الجديد</label>
+                        <label for="assignRoleSelect" class="form-label">الدور الأساسي</label>
                         <select class="form-select" id="assignRoleSelect" name="role_id">
-                            <option value="">بدون دور</option>
+                            <option value="">بدون دور أساسي</option>
                             {% for role in available_roles %}
                             <option value="{{ role.id }}">{{ role.display_name }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">اختر دور جديد للمستخدم أو اتركه فارغاً لإزالة الدور</div>
+                        <div class="form-text">اختر الدور الأساسي للمستخدم أو اتركه فارغاً لإزالة الدور</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="assignSecondaryRolesSelect" class="form-label">الأدوار الثانوية (متعدد المهام)</label>
+                        <select class="form-select select2-filter" id="assignSecondaryRolesSelect" name="secondary_role_ids" multiple="multiple" dir="rtl" style="width: 100%;">
+                            {% for role in available_roles %}
+                            <option value="{{ role.id }}">{{ role.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">يمكن اختيار أدوار إضافية لدمج صلاحياتها للمستخدم</div>
                     </div>
                     
                     <!-- Hidden field for user ID -->

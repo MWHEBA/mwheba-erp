@@ -2,13 +2,14 @@
 Bulk Operations for Leave Management
 Issue #32-35: Missing bulk operations
 """
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from ..models import Leave
 from ..services.leave_service import LeaveService
+from ..decorators import can_approve_leaves
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(['POST'])
 @login_required
-@permission_required('hr.approve_leave', raise_exception=True)
+@can_approve_leaves
 def bulk_approve_leaves(request):
     """
     Approve multiple leaves at once
@@ -70,7 +71,7 @@ def bulk_approve_leaves(request):
 
 @require_http_methods(['POST'])
 @login_required
-@permission_required('hr.approve_leave', raise_exception=True)
+@can_approve_leaves
 def bulk_reject_leaves(request):
     """
     Reject multiple leaves at once

@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.utils import timezone
@@ -25,6 +26,7 @@ from financial.services.budget_actual_service import BudgetActualService
 
 
 @login_required
+@require_permission('financial.view_categorybudget')
 def budget_list(request):
     """
     سجل وقائمة الموازنات التقديرية (Budget List View)
@@ -67,6 +69,7 @@ def budget_list(request):
 
 
 @login_required
+@require_permission('financial.add_categorybudget')
 def budget_create(request):
     """
     إعداد موازنة تقديرية لمركز تكلفة (Create Budget)
@@ -161,6 +164,7 @@ def budget_create(request):
 
 
 @login_required
+@require_permission('financial.view_categorybudget')
 def budget_detail(request, pk):
     """
     عرض تفاصيل ومكونات الموازنة التقديرية (Budget Detail View)
@@ -214,6 +218,7 @@ def budget_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.change_categorybudget')
 def budget_submit(request, pk):
     """
     تقديم الموازنة للاعتماد
@@ -226,6 +231,7 @@ def budget_submit(request, pk):
 
 
 @login_required
+@require_permission('financial.change_categorybudget')
 def budget_approve(request, pk):
     """
     اعتماد الموازنة وتفعيل الرقابة فوراً
@@ -239,6 +245,7 @@ def budget_approve(request, pk):
 
 
 @login_required
+@require_permission('financial.change_categorybudget')
 def budget_revise(request, pk):
     """
     إنشاء إصدار معدل من موازنة معتمدة (Budget Revision V+1)
@@ -252,6 +259,7 @@ def budget_revise(request, pk):
 
 
 @login_required
+@require_permission('financial.view_categorybudget')
 def budget_override_list(request):
     """
     لوحة طلبات الموافقة الاستثنائية لتجاوز الموازنة (Budget Override Requests)
@@ -273,6 +281,7 @@ def budget_override_list(request):
 
 
 @login_required
+@require_permission('financial.change_categorybudget')
 def budget_override_action(request, pk):
     """
     قبول أو رفض طلب تجاوز الموازنة
@@ -297,6 +306,7 @@ def budget_override_action(request, pk):
 
 
 @login_required
+@require_permission('financial.view_categorybudget')
 def budget_performance_report(request):
     """
     تقرير تباين أداء الموازنة اللحظي (Real-Time Budget Variance Performance Report)

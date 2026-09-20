@@ -1,0 +1,79 @@
+[
+  {
+    "model": "users.role",
+    "pk": 11,
+    "fields": {
+      "name": "Secretery",
+      "display_name": "سكرتارية",
+      "description": "صلاحيات السكرتارية وإدارة الموظفين والمنتجات والمشتريات",
+      "parent_role": null,
+      "is_system_role": false,
+      "is_active": true,
+      "created_at": "2026-08-01T13:42:56Z",
+      "updated_at": "2026-08-01T13:42:56Z"
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 10,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$U9tb6zExgcUXDIZkiXG66P$tv4I4XCivT6l0RnthtDvf104bjLmC50jmt56dcDBzZ4=",
+      "last_login": "2026-09-20T07:37:50Z",
+      "is_superuser": true,
+      "username": "mwheba",
+      "first_name": "",
+      "last_name": "",
+      "email": "info@mwheba.com",
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2026-07-02T12:39:16Z",
+      "phone": "",
+      "profile_image": "",
+      "status": "active",
+      "address": "",
+      "role": 1
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 11,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$mRitjXFeBsRuLd1KQhgZOV$xfv/HBKaIZpyeM6qXRxqcaJy5zp0r67M4wdCO8ABQ9k=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "ahmed",
+      "first_name": "أحمد",
+      "last_name": "فهد",
+      "email": "ahmed@megroup-eg.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-01T13:35:32Z",
+      "phone": "",
+      "profile_image": "",
+      "status": "active",
+      "address": "",
+      "role": 1
+    }
+  },
+  {
+    "model": "users.user",
+    "pk": 12,
+    "fields": {
+      "password": "pbkdf2_sha256$600000$vS5EQdGBgFFUU5wUO4SEt7$LV9LqU3l6FUsTBGYN0d4HrO7++kWaCoauQ7g/0kqhig=",
+      "last_login": null,
+      "is_superuser": false,
+      "username": "salma",
+      "first_name": "سلمى",
+      "last_name": "قباري",
+      "email": "info@megroup-eg.com",
+      "is_staff": false,
+      "is_active": true,
+      "date_joined": "2026-08-01T13:47:08Z",
+      "phone": "",
+      "profile_image": "",
+      "status": "active",
+      "address": "",
+      "role": 11
+    }
+  }
+]

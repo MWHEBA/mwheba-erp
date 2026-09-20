@@ -1,8 +1,9 @@
-﻿"""
+"""
 Views معالجة الرواتب المتكاملة
 """
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.urls import reverse
@@ -23,7 +24,7 @@ __all__ = [
 
 
 @login_required
-@permission_required('hr.can_process_payroll', raise_exception=True)
+@require_permission('hr.can_process_payroll')
 def integrated_payroll_dashboard(request):
     """لوحة تحكم معالجة الرواتب المتكاملة"""
     
@@ -167,7 +168,7 @@ def integrated_payroll_dashboard(request):
 
 
 @login_required
-@permission_required('hr.can_process_payroll', raise_exception=True)
+@require_permission('hr.can_process_payroll')
 @require_POST
 def process_monthly_payrolls(request):
     """معالجة رواتب الشهر"""
@@ -212,7 +213,7 @@ def process_monthly_payrolls(request):
 
 
 @login_required
-@permission_required('hr.can_process_payroll', raise_exception=True)
+@require_permission('hr.can_process_payroll')
 def calculate_single_payroll(request, employee_id):
     """حساب راتب موظف واحد"""
     from hr.services.payroll_gateway_service import HRPayrollGatewayService
@@ -257,7 +258,7 @@ def calculate_single_payroll(request, employee_id):
 
 @login_required
 @require_POST
-@permission_required('hr.can_process_payroll', raise_exception=True)
+@require_permission('hr.can_process_payroll')
 def payroll_recalculate(request, pk):
     """إعادة حساب قسيمة راتب موجودة"""
     from django.db import transaction

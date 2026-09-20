@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -500,6 +501,7 @@ except ImportError:
     TransactionForm = None
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def api_expense_accounts(request):
     """API لجلب حسابات المصروفات النهائية فقط (باستثناء تكلفة البضاعة المباعة)"""
     try:
@@ -519,6 +521,7 @@ def api_expense_accounts(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def api_financial_categories(request):
     """API لجلب التصنيفات المالية النشطة للمصروفات والإيرادات مع الفرعية"""
     try:
@@ -565,6 +568,7 @@ def api_financial_categories(request):
 
 
 @login_required 
+@require_permission('financial.view_chartofaccounts')
 def api_payment_accounts(request):
     """API لجلب حسابات الخزينة (نقدية وبنكية) النهائية فقط"""
     try:
@@ -586,6 +590,7 @@ def api_payment_accounts(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def api_income_accounts(request):
     """API لجلب حسابات الإيرادات النهائية فقط (باستثناء إيرادات المبيعات)"""
     try:
@@ -605,6 +610,7 @@ def api_income_accounts(request):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def export_transactions(request):
     """
     تصدير المعاملات المالية
@@ -664,6 +670,7 @@ def export_transactions(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def ledger_report(request):
     """
     تقرير كشف الحسابات المالي - مطابق للمعايير المحاسبية وقواعد المشروع
@@ -1004,6 +1011,7 @@ def ledger_report(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def balance_sheet(request):
     """
     تقرير الميزانية العمومية والمركز المالي (IAS 1 Statement of Financial Position)
@@ -1161,6 +1169,7 @@ def balance_sheet(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def income_statement(request):
     """
     تقرير قائمة الدخل والأرباح والخسائر (IAS 1 Statement of Profit or Loss)
@@ -1402,6 +1411,7 @@ def income_statement(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def cash_flow_statement(request):
     """
     تقرير قائمة التدفقات النقدية (IAS 7 Statement of Cash Flows)
@@ -1640,6 +1650,7 @@ def cash_flow_statement(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def customer_supplier_balances_report(request, account_type):
     """
     تقرير أرصدة العملاء والموردين
@@ -1742,6 +1753,7 @@ def customer_supplier_balances_report(request, account_type):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def financial_analytics(request):
     """
     عرض لوحة التحليلات والمؤشرات المالية التنفيذية (CFO Executive Analytics Command Center v3.0)
@@ -1983,6 +1995,7 @@ def financial_analytics(request):
 
 @login_required
 @require_http_methods(["POST"])
+@require_permission('financial.change_chartofaccounts')
 def payment_sync_retry_failed_api(request):
     """
     API لإعادة محاولة العمليات الفاشلة
@@ -2020,6 +2033,7 @@ def payment_sync_retry_failed_api(request):
 
 @login_required
 @require_http_methods(["POST"])
+@require_permission('financial.change_chartofaccounts')
 def payment_sync_resolve_errors_api(request):
     """
     API لحل الأخطاء القديمة
@@ -2069,6 +2083,7 @@ def payment_sync_resolve_errors_api(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def trial_balance_report(request):
     """
     تقرير ميزان المراجعة المؤسسي الشامل - Trial Balance Report (v10.0)
@@ -2222,6 +2237,7 @@ def trial_balance_report(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def sales_report(request):
     """
     تقرير المبيعات - محدّث ✅
@@ -2302,6 +2318,7 @@ def sales_report(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def purchases_report(request):
     """
     تقرير المشتريات - محدّث ✅
@@ -2380,6 +2397,7 @@ def purchases_report(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def inventory_report(request):
     """
     تقرير المخزون - محدّث ✅
@@ -2480,6 +2498,7 @@ def inventory_report(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def abc_analysis_report(request):
     """
     تقرير تحليل ABC - محدّث ✅
@@ -2593,10 +2612,7 @@ def abc_analysis_report(request):
 
 
 @login_required
-
-@login_required
-
-@login_required
+@require_permission('financial.view_chartofaccounts')
 def data_integrity_check(request):
     """
     التحقق من سلامة البيانات - فحص شامل
@@ -2908,6 +2924,7 @@ def data_integrity_check(request):
 
 @require_http_methods(["GET"])
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def payment_sync_check_pending_api(request):
     """
     API لفحص العمليات المعلقة
@@ -2947,6 +2964,7 @@ def payment_sync_check_pending_api(request):
 
 @require_http_methods(["POST"])
 @login_required
+@require_permission('financial.change_chartofaccounts')
 def payment_sync_process_pending_api(request):
     """
     API لتشغيل العمليات المعلقة
@@ -3015,6 +3033,7 @@ def payment_sync_process_pending_api(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def audit_trail_list(request):
     """
     قائمة سجل التدقيق
@@ -3123,6 +3142,7 @@ def audit_trail_list(request):
 
 @login_required
 @transaction.atomic
+@require_permission('financial.change_chartofaccounts')
 def audit_trail_cleanup(request):
     """
     تنظيف سجل التدقيق - حذف السجلات القديمة
@@ -3227,6 +3247,7 @@ def audit_trail_cleanup(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def payment_sync_operations(request):
     """
     عمليات تزامن المدفوعات
@@ -3250,6 +3271,7 @@ def payment_sync_operations(request):
 
 
 @login_required
+@require_permission('financial.view_chartofaccounts')
 def payment_sync_logs(request):
     """
     سجلات تزامن المدفوعات
@@ -3271,6 +3293,7 @@ def payment_sync_logs(request):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def journal_entry_summary_api(request, journal_entry_id):
     """
     API لجلب ملخص القيد المحاسبي
@@ -3311,6 +3334,7 @@ def journal_entry_summary_api(request, journal_entry_id):
 
 
 @login_required
+@require_permission('financial.view_currency')
 def api_get_exchange_rate(request):
     """
     API لاستعلام سعر الصرف اللحظي والعملة الوظيفية الأساسية

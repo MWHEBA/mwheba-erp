@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from functools import wraps
 from core.models import SystemSetting
 from customer.models import Customer
 from product.models import Product, Warehouse, Stock
@@ -19,11 +20,13 @@ from sale.models import Quotation, QuotationItem, Sale
 from sale.models.pricing import PriceList
 from sale.forms import QuotationForm
 from sale.services.sale_service import SaleService
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
 
 def check_quotations_enabled(view_func):
+    @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         enabled = SystemSetting.get_bool('enable_quotations', False)
         if not enabled:
@@ -38,7 +41,7 @@ def check_quotations_enabled(view_func):
 @login_required
 @check_quotations_enabled
 def quotation_list(request):
-    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض عروض الأسعار")
         })
@@ -49,7 +52,9 @@ def quotation_list(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    quotations_qs = Quotation.objects.with_list_details().all().order_by('-date', '-number')
+    from users.services.data_scoping_service import DataScopingService
+    base_quotations = DataScopingService.get_scoped_quotations(request.user)
+    quotations_qs = base_quotations.with_list_details().order_by('-date', '-number')
 
     if search:
         from utils.search import smart_search_filter
@@ -76,9 +81,8 @@ def quotation_list(request):
     page_obj = pagination_context["page_obj"]
 
     customers = Customer.objects.filter(is_active=True).order_by('name')
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    salesmen = User.objects.filter(is_active=True).order_by('first_name', 'username')
+    from users.services.data_scoping_service import DataScopingService
+    salesmen = DataScopingService.get_scoped_salesmen()
     
     # الإحصائيات
     total_quotes_count = quotations_qs.count()
@@ -100,14 +104,14 @@ def quotation_list(request):
         "page_title": _("عروض الأسعار"),
         "page_subtitle": _("إدارة عروض أسعار العملاء ومتابعتها وتصديرها"),
         "page_icon": "fas fa-file-signature",
-        "header_buttons": [
+        "header_buttons": ([
             {
                 "url": reverse("sale:quotation_create"),
                 "icon": "fa-plus",
                 "text": _("إضافة عرض سعر"),
                 "class": "btn-primary",
             }
-        ],
+        ] if request.user.has_perm('sale.add_quotation') or request.user.is_superuser else []),
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
@@ -120,7 +124,7 @@ def quotation_list(request):
 @login_required
 @check_quotations_enabled
 def quotation_create(request, customer_id=None):
-    if not request.user.has_perm('sale.add_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.add_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لإنشاء عروض أسعار")
         })
@@ -201,6 +205,29 @@ def quotation_create(request, customer_id=None):
                                 "is_taxable": is_taxable,
                                 "is_service": product.is_service,
                             })
+
+                    # التدقيق السعري وحوكمة الخصومات في عروض الأسعار
+                    from sale.services.pricing_validator import PricingSecurityValidator
+                    PricingSecurityValidator.validate_document_pricing(
+                        user=request.user,
+                        items_data=[
+                            {
+                                "product_id": it["product"].id,
+                                "unit_price": it["unit_price"],
+                                "quantity": it["quantity"],
+                                "discount": it["discount"],
+                            }
+                            for it in parsed_items
+                        ],
+                        customer=quotation.customer,
+                        price_list=quotation.price_list,
+                        currency=quotation.currency,
+                        exchange_rate=quotation.exchange_rate,
+                        discount=quotation.discount,
+                        discount_type='fixed',
+                        subtotal=sum(it['quantity'] * it['unit_price'] - it['discount'] for it in parsed_items),
+                        doc_type='quotation'
+                    )
 
                     # استدعاء المحرك الضريبي المركزي
                     from utils.tax_calculator import TaxMathEngine
@@ -346,13 +373,33 @@ def quotation_create(request, customer_id=None):
 @login_required
 @check_quotations_enabled
 def quotation_edit(request, pk):
-    if not request.user.has_perm('sale.change_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.change_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لتعديل عروض الأسعار")
         })
 
     quotation = get_object_or_404(Quotation, pk=pk)
+
+    # قفل الملكية في تعديل عروض الأسعار
+    is_owner = (quotation.created_by_id == request.user.id) or (quotation.salesman_id == request.user.id)
+    has_all_perms = request.user.is_superuser or request.user.has_perm('sale.view_all_quotations')
+    if not is_owner and not has_all_perms:
+        return render(request, "core/permission_denied.html", {
+            "title": _("غير مصرح"), "message": _("غير مصرح لك بتعديل عرض سعر مسجل بواسطة مستخدم آخر.")
+        })
     
+    # قفل التعديل إذا كان أمر الشغل دخل حيز التشغيل الفعلي في صالة الإنتاج
+    has_active_wo = bool(getattr(quotation, 'work_order', None) and quotation.work_order.status in ['in_progress', 'completed'])
+    if not has_active_wo and hasattr(quotation, 'sales_orders'):
+        has_active_wo = quotation.sales_orders.filter(
+            quotation_reference__work_order__status__in=['in_progress', 'completed']
+        ).exists()
+
+    if has_active_wo:
+        if not request.user.has_perm('sale.change_approved_sale') and not request.user.is_superuser:
+            messages.error(request, _("عفواً، لا يمكن تعديل عرض السعر نظراً لأن أمر الشغل المرتبط به قيد التشغيل أو مكتمل في صالة الإنتاج لمنع إهدار الخامات."))
+            return redirect("sale:quotation_detail", pk=quotation.pk)
+
     # قفل التعديل إذا تحول أو قبل
     if quotation.converted_to_sale or quotation.status == 'accepted':
         messages.error(request, _("لا يمكن تعديل عرض السعر لأنه مقبول أو تم تحويله بالفعل إلى فاتورة بيع."))
@@ -418,6 +465,29 @@ def quotation_edit(request, pk):
                                 "is_taxable": is_taxable,
                                 "is_service": product.is_service,
                             })
+
+                    # التدقيق السعري وحوكمة الخصومات في تعديل عروض الأسعار
+                    from sale.services.pricing_validator import PricingSecurityValidator
+                    PricingSecurityValidator.validate_document_pricing(
+                        user=request.user,
+                        items_data=[
+                            {
+                                "product_id": it["product"].id,
+                                "unit_price": it["unit_price"],
+                                "quantity": it["quantity"],
+                                "discount": it["discount"],
+                            }
+                            for it in parsed_items
+                        ],
+                        customer=quotation.customer,
+                        price_list=quotation.price_list,
+                        currency=quotation.currency,
+                        exchange_rate=quotation.exchange_rate,
+                        discount=quotation.discount,
+                        discount_type='fixed',
+                        subtotal=sum(it['quantity'] * it['unit_price'] - it['discount'] for it in parsed_items),
+                        doc_type='quotation'
+                    )
 
                     # استدعاء المحرك الضريبي المركزي
                     from utils.tax_calculator import TaxMathEngine
@@ -559,12 +629,19 @@ def quotation_edit(request, pk):
 @login_required
 @check_quotations_enabled
 def quotation_detail(request, pk):
-    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض تفاصيل عروض الأسعار")
         })
 
     quotation = get_object_or_404(Quotation.objects.with_details(), pk=pk)
+
+    # عزل السجلات للمناديب (Object-Level Ownership)
+    is_owner = (quotation.created_by_id == request.user.id) or (quotation.salesman_id == request.user.id)
+    has_all_perms = request.user.is_superuser or request.user.has_perm('sale.view_all_quotations')
+    if not is_owner and not has_all_perms:
+        from django.http import Http404
+        raise Http404(_("عرض السعر غير موجود أو غير مصرح لك بالاطلاع عليه."))
     items = quotation.items.all().select_related('product', 'product__tax_code', 'product__unit', 'product__category')
 
     active_linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
@@ -641,7 +718,7 @@ def quotation_detail(request, pk):
             "class": "btn-success",
         })
 
-    if not is_active_converted:
+    if not is_active_converted and (request.user.has_perm('sale.change_quotation') or request.user.is_superuser):
         header_buttons.append({
             "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
             "icon": "fa-edit",
@@ -683,31 +760,33 @@ def quotation_detail(request, pk):
     ])
 
     if not is_active_converted and quotation.status != 'rejected':
-        header_buttons.extend([
-            {
+        can_convert_order = (request.user.has_perm('sale.convert_to_order') or request.user.has_perm('sale.add_salesorder') or request.user.is_superuser)
+        if can_convert_order:
+            header_buttons.append({
                 "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
                 "icon": "fa-clipboard-list",
                 "text": _("تحويل إلى أمر بيع"),
                 "class": "btn-primary",
-            },
-            {
+            })
+        can_convert_sale = (request.user.has_perm('sale.convert_quotation') or request.user.has_perm('sale.add_sale') or request.user.is_superuser)
+        if can_convert_sale:
+            header_buttons.append({
                 "url": "#",
                 "icon": "fa-file-invoice-dollar",
                 "text": _("تحويل إلى فاتورة"),
                 "class": "btn-success",
                 "toggle": "modal",
                 "target": "#convertInvoiceModal",
-            },
-            {
-                "url": "#",
-                "icon": "fa-ellipsis-v",
-                "text": "",
-                "class": "btn-outline-secondary",
-                "id": "actions-menu-btn",
-                "toggle": "modal",
-                "target": "#actionsModal",
-            }
-        ])
+            })
+        header_buttons.append({
+            "url": "#",
+            "icon": "fa-ellipsis-v",
+            "text": "",
+            "class": "btn-outline-secondary",
+            "id": "actions-menu-btn",
+            "toggle": "modal",
+            "target": "#actionsModal",
+        })
 
     context = {
         "quotation": quotation,
@@ -718,7 +797,7 @@ def quotation_detail(request, pk):
         "cancelled_linked_so": cancelled_linked_so,
         "linked_so": linked_so,
         "linked_sale": linked_sale,
-        "warehouses": Warehouse.objects.filter(is_active=True).order_by('name'),
+        "warehouses": DataScopingService.get_transaction_warehouses(request.user),
         "title": _("عرض سعر {}").format(quotation.number),
         "page_title": _("عرض سعر {}").format(quotation.number),
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
@@ -747,12 +826,20 @@ def quotation_detail(request, pk):
 @login_required
 @check_quotations_enabled
 def quotation_delete(request, pk):
-    if not request.user.has_perm('sale.delete_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.delete_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لحذف عروض الأسعار")
         })
 
     quotation = get_object_or_404(Quotation, pk=pk)
+
+    # قفل الملكية في حذف عروض الأسعار للمناديب
+    is_owner = (quotation.created_by_id == request.user.id) or (quotation.salesman_id == request.user.id)
+    has_all_perms = request.user.is_superuser or request.user.has_perm('sale.view_all_quotations')
+    if not is_owner and not has_all_perms:
+        return render(request, "core/permission_denied.html", {
+            "title": _("غير مصرح"), "message": _("غير مصرح لك بحذف عرض سعر مسجل بواسطة مستخدم آخر.")
+        })
     
     if quotation.converted_to_sale:
         messages.error(request, _("لا يمكن حذف عرض السعر لأنه تم تحويله إلى فاتورة بيع بالفعل."))
@@ -779,6 +866,12 @@ def quotation_delete(request, pk):
 
 def get_quotation_print_context(request, pk):
     quotation = get_object_or_404(Quotation, pk=pk)
+    # عزل الطباعة للمناديب (Object-Level Ownership)
+    is_owner = (quotation.created_by_id == request.user.id) or (quotation.salesman_id == request.user.id)
+    has_all_perms = request.user.is_superuser or request.user.has_perm('sale.view_all_quotations')
+    if not is_owner and not has_all_perms:
+        from django.http import Http404
+        raise Http404(_("عرض السعر غير موجود أو غير مصرح لك بالاطلاع عليه."))
     items = quotation.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
     
@@ -931,12 +1024,20 @@ def quotation_email_pdf(request, pk):
 @login_required
 @check_quotations_enabled
 def quotation_convert_to_sale(request, pk):
-    if not request.user.has_perm('sale.convert_quotation') and not request.user.is_superuser and not request.user.is_admin:
+    if not request.user.has_perm('sale.convert_quotation') and not request.user.is_superuser:
         return render(request, "core/permission_denied.html", {
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لتحويل عروض الأسعار")
         })
 
-    quotation = get_object_or_404(Quotation, pk=pk)
+    quotation = get_object_or_404(DataScopingService.get_scoped_quotations(request.user), pk=pk)
+
+    # فحص ملكية عرض السعر (Object-Level Ownership Check)
+    is_owner = (quotation.created_by_id == request.user.id) or (quotation.salesman_id == request.user.id)
+    has_all = request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('sale.view_all_quotations')
+    if not (is_owner or has_all):
+        return render(request, "core/permission_denied.html", {
+            "title": _("غير مصرح"), "message": _("غير مصرح لك بتحويل عرض سعر مسجل لمندوب مبيعات آخر.")
+        }, status=403)
 
     if quotation.converted_to_sale:
         messages.error(request, _("تم تحويل عرض السعر هذا بالفعل لفاتورة رقم: {}").format(quotation.converted_to_sale.number))
@@ -944,11 +1045,18 @@ def quotation_convert_to_sale(request, pk):
 
     try:
         with transaction.atomic():
-            # تحضير بيانات الفاتورة
+            # تحضير بيانات الفاتورة مع تدقيق المخازن المصرح بها
+            valid_warehouses = DataScopingService.get_transaction_warehouses(request.user)
             warehouse_id = request.POST.get('warehouse')
             if not warehouse_id:
-                active_wh = Warehouse.objects.filter(is_active=True).first()
+                active_wh = valid_warehouses.first()
                 warehouse_id = active_wh.id if active_wh else None
+            else:
+                try:
+                    if not valid_warehouses.filter(id=int(warehouse_id)).exists():
+                        raise ValueError(_("المخزن المحدد غير متاح أو ليس لديك صلاحية صرف منه."))
+                except (ValueError, TypeError):
+                    raise ValueError(_("المخزن المحدد غير صالح."))
             
             if not warehouse_id:
                 raise ValueError(_("يرجى تحديد المخزن لإصدار الفاتورة."))

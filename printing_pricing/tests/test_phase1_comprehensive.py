@@ -26,7 +26,8 @@ class TestPhase1Comprehensive:
             username="test_agency_admin",
             email="admin@agency.com",
             password="StrongPassword123",
-            is_staff=True
+            is_staff=True,
+            is_superuser=True
         )
         self.sales_rep = User.objects.create_user(
             username="test_sales_rep",

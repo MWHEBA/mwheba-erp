@@ -42,9 +42,9 @@ def check_user_can_delete_entry(user, entry):
     if entry.status == "draft":
         return user.has_perm("financial.delete_journalentry")
 
-    # القيود المرحلة تحتاج صلاحية خاصة
+    # القيود المرحلة لا يمكن حذفها مطلقاً للحفاظ على الثبات المحاسبي ومعايير التدقيق
     if entry.status == "posted":
-        return user.has_perm("financial.force_delete_posted_entry")
+        return False
 
     # القيود الملغاة لا يمكن حذفها
     return False

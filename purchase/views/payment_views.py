@@ -5,6 +5,7 @@ Purchase Payment Views
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from users.decorators import require_permission
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_permission("purchase.view_purchasepayment")
 def payment_detail(request, pk):
     """
     عرض تفاصيل دفعة المشتريات
@@ -80,6 +82,7 @@ def payment_detail(request, pk):
 
 
 @login_required
+@require_permission("purchase.add_purchasepayment")
 def add_payment(request, pk):
     """
     إضافة دفعة لفاتورة الشراء - محدث بالتكامل المالي الشامل
@@ -308,6 +311,7 @@ def add_payment(request, pk):
 
 
 @login_required
+@require_permission("financial.change_journalentry")
 def post_payment(request, payment_id):
     """
     ترحيل دفعة مشتريات - إنشاء القيود المحاسبية
@@ -376,6 +380,7 @@ def post_payment(request, payment_id):
 
 
 @login_required
+@require_permission("financial.change_journalentry")
 def unpost_payment(request, payment_id):
     """
     إلغاء ترحيل دفعة مشتريات - إنشاء قيد عكسي وحذف حركة الخزن
@@ -439,6 +444,7 @@ def unpost_payment(request, payment_id):
 
 
 @login_required
+@require_permission("purchase.change_purchasepayment")
 def edit_payment(request, payment_id):
     """
     تعديل دفعة مشتريات - نظام مبسط وفعال
@@ -547,6 +553,7 @@ def edit_payment(request, payment_id):
 
 
 @login_required
+@require_permission("financial.change_journalentry")
 def unpost_payment_only(request, payment_id):
     """
     إلغاء ترحيل الدفعة فقط (بدون تعديل)
@@ -589,6 +596,7 @@ def unpost_payment_only(request, payment_id):
 
 
 @login_required
+@require_permission("purchase.delete_purchasepayment")
 def delete_payment(request, payment_id):
     """
     حذف دفعة مشتريات - يُسمح بالحذف فقط للدفعات غير المرحلة

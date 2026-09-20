@@ -122,16 +122,24 @@ class CustomerForm(forms.ModelForm):
         # الحقول الاختيارية وضبطها
         if "customer_type" in self.fields:
             self.fields["customer_type"].required = False
-        if "credit_limit" in self.fields:
-            self.fields["credit_limit"].required = False
-        if "phone" in self.fields:
-            self.fields["phone"].required = False
-        if "phone_primary" in self.fields:
-            self.fields["phone_primary"].required = False
-        if "credit_status" in self.fields:
-            self.fields["credit_status"].required = False
-        if "risk_category" in self.fields:
-            self.fields["risk_category"].required = False
+        # حوكمة سقف الائتمان وحقول المخاطر
+        can_manage_credit = (
+            self.user and (
+                self.user.is_superuser
+                or getattr(self.user, 'is_financial_manager', False)
+                or self.user.has_perm('customer.change_credit_limit')
+                or self.user.has_perm('financial.manage_credit_limit')
+            )
+        )
+        self.can_manage_credit = can_manage_credit
+        if not can_manage_credit and "credit_limit" in self.fields:
+            self.fields["credit_limit"].widget.attrs["readonly"] = "readonly"
+            self.fields["credit_limit"].widget.attrs["class"] += " bg-light cursor-not-allowed"
+            self.fields["credit_limit"].widget.attrs["title"] = _("تعديل سقف الائتمان يتطلب صلاحية إدارة الائتمان أو المدير المالي")
+            if "credit_status" in self.fields:
+                self.fields["credit_status"].disabled = True
+            if "risk_category" in self.fields:
+                self.fields["risk_category"].disabled = True
 
         # تخصيص العملة الافتراضية
         if not self.instance.pk and not self.initial.get("default_currency"):
@@ -167,18 +175,35 @@ class CustomerForm(forms.ModelForm):
                 self.initial["next_review_date"] = profile.next_review_date
                 self._original_credit_status = profile.credit_status
                 self._original_credit_limit = profile.credit_limit
+                self._original_risk_category = profile.risk_category
             else:
                 self._original_credit_status = "ACTIVE"
                 self._original_credit_limit = self.instance.credit_limit or Decimal("0.00")
+                self._original_risk_category = "MEDIUM"
         else:
             self._original_credit_status = "ACTIVE"
             self._original_credit_limit = Decimal("0.00")
+            self._original_risk_category = "MEDIUM"
 
     def clean_credit_limit(self):
         limit = self.cleaned_data.get("credit_limit")
+        if not getattr(self, "can_manage_credit", False):
+            return getattr(self, "_original_credit_limit", Decimal("0.00"))
         if limit is not None and limit < 0:
             raise forms.ValidationError(_("الحد الائتماني لا يمكن أن يكون قيمة سالبة"))
         return limit if limit is not None else Decimal("0.00")
+
+    def clean_credit_status(self):
+        status = self.cleaned_data.get("credit_status")
+        if not getattr(self, "can_manage_credit", False):
+            return getattr(self, "_original_credit_status", "ACTIVE")
+        return status
+
+    def clean_risk_category(self):
+        risk = self.cleaned_data.get("risk_category")
+        if not getattr(self, "can_manage_credit", False):
+            return getattr(self, "_original_risk_category", "MEDIUM")
+        return risk
 
     def clean_national_id(self):
         """التحقق من صحة الرقم القومي المصري عند إدخاله"""

@@ -100,6 +100,7 @@
     </div>
     {% endif %}
     <!-- ── أدوات التحديث الجماعي ─────────────────────────────── -->
+    {% if perms.product.change_product or user.is_superuser %}
     <div class="section-container mb-3">
         <div class="row g-2 align-items-end">
             <div class="col-auto">
@@ -131,6 +132,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- ── الجدول ────────────────────────────────────────────── -->
     <div class="section-container">

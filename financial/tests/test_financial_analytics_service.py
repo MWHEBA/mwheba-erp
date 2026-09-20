@@ -48,7 +48,10 @@ def analytics_setup(db):
     cogs_acc, _ = ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "تكلفة المبيعات", "account_type": expense_type, "level": 3, "is_leaf": True})
     admin_acc, _ = ChartOfAccounts.objects.get_or_create(code="52100", defaults={"name": "مصروفات إدارية", "account_type": expense_type, "level": 3, "is_leaf": True})
 
-    user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@example.com", "is_staff": True})
+    user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@example.com", "is_staff": True, "is_superuser": True})
+    if not user.is_superuser:
+        user.is_superuser = True
+        user.save()
 
     return {
         "user": user,

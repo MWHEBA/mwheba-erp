@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models import Sum
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.urls import reverse
@@ -41,6 +42,7 @@ logger = logging.getLogger("financial.views.tax_views")
 # ==========================================
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_code_list(request):
     """عرض قائمة أكواد الضرائب مع الإحصائيات وبحث الـ AJAX"""
     tax_codes_qs = TaxCode.objects.all().order_by('code')
@@ -114,6 +116,7 @@ def tax_code_list(request):
 
 
 @login_required
+@require_permission('financial.add_taxcode')
 def tax_code_create(request):
     """إضافة كود ضريبة جديد"""
     if request.method == "POST":
@@ -139,6 +142,7 @@ def tax_code_create(request):
 
 
 @login_required
+@require_permission('financial.change_taxcode')
 def tax_code_update(request, pk):
     """تعديل كود ضريبة"""
     tax_code = get_object_or_404(TaxCode, pk=pk)
@@ -167,6 +171,7 @@ def tax_code_update(request, pk):
 
 @login_required
 @require_POST
+@require_permission('financial.delete_taxcode')
 def tax_code_delete(request, pk):
     """حذف كود ضريبة"""
     tax_code = get_object_or_404(TaxCode, pk=pk)
@@ -176,6 +181,7 @@ def tax_code_delete(request, pk):
 
 
 @login_required
+@require_permission('financial.add_taxcode')
 def tax_seed_presets(request):
     """توليد واسترجاع أكواد الضرائب المصرية القياسية بضغطة زر"""
     created_count = TaxDeterminationService.seed_egyptian_tax_presets()
@@ -188,6 +194,7 @@ def tax_seed_presets(request):
 # ==========================================
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_rules_list(request):
     """عرض قائمة قواعد احتساب وسياسات الضرائب التلقائية"""
     from core.utils import paginate_queryset
@@ -230,6 +237,7 @@ def tax_rules_list(request):
 
 
 @login_required
+@require_permission('financial.add_taxcode')
 def tax_rule_create(request):
     """إضافة قاعدة ضريبية جديدة"""
     if request.method == "POST":
@@ -255,6 +263,7 @@ def tax_rule_create(request):
 
 
 @login_required
+@require_permission('financial.change_taxcode')
 def tax_rule_update(request, pk):
     """تعديل قاعدة ضريبية"""
     rule = get_object_or_404(TaxRule, pk=pk)
@@ -283,6 +292,7 @@ def tax_rule_update(request, pk):
 
 @login_required
 @require_POST
+@require_permission('financial.delete_taxcode')
 def tax_rule_delete(request, pk):
     """حذف قاعدة ضريبية"""
     rule = get_object_or_404(TaxRule, pk=pk)
@@ -296,6 +306,7 @@ def tax_rule_delete(request, pk):
 # ==========================================
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_exemptions_list(request):
     """عرض قائمة شهادات الإعفاء الضريبي المحوكمة"""
     exemptions_qs = TaxExemptionCertificate.objects.select_related(
@@ -341,6 +352,7 @@ def tax_exemptions_list(request):
 
 
 @login_required
+@require_permission('financial.add_taxcode')
 def tax_exemption_create(request):
     """إضافة شهادة إعفاء جديدة"""
     if request.method == "POST":
@@ -366,6 +378,7 @@ def tax_exemption_create(request):
 
 
 @login_required
+@require_permission('financial.change_taxcode')
 def tax_exemption_update(request, pk):
     """تعديل شهادة إعفاء"""
     cert = get_object_or_404(TaxExemptionCertificate, pk=pk)
@@ -394,6 +407,7 @@ def tax_exemption_update(request, pk):
 
 @login_required
 @require_POST
+@require_permission('financial.delete_taxcode')
 def tax_exemption_delete(request, pk):
     """حذف شهادة إعفاء"""
     cert = get_object_or_404(TaxExemptionCertificate, pk=pk)
@@ -407,6 +421,7 @@ def tax_exemption_delete(request, pk):
 # ==========================================
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_audit_list(request):
     """مستكشف سجل الفحص والتدقيق الضريبي المحوكم مع فحص SHA-256"""
     audits_qs = TaxDeterminationAudit.objects.select_related(
@@ -492,6 +507,7 @@ def tax_audit_verify_ajax(request, pk):
 
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_events_list(request):
     """عرض سجل الأحداث الضريبية المستقل Domain Events"""
     from core.utils import paginate_queryset
@@ -532,6 +548,7 @@ def tax_events_list(request):
 # ==========================================
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_return_vat_report(request):
     """تقرير إقرار ضريبة القيمة المضافة (نموذج 10 المصري) وقيد المقاصة والتسوية"""
     today = timezone.now().date()
@@ -581,6 +598,7 @@ def tax_return_vat_report(request):
 
 @login_required
 @require_POST
+@require_permission('financial.change_taxcode')
 def tax_post_vat_settlement(request):
     """توليد قيد التسوية والمقاصة الشهرية لضريبة القيمة المضافة بضغطة زر"""
     month_str = request.POST.get('month')
@@ -600,6 +618,7 @@ def tax_post_vat_settlement(request):
 
 
 @login_required
+@require_permission('financial.view_taxcode')
 def tax_withholding_report(request):
     """كشف الخصم والتحصيل تحت حساب الضريبة (نموذج 41 ضرائب)"""
     today = timezone.now().date()
@@ -661,6 +680,7 @@ def tax_withholding_report(request):
 
 
 @login_required
+@require_permission('financial.view_taxcode')
 def api_calculate_tax(request):
     """نقطة نهاية الـ API السريعة لحساب الضريبة اللحظية لبنود الفواتير بالـ AJAX"""
     try:

@@ -20,7 +20,7 @@ class SaleListAPITest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser1',
             email='testuser1@example.com',
             password='test123'
@@ -48,7 +48,7 @@ class SaleDetailAPITest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser2',
             email='testuser2@example.com',
             password='test123'
@@ -70,7 +70,7 @@ class SaleCreateAPITest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser3',
             email='testuser3@example.com',
             password='test123'
@@ -90,7 +90,7 @@ class SaleReturnAPITest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.client = Client()
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='testuser4',
             email='testuser4@example.com',
             password='test123'

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.views.generic import TemplateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from users.mixins import SmartPermissionRequiredMixin
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Count, Q
@@ -14,8 +14,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class GovernanceBaseView(LoginRequiredMixin, TemplateView):
-    """Base view for governance pages"""
+class GovernanceBaseView(SmartPermissionRequiredMixin, TemplateView):
+    """Base view for governance pages with enterprise zero-trust enforcement"""
+    permission_required = 'governance.view_audittrail'
+    
+    def has_permission(self):
+        # السوبر يوزر والمدير العام يملكون وصولاً مباشراً
+        if self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False):
+            return True
+        return super().has_permission()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -651,19 +658,44 @@ class ReportsBuilderView(GovernanceBaseView):
 @login_required
 @require_POST
 def delete_old_audit_logs(request):
-    """Delete audit logs older than 1 month"""
+    """Delete audit logs older than 1 year (Strictly restricted to Superusers/Admins with mandatory pre-audit logging)"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+        return JsonResponse({
+            'success': False,
+            'message': _('هذا الإجراء السيادي الحساس مقتصر حصراً على السوبر يوزر والمدير العام')
+        }, status=403)
+        
     try:
         from governance.models import AuditTrail
+        from django.db import transaction
         
-        # Calculate date 1 month ago
-        one_month_ago = timezone.now() - timedelta(days=30)
+        # لا يجوز مسح سجلات أحدث من 365 يوماً (سنة كاملة) امتثالاً لمعايير التدقيق والحوكمة المالية
+        retention_cutoff = timezone.now() - timedelta(days=365)
         
-        # Delete old records
-        deleted_count, _ = AuditTrail.objects.filter(timestamp__lt=one_month_ago).delete()
+        with transaction.atomic():
+            old_records_count = AuditTrail.objects.filter(timestamp__lt=retention_cutoff).count()
+            
+            # توثيق عملية المسح التدميرية ذاتها إجبارياً قبل تنفيذ الحذف
+            AuditTrail.objects.create(
+                user=request.user,
+                operation='DELETE',
+                model_name='AuditTrail',
+                object_id=0,
+                source_service='governance_purge_service',
+                additional_context={
+                    'action': 'DELETE_OLD_LOGS',
+                    'purged_count': old_records_count,
+                    'cutoff_date': retention_cutoff.strftime('%Y-%m-%d')
+                },
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            # تنفيذ الحذف
+            deleted_count, _del_details = AuditTrail.objects.filter(timestamp__lt=retention_cutoff).delete()
         
         return JsonResponse({
             'success': True,
-            'message': f'تم حذف {deleted_count} سجل قديم بنجاح',
+            'message': f'تم أرشفة وحذف {deleted_count} سجل تدقيق قديم بأمان',
             'deleted_count': deleted_count
         })
     except Exception as e:
@@ -903,6 +935,9 @@ def get_incident_details(request, incident_id):
 @require_http_methods(["POST"])
 def resolve_incident(request, incident_id):
     """Resolve a security incident"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.change_securityincident')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بمعالجة الحوادث الأمنية')}, status=403)
+        
     from governance.models import SecurityIncident
     from django.http import JsonResponse
     
@@ -925,10 +960,21 @@ def resolve_incident(request, incident_id):
 @login_required
 @require_http_methods(["POST"])
 def block_ip_address(request, ip_address):
-    """Block an IP address"""
+    """Block an IP address with internal network protection guard"""
     from governance.models import BlockedIP
     from django.http import JsonResponse
     
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.add_blockedip')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بحظر عناوين الـ IP')}, status=403)
+        
+    # درع حماية الشبكة الداخلية للمطبعة لمنع الانقطاع الكلي
+    safe_prefixes = ('127.', '192.168.', '10.', '172.16.', 'localhost', '::1')
+    if any(ip_address.startswith(p) for p in safe_prefixes):
+        return JsonResponse({
+            'success': False,
+            'error': _('غير مسموح بحظر عناوين الشبكة المحلية والداخلية للمطبعة حفاظاً على استمرارية العمل')
+        }, status=400)
+
     try:
         description = request.POST.get('description', 'حجب يدوي من مركز الأمان')
         
@@ -957,6 +1003,9 @@ def block_ip_address(request, ip_address):
 @require_http_methods(["POST"])
 def unblock_ip_address(request, blocked_ip_id):
     """Unblock an IP address"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.delete_blockedip')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإلغاء حظر عناوين الـ IP')}, status=403)
+
     from governance.models import BlockedIP
     from django.http import JsonResponse
     
@@ -980,6 +1029,9 @@ def unblock_ip_address(request, blocked_ip_id):
 @require_http_methods(["POST"])
 def terminate_session(request, session_id):
     """Terminate a user session"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.delete_activesession')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإنهاء جلسات المستخدمين')}, status=403)
+
     from governance.models import ActiveSession
     from django.http import JsonResponse
     from django.contrib.sessions.models import Session
@@ -1016,6 +1068,8 @@ def terminate_session(request, session_id):
 @require_http_methods(["POST"])
 def rotate_encryption_key(request, key_id):
     """Rotate an encryption key"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.change_securitypolicy')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإجراء هذه العملية الأمنية')}, status=403)
     from governance.services.security_policy_service import SecurityPolicyService
     
     try:
@@ -1040,6 +1094,8 @@ def rotate_encryption_key(request, key_id):
 @require_http_methods(["POST"])
 def create_encryption_key(request):
     """Create a new encryption key"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.change_securitypolicy')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإجراء هذه العملية الأمنية')}, status=403)
     from governance.services.security_policy_service import SecurityPolicyService
     import json
     
@@ -1085,6 +1141,8 @@ def create_encryption_key(request):
 @require_http_methods(["POST"])
 def run_security_scan(request):
     """Run a comprehensive security scan"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.change_securitypolicy')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإجراء هذه العملية الأمنية')}, status=403)
     from governance.services.security_policy_service import SecurityPolicyService
     
     try:
@@ -1110,6 +1168,8 @@ def run_security_scan(request):
 @require_http_methods(["POST"])
 def rotate_all_keys(request):
     """Rotate all active encryption keys"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.change_securitypolicy')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك بإجراء هذه العملية الأمنية')}, status=403)
     from governance.services.security_policy_service import SecurityPolicyService
     from governance.models import EncryptionKey
     
@@ -1142,6 +1202,8 @@ def rotate_all_keys(request):
 @require_http_methods(["GET"])
 def export_security_report(request):
     """Export security report"""
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('governance.view_securitypolicy')):
+        return JsonResponse({'success': False, 'error': _('غير مصرح لك باستخراج التقرير الأمني')}, status=403)
     from django.http import HttpResponse
     from governance.services.security_policy_service import SecurityPolicyService
     import json

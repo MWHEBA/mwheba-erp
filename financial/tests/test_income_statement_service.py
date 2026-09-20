@@ -46,7 +46,10 @@ class TestIncomeStatementService:
         self.cost_center, _ = CostCenter.objects.get_or_create(code="CC-01", defaults={"name": "فرع القاهرة", "is_active": True})
 
         # 4. مستخدم
-        self.user, _ = User.objects.get_or_create(username="test_accountant", defaults={"email": "acc@mwheba.com"})
+        self.user, _ = User.objects.get_or_create(username="test_accountant", defaults={"email": "acc@mwheba.com", "is_staff": True, "is_superuser": True})
+        if not self.user.is_superuser:
+            self.user.is_superuser = True
+            self.user.save()
 
     def test_multi_step_calculation_and_contra_accounts(self):
         """اختبار صحة الاحتساب متعدد المراحل والمعالجة الدقيقة للحسابات المقابلة"""

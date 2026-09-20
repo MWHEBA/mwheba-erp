@@ -17,6 +17,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import timedelta
+from django.core.exceptions import ValidationError
 import json
 
 from .models import User, Role
@@ -27,44 +28,116 @@ from .decorators import require_admin, secure_admin_operation
 
 
 def _get_arabic_permission_name(permission):
-    """Convert Django permission names to Arabic equivalents."""
+    """Convert Django permission names to standard Arabic equivalents."""
     codename = permission.codename.lower()
-    model_name = permission.content_type.model
+    model_name = permission.content_type.model.lower()
     
-    # Model name translations
-    model_translations = {
-        'customer': 'العملاء',
-        'employee': 'الموظفين',
-        'user': 'المستخدمين',
-        'role': 'الأدوار',
-        'product': 'المنتجات',
-        'sale': 'المبيعات',
-        'purchase': 'المشتريات',
-        'supplier': 'الموردين',
-        'transaction': 'المعاملات المالية',
-        'invoice': 'الفواتير',
-        'payment': 'المدفوعات',
-        'fee': 'الرسوم',
-        'customer': 'العملاء',
-        'customerpayment': 'دفعات العملاء',
-        'account': 'الحسابات',
-        'audittrail': 'سجلات التدقيق',
-        'balanceauditlog': 'سجلات مراجعة الرصيد',
-        'report': 'التقارير',
-        'dashboard': 'لوحة التحكم',
-        'dashboardstat': 'إحصائيات لوحة التحكم',
-        'dataprotectionaudit': 'سجلات حماية البيانات',
-        'auditlog': 'سجلات التدقيق',
-        'qrauditlog': 'سجلات تدقيق QR',
-        'invoiceauditlog': 'سجلات تدقيق الفواتير',
-        'validationauditlog': 'سجلات تدقيق التحقق',
-        'settlementauditlog': 'سجلات تدقيق التسوية'
+    # 1. Exact Custom Business Permissions Mapping (First Priority)
+    exact_custom_translations = {
+        # Financial & IAS 21
+        'close_accounting_period': 'إغلاق الفترة المحاسبية',
+        'reopen_accounting_period': 'إعادة فتح فترة محاسبية',
+        'run_fx_revaluation': 'إعادة تقييم فروق العملات IAS 21',
+        'post_journal_entry': 'ترحيل القيود اليومية',
+        'reverse_journal_entry': 'عكس قيد محاسبي',
+        'view_cost_breakdown': 'الاطلاع على تفاصيل تكلفة الخامات',
+        'view_profit_margins': 'الاطلاع على هوامش الأرباح',
+        'view_all_orders': 'عرض كافة طلبات وأوامر التشغيل',
+        
+        # Sales & Pricing Rules
+        'change_unit_price': 'تعديل سعر الوحدة بالفاتورة',
+        'apply_special_discount': 'تطبيق خصم خاص إضافي',
+        'cancel_approved_sale': 'إلغاء فاتورة بيع معتمدة',
+        'print_sale_invoice': 'طباعة فاتورة المبيعات',
+        'view_all_sales': 'عرض كافة مبيعات المنظومة',
+        'change_sale_salesman': 'تغيير مندوب المبيعات',
+        'change_quotation_price': 'تعديل أسعار عروض الأسعار',
+        'view_all_quotations': 'عرض كافة عروض الأسعار',
+        'convert_to_order': 'تحويل عرض السعر إلى أمر بيع',
+        'approve_salesorder': 'اعتماد أوامر البيع',
+        
+        # Purchases & Suppliers
+        'approve_purchase': 'اعتماد فواتير الشراء',
+        'change_unit_cost': 'تعديل تكلفة الشراء بالفاتورة',
+        'cancel_approved_purchase': 'إلغاء فاتورة شراء معتمدة',
+        'approve_purchaseorder': 'اعتماد أوامر الشراء',
+        
+        # Warehouses & Inventory
+        'approve_inventory_adjustment': 'اعتماد تسويات الجرد المخزني',
+        'approve_batchvoucher': 'اعتماد أذون الخامات والمجموعات',
+        
+        # Printing & Pricing Settings
+        'override_pricing_rules': 'تجاوز قواعد التسعير المعيارية',
+        'manage_pricing_settings': 'إدارة إعدادات وقواعد التسعير',
+        'change_workorder_status': 'تغيير حالة أمر الشغل والإنتاج',
+        'cancel_workorder': 'إلغاء أمر الشغل والإنتاج',
     }
     
-    # Get model translation
+    if codename in exact_custom_translations:
+        return exact_custom_translations[codename]
+    
+    # 2. Comprehensive Model Translations
+    model_translations = {
+        # Sales & Quotations
+        'sale': 'فواتير المبيعات',
+        'quotation': 'عروض الأسعار',
+        'salesorder': 'أوامر البيع',
+        'deliverynote': 'أذون التسليم',
+        'salereturn': 'مرتجعات المبيعات',
+        
+        # Purchases & Suppliers
+        'purchase': 'فواتير المشتريات',
+        'purchaseorder': 'أوامر الشراء',
+        'goodsreceivednote': 'أذون الاستلام المخزني',
+        'purchasereturn': 'مردودات المشتريات',
+        'supplier': 'الموردين',
+        
+        # Inventory & Products
+        'product': 'الأصناف والمنتجات',
+        'warehouse': 'المخازن',
+        'stock': 'أرصدة المخزون',
+        'stockmovement': 'حركات المخزون',
+        'inventorymovement': 'حركات المخزون',
+        'inventoryadjustment': 'تسويات الجرد',
+        'unit': 'وحدات القياس',
+        'category': 'تصنيفات الأصناف',
+        'batchvoucher': 'أذون الخامات والمجموعات',
+        'landedcostdocument': 'تكاليف الإنزال',
+        
+        # Financial & Accounts
+        'journalentry': 'القيود اليومية',
+        'accountingperiod': 'الفترات المحاسبية',
+        'chartofaccounts': 'شجرة الحسابات',
+        'account': 'الحسابات',
+        'currency': 'العملات وأسعار الصرف',
+        'paymentvoucher': 'سندات الصرف',
+        'receiptvoucher': 'سندات القبض',
+        'customerpayment': 'دفعات العملاء',
+        'transaction': 'المعاملات المالية',
+        'invoice': 'الفواتير',
+        
+        # Printing & Work Orders
+        'workorder': 'أوامر الشغل والإنتاج',
+        'printingorder': 'طلبات تسعير المطبوعات',
+        
+        # Customers & HR & Users
+        'customer': 'العملاء',
+        'employee': 'الموظفين',
+        'contract': 'عقود العمل',
+        'leave': 'الإجازات',
+        'attendance': 'الحضور والانصراف',
+        'user': 'المستخدمين',
+        'role': 'الأدوار والصلاحيات',
+        
+        # System & Auditing
+        'audittrail': 'سجلات التدقيق',
+        'report': 'التقارير',
+        'dashboard': 'لوحة التحكم',
+    }
+    
     model_arabic = model_translations.get(model_name, model_name)
     
-    # Action translations with better handling
+    # 3. Action Prefix Handling
     if codename.startswith('add_'):
         return f"إضافة {model_arabic}"
     elif codename.startswith('change_'):
@@ -75,56 +148,18 @@ def _get_arabic_permission_name(permission):
         return f"عرض {model_arabic}"
     elif codename.startswith('can_manage_'):
         action_part = codename.replace('can_manage_', '')
-        if action_part == 'contracts':
-            return 'إدارة العقود'
-        elif action_part == 'employees':
-            return 'إدارة الموظفين'
-        elif action_part == 'suppliers':
-            return 'إدارة الموردين'
-        elif action_part == 'customers':
-            return 'إدارة العملاء'
-        elif action_part == 'inventory':
-            return 'إدارة المخزون'
-        elif action_part == 'emergencies':
-            return 'إدارة حالات الطوارئ'
-        else:
-            return f"إدارة {model_arabic}"
+        return f"إدارة {model_translations.get(action_part, model_arabic)}"
     elif codename.startswith('can_export_'):
         action_part = codename.replace('can_export_', '')
-        if action_part == 'audit_logs':
-            return 'تصدير سجلات التدقيق'
-        elif action_part == 'data':
-            return 'تصدير البيانات'
-        else:
-            return f"تصدير {model_arabic}"
+        return f"تصدير {model_translations.get(action_part, model_arabic)}"
     elif codename.startswith('can_view_'):
         action_part = codename.replace('can_view_', '')
-        if action_part == 'audit_logs':
-            return 'عرض سجلات التدقيق'
-        else:
-            return f"عرض {model_arabic}"
+        return f"عرض {model_translations.get(action_part, model_arabic)}"
     elif codename.startswith('can_process_'):
         action_part = codename.replace('can_process_', '')
-        if action_part == 'payroll':
-            return 'معالجة الرواتب'
-        else:
-            return f"معالجة {model_arabic}"
+        return f"معالجة {model_translations.get(action_part, model_arabic)}"
     
-    # Special cases for specific permissions
-    special_cases = {
-        'dashboard': 'لوحة التحكم',
-        'audit': 'مراجعة السجلات',
-        'monitor': 'مراقبة النظام',
-        'export_data': 'تصدير البيانات',
-        'view_reports': 'عرض التقارير',
-        'manage_settings': 'إدارة الإعدادات'
-    }
-    
-    if codename in special_cases:
-        return special_cases[codename]
-    
-    # If no specific translation found, return the Arabic model name
-    return model_arabic
+    return f"{codename} ({model_arabic})"
 
 
 @login_required
@@ -133,15 +168,24 @@ def permissions_dashboard(request):
     Unified permissions management dashboard with tabs.
     """
     try:
-        # Get current tab from URL parameter
-        current_tab = request.GET.get('tab', 'overview')
-        
         # Check user permissions for admin features
-        user_can_manage_roles = request.user.is_superuser or request.user.is_admin
+        user_can_manage_roles = request.user.is_superuser or getattr(request.user, 'is_admin', False)
         user_can_view_permissions = (
             user_can_manage_roles or 
-            request.user.can_manage_users()
+            (hasattr(request.user, 'can_manage_users') and request.user.can_manage_users()) or
+            request.user.has_perm('users.view_user')
         )
+        
+        if not user_can_view_permissions:
+            return render(
+                request,
+                'core/permission_denied.html',
+                {'title': 'غير مصرح', 'message': 'ليس لديك صلاحية لعرض لوحة تحكم الصلاحيات'},
+                status=403
+            )
+
+        # Get current tab from URL parameter
+        current_tab = request.GET.get('tab', 'overview')
         
         # Base context for all tabs
         context = {
@@ -168,7 +212,8 @@ def permissions_dashboard(request):
             ],
             'header_buttons': [
                 {
-                    'url': reverse('users:role_quick_create'),
+                    'toggle': 'modal',
+                    'target': '#createRoleModal',
                     'icon': 'fa-plus',
                     'text': 'إضافة دور جديد',
                     'class': 'btn-primary'
@@ -191,28 +236,31 @@ def permissions_dashboard(request):
             }
         }
         
-        # Load data for ALL tabs to avoid refresh issues
-        # This ensures data is always available regardless of which tab is active
-        try:
-            context.update(_get_roles_tab_data(request))
-        except Exception as e:
-            context.update({'roles': [], 'search': '', 'total_roles': 0, 'roles_error': str(e)})
+        # Base roles queryset available across all tabs for modals and filters
+        available_roles = Role.objects.filter(is_active=True).order_by('display_name')
+        context['available_roles'] = available_roles
         
-        try:
-            context.update(_get_users_tab_data(request))
-        except Exception as e:
-            context.update({'users': [], 'available_roles': [], 'total_users': 0, 'users_error': str(e)})
-        
-        try:
-            context.update(_get_monitoring_tab_data(request))
-        except Exception as e:
-            context.update({'recent_changes': [], 'days_filter': 7, 'total_changes': 0, 'monitoring_error': str(e)})
-        
-        # Add overview data
-        try:
-            context.update(_get_overview_tab_data(request))
-        except Exception as e:
-            context.update({'overview_error': str(e)})
+        # Load data on demand for the requested tab only (SSR-Safe & Pagination Collision Free)
+        if current_tab == 'roles':
+            try:
+                context.update(_get_roles_tab_data(request))
+            except Exception as e:
+                context.update({'roles': [], 'search': '', 'total_roles': 0, 'roles_error': str(e)})
+        elif current_tab == 'users':
+            try:
+                context.update(_get_users_tab_data(request))
+            except Exception as e:
+                context.update({'users': [], 'total_users': 0, 'users_error': str(e)})
+        elif current_tab == 'monitoring':
+            try:
+                context.update(_get_monitoring_tab_data(request))
+            except Exception as e:
+                context.update({'recent_changes': [], 'days_filter': 7, 'total_changes': 0, 'monitoring_error': str(e)})
+        else:
+            try:
+                context.update(_get_overview_tab_data(request))
+            except Exception as e:
+                context.update({'overview_error': str(e)})
         
         return render(request, 'users/permissions/dashboard.html', context)
         
@@ -278,9 +326,10 @@ def _get_overview_tab_data(request):
 def _get_roles_tab_data(request):
     """Get data for roles management tab."""
     try:
-        # Get all roles with user counts (using different name to avoid conflict with property)
-        roles = Role.objects.annotate(
-            user_count=Count('users', filter=Q(users__is_active=True))
+        # Get all roles with user counts and annotated permissions count (N+1 free)
+        roles = Role.objects.select_related('parent_role').annotate(
+            user_count=Count('users', filter=Q(users__is_active=True), distinct=True),
+            permissions_count_annotated=Count('permissions', distinct=True)
         ).order_by('-is_system_role', 'display_name')
         
         # Search functionality
@@ -427,6 +476,33 @@ def _get_monitoring_tab_data(request):
         }
 
 
+def _resolve_permissions_from_input(perm_inputs):
+    """Resolve permissions from list of IDs (int) or codenames/app.codename (str)."""
+    if not perm_inputs:
+        return Permission.objects.none()
+    
+    int_ids = []
+    string_perms = []
+    for p in perm_inputs:
+        if isinstance(p, int) or (isinstance(p, str) and p.isdigit()):
+            int_ids.append(int(p))
+        elif isinstance(p, str):
+            string_perms.append(p)
+            
+    from django.db.models import Q
+    query = Q()
+    if int_ids:
+        query |= Q(id__in=int_ids)
+    for sp in string_perms:
+        if '.' in sp:
+            app_label, codename = sp.split('.', 1)
+            query |= Q(content_type__app_label=app_label, codename=codename)
+        else:
+            query |= Q(codename=sp)
+            
+    return Permission.objects.filter(query) if query else Permission.objects.none()
+
+
 @login_required
 @secure_admin_operation('role_quick_create')
 def role_quick_create(request):
@@ -454,8 +530,14 @@ def role_quick_create(request):
                     'message': f'دور بالاسم "{name}" موجود بالفعل'
                 }, status=400)
             
-            # Get permissions
-            permissions = Permission.objects.filter(id__in=permission_ids)
+            # Get permissions (supports both integer IDs and string codenames)
+            permissions = _resolve_permissions_from_input(permission_ids)
+            
+            # Parent role if provided
+            parent_role_id = data.get('parent_role_id')
+            parent_role = None
+            if parent_role_id:
+                parent_role = get_object_or_404(Role, id=parent_role_id)
             
             # Create role using service
             role = PermissionService.create_role(
@@ -465,6 +547,13 @@ def role_quick_create(request):
                 permissions=list(permissions),
                 created_by=request.user
             )
+            if parent_role:
+                role.parent_role = parent_role
+                role.save()
+            
+            # Auto-resolve prerequisites explicitly in DB (Dual-Guarded SSOT)
+            from users.services.permission_dependency import PermissionDependencyService
+            PermissionDependencyService.auto_resolve_dependencies_for_role(role)
             
             return JsonResponse({
                 'success': True,
@@ -477,6 +566,12 @@ def role_quick_create(request):
                 }
             })
             
+        except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return JsonResponse({
+                'success': False,
+                'message': msg
+            }, status=400)
         except Exception as e:
             return JsonResponse({
                 'success': False,
@@ -502,6 +597,7 @@ def role_quick_edit(request, role_id):
                 'display_name': role.display_name,
                 'description': role.description,
                 'is_active': role.is_active,
+                'parent_role_id': role.parent_role_id,
                 'permissions': list(role.permissions.values_list('id', flat=True))
             }
         })
@@ -514,23 +610,36 @@ def role_quick_edit(request, role_id):
             role.display_name = data.get('display_name', role.display_name)
             role.description = data.get('description', role.description)
             role.is_active = data.get('is_active', role.is_active)
+            if 'parent_role_id' in data:
+                pr_id = data.get('parent_role_id')
+                role.parent_role = get_object_or_404(Role, id=pr_id) if pr_id else None
             role.save()
             
-            # Update permissions if provided
-            permission_ids = data.get('permissions')
-            if permission_ids is not None:
-                permissions = Permission.objects.filter(id__in=permission_ids)
+            # Update permissions if provided (supports both IDs and string codenames)
+            raw_perms = data.get('permissions')
+            if raw_perms is None and 'permission_ids' in data:
+                raw_perms = data.get('permission_ids')
+            if raw_perms is not None:
+                permissions = _resolve_permissions_from_input(raw_perms)
                 PermissionService.update_role_permissions(
                     role=role,
                     permissions=list(permissions),
                     updated_by=request.user
                 )
+                from users.services.permission_dependency import PermissionDependencyService
+                PermissionDependencyService.auto_resolve_dependencies_for_role(role)
             
             return JsonResponse({
                 'success': True,
                 'message': f'تم تحديث الدور "{role.display_name}" بنجاح'
             })
             
+        except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return JsonResponse({
+                'success': False,
+                'message': msg
+            }, status=400)
         except Exception as e:
             return JsonResponse({
                 'success': False,
@@ -567,6 +676,22 @@ def role_delete(request, role_id):
                 'message': f'لا يمكن حذف الدور لأنه مرتبط بـ {role.active_users_count} مستخدم نشط'
             }, status=400)
         
+        # Check if role has active secondary users
+        secondary_users_count = role.secondary_users.filter(is_active=True).count()
+        if secondary_users_count > 0:
+            return JsonResponse({
+                'success': False,
+                'message': f'لا يمكن حذف الدور لأنه مرتبط بـ {secondary_users_count} مستخدم كدور ثانوي'
+            }, status=400)
+        
+        # Check if role has active child roles inheriting from it
+        child_roles_count = role.child_roles.filter(is_active=True).count()
+        if child_roles_count > 0:
+            return JsonResponse({
+                'success': False,
+                'message': f'لا يمكن حذف الدور لأنه مستخدم كدور أب لـ {child_roles_count} أدوار تابعة نشطة'
+            }, status=400)
+        
         try:
             role_name = role.display_name
             role.delete()
@@ -586,32 +711,45 @@ def role_delete(request, role_id):
 
 
 @login_required
+@require_admin()
 def user_assign_role(request, user_id):
-    """AJAX endpoint for assigning role to user."""
+    """AJAX endpoint for assigning primary and secondary roles to user."""
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
+        
+        if user.is_superuser:
+            return JsonResponse({
+                'success': False,
+                'message': 'لا يمكن تعديل أدوار المدير العام (Superuser)'
+            }, status=400)
         
         try:
             data = json.loads(request.body)
             role_id = data.get('role_id')
+            secondary_role_ids = data.get('secondary_role_ids', [])
             
+            # Primary role assignment
             if role_id:
                 role = get_object_or_404(Role, id=role_id)
-                
-                # Direct assignment
                 user.role = role
-                user.save()
-                
-                message = f'تم تعيين الدور "{role.display_name}" للمستخدم "{user.get_full_name()}"'
             else:
-                # Remove role
                 user.role = None
-                user.save()
-                message = f'تم إزالة الدور من المستخدم "{user.get_full_name()}"'
+            user.save()
             
+            # Secondary roles assignment
+            clean_secondary_ids = [int(rid) for rid in secondary_role_ids if str(rid).isdigit() and int(rid) != (user.role.id if user.role else None)]
+            user.secondary_roles.set(Role.objects.filter(id__in=clean_secondary_ids, is_active=True))
+            
+            # Invalidate user cache
+            if hasattr(user, '_cached_permissions'):
+                delattr(user, '_cached_permissions')
+            from users.services.permission_cache import PermissionCacheService
+            PermissionCacheService.invalidate_user_cache(user.id)
+            
+            user_name = user.get_full_name() or user.username
             return JsonResponse({
                 'success': True,
-                'message': message
+                'message': f'تم تحديث أدوار المستخدم "{user_name}" بنجاح'
             })
             
         except Exception as e:
@@ -634,18 +772,47 @@ def user_permissions_detail(request, user_id):
         available_permissions = list(PermissionService.get_custom_permissions_only().select_related('content_type'))
         available_ids = {p.id for p in available_permissions}
         
-        # Role permissions
+        # Role permissions (including secondary roles and parent role hierarchy via bulk O(1) query)
         role_permissions_set = set()
+        roles_to_inspect = []
         if user.role:
-            role_permissions_set = set(user.role.permissions.filter(id__in=available_ids).select_related('content_type'))
-            
+            roles_to_inspect.append(user.role)
+        if hasattr(user, 'secondary_roles'):
+            roles_to_inspect.extend(list(user.secondary_roles.all()))
+
+        visited_role_ids = set()
+        while roles_to_inspect:
+            current_role = roles_to_inspect.pop()
+            if not current_role or current_role.id in visited_role_ids:
+                continue
+            visited_role_ids.add(current_role.id)
+            if current_role.parent_role_id and current_role.parent_role_id not in visited_role_ids:
+                roles_to_inspect.append(current_role.parent_role)
+
+        if visited_role_ids:
+            role_permissions_set = set(
+                Permission.objects.filter(
+                    user_roles__in=visited_role_ids,
+                    id__in=available_ids
+                ).select_related('content_type').distinct()
+            )
+
         # Direct custom permissions
         direct_permissions_set = set(
-            user.custom_permissions.filter(id__in=available_ids).select_related('content_type')
-        ) | set(
             user.user_permissions.filter(id__in=available_ids).select_related('content_type')
         )
-        
+        if hasattr(user, 'custom_permissions'):
+            direct_permissions_set |= set(
+                user.custom_permissions.filter(id__in=available_ids).select_related('content_type')
+            )
+
+        # Revoked permissions
+        revoked_permissions_set = set()
+        if hasattr(user, 'revoked_permissions'):
+            revoked_permissions_set = set(
+                user.revoked_permissions.filter(id__in=available_ids).select_related('content_type')
+            )
+
         # Format lists
         role_permissions = [
             {
@@ -659,7 +826,7 @@ def user_permissions_detail(request, user_id):
             }
             for p in role_permissions_set
         ]
-        
+
         custom_permissions = [
             {
                 'id': p.id,
@@ -672,7 +839,20 @@ def user_permissions_detail(request, user_id):
             }
             for p in direct_permissions_set
         ]
-        
+
+        revoked_permissions = [
+            {
+                'id': p.id,
+                'name': _get_arabic_permission_name(p),
+                'codename': p.codename,
+                'category': _get_permission_category(p),
+                'category_name': _get_category_display_name(_get_permission_category(p)),
+                'category_icon': _get_category_icon(_get_permission_category(p)),
+                'category_color': _get_category_color(_get_permission_category(p))
+            }
+            for p in revoked_permissions_set
+        ]
+
         available_custom_permissions = [
             {
                 'id': p.id,
@@ -685,28 +865,30 @@ def user_permissions_detail(request, user_id):
             }
             for p in available_permissions
         ]
-        
+
         # Categories breakdown for UI and JS
         categories_dict = {}
-        all_categories = ['customers_suppliers', 'inventory', 'financial', 'hr', 'reports', 'system_admin']
-        
+        all_categories = ['sale', 'purchase', 'financial', 'product', 'customer', 'supplier', 'printing_pricing', 'work_order', 'hr', 'system']
+
         for cat in all_categories:
             cat_role_perms = [p for p in role_permissions if p['category'] == cat]
             cat_direct_perms = [p for p in custom_permissions if p['category'] == cat]
+            cat_revoked_perms = [p for p in revoked_permissions if p['category'] == cat]
             cat_total_perms = [p for p in available_custom_permissions if p['category'] == cat]
-            
+
             categories_dict[cat] = {
                 'name': _get_category_display_name(cat),
                 'icon': _get_category_icon(cat),
                 'color': _get_category_color(cat),
                 'total': len(cat_total_perms),
-                'assigned': len(cat_role_perms) + len(cat_direct_perms),
+                'assigned': len(cat_role_perms) + len(cat_direct_perms) - len(cat_revoked_perms),
                 'role_permissions': cat_role_perms,
                 'direct_permissions': cat_direct_perms,
+                'revoked_permissions': cat_revoked_perms,
             }
-        
-        total_unique = len({p['id'] for p in role_permissions} | {p['id'] for p in custom_permissions})
-        
+
+        total_unique = len(({p['id'] for p in role_permissions} | {p['id'] for p in custom_permissions}) - {p['id'] for p in revoked_permissions})
+
         return JsonResponse({
             'success': True,
             'user': {
@@ -717,20 +899,24 @@ def user_permissions_detail(request, user_id):
                 'is_active': user.is_active,
                 'is_superuser': user.is_superuser,
                 'role_name': user.role.display_name if user.role else 'بدون دور',
-                'role_code': user.role.name if user.role else None
+                'role_code': user.role.name if user.role else None,
+                'secondary_roles': [r.display_name for r in user.secondary_roles.all()] if hasattr(user, 'secondary_roles') else []
             },
             'permissions_overview': {
                 'total_custom_permissions': total_unique,
                 'role_permissions_count': len(role_permissions),
                 'direct_permissions_count': len(custom_permissions),
+                'revoked_permissions_count': len(revoked_permissions),
             },
             'categories': categories_dict,
             'role_permissions': role_permissions,
             'custom_permissions': custom_permissions,
+            'revoked_permissions': revoked_permissions,
             'available_custom_permissions': available_custom_permissions,
             'summary': {
                 'role_permissions_count': len(role_permissions),
                 'custom_permissions_count': len(custom_permissions),
+                'revoked_permissions_count': len(revoked_permissions),
                 'total_permissions_count': total_unique,
                 'categories_breakdown': categories_dict
             },
@@ -746,45 +932,44 @@ def user_permissions_detail(request, user_id):
 
 def _get_permission_category(perm):
     """Get category for permission based on app_label or codename."""
+    app_to_category = {
+        'sale': 'sale',
+        'purchase': 'purchase',
+        'financial': 'financial',
+        'governance': 'financial',
+        'product': 'product',
+        'customer': 'customer',
+        'supplier': 'supplier',
+        'printing_pricing': 'printing_pricing',
+        'work_order': 'work_order',
+        'hr': 'hr',
+        'users': 'system',
+        'core': 'system',
+    }
     if hasattr(perm, 'content_type'):
-        app_label = perm.content_type.app_label
-        if app_label in ['customer', 'supplier']:
-            return 'customers_suppliers'
-        elif app_label in ['product', 'sale', 'purchase', 'printing_pricing', 'work_order']:
-            return 'inventory'
-        elif app_label in ['financial']:
-            return 'financial'
-        elif app_label in ['hr']:
-            return 'hr'
-        elif app_label in ['core', 'governance']:
-            return 'reports'
-        elif app_label in ['users', 'auth']:
-            return 'system_admin'
+        app_label = perm.content_type.app_label.lower()
+        return app_to_category.get(app_label, 'system')
             
     codename = str(getattr(perm, 'codename', perm)).lower()
-    if any(k in codename for k in ['customer', 'supplier', 'عملاء', 'موردين']):
-        return 'customers_suppliers'
-    elif any(k in codename for k in ['sale', 'purchase', 'order', 'quotation', 'product', 'stock', 'warehouse', 'مبيعات', 'مشتريات', 'مخزون']):
-        return 'inventory'
-    elif any(k in codename for k in ['financial', 'journal', 'account', 'voucher', 'period', 'revaluation', 'مالية', 'محاسبة']):
-        return 'financial'
-    elif any(k in codename for k in ['employee', 'salary', 'payroll', 'leave', 'attendance', 'hr']):
-        return 'hr'
-    elif any(k in codename for k in ['report', 'export', 'audit', 'تقارير']):
-        return 'reports'
-    else:
-        return 'system_admin'
+    for app in ['sale', 'purchase', 'financial', 'product', 'customer', 'supplier', 'printing_pricing', 'work_order', 'hr']:
+        if app in codename:
+            return app
+    return 'system'
 
 
 def _get_category_display_name(category):
     """Get display name for category."""
     names = {
-        'customers_suppliers': 'العملاء والموردين',
-        'inventory': 'المبيعات والمخزون والتشغيل',
-        'financial': 'المالية والمحاسبة',
+        'sale': 'المبيعات وعروض الأسعار',
+        'purchase': 'المشتريات والموردين',
+        'financial': 'الإدارة المالية والحسابات',
+        'product': 'المخازن والمنتجات',
+        'customer': 'العملاء',
+        'supplier': 'الموردين',
+        'printing_pricing': 'التسعير وتكاليف الطباعة',
+        'work_order': 'أوامر العمل والتشغيل',
         'hr': 'الموارد البشرية والرواتب',
-        'reports': 'التقارير والمراقبة',
-        'system_admin': 'إدارة النظام'
+        'system': 'إدارة النظام والمستخدمين',
     }
     return names.get(category, category)
 
@@ -792,12 +977,16 @@ def _get_category_display_name(category):
 def _get_category_icon(category):
     """Get icon for category."""
     icons = {
-        'customers_suppliers': 'fas fa-handshake',
-        'inventory': 'fas fa-boxes',
+        'sale': 'fas fa-cash-register',
+        'purchase': 'fas fa-shopping-cart',
         'financial': 'fas fa-calculator',
+        'product': 'fas fa-boxes',
+        'customer': 'fas fa-users',
+        'supplier': 'fas fa-truck',
+        'printing_pricing': 'fas fa-print',
+        'work_order': 'fas fa-cogs',
         'hr': 'fas fa-user-tie',
-        'reports': 'fas fa-chart-bar',
-        'system_admin': 'fas fa-cogs'
+        'system': 'fas fa-shield-alt',
     }
     return icons.get(category, 'fas fa-key')
 
@@ -805,17 +994,20 @@ def _get_category_icon(category):
 def _get_category_color(category):
     """Get color for category."""
     colors = {
-        'customers_suppliers': 'info',
-        'inventory': 'warning',
+        'sale': 'success',
+        'purchase': 'warning',
         'financial': 'primary',
+        'product': 'info',
+        'customer': 'info',
+        'supplier': 'secondary',
+        'printing_pricing': 'secondary',
+        'work_order': 'warning',
         'hr': 'secondary',
-        'reports': 'info',
-        'system_admin': 'danger'
+        'system': 'danger',
     }
     return colors.get(category, 'primary')
 
 
-@login_required
 @login_required
 def get_available_permissions(request):
     """Get available custom permissions for role/user assignment."""
@@ -874,9 +1066,11 @@ def get_available_permissions(request):
                 ]
             }
         
+        from users.services.permission_dependency import PermissionDependencyService
         return JsonResponse({
             'success': True,
             'permissions': serializable_permissions,
+            'dependencies': PermissionDependencyService.get_unified_dependency_map(),
             'stats': {
                 'total_django_permissions': total_django_permissions,
                 'total_custom_permissions': total_custom_permissions,
@@ -1069,21 +1263,67 @@ def user_update_custom_permissions(request, user_id):
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         
+        if user.is_superuser:
+            return JsonResponse({
+                'success': False,
+                'message': 'لا يمكن تعديل أو حجب صلاحيات المدير العام (Superuser)'
+            }, status=400)
+        
         try:
             data = json.loads(request.body)
-            permission_ids = data.get('permission_ids', [])
+            raw_perms = data.get('permission_ids') if 'permission_ids' in data else data.get('permissions', [])
             
-            # Fetch valid permissions
-            valid_permissions = Permission.objects.filter(id__in=permission_ids)
-            
-            # Update user's custom_permissions (using dedicated field)
-            user.custom_permissions.set(valid_permissions)
-            
-            # Clear cached permissions if cached
+            # Fetch valid permissions (supports both integer IDs and string codenames)
+            valid_permissions = _resolve_permissions_from_input(raw_perms)
+
+            # Old permissions for forensic diff
+            old_custom_set = set(user.user_permissions.values_list('codename', flat=True))
+            old_revoked_set = set(user.revoked_permissions.values_list('codename', flat=True)) if hasattr(user, 'revoked_permissions') else set()
+
+            # Update user's custom_permissions and sync with standard user_permissions
+            user.user_permissions.set(valid_permissions)
+            if hasattr(user, 'custom_permissions'):
+                user.custom_permissions.set(valid_permissions)
+
+            # Update revoked permissions if provided
+            valid_revoked = []
+            if 'revoked_permission_ids' in data or 'revoked_permissions' in data:
+                raw_revoked = data.get('revoked_permission_ids') if 'revoked_permission_ids' in data else data.get('revoked_permissions', [])
+                valid_revoked = _resolve_permissions_from_input(raw_revoked)
+                if hasattr(user, 'revoked_permissions'):
+                    user.revoked_permissions.set(valid_revoked)
+
+            from users.services.permission_dependency import PermissionDependencyService
+            PermissionDependencyService.auto_resolve_dependencies_for_user(user)
+
+            # New permissions for forensic diff
+            new_custom_set = set(user.user_permissions.values_list('codename', flat=True))
+            new_revoked_set = set(user.revoked_permissions.values_list('codename', flat=True)) if hasattr(user, 'revoked_permissions') else set()
+
+            added_perms = list(new_custom_set - old_custom_set)
+            removed_perms = list(old_custom_set - new_custom_set)
+            added_revoked = list(new_revoked_set - old_revoked_set)
+            removed_revoked = list(old_revoked_set - new_revoked_set)
+
+            # Clear cached permissions in all tiers
             if hasattr(user, '_cached_permissions'):
                 delattr(user, '_cached_permissions')
-            
-            # Log the change
+            from users.services.permission_cache import PermissionCacheService
+            PermissionCacheService.invalidate_user_cache(user.id)
+
+            # Log to AuditService (Forensic Audit Trail)
+            from governance.services.audit_service import AuditService
+            AuditService.log_operation(
+                model_name='User',
+                object_id=user.id,
+                operation='UPDATE_USER_PERMISSIONS',
+                source_service='PermissionService',
+                user=request.user,
+                before_data={'permissions': list(old_custom_set), 'revoked': list(old_revoked_set)},
+                after_data={'permissions': list(new_custom_set), 'revoked': list(new_revoked_set), 'added': added_perms, 'removed': removed_perms}
+            )
+
+            # Log the change to ActivityLog
             from .models import ActivityLog
             from utils.logs import get_client_ip
             ActivityLog.objects.create(
@@ -1094,10 +1334,15 @@ def user_update_custom_permissions(request, user_id):
                 ip_address=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
                 extra_data={
-                    'description': f'تحديث الصلاحيات الإضافية للمستخدم {user.get_full_name() or user.username}',
+                    'description': f'تحديث الصلاحيات للمستخدم {user.get_full_name() or user.username}',
                     'target_user_id': user.id,
                     'target_user_name': user.get_full_name() or user.username,
                     'custom_permissions_count': valid_permissions.count(),
+                    'revoked_permissions_count': len(valid_revoked),
+                    'added_permissions': added_perms,
+                    'removed_permissions': removed_perms,
+                    'added_revoked': added_revoked,
+                    'removed_revoked': removed_revoked,
                     'permission_ids': list(valid_permissions.values_list('id', flat=True))
                 }
             )

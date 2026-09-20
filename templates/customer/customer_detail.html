@@ -752,6 +752,7 @@
             </h6>
             <div class="list-group shadow-sm border rounded">
               <!-- دليل الحسابات -->
+              {% if perms.financial.view_chartofaccounts or user.is_superuser %}
               {% if customer.financial_account %}
               <a href="{% url 'financial:account_detail' customer.financial_account.pk %}"
                 class="list-group-item list-group-item-action d-flex align-items-center p-3">
@@ -775,8 +776,10 @@
                 </div>
               </a>
               {% endif %}
+              {% endif %}
 
               <!-- تعديل بيانات العميل -->
+              {% if perms.customer.change_customer or user.is_superuser %}
               <a href="{% url "customer:customer_edit" customer.pk %}"
                 class="list-group-item list-group-item-action d-flex align-items-center p-3">
                 <div class="me-3">
@@ -787,8 +790,10 @@
                   <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
                 </div>
               </a>
+              {% endif %}
 
               <!-- تغيير الحساب المحاسبي -->
+              {% if perms.customer.change_customer and perms.financial.change_account or user.is_superuser %}
               <a href="{% url "customer:customer_change_account" customer.pk %}"
                 class="list-group-item list-group-item-action d-flex align-items-center p-3">
                 <div class="me-3">
@@ -799,9 +804,11 @@
                   <small class="text-muted">{% trans "ربط العميل بحساب آخر في دليل الحسابات" %}</small>
                 </div>
               </a>
+              {% endif %}
 
               <!-- حذف أو أرشفة العميل -->
               {% if customer.is_active %}
+              {% if perms.customer.delete_customer or user.is_superuser %}
               <button type="button"
                 onclick="openDeleteCustomerModal()"
                 class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger border-0">
@@ -813,7 +820,9 @@
                   <small class="text-muted">{% trans "فحص المعاملات والحذف النهائي أو التعطيل الآمن" %}</small>
                 </div>
               </button>
+              {% endif %}
               {% else %}
+              {% if perms.customer.change_customer or user.is_superuser %}
               <form method="POST" action="{% url "customer:customer_reactivate" customer.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="list-group-item list-group-item-action d-flex align-items-center p-3 text-success border-0">
@@ -826,6 +835,7 @@
                   </div>
                 </button>
               </form>
+              {% endif %}
               {% endif %}
             </div>
           </div>
@@ -1394,19 +1404,23 @@
         });
       }
     });
+  </script>
 
+  {% if perms.customer.delete_customer or user.is_superuser %}
+  <script>
     function openDeleteCustomerModal() {
       if (window.EntityDeleteArchiveController) {
         window.EntityDeleteArchiveController.open({
           entityType: 'customer',
           entityId: '{{ customer.id }}',
-          deleteUrl: "{% url "customer:customer_delete" customer.id %}",
+          deleteUrl: "{% url 'customer:customer_delete' customer.id %}",
           onSuccess: function() {
-            window.location.href = "{% url "customer:customer_list" %}";
+            window.location.href = "{% url 'customer:customer_list' %}";
           }
         });
       }
     }
   </script>
+  {% endif %}
   {% include "components/modals/entity_delete_archive_modal.html" %}
   {% endblock %}

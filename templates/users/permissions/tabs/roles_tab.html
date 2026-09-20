@@ -2,9 +2,17 @@
 {% if user_can_manage_roles %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0">إدارة الأدوار</h5>
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
-        <i class="fas fa-plus me-2"></i>إضافة دور جديد
-    </button>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" id="compareRolesBtn">
+            <i class="fas fa-balance-scale me-1"></i>مقارنة الأدوار
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="exportRolesBtn">
+            <i class="fas fa-file-export me-1"></i>تصدير الأدوار
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+            <i class="fas fa-plus me-1"></i>إضافة دور جديد
+        </button>
+    </div>
 </div>
 
 <!-- Roles List -->
@@ -16,6 +24,11 @@
                 <div>
                     <h6 class="role-title">{{ role.display_name }}</h6>
                     <span class="role-name">{{ role.name }}</span>
+                    {% if role.parent_role %}
+                        <span class="badge bg-light text-dark border ms-2" title="يرث من {{ role.parent_role.display_name }}">
+                            <i class="fas fa-level-up-alt text-primary me-1"></i>يرث من: {{ role.parent_role.display_name }}
+                        </span>
+                    {% endif %}
                     {% if role.is_system_role %}
                         <span class="badge bg-info ms-2">دور نظام</span>
                     {% endif %}
@@ -47,7 +60,7 @@
                     {% if role.name == 'admin' %}
                         <span>صلاحيات كاملة (superuser)</span>
                     {% else %}
-                        <span>{{ role.permissions.count }} صلاحية</span>
+                        <span>{{ role.permissions_count }} صلاحية</span>
                     {% endif %}
                 </div>
                 <div class="role-stat">

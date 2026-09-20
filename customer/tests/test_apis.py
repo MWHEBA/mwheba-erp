@@ -21,7 +21,9 @@ class CustomerCreateAccountAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -98,7 +100,9 @@ class CustomerChangeAccountAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -135,7 +139,9 @@ class CustomerListAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -186,7 +192,9 @@ class CustomerDetailAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -227,7 +235,9 @@ class CustomerAddAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -267,7 +277,9 @@ class CustomerEditAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -313,7 +325,9 @@ class CustomerDeleteAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         
@@ -356,7 +370,9 @@ class CustomerIntegrationAPITest(TestCase):
         self.client = Client()
         self.user = User.objects.create_user(
             username='testuser',
-            password='test123'
+            password='test123',
+            is_staff=True,
+            is_superuser=True
         )
         self.client.login(username='testuser', password='test123')
         

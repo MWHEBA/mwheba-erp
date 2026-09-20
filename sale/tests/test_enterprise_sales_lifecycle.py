@@ -13,7 +13,7 @@ User = get_user_model()
 @pytest.mark.django_db
 class TestEnterpriseSalesLifecycle:
     def setup_method(self):
-        self.user = User.objects.create_user(
+        self.user = User.objects.create_superuser(
             username='sc_tester_user',
             email='sc_tester_user@example.com',
             password='Password123!'

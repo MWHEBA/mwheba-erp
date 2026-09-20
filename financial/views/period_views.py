@@ -17,9 +17,11 @@ from financial.models.closing_engine_models import FiscalYearClosingRun, PeriodM
 from financial.forms.period_forms import FiscalYearForm, AccountingPeriodForm, PeriodForceCloseForm, PeriodReopenForm
 from financial.services.fiscal_year_closing_service import FiscalYearClosingService
 from financial.services.period_control_service import PeriodControlService
+from users.decorators import require_permission
 
 
 @login_required
+@require_permission('financial.view_accountingperiod')
 def accounting_periods_list(request):
     """عرض قائمة الفترات المحاسبية مع الدعم الكامل لـ AJAX doSearch و SSR Pagination و stats-card"""
     periods_qs = AccountingPeriod.objects.select_related('fiscal_year').all().order_by("-start_date")
@@ -107,6 +109,7 @@ def accounting_periods_list(request):
 
 
 @login_required
+@require_permission('financial.add_accountingperiod')
 def accounting_periods_create(request):
     """إنشاء فترة محاسبية جديدة"""
     if request.method == "POST":
@@ -136,6 +139,7 @@ def accounting_periods_create(request):
 
 
 @login_required
+@require_permission('financial.change_accountingperiod')
 def accounting_periods_edit(request, pk):
     """تعديل فترة محاسبية"""
     period = get_object_or_404(AccountingPeriod, pk=pk)
@@ -165,6 +169,7 @@ def accounting_periods_edit(request, pk):
 
 
 @login_required
+@require_permission('financial.close_accounting_period')
 def accounting_period_wizard(request, pk):
     """معالج الإغلاق التفاعلي خطوة-بخطوة للفترة المحاسبية"""
     period = get_object_or_404(AccountingPeriod, pk=pk)
@@ -186,6 +191,7 @@ def accounting_period_wizard(request, pk):
 
 
 @login_required
+@require_permission('financial.close_accounting_period')
 def accounting_periods_close(request, pk):
     """إغلاق فترة محاسبية مع الأتمتة التلقائية لتقييم العملات وحماية المسودات"""
     period = get_object_or_404(AccountingPeriod, pk=pk)
@@ -213,6 +219,7 @@ def accounting_periods_close(request, pk):
 
 
 @login_required
+@require_permission('financial.view_fiscalyear')
 def fiscal_years_list(request):
     """عرض إدارة السنوات المالية الموحدة بأسلوب AGENTS.md مع دعم AJAX doSearch الإحصائيات"""
     fiscal_years_qs = FiscalYear.objects.all().order_by("-start_date")
@@ -275,6 +282,7 @@ def fiscal_years_list(request):
 
 
 @login_required
+@require_permission('financial.add_fiscalyear')
 def fiscal_years_create(request):
     """إنشاء سنة مالية جديدة"""
     if request.method == "POST":
@@ -308,6 +316,7 @@ def fiscal_years_create(request):
 
 
 @login_required
+@require_permission('financial.close_accounting_period')
 def fiscal_year_wizard(request, pk):
     """معالج الإغلاق السنوي التفاعلي"""
     fiscal_year = get_object_or_404(FiscalYear, pk=pk)

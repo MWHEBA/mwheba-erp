@@ -264,17 +264,19 @@ class Employee(models.Model):
         
         errors = {}
         
+        today = timezone.localdate()
+        
         # Validate hire date not in future
-        if self.hire_date and self.hire_date > timezone.now().date():
+        if self.hire_date and self.hire_date > today:
             errors['hire_date'] = 'تاريخ التعيين لا يمكن أن يكون في المستقبل'
         
         # Validate birth date not in future
-        if self.birth_date and self.birth_date > timezone.now().date():
+        if self.birth_date and self.birth_date > today:
             errors['birth_date'] = 'تاريخ الميلاد لا يمكن أن يكون في المستقبل'
         
         # Validate age >= 18
         if self.birth_date:
-            age = timezone.now().date().year - self.birth_date.year
+            age = today.year - self.birth_date.year
             if age < 18:
                 errors['birth_date'] = 'يجب أن يكون عمر الموظف 18 سنة على الأقل'
         

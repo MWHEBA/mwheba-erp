@@ -30,7 +30,9 @@ class CoreSupplierFunctionalityTest(TestCase):
         self.user = User.objects.create_user(
             username='testuser',
             password='testpass123',
-            email='test@example.com'
+            email='test@example.com',
+            is_staff=True,
+            is_superuser=True
         )
         
         # إنشاء أنواع موردين أساسية للشركة
@@ -362,7 +364,9 @@ class SupplierSystemIntegrationTest(TestCase):
         self.user = User.objects.create_user(
             username='testuser',
             password='testpass123',
-            email='test@example.com'
+            email='test@example.com',
+            is_staff=True,
+            is_superuser=True
         )
         
         self.client = Client()

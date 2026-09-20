@@ -6,6 +6,7 @@ from ..models import Payroll, Advance, Employee, Contract
 from ..forms.payroll_forms import PayrollProcessForm
 from ..services.payroll_service import PayrollService
 from ..decorators import can_view_salaries, can_process_payroll, can_pay_payroll
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -210,7 +211,6 @@ def payroll_list(request):
 
 
 @login_required
-@can_view_salaries
 def payroll_detail(request, pk):
     """تفاصيل قسيمة الراتب مع PayrollLines"""
     payroll = get_object_or_404(
@@ -219,6 +219,19 @@ def payroll_detail(request, pk):
         ),
         pk=pk,
     )
+
+    user = request.user
+    can_view = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.view_payroll') or
+        user.has_perm('hr.can_process_payroll') or
+        user.has_perm('hr.can_manage_salaries') or
+        (payroll.employee.user == user)
+    )
+    if not can_view:
+        from ..decorators import _deny_access
+        return _deny_access(request, _("ليس لديك صلاحية رؤية قسيمة الراتب هذه"))
 
     # Backfill financial_subcategory and financial_category for old payrolls
     if not payroll.financial_subcategory:
@@ -552,7 +565,11 @@ def payroll_unapprove(request, pk):
 
 # ==================== السلف ====================
 
+from users.decorators import require_permission
+
+
 @login_required
+@require_permission('hr.view_advance')
 def advance_list(request):
     """قائمة السلف"""
     advances = Advance.objects.select_related('employee', 'employee__department').all()
@@ -615,7 +632,7 @@ def advance_list(request):
 
 @login_required
 def advance_request(request):
-    """طلب سلفة جديدة"""
+    """طلب سلفة جديدة مع دعم التقديم الذاتي والإنشاء المباشر للمصرح لهم"""
     if request.method == 'POST':
         try:
             # الحصول على البيانات من الفورم
@@ -625,6 +642,18 @@ def advance_request(request):
             deduction_start_month = request.POST.get('deduction_start_month')
             reason = request.POST.get('reason')
             financial_category_id = request.POST.get('financial_category')
+            
+            target_emp = get_object_or_404(Employee, pk=employee_id)
+            is_self_service = (target_emp.user == request.user)
+            can_add_advances = (
+                request.user.is_superuser or
+                getattr(request.user, 'is_admin', False) or
+                request.user.has_perm('hr.add_advance') or
+                request.user.has_perm('hr.can_manage_employees')
+            )
+            if not (is_self_service or can_add_advances):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied(_("ليس لديك صلاحية تسجيل سلفة لموظف آخر"))
             
             # التحقق من البيانات
             if not employee_id or not amount or not reason or not deduction_start_month:
@@ -689,6 +718,8 @@ def advance_request(request):
         except ValueError as e:
             messages.error(request, f'خطأ في البيانات المدخلة: {str(e)}')
             return redirect('hr:advance_request')
+        except PermissionDenied:
+            raise
         except Exception as e:
             logger.exception(f"خطأ في إنشاء السلفة: {str(e)}")
             messages.error(request, f'حدث خطأ: {str(e)}')
@@ -740,6 +771,18 @@ def advance_detail(request, pk):
         Advance.objects.select_related('employee', 'employee__department', 'approved_by'), 
         pk=pk
     )
+
+    user = request.user
+    can_view = (
+        user.is_superuser or
+        getattr(user, 'is_admin', False) or
+        user.has_perm('hr.view_advance') or
+        user.has_perm('hr.can_manage_employees') or
+        (advance.employee.user == user)
+    )
+    if not can_view:
+        from ..decorators import _deny_access
+        return _deny_access(request, _("ليس لديك صلاحية استعراض هذه السلفة"))
     
     # الحصول على سجل الأقساط
     installments = AdvanceInstallment.objects.filter(
@@ -780,6 +823,7 @@ def advance_detail(request, pk):
 
 
 @login_required
+@require_permission('hr.change_advance')
 def advance_approve(request, pk):
     """اعتماد السلفة"""
     from django.http import JsonResponse
@@ -818,6 +862,7 @@ def advance_approve(request, pk):
 
 
 @login_required
+@can_pay_payroll
 def advance_pay(request, pk):
     """صرف السلفة - تحويل الحالة من approved إلى paid مع إنشاء القيد المحاسبي"""
     from django.http import JsonResponse
@@ -885,6 +930,7 @@ def advance_pay(request, pk):
 
 
 @login_required
+@require_permission('hr.change_advance')
 def advance_reject(request, pk):
     """رفض السلفة"""
     from django.http import JsonResponse

@@ -38,15 +38,19 @@
         </td>
         <td class="col-actions text-center">
           <div class="btn-group btn-group-sm" role="group">
+            {% if perms.financial.close_accounting_period %}
             <a href="{% url 'financial:accounting_period_wizard' period.pk %}" 
                class="btn btn-outline-info action-view" title="{% trans 'معالج الإغلاق' %}">
               <i class="fas fa-magic"></i>
             </a>
+            {% endif %}
+            {% if perms.financial.change_accountingperiod %}
             <a href="{% url 'financial:accounting_periods_edit' period.pk %}" 
                class="btn btn-outline-secondary" title="{% trans 'تعديل' %}">
               <i class="fas fa-edit"></i>
             </a>
-            {% if period.status == 'open' %}
+            {% endif %}
+            {% if period.status == 'open' and perms.financial.close_accounting_period %}
             <a href="{% url 'financial:accounting_periods_close' period.pk %}" 
                class="btn btn-outline-danger" title="{% trans 'إغلاق' %}">
               <i class="fas fa-lock"></i>

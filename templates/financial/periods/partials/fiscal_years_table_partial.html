@@ -38,10 +38,12 @@
         </td>
         <td class="col-actions text-center">
           <div class="btn-group btn-group-sm" role="group">
+            {% if perms.financial.close_accounting_period %}
             <a href="{% url 'financial:fiscal_year_wizard' fy.pk %}" 
                class="btn btn-outline-info" title="{% trans 'معالج الإغلاق السنوي' %}">
               <i class="fas fa-file-invoice-dollar"></i>
             </a>
+            {% endif %}
           </div>
         </td>
       </tr>

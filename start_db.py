@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Database Startup & Health Check Script
-فحص وتشغيل خادم قاعدة البيانات (MariaDB / MySQL)
+MariaDB Database Startup & Self-Healing Service
+فحص وتشغيل خادم قاعدة البيانات MariaDB المستقل وضمان استمراره مع إقلاع الجهاز
+بدون أي اعتماد على XAMPP
 """
 
 import os
@@ -10,6 +11,7 @@ import sys
 import time
 import subprocess
 import platform
+import winreg
 from pathlib import Path
 
 # إعداد الـ Encoding للـ Windows Console
@@ -36,15 +38,38 @@ def print_colored(text, color=Colors.RESET):
 
 
 def print_header(text):
-    print_colored(f"\n{'='*55}", Colors.CYAN)
+    print_colored(f"\n{'='*60}", Colors.CYAN)
     print_colored(f"  {text}", Colors.CYAN)
-    print_colored(f"{'='*55}\n", Colors.CYAN)
+    print_colored(f"{'='*60}\n", Colors.CYAN)
+
+
+def get_mariadb_paths():
+    """تحديد مسار خادم MariaDB المستقل وملف الإعدادات my.ini"""
+    possible_dirs = [
+        Path.home() / "mariadb-10.11",
+        Path(r"C:\Users\UTD\mariadb-10.11"),
+        Path(r"C:\mariadb-10.11"),
+        Path(r"C:\Program Files\MariaDB 10.11"),
+    ]
+    
+    env_dir = os.environ.get("MARIADB_HOME")
+    if env_dir:
+        possible_dirs.insert(0, Path(env_dir))
+
+    for base_dir in possible_dirs:
+        exe_path = base_dir / "bin" / "mysqld.exe"
+        ini_path = base_dir / "data" / "my.ini"
+        if not ini_path.exists():
+            ini_path = base_dir / "my.ini"
+        if exe_path.exists():
+            return exe_path, ini_path, base_dir
+
+    return None, None, None
 
 
 def test_db_connection():
     """اختبار الاتصال بقاعدة البيانات عبر إعدادات Django المعتمدة"""
     try:
-        # تهيئة Django لقراءة إعدادات settings و .env تلقائياً
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'corporate_erp.settings')
         import django
         django.setup()
@@ -65,178 +90,205 @@ def test_db_connection():
         return False, str(e)
 
 
-def setup_mysql_autostart(db_exe, db_ini=None):
-    """إعداد تشغيل قاعدة البيانات تلقائياً عند بدء تشغيل Windows"""
+def free_port_conflict(port=3306):
+    """تحرير المنفذ 3306 في حال كان محجوزاً من قبل عملية أخرى (مثل XAMPP أو نسخة قديمة)"""
     try:
-        appdata = os.environ.get('APPDATA')
-        if not appdata:
-            return
-        startup_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
-        if not startup_folder.exists():
-            return
-        
-        vbs_file = startup_folder / "Start_MariaDB_ERP.vbs"
-        args = f'""{db_exe}""'
-        if db_ini and Path(db_ini).exists():
-            args += f' --defaults-file=""{db_ini}""'
-        args += ' --console'
-        
-        vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
-Set objWMIService = GetObject("winmgmts:\\\\.\\root\\cimv2")
-Set colProcesses = objWMIService.ExecQuery("Select * from Win32_Process Where Name = 'mysqld.exe'")
-If colProcesses.Count = 0 Then
-    WshShell.Run "{args}", 0, False
-End If
-'''
-        vbs_file.write_text(vbs_content, encoding='utf-8')
-    except Exception:
-        pass
-
-
-def start_process_hidden(exe_path, args=""):
-    """تشغيل العملية كعملية مستقلة ومخفية تماماً بدون أي نافذة سوداء في الخلفية"""
-    try:
-        ps_cmd = f"Start-Process -FilePath '{exe_path}' -ArgumentList '{args}' -WindowStyle Hidden"
-        res = subprocess.run(['powershell', '-NoProfile', '-Command', ps_cmd], capture_output=True, text=True, timeout=10)
-        if res.returncode == 0:
+        # البحث عن PID العملية التي تحجز البورت
+        cmd = f"netstat -ano | findstr :{port}"
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+        if not res.stdout:
             return True
-    except Exception:
-        pass
-    try:
-        cmd_list = [str(exe_path)] + (args.split() if args else [])
-        creationflags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
-        subprocess.Popen(cmd_list, creationflags=creationflags, close_fds=True)
+
+        pids = set()
+        for line in res.stdout.strip().splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and "LISTENING" in parts:
+                pids.add(parts[-1])
+
+        if not pids:
+            return True
+
+        # محاولة إغلاق نظيف لـ XAMPP mysql إذا كان هو المتسبب
+        xampp_admin = Path(r"C:\xampp\mysql\bin\mysqladmin.exe")
+        if xampp_admin.exists():
+            try:
+                subprocess.run([str(xampp_admin), "-u", "root", "shutdown"], capture_output=True, timeout=3)
+                time.sleep(1)
+            except Exception:
+                pass
+
+        # إنهاء أي عملية ما زالت تحجز البورت
+        for pid in pids:
+            try:
+                subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True, timeout=5)
+            except Exception:
+                pass
+
+        time.sleep(1)
         return True
     except Exception:
         return False
 
 
-def start_mariadb_standalone():
-    """تشغيل خادم MariaDB 10.11 المستقل في الخلفية كعملية دائمة ومستقلة بدون نوافذ"""
-    mariadb_exe = Path(r"C:\Users\UTD\mariadb-10.11\bin\mysqld.exe")
-    mariadb_ini = Path(r"C:\Users\UTD\mariadb-10.11\data\my.ini")
+def setup_startup_persistence(db_exe, db_ini):
+    """
+    تفعيل التشغيل التلقائي الدائم مع إقلاع الويندوز:
+    1. مفتاح Registry Run للمستخدم الحالي (HKCU Run) مع تشغيل مخفي تماماً عبر PowerShell.
+    2. ملف Start_MariaDB_ERP.cmd داخل مجلد Startup كطبقة حماية إضافية.
+    """
+    try:
+        # مسار الأمر التشغيلي المخفي
+        ini_arg = f'--defaults-file=""{db_ini}"" ' if (db_ini and Path(db_ini).exists()) else ''
+        ps_launch = (
+            f"powershell.exe -WindowStyle Hidden -NoProfile -Command "
+            f"\"if (-not (Get-Process mysqld -ErrorAction SilentlyContinue)) {{ "
+            f"Start-Process '{db_exe}' -ArgumentList '{ini_arg}--console' -WindowStyle Hidden }}\""
+        )
 
-    if not mariadb_exe.exists():
+        # 1. تثبيت مفتاح السجل Registry Run
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0,
+                winreg.KEY_SET_VALUE
+            )
+            winreg.SetValueEx(key, "MariaDB_ERP", 0, winreg.REG_SZ, ps_launch)
+            winreg.CloseKey(key)
+        except Exception:
+            pass
+
+        # 2. إزالة أي ملف VBS قديم وتنظيف مجلد Startup
+        appdata = os.environ.get('APPDATA')
+        if appdata:
+            startup_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+            if startup_folder.exists():
+                old_vbs = startup_folder / "Start_MariaDB_ERP.vbs"
+                if old_vbs.exists():
+                    try:
+                        old_vbs.unlink()
+                    except Exception:
+                        pass
+
+                # إنشاء ملف تشغيل سريع cmd
+                cmd_file = startup_folder / "Start_MariaDB_ERP.cmd"
+                cmd_content = f'''@echo off
+tasklist /FI "IMAGENAME eq mysqld.exe" 2>NUL | find /I /N "mysqld.exe">NUL
+if "%ERRORLEVEL%"=="1" (
+    start "" /B "{db_exe}" {ini_arg}--console
+)
+'''
+                cmd_file.write_text(cmd_content, encoding='utf-8')
+
+        return True
+    except Exception:
         return False
 
-    # تسجيل التشغيل التلقائي عند بدء تشغيل الجهاز
-    setup_mysql_autostart(mariadb_exe, mariadb_ini)
-
-    print_colored("[*] جاري تشغيل خادم MariaDB 10.11 في الخلفية...", Colors.YELLOW)
-    args = f'--defaults-file="{mariadb_ini}"'
-    start_process_hidden(mariadb_exe, args)
-    time.sleep(3)
-    return True
 
 
-def try_start_windows_service():
-    """محاولة تشغيل خدمة MySQL/MariaDB في ويندوز إذا كانت مسجلة كخدمة"""
-    services = ["MySQL", "MariaDB", "mysql"]
+def start_mariadb_process(db_exe, db_ini):
+    """تشغيل خادم MariaDB في الخلفية كعملية دائمة ومخفية تماماً"""
+    args = []
+    if db_ini and Path(db_ini).exists():
+        args.append(f'--defaults-file={db_ini}')
+    args.append('--console')
+
+    try:
+        creationflags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+        cmd_list = [str(db_exe)] + args
+        subprocess.Popen(cmd_list, creationflags=creationflags, close_fds=True)
+        return True
+    except Exception:
+        pass
+
+    try:
+        ps_args = " ".join([f"'{a}'" for a in args])
+        ps_cmd = f"Start-Process -FilePath '{db_exe}' -ArgumentList {ps_args} -WindowStyle Hidden"
+        res = subprocess.run(['powershell', '-NoProfile', '-Command', ps_cmd], capture_output=True, text=True, timeout=10)
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def try_start_mariadb_service():
+    """محاولة تشغيل خدمة ويندوز إذا كانت مسجلة مسبقاً (MariaDB)"""
+    services = ["MariaDB"]
     for svc in services:
         try:
             q = subprocess.run(['sc', 'query', svc], capture_output=True, text=True, timeout=3)
-            if q.returncode == 0 and 'RUNNING' in q.stdout:
-                return True
-            res = subprocess.run(['net', 'start', svc], capture_output=True, text=True, timeout=5)
-            if res.returncode == 0:
-                print_colored(f"[OK] تم تشغيل خدمة الويندوز ({svc}) بنجاح!", Colors.GREEN)
-                return True
+            if q.returncode == 0:
+                if 'RUNNING' in q.stdout:
+                    return True
+                res = subprocess.run(['net', 'start', svc], capture_output=True, text=True, timeout=5)
+                if res.returncode == 0:
+                    return True
         except Exception:
             pass
     return False
 
 
-def get_xampp_paths():
-    """الحصول على مسارات XAMPP المحتملة"""
-    possible_roots = [
-        Path(r"C:\xampp"),
-        Path(r"C:\Program Files\xampp"),
-        Path(r"C:\Program Files (x86)\xampp"),
-        Path(r"D:\xampp"),
-    ]
-    return [root for root in possible_roots if root.exists()]
-
-
-def open_xampp_control():
-    """محاولة فتح لوحة تحكم XAMPP كحل بديل في حال الفشل التام"""
-    for root in get_xampp_paths():
-        control_exe = root / "xampp-control.exe"
-        if control_exe.exists():
-            print_colored("🚀 جاري فتح XAMPP Control Panel للمساعدة في الفحص والتشغيل اليدوي...", Colors.YELLOW)
-            try:
-                subprocess.Popen([str(control_exe)])
-                return True
-            except Exception:
-                pass
-    return False
-
-
-def start_mysql_fallback():
-    """محاولة بديلة لتشغيل MySQL من مسارات XAMPP لو لم يتوفر MariaDB المستقل"""
-    for root in get_xampp_paths():
-        exe = root / "mysql" / "bin" / "mysqld.exe"
-        if exe.exists():
-            setup_mysql_autostart(exe)
-            print_colored(f"[*] جاري تشغيل MySQL من مسار XAMPP ({root}) كبديل في الخلفية...", Colors.YELLOW)
-            cmd_args = f'"{exe}" --console'
-            started = start_process_via_wmi(cmd_args)
-            if not started:
-                try:
-                    creationflags = 0x00000008 | 0x00000200 | 0x08000000
-                    subprocess.Popen(cmd_args, creationflags=creationflags, close_fds=True, shell=True)
-                except Exception:
-                    pass
-            time.sleep(3)
-            return True
-    return False
-
-
 def main():
-    print_header("فحص وتشغيل خادم قاعدة البيانات (Database Server)")
+    print_header("فحص وتشغيل خادم MariaDB المستقل (MWHEBA ERP)")
 
     if platform.system() != 'Windows':
         print_colored("⚠️  هذا السكربت مخصص لبيئة عمل Windows.", Colors.YELLOW)
 
-    # ضبط التشغيل التلقائي عند بدء تشغيل الجهاز مسبقاً
-    mariadb_exe = Path(r"C:\Users\UTD\mariadb-10.11\bin\mysqld.exe")
-    mariadb_ini = Path(r"C:\Users\UTD\mariadb-10.11\data\my.ini")
-    if mariadb_exe.exists():
-        setup_mysql_autostart(mariadb_exe, mariadb_ini)
+    db_exe, db_ini, base_dir = get_mariadb_paths()
+    if not db_exe or not db_exe.exists():
+        print_colored("[X] لم يتم العثور على مسار تثبيت MariaDB المستقل!", Colors.RED)
+        print_colored("المسار المتوقع: C:\\Users\\UTD\\mariadb-10.11\\bin\\mysqld.exe", Colors.GRAY)
+        sys.exit(1)
 
-    # 1. اختبار ما إذا كانت الخدمة تعمل بالفعل
+    # 1. تثبيت التشغيل التلقائي مع الويندوز فوراً
+    setup_startup_persistence(db_exe, db_ini)
+
+    # 2. اختبار ما إذا كان الخادم متصلاً ويعمل بالفعل
     is_up, msg = test_db_connection()
     if is_up:
         print_colored(f"[OK] {msg}", Colors.GREEN)
-        print_colored("📌 تم التأكد من تفعيل التشغيل التلقائي مع بدء تشغيل النظام (Windows Startup).", Colors.CYAN)
+        print_colored("📌 تم التحقق من تفعيل التشغيل التلقائي مع إقلاع الجهاز (Windows Startup & Registry).", Colors.CYAN)
         print_colored("\n✨ خادم قاعدة البيانات جاهز، يمكنك العمل فوراً!", Colors.GREEN)
         return
 
-    print_colored("[!] خادم قاعدة البيانات متوقف، جاري التشغيل التلقائي وضمان استمراره...", Colors.YELLOW)
+    print_colored("[!] جاري تشغيل خادم MariaDB المستقل وضمان جاهزيته...", Colors.YELLOW)
 
-    # 2. محاولة تشغيل خدمة ويندوز أولاً إذا كانت مثبتة
-    service_started = try_start_windows_service()
+    # 3. محاولة تشغيل خدمة الويندوز إذا كانت موجودة
+    service_started = try_start_mariadb_service()
 
-    # 3. بدء التشغيل التلقائي لـ MariaDB 10.11 المستقل أو مسارات XAMPP
     if not service_started:
-        started = start_mariadb_standalone()
-        if not started:
-            started = start_mysql_fallback()
+        # فحص وتحرير أي تعارض في البورت (مثل XAMPP أو عمليات معلقة)
+        free_port_conflict(3306)
+        # تشغيل العملية المستقلة
+        start_mariadb_process(db_exe, db_ini)
 
-    # 4. إعادة الاختبار مع الانتظار
-    for _ in range(12):
+    # 4. التحقق والانتظار حتى اكتمال الجاهزية
+    for i in range(10):
         time.sleep(1)
         is_up, msg = test_db_connection()
         if is_up:
             print_colored(f"[OK] {msg}", Colors.GREEN)
-            print_colored("📌 تم تفعيل التشغيل التلقائي مع فتح الجهاز (Windows Startup).", Colors.CYAN)
-            print_colored("\n✨ تم تشغيل خادم قاعدة البيانات بنجاح تام ويعمل باستمرار في الخلفية!", Colors.GREEN)
+            print_colored("📌 تم تفعيل التشغيل التلقائي مع تشغيل الويندوز (لن تحتاج لتشغيله يدوياً بعد إعادة التشغيل).", Colors.CYAN)
+            print_colored("\n✨ تم تشغيل MariaDB بنجاح تام ويعمل باستمرار في الخلفية!", Colors.GREEN)
             return
 
-    print_colored("[X] تعذر بدء تشغيل قاعدة البيانات تلقائياً.", Colors.RED)
+    # إذا استمر الفشل، محاولة تحرير المنفذ وتشغيلها مرة ثانية
+    print_colored("[*] جاري تحرير المنفذ وإعادة المحاولة...", Colors.YELLOW)
+    free_port_conflict(3306)
+    start_mariadb_process(db_exe, db_ini)
+
+    for i in range(6):
+        time.sleep(1)
+        is_up, msg = test_db_connection()
+        if is_up:
+            print_colored(f"[OK] {msg}", Colors.GREEN)
+            print_colored("✨ تم تشغيل MariaDB بنجاح!", Colors.GREEN)
+            return
+
+    print_colored("[X] تعذر الاتصال بقاعدة البيانات.", Colors.RED)
     print_colored(f"التفاصيل: {msg}", Colors.GRAY)
-    open_xampp_control()
     sys.exit(1)
 
 
 if __name__ == "__main__":
     main()
+

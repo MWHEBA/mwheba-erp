@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from users.decorators import require_permission
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.urls import reverse
@@ -23,16 +24,20 @@ from product.models.stock_management import Warehouse
 from customer.models import Customer
 from financial.models import JournalEntry
 from financial.exceptions import FinancialCoreError
+from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
+@require_permission("sale.view_deliverynote")
 def delivery_note_list(request):
     """
     قائمة إذون تسليم البضاعة مع الفلاتر والإحصائيات ودعم AJAX
     """
-    queryset = DeliveryNote.objects.select_related("customer", "warehouse", "sales_order", "created_by").all().order_by("-delivery_date", "-id")
+    from users.services.data_scoping_service import DataScopingService
+    base_dns = DataScopingService.get_scoped_delivery_notes(request.user)
+    queryset = base_dns.select_related("customer", "warehouse", "sales_order", "created_by").order_by("-delivery_date", "-id")
 
     # فلاتر البحث
     customer_id = request.GET.get("customer")
@@ -66,13 +71,12 @@ def delivery_note_list(request):
             code_fields=['delivery_number', 'sales_order__order_number', 'customer__code', 'customer__phone']
         )
 
-    # حساب الإحصائيات العامة
-    all_dns = DeliveryNote.objects.all()
+    # حساب الإحصائيات المعزولة بنطاق صلاحيات المستخدم
     stats = {
-        "total_count": all_dns.count(),
-        "draft_count": all_dns.filter(status="DRAFT").count(),
-        "delivered_count": all_dns.filter(status__in=["DELIVERED", "CONFIRMED"]).count(),
-        "invoiced_count": all_dns.filter(status="INVOICED").count(),
+        "total_count": base_dns.count(),
+        "draft_count": base_dns.filter(status="DRAFT").count(),
+        "delivered_count": base_dns.filter(status__in=["DELIVERED", "CONFIRMED"]).count(),
+        "invoiced_count": base_dns.filter(status="INVOICED").count(),
     }
 
     # الترقيم الموحد SSR
@@ -128,6 +132,7 @@ def delivery_note_list(request):
 
 
 @login_required
+@require_permission("sale.add_deliverynote")
 def delivery_note_create(request):
     """
     إنشاء إذن تسليم جديد لأمر بيع معتمد مع حوكمة سداد الدفعة المقدمة المشترطة
@@ -211,7 +216,7 @@ def delivery_note_create(request):
             messages.error(request, f"خطأ أثناء إصدار إذن التسليم: {str(e)}")
 
     # أوامر البيع القابلة للتسليم
-    available_orders = SalesOrder.objects.filter(
+    available_orders = DataScopingService.get_scoped_sales_orders(request.user).filter(
         status__in=["APPROVED", "CONFIRMED", "PARTIALLY_DELIVERED"]
     ).select_related("customer", "warehouse")
 
@@ -233,12 +238,14 @@ def delivery_note_create(request):
 
 
 @login_required
+@require_permission("sale.view_deliverynote")
 def delivery_note_detail(request, pk):
     """
     عرض تفاصيل إذن التسليم والبنود وقيد التكلفة وفواتير المبيعات المرتبطة
     """
+    scoped_dns = DataScopingService.get_scoped_delivery_notes(request.user)
     dn = get_object_or_404(
-        DeliveryNote.objects.select_related("customer", "warehouse", "sales_order", "created_by")
+        scoped_dns.select_related("customer", "warehouse", "sales_order", "created_by")
         .prefetch_related("items__so_item__product"),
         pk=pk
     )
@@ -302,12 +309,13 @@ def delivery_note_detail(request, pk):
 
 
 @login_required
+@require_permission("sale.change_deliverynote")
 @require_POST
 def delivery_note_cancel(request, pk):
     """
     إلغاء إذن التسليم المخزني وعكس قيد التكلفة COGS
     """
-    dn = get_object_or_404(DeliveryNote, pk=pk)
+    dn = get_object_or_404(DataScopingService.get_scoped_delivery_notes(request.user), pk=pk)
     try:
         SalesService.cancel_delivery_note(dn.id, request.user, reason="إلغاء إذن تسليم يدوي")
         messages.success(request, f"تم إلغاء إذن التسليم #{dn.delivery_number} وعكس قيد التكلفة وإعادة البضاعة للمخزن بنجاح.")
@@ -317,13 +325,16 @@ def delivery_note_cancel(request, pk):
 
 
 @login_required
+@require_permission("sale.view_deliverynote")
 def delivery_note_print(request, pk):
     """
     عرض قالب الطباعة الرسمي لتصريح الخروج وإذن التسليم (Official Gate Pass Print View)
     """
     from core.models import SystemSetting
+    from users.services.data_scoping_service import DataScopingService
+    scoped_dns = DataScopingService.get_scoped_delivery_notes(request.user)
     dn = get_object_or_404(
-        DeliveryNote.objects.select_related("customer", "warehouse", "sales_order", "created_by")
+        scoped_dns.select_related("customer", "warehouse", "sales_order", "created_by")
         .prefetch_related("items__so_item__product"),
         pk=pk
     )
@@ -339,12 +350,14 @@ def delivery_note_print(request, pk):
 
 
 @login_required
+@require_permission("sale.add_sale")
 def delivery_note_convert_to_sale(request, pk):
     """
     تحويل إذن التسليم إلى فاتورة مبيعات مع تفعيل Double-COGS Guard
     """
+    scoped_dns = DataScopingService.get_scoped_delivery_notes(request.user)
     dn = get_object_or_404(
-        DeliveryNote.objects.select_related("sales_order", "customer", "warehouse")
+        scoped_dns.select_related("sales_order", "customer", "warehouse")
         .prefetch_related("items__so_item__product"),
         pk=pk
     )

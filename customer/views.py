@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.db import transaction
@@ -24,6 +25,7 @@ customer_service = CustomerService()
 
 
 @login_required
+@require_permission('customer.view_customer')
 def customer_list(request):
     """
     عرض قائمة العملاء
@@ -124,23 +126,24 @@ def customer_list(request):
         },
     ]
 
-    # تعريف أزرار الإجراءات (تم حذف أزرار العرض والتعديل لأن الصف بالكامل قابل للنقر)
-    action_buttons = [
-        {
+    # تعريف أزرار الإجراءات المتزامنة مع صلاحيات المستخدم الفعلي
+    action_buttons = []
+    if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('customer.change_customer'):
+        action_buttons.append({
             "type": "button",
             "icon": "fa-undo",
             "class": "action-reactivate text-success",
             "label": "إعادة تنشيط",
             "condition": "is_inactive",
             "data_attrs": 'onclick="reactivateCustomer(this.closest(\'tr\').dataset.id)"',
-        },
-        {
+        })
+    if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('customer.delete_customer'):
+        action_buttons.append({
             "modal": True,
             "icon": "fa-trash-alt",
             "class": "action-delete text-danger",
             "label": "حذف / أرشفة",
-        },
-    ]
+        })
 
     # Whitelist الفرز الأمني
     allowed_sort_fields = {
@@ -197,12 +200,13 @@ def customer_list(request):
             "class": "btn-outline-primary",
         })
     else:
-        header_buttons.append({
-            "url": reverse("customer:customer_add"),
-            "icon": "fa-plus",
-            "text": "إضافة عميل",
-            "class": "btn-primary",
-        })
+        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('customer.add_customer'):
+            header_buttons.append({
+                "url": reverse("customer:customer_add"),
+                "icon": "fa-plus",
+                "text": "إضافة عميل",
+                "class": "btn-primary",
+            })
         header_buttons.append({
             "url": reverse("customer:customer_list") + "?status=inactive",
             "icon": "fa-archive",
@@ -257,6 +261,7 @@ def customer_list(request):
 
 
 @login_required
+@require_permission('customer.add_customer')
 def customer_add(request):
     """
     إضافة عميل جديد - متكامل مع CustomerForm و CustomerService
@@ -305,6 +310,7 @@ def customer_add(request):
 
 
 @login_required
+@require_permission('customer.change_customer')
 def customer_edit(request, pk):
     """
     تعديل بيانات عميل - متكامل مع حوكمة الائتمان ودليل الحسابات
@@ -371,6 +377,7 @@ def customer_edit(request, pk):
 
 
 @login_required
+@require_permission('customer.delete_customer')
 def customer_delete(request, pk):
     """
     حذف أو أرشفة عميل (فحص سيادي ذكي وتحديث تفاعلي بالـ AJAX)
@@ -467,6 +474,7 @@ def customer_delete(request, pk):
 
 
 @login_required
+@require_permission('customer.change_customer')
 def customer_reactivate(request, pk):
     """
     إعادة تنشيط عميل مؤرشف وحسابه المالي التابع
@@ -482,6 +490,7 @@ def customer_reactivate(request, pk):
 
 
 @login_required
+@require_permission('customer.view_customer')
 def customer_detail(request, pk):
     """
     عرض تفاصيل العميل والمدفوعات - Updated to use CustomerService
@@ -1525,6 +1534,7 @@ def customer_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.change_chartofaccounts')
 def customer_change_account(request, pk):
     """
     تغيير الحساب المحاسبي للعميل
@@ -1590,6 +1600,7 @@ def customer_change_account(request, pk):
 
 
 @login_required
+@require_permission('financial.change_chartofaccounts')
 def customer_create_account(request, pk):
     """
     إنشاء حساب محاسبي جديد للعميل (AJAX)
@@ -1646,12 +1657,26 @@ def customer_create_account(request, pk):
 
 
 @login_required
+@require_permission('customer.add_customer', return_json=True)
 def customer_add_ajax(request):
     """
     إضافة عميل جديد عبر AJAX وتوليد الكود تلقائياً
     """
     if request.method == "POST":
-        form = CustomerForm(request.POST, user=request.user)
+        post_data = request.POST.copy()
+        
+        # حوكمة سقف الائتمان: الإضافة السريعة تضبط سقف الائتمان بـ 0.00 تلقائياً
+        # إلا إذا كان المستخدم يملك صلاحية حوكمة الائتمان أو رتبة إدارية/مالية معتمدة
+        has_credit_perm = (
+            request.user.is_superuser or 
+            getattr(request.user, "is_financial_manager", False) or
+            request.user.has_perm("customer.change_credit_limit") or
+            request.user.has_perm("financial.manage_credit_limit")
+        )
+        if not has_credit_perm:
+            post_data["credit_limit"] = "0.00"
+
+        form = CustomerForm(post_data, user=request.user)
         if form.is_valid():
             try:
                 customer = form.save(user=request.user)
@@ -1702,6 +1727,7 @@ def customer_add_ajax(request):
 
 
 @login_required
+@require_permission('customer.view_customer')
 def customer_aging_api(request, pk):
     """
     API لكشف شرائح أعمار ديون العميل الكسول (Lazy Aging Buckets)
@@ -1726,6 +1752,7 @@ def customer_aging_api(request, pk):
 
 
 @login_required
+@require_permission('financial.add_receiptvoucher')
 def add_customer_advance_action(request, pk):
     """
     إضافة رصيد مسبق / مقبوضات مقدمة جديدة للعميل باختيار العملة وسعر الصرف
@@ -1781,6 +1808,7 @@ def add_customer_advance_action(request, pk):
 
 
 @login_required
+@require_permission('customer.change_customer')
 def allocate_customer_prepaid(request, pk):
     """
     تخصيص الرصيد المسبق للعميل على الفواتير المفتوحة (تخصيص جماعي أو فردي)

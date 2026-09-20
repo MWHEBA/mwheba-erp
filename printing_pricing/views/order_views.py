@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from users.mixins import SmartPermissionRequiredMixin
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -25,7 +26,7 @@ from ..forms import PricingOrderForm, OrderSearchForm
 from customer.models import Customer
 
 
-class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
+class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, SmartPermissionRequiredMixin, ListView):
     """
     عرض قائمة طلبات التسعير مع الفلترة الموحدة ودعم AJAX
     """
@@ -33,13 +34,14 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
     template_name = 'printing_pricing/orders/order_list.html'
     context_object_name = 'orders'
     default_per_page = 25
+    permission_required = 'printing_pricing.view_printingorder'
     
     def get_queryset(self):
         """تخصيص الاستعلام مع البحث والفلترة"""
         queryset = PrintingOrder.objects.select_related('customer').filter(
             is_active=True
         )
-        if not (self.request.user.is_superuser or self.request.user.is_staff):
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.view_all_orders')):
             queryset = queryset.filter(created_by=self.request.user)
         
         search_query = self.request.GET.get('search_query') or self.request.GET.get('search') or self.request.GET.get('q')
@@ -90,7 +92,7 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
         date_to = self.request.GET.get('date_to') or ''
         
         all_orders = PrintingOrder.objects.filter(is_active=True)
-        if not (self.request.user.is_superuser or self.request.user.is_staff):
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.view_all_orders')):
             all_orders = all_orders.filter(created_by=self.request.user)
             
         context['stats'] = {
@@ -107,14 +109,15 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
         context['page_title'] = _('طلبات تسعير الطباعة')
         context['page_subtitle'] = _('عرض وإدارة وتتبع جميع طلبات وتسعيرات أعمال الطباعة')
         context['page_icon'] = 'fas fa-print'
-        context['header_buttons'] = [
-            {
+        header_buttons = []
+        if self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.add_printingorder'):
+            header_buttons.append({
                 'url': reverse('printing_pricing:order_create'),
                 'icon': 'fa-plus',
                 'text': _('تسعير جديد'),
                 'class': 'btn-primary',
-            },
-        ]
+            })
+        context['header_buttons'] = header_buttons
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
             {'title': _('تسعير الطباعة'), 'url': reverse('printing_pricing:dashboard'), 'icon': 'fa-calculator'},
@@ -195,28 +198,31 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
             },
         ]
 
-        # أزرار الإجراءات للجدول الموحد
-        context['action_buttons'] = [
+        # أزرار الإجراءات للجدول الموحد محكومة بالصلاحيات
+        action_buttons = [
             {
                 'url': 'printing_pricing:order_detail',
                 'icon': 'fa-eye',
                 'class': 'action-view text-secondary',
                 'label': _('عرض'),
             },
-            {
+        ]
+        if self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.change_printingorder'):
+            action_buttons.append({
                 'url': 'printing_pricing:order_update',
                 'icon': 'fa-edit',
                 'class': 'action-edit text-primary',
                 'label': _('تعديل'),
-            },
-            {
+            })
+        if self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.delete_printingorder'):
+            action_buttons.append({
                 'type': 'button',
                 'icon': 'fa-trash',
                 'class': 'action-delete text-danger',
                 'label': _('حذف'),
                 'data_attrs': 'onclick="confirmDeleteOrder(this.closest(\'tr\').dataset.id)"',
-            },
-        ]
+            })
+        context['action_buttons'] = action_buttons
         context['primary_key'] = 'id'
         
         return context
@@ -258,7 +264,14 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
 
 def check_can_view_margins(user):
     """التحقق من صلاحية رؤية التكاليف وهوامش الأرباح"""
-    return user.is_authenticated and (user.is_superuser or user.has_perm('printing_pricing.view_cost_margins') or user.is_staff)
+    if not user.is_authenticated:
+        return False
+    return (
+        user.is_superuser
+        or getattr(user, 'is_admin', False)
+        or user.has_perm('printing_pricing.view_profit_margins')
+        or user.has_perm('printing_pricing.view_cost_breakdown')
+    )
 
 
 def _get_friendly_bed_plate_name(bed_str):
@@ -291,13 +304,14 @@ def _get_friendly_bed_machine_name(bed_str):
     return f"ماكينة {dim}"
 
 
-class OrderDetailView(LoginRequiredMixin, DetailView):
+class OrderDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, DetailView):
     """
     عرض تفاصيل طلب التسعير ومركز الأرباح 360 درجة
     """
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_detail.html'
     context_object_name = 'order'
+    permission_required = 'printing_pricing.view_printingorder'
     
     def get_queryset(self):
         """تحسين الاستعلام مع الجداول المرتبطة"""
@@ -308,7 +322,7 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             'materials', 'services__supplier_service__supplier',
             'calculations', 'paper_specs'
         )
-        if not (self.request.user.is_superuser or self.request.user.is_staff):
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.view_all_orders')):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
     
@@ -393,20 +407,25 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         context['header_badges'] = header_badges
         
         # أزرار رأس الصفحة (Header Buttons)
-        buttons = [
-            {
+        buttons = []
+        user = self.request.user
+        is_adm = user.is_superuser or getattr(user, 'is_admin', False)
+
+        if is_adm or user.has_perm('printing_pricing.change_printingorder'):
+            buttons.append({
                 'url': reverse('printing_pricing:order_update', kwargs={'pk': order.pk}),
                 'icon': 'fa-edit',
                 'text': _('تعديل الطلب'),
                 'class': 'btn-outline-primary btn-sm',
-            },
-            {
+            })
+            
+        if is_adm or user.has_perm('printing_pricing.add_printingorder'):
+            buttons.append({
                 'url': reverse('printing_pricing:duplicate_order', kwargs={'pk': order.pk}),
                 'icon': 'fa-copy',
                 'text': _('نسخ الطلب'),
                 'class': 'btn-outline-secondary btn-sm',
-            },
-        ]
+            })
         
         if can_view_margins:
             buttons.append({
@@ -417,7 +436,9 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
                 'id': 'btn_recalculate_cost',
             })
             
-        if order.status not in ['approved', 'completed']:
+        is_manager = is_adm or getattr(user, 'is_financial_manager', False) or user.is_staff
+        can_approve_pricing = (is_manager or user.has_perm('printing_pricing.change_printingorder')) and (order.created_by != user or is_manager)
+        if order.status not in ['approved', 'completed'] and can_approve_pricing:
             buttons.append({
                 'onclick': f'window.approveOrder({order.pk})',
                 'icon': 'fa-check-double',
@@ -428,7 +449,7 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             
         can_convert_to_work_order = not order.work_order and order.status in ['approved', 'completed']
         context['can_convert_to_work_order'] = can_convert_to_work_order
-        if can_convert_to_work_order:
+        if can_convert_to_work_order and (is_adm or user.has_perm('purchase.add_purchase') or user.has_perm('printing_pricing.change_printingorder')):
             buttons.append({
                 'id': 'btn_convert_work_order',
                 'icon': 'fa-cogs',
@@ -925,13 +946,14 @@ def get_active_paper_types(supplier_id=None):
         return PaperType.objects.filter(is_active=True).order_by('name')
 
 
-class OrderCreateView(LoginRequiredMixin, CreateView):
+class OrderCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, CreateView):
     """
     إنشاء طلب تسعير جديد
     """
     model = PrintingOrder
     form_class = PricingOrderForm
     template_name = 'printing_pricing/orders/order_form.html'
+    permission_required = 'printing_pricing.add_printingorder'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1007,17 +1029,18 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         return reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk})
 
 
-class OrderUpdateView(LoginRequiredMixin, UpdateView):
+class OrderUpdateView(LoginRequiredMixin, SmartPermissionRequiredMixin, UpdateView):
     """
     تحديث طلب التسعير
     """
     model = PrintingOrder
     form_class = PricingOrderForm
     template_name = 'printing_pricing/orders/order_form.html'
+    permission_required = 'printing_pricing.change_printingorder'
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        if not (self.request.user.is_superuser or self.request.user.is_staff):
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.view_all_orders')):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
 
@@ -1410,17 +1433,18 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 
 
 
-class OrderDeleteView(LoginRequiredMixin, DeleteView):
+class OrderDeleteView(LoginRequiredMixin, SmartPermissionRequiredMixin, DeleteView):
     """
     حذف طلب التسعير (حذف منطقي)
     """
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_detail.html'
     success_url = reverse_lazy('printing_pricing:order_list')
+    permission_required = 'printing_pricing.delete_printingorder'
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if not (self.request.user.is_superuser or self.request.user.is_staff):
+        if not (self.request.user.is_superuser or getattr(self.request.user, 'is_admin', False) or self.request.user.has_perm('printing_pricing.view_all_orders')):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
 
@@ -1445,9 +1469,10 @@ class OrderDeleteView(LoginRequiredMixin, DeleteView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-class DashboardView(LoginRequiredMixin, TemplateView):
+class DashboardView(LoginRequiredMixin, SmartPermissionRequiredMixin, TemplateView):
     """لوحة تحكم مؤشرات الأداء لتسعير المطبوعات والهدايا"""
     template_name = 'printing_pricing/dashboard.html'
+    permission_required = 'printing_pricing.view_printingorder'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1473,6 +1498,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return context
 
 
+@login_required
 def dashboard_redirect(request):
     """عرض لوحة التحكم"""
     return DashboardView.as_view()(request)
@@ -1482,7 +1508,12 @@ def dashboard_redirect(request):
 # دوال مساعدة للعمليات السريعة
 
 def _has_order_permission(user, order):
-    if user.is_superuser or getattr(user, 'is_staff', False):
+    if (
+        user.is_superuser
+        or getattr(user, 'is_admin', False)
+        or getattr(user, 'is_financial_manager', False)
+        or user.has_perm('printing_pricing.view_all_orders')
+    ):
         return True
     return order.created_by == user
 
@@ -1517,16 +1548,26 @@ def calculate_order_cost(request, pk):
             cost_unit = (cost / qty).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
             price_unit = (final_p / qty).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
 
+        can_view_margins = (
+            request.user.is_superuser
+            or request.user.has_perm('printing_pricing.view_profit_margins')
+        )
+        can_view_costs = (
+            request.user.is_superuser
+            or request.user.has_perm('printing_pricing.view_cost_breakdown')
+        )
+
         return JsonResponse({
             'success': True,
             'message': _('تم حساب التكلفة والربحية بنجاح'),
             'order_id': order.id,
-            'estimated_cost': float(cost),
+            'estimated_cost': float(cost) if can_view_costs else 0.0,
             'final_price': float(final_p),
-            'cost_per_unit': float(cost_unit),
+            'cost_per_unit': float(cost_unit) if can_view_costs else 0.0,
             'price_per_unit': float(price_unit),
-            'profit_margin': float(margin_pct),
-            'profit_amount': float(profit_amt)
+            'profit_margin': float(margin_pct) if can_view_margins else 0.0,
+            'profit_amount': float(profit_amt) if can_view_margins else 0.0,
+            'can_view_financials': can_view_costs or can_view_margins,
         })
         
     except Exception as e:
@@ -1540,7 +1581,7 @@ def calculate_order_cost(request, pk):
 @login_required
 def approve_order(request, pk):
     """
-    اعتماد الطلب
+    اعتماد الطلب - مقصور على المشرفين وحاملي صلاحية الاعتماد (منع الاعتماد الذاتي)
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': _('طريقة غير مسموحة')})
@@ -1548,8 +1589,15 @@ def approve_order(request, pk):
     try:
         order = get_object_or_404(PrintingOrder, pk=pk, is_active=True)
         
-        # التحقق من الصلاحية (IDOR)
-        if not _has_order_permission(request.user, order):
+        # منع الاعتماد الذاتي للمندوب العادي، واشتراط صلاحية المشرف أو المدير المالي
+        is_manager = request.user.is_superuser or getattr(request.user, 'is_financial_manager', False) or request.user.is_staff
+        has_change_perm = request.user.has_perm('printing_pricing.change_printingorder')
+        
+        # إذا كان المستخدم هو منشئ الطلب وليس مديراً/مشرفاً، يُمنع من الاعتماد الذاتي
+        if order.created_by == request.user and not is_manager:
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك باعتماد هذا الطلب (يُمنع الاعتماد الذاتي لمنشئ الطلب)')}, status=403)
+            
+        if not (is_manager or has_change_perm):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك باعتماد هذا الطلب')}, status=403)
         
         # التحقق من صحة واكتمال الطلب قبل الاعتماد
@@ -1591,7 +1639,7 @@ def approve_order(request, pk):
 @login_required
 def duplicate_order(request, pk):
     """
-    نسخ الطلب
+    نسخ الطلب - يشترط صلاحية إنشاء طلب تسعير جديد
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': _('طريقة غير مسموحة')})
@@ -1599,9 +1647,15 @@ def duplicate_order(request, pk):
     try:
         original_order = get_object_or_404(PrintingOrder, pk=pk, is_active=True)
         
-        # التحقق من الصلاحية (IDOR)
+        # التحقق من صلاحية الإضافة والعرض
+        can_add = request.user.is_superuser or request.user.has_perm('printing_pricing.add_pricingorder')
+        if not can_add:
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك بإنشاء أو نسخ طلبات التسعير')}, status=403)
+
         if not _has_order_permission(request.user, original_order):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك بنسخ هذا الطلب')}, status=403)
+        
+        # إنشاء نسخة جديدة داخل معاملة ذرية
         
         # إنشاء نسخة جديدة داخل معاملة ذرية
         with transaction.atomic():

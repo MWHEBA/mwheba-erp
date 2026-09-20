@@ -3,7 +3,8 @@
 Views إدارة المخزون والتنبيهات
 """
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Q, Sum, Count, F
@@ -96,6 +97,7 @@ def inventory_dashboard_disabled(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def inventory_report(request):
     """
     تقرير المخزون الشامل
@@ -154,6 +156,7 @@ def inventory_report(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def movement_report(request):
     """
     تقرير حركات المخزون
@@ -225,7 +228,7 @@ def movement_report(request):
 
 
 @login_required
-@permission_required("product.add_inventoryadjustment", raise_exception=True)
+@require_permission("product.add_inventoryadjustment")
 def create_adjustment(request):
     """
     إنشاء تسوية مخزون
@@ -273,7 +276,7 @@ def create_adjustment(request):
 
 
 @login_required
-@permission_required("product.add_stocktransfer", raise_exception=True)
+@require_permission("product.add_stocktransfer")
 def create_transfer(request):
     """
     إنشاء تحويل مخزون
@@ -327,6 +330,7 @@ def create_transfer(request):
 
 
 @login_required
+@require_permission('product.view_product')
 @require_http_methods(["GET"])
 def get_product_stock_api(request, product_id):
     """
@@ -367,6 +371,7 @@ def get_product_stock_api(request, product_id):
 
 
 @login_required
+@require_permission('product.view_product')
 @require_http_methods(["POST"])
 def check_alerts_api(request):
     """
@@ -461,6 +466,7 @@ def mark_notifications_read(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def abc_analysis_report(request):
     """
     تقرير تحليل ABC للمنتجات - محدّث [OK]
@@ -536,6 +542,7 @@ def abc_analysis_report(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def inventory_turnover_report(request):
     """
     تقرير معدل دوران المخزون - محدّث [OK]
@@ -613,6 +620,7 @@ def inventory_turnover_report(request):
 
 
 @login_required
+@require_permission('product.view_product')
 def reorder_point_report(request):
     """
     تقرير نقاط إعادة الطلب - محدّث [OK]
@@ -1006,7 +1014,7 @@ def acknowledge_expiry_alert_api_disabled(request):
         return JsonResponse({"success": False, "error": str(e)}, status=400)
 
 @login_required
-@permission_required('product.view_product', raise_exception=True)
+@require_permission('product.view_product')
 def enhanced_inventory_report(request):
     """تقرير المخزون المحسن مع دعم المنتجات المجمعة"""
     try:
@@ -1101,7 +1109,7 @@ def enhanced_inventory_report(request):
 
 
 @login_required
-@permission_required('product.view_product', raise_exception=True)
+@require_permission('product.view_product')
 def bundle_stock_alerts_api(request):
     """API للحصول على تنبيهات مخزون المنتجات المجمعة"""
     try:

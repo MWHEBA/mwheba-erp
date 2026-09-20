@@ -78,8 +78,8 @@ class WorkOrderTests(TestCase):
 
         # محاولة الوصول لصفحة تفاصيل أمر الشغل
         response = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo.pk}))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "غير مفعل")
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "غير مفعل", status_code=403)
 
         # إعادة تفعيل الموديول
         self.module.is_enabled = True

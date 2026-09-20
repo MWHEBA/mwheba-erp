@@ -152,7 +152,7 @@
         </div>
         
         <!-- إحصائيات الراتب -->
-        {% if not is_hr_only %}
+        {% if can_view_salaries %}
         <div class="section-container">
             <div class="card-header">
                 <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>إحصائيات الراتب</h6>
@@ -372,7 +372,7 @@
 
             {% if not employee.is_insurance_only %}
             <!-- بنود الراتب -->
-            {% if not is_hr_only %}
+            {% if can_view_salaries %}
             <div class="section-container mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>بنود الراتب</h6>
@@ -455,7 +455,7 @@
             {% endif %}
 
             <!-- قسائم الراتب -->
-            {% if not is_hr_only %}
+            {% if can_view_salaries %}
             <div class="section-container mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>قسائم الراتب</h6>
@@ -809,7 +809,9 @@
 
 <!-- مودال إضافة بند التأمين -->
 {% if employee.is_insurance_only %}
-<div class="modal fade" id="addInsuranceModal" tabindex="-1">
+<div class="modal fade" id="addInsuranceModal" tabindex="-1"
+     data-emp-share="{{ insurance_settings.employee_share|default:0 }}"
+     data-empl-share="{{ insurance_settings.employer_share|default:0 }}">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="post" action="{% url 'hr:employee_add_insurance_component' employee.pk %}">
@@ -1035,38 +1037,46 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-{% if employee.is_insurance_only %}
-const empShare = {{ insurance_settings.employee_share|default:0 }};
-const emplShare = {{ insurance_settings.employer_share|default:0 }};
-const salaryInput = document.getElementById('insurableSalaryInput');
-const differenceInput = document.getElementById('differenceAmountInput');
+const insuranceModal = document.getElementById('addInsuranceModal');
+if (insuranceModal) {
+    const empShare = parseFloat(insuranceModal.dataset.empShare) || 0;
+    const emplShare = parseFloat(insuranceModal.dataset.emplShare) || 0;
+    const salaryInput = document.getElementById('insurableSalaryInput');
+    const differenceInput = document.getElementById('differenceAmountInput');
 
-function updateInsurancePreview() {
-    const salary = parseFloat(salaryInput.value) || 0;
-    const diff = parseFloat(differenceInput.value) || 0;
-    // حساب المبلغ بدون تقريب لأقرب رقم صحيح
-    let total = (salary * (empShare + emplShare) / 100);
-    
-    if (total > 0 || diff !== 0) {
-        total += diff;
-        // عرض الرقم مع منزلتين عشريتين إذا لزم الأمر
-        document.getElementById('insuranceAmount').textContent = total.toLocaleString('en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        });
-        document.getElementById('insurancePreview').style.display = 'block';
-    } else {
-        document.getElementById('insurancePreview').style.display = 'none';
+    function updateInsurancePreview() {
+        const salary = parseFloat(salaryInput.value) || 0;
+        const diff = parseFloat(differenceInput.value) || 0;
+        let total = (salary * (empShare + emplShare) / 100);
+        
+        const previewEl = document.getElementById('insurancePreview');
+        const amountEl = document.getElementById('insuranceAmount');
+
+        if (total > 0 || diff !== 0) {
+            total += diff;
+            if (amountEl) {
+                amountEl.textContent = total.toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+            }
+            if (previewEl) {
+                previewEl.style.display = 'block';
+            }
+        } else {
+            if (previewEl) {
+                previewEl.style.display = 'none';
+            }
+        }
+    }
+
+    if (salaryInput) {
+        salaryInput.addEventListener('input', updateInsurancePreview);
+    }
+    if (differenceInput) {
+        differenceInput.addEventListener('input', updateInsurancePreview);
     }
 }
-
-if (salaryInput) {
-    salaryInput.addEventListener('input', updateInsurancePreview);
-}
-if (differenceInput) {
-    differenceInput.addEventListener('input', updateInsurancePreview);
-}
-{% endif %}
 
 function reinstateEmployee(pk, name) {
     Swal.fire({

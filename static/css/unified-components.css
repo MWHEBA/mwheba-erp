@@ -3238,3 +3238,249 @@ html[dir="rtl"] .border-right-danger {
 .btn-check:checked + .btn .far {
     color: var(--white) !important;
 }
+
+
+/* =================================================================
+   SECTION 12: UNIFIED PERMISSIONS DASHBOARD STYLES (Phase 10 Standard)
+   ================================================================= */
+.permissions-dashboard {
+    background: var(--bg-body);
+    min-height: calc(100vh - 200px);
+}
+
+.permissions-dashboard .nav-tabs {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.permissions-dashboard .nav-tabs .nav-link {
+    border: 1px solid transparent;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    margin-right: 0.25rem;
+    background: transparent;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.permissions-dashboard .nav-tabs .nav-link:hover {
+    color: var(--primary-color);
+    border-color: var(--border-color) var(--border-color) transparent;
+}
+
+.permissions-dashboard .nav-tabs .nav-link.active {
+    background: var(--bg-card);
+    color: var(--primary-color);
+    border-color: var(--border-color) var(--border-color) var(--bg-card);
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.permissions-dashboard .tab-content {
+    background: var(--bg-card);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    padding: 1.5rem;
+    min-height: 500px;
+    border: 1px solid var(--border-color);
+    border-top: none;
+}
+
+.role-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background: var(--bg-card);
+}
+
+.role-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.role-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.role-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.role-name {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    background: var(--bg-light);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+}
+
+.role-stats {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.role-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.user-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 0.5rem;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    background: var(--bg-card);
+}
+
+.user-row:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-light);
+}
+
+.role-badge {
+    background: var(--primary-color);
+    color: var(--white);
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--border-radius-pill);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.role-badge.no-role {
+    background: var(--text-muted);
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    padding: 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.85rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.activity-icon.create { background: var(--success-bg-subtle, var(--bg-light)); color: var(--success-color); }
+.activity-icon.update { background: var(--warning-bg-subtle, var(--bg-light)); color: var(--warning-color); }
+.activity-icon.delete { background: var(--danger-bg-subtle, var(--bg-light)); color: var(--danger-color); }
+.activity-icon.assign { background: var(--info-bg-subtle, var(--bg-light)); color: var(--info-color); }
+
+.activity-content h6 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+}
+
+.activity-content small {
+    color: var(--text-muted);
+}
+
+.search-box {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-box input {
+    padding-right: 2.75rem;
+}
+
+.search-box .search-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+
+.permission-group {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.permission-group-header {
+    background: var(--bg-light);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.permission-group-header .form-check-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.permission-list {
+    padding: 0.85rem;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.permission-item {
+    padding: 0.4rem 0;
+}
+
+.permission-name {
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    font-weight: 500;
+}
+
+.permission-codename {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: monospace;
+}
+
+.system-health [data-system] {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.system-health [data-system]:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
+    .role-header,
+    .user-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}

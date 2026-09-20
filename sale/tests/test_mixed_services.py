@@ -14,7 +14,7 @@ User = get_user_model()
 @pytest.fixture
 def test_setup(db):
     # 1. Create User
-    user = User.objects.create_user(
+    user = User.objects.create_superuser(
         username='testserviceuser',
         email='testservice@example.com',
         password='testpass123'

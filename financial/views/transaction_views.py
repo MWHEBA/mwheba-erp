@@ -3,6 +3,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from users.decorators import require_permission
 from django.contrib import messages
 from django.urls import reverse
 from django.core.paginator import Paginator
@@ -112,6 +113,7 @@ def _get_user_display_name(user):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def journal_entries_list(request):
     """عرض قائمة القيود اليومية مع إمكانية الفلترة"""
     if JournalEntry is None:
@@ -551,8 +553,8 @@ def journal_entries_list(request):
         },
     ]
     
-    # إضافة زر القيود اليدوية للسوبر أدمن فقط
-    if request.user.is_superuser:
+    # إضافة زر القيود اليدوية للمخولين فقط
+    if request.user.has_perm("financial.add_journalentry"):
         header_buttons.insert(0, {
             "url": reverse("financial:manual_journal_entry_create"),
             "icon": "fa-edit",
@@ -605,6 +607,7 @@ def journal_entries_list(request):
 
 
 @login_required
+@require_permission('financial.add_journalentry')
 def journal_entries_create(request):
     """إنشاء قيد جديد"""
     if request.method == "POST":
@@ -747,40 +750,38 @@ def journal_entries_create(request):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def journal_entries_detail(request, pk):
     """عرض تفاصيل قيد"""
     if JournalEntry is None:
         messages.error(request, "نموذج القيود غير متاح.")
         return redirect("financial:journal_entries_list")
 
-    journal_entry = get_object_or_404(JournalEntry, pk=pk)
+    journal_entry = get_object_or_404(
+        JournalEntry.objects.select_related(
+            "accounting_period", "financial_category", "created_by", "original_entry", "reversed_by_entry"
+        ).prefetch_related("lines__account"),
+        pk=pk,
+    )
 
-    # حساب الإجماليات
-    total_debits = sum(line.debit or 0 for line in journal_entry.lines.all())
-    total_credits = sum(line.credit or 0 for line in journal_entry.lines.all())
-    difference = abs(total_debits - total_credits)
+    # حساب إجمالي المدين والدائن
+    total_debits = sum(line.debit for line in journal_entry.lines.all())
+    total_credits = sum(line.credit for line in journal_entry.lines.all())
+    difference = total_debits - total_credits
 
-    # استخراج معلومات المصدر باستخدام العلاقات العكسية (أسرع وأبسط!)
+    # استخراج الطرف التجاري (عميل/مورد) من أسطر القيد
+    source_party = None
+    for line in journal_entry.lines.all():
+        party = getattr(line.account, 'business_partner', None)
+        if party:
+            source_party = party
+            break
+
+    # فحص الارتباط بفاتورة أو سداد
     source_invoice = None
-    source_party = None  # العميل أو المورد
-    invoice_type = None  # نوع الفاتورة
-    source_payment = None  # الدفعة المرتبطة
-    source_payment_url = None  # رابط الدفعة
-
-    # أولاً: البحث في الدفعات باستخدام العلاقات العكسية (أسرع!)
-    try:
-        from purchase.models import PurchasePayment
-        from django.urls import reverse
-
-        if hasattr(journal_entry, 'purchase_payment'):
-            source_payment = journal_entry.purchase_payment
-            source_payment_url = reverse("purchase:payment_detail", kwargs={"pk": source_payment.pk})
-            source_party = source_payment.supplier.name if source_payment.supplier else None
-    except Exception:
-        pass
-
-    # Sale module removed - skip sale payment lookup
-
+    invoice_type = None
+    source_payment = None
+    source_payment_url = None
     # ثانياً: إذا لم نجد دفعة، نبحث في الفواتير باستخدام العلاقات العكسية
     if not source_invoice:
         try:
@@ -811,50 +812,56 @@ def journal_entries_detail(request, pk):
     header_buttons = []
     if journal_entry.status == 'draft':
         if not journal_entry.is_period_locked:
-            header_buttons.append({
-                "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
-                "icon": "fa-edit",
-                "text": "تعديل القيد",
-                "class": "btn-warning",
-            })
-            if total_debits == total_credits and journal_entry.lines.exists():
+            if request.user.has_perm('financial.change_journalentry'):
                 header_buttons.append({
-                    "onclick": f"postJournalEntry({journal_entry.pk})",
-                    "id": "post_entry_btn",
-                    "icon": "fa-check",
-                    "text": "ترحيل القيد",
-                    "class": "btn-success",
+                    "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
+                    "icon": "fa-edit",
+                    "text": "تعديل القيد",
+                    "class": "btn-warning",
                 })
-            header_buttons.append({
-                "onclick": f"deleteJournalEntry({journal_entry.pk}, 'draft')",
-                "id": "delete_entry_btn",
-                "icon": "fa-trash-alt",
-                "text": "حذف القيد",
-                "class": "btn-outline-danger",
-            })
+            if total_debits == total_credits and journal_entry.lines.exists():
+                if request.user.has_perm('financial.post_journalentry') or request.user.has_perm('financial.change_journalentry'):
+                    header_buttons.append({
+                        "onclick": f"postJournalEntry({journal_entry.pk})",
+                        "id": "post_entry_btn",
+                        "icon": "fa-check",
+                        "text": "ترحيل القيد",
+                        "class": "btn-success",
+                    })
+            if request.user.has_perm('financial.delete_journalentry'):
+                header_buttons.append({
+                    "onclick": f"deleteJournalEntry({journal_entry.pk}, 'draft')",
+                    "id": "delete_entry_btn",
+                    "icon": "fa-trash-alt",
+                    "text": "حذف القيد",
+                    "class": "btn-outline-danger",
+                })
     elif journal_entry.status == 'posted':
         if not journal_entry.is_period_locked and not journal_entry.is_reversal and not journal_entry.reversed_entry:
-            header_buttons.append({
-                "onclick": f"editJournalEntry({journal_entry.pk})",
-                "id": "edit_entry_btn",
-                "icon": "fa-edit",
-                "text": "تعديل القيد",
-                "class": "btn-warning",
-            })
-            header_buttons.append({
-                "onclick": f"deleteJournalEntry({journal_entry.pk}, 'posted')",
-                "id": "delete_entry_btn",
-                "icon": "fa-trash-alt",
-                "text": "حذف القيد",
-                "class": "btn-outline-danger",
-            })
-            header_buttons.append({
-                "onclick": f"reverseJournalEntry({journal_entry.pk})",
-                "id": "reverse_entry_btn",
-                "icon": "fa-exchange-alt",
-                "text": "إنشاء قيد عكسي",
-                "class": "btn-outline-secondary",
-            })
+            if request.user.has_perm('financial.change_journalentry'):
+                header_buttons.append({
+                    "onclick": f"editJournalEntry({journal_entry.pk})",
+                    "id": "edit_entry_btn",
+                    "icon": "fa-edit",
+                    "text": "تعديل القيد",
+                    "class": "btn-warning",
+                })
+            if request.user.has_perm('financial.delete_journalentry'):
+                header_buttons.append({
+                    "onclick": f"deleteJournalEntry({journal_entry.pk}, 'posted')",
+                    "id": "delete_entry_btn",
+                    "icon": "fa-trash-alt",
+                    "text": "حذف القيد",
+                    "class": "btn-outline-danger",
+                })
+            if request.user.has_perm('financial.reverse_journalentry') or request.user.has_perm('financial.add_journalentry'):
+                header_buttons.append({
+                    "onclick": f"reverseJournalEntry({journal_entry.pk})",
+                    "id": "reverse_entry_btn",
+                    "icon": "fa-exchange-alt",
+                    "text": "إنشاء قيد عكسي",
+                    "class": "btn-outline-secondary",
+                })
 
     header_badges = []
     if journal_entry.is_period_locked:
@@ -903,6 +910,7 @@ def journal_entries_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.change_journalentry')
 def journal_entries_edit(request, pk):
     """تعديل قيد مسودة - يدعم إلغاء الترحيل التلقائي عند فتح قيد مرحل"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
@@ -915,8 +923,16 @@ def journal_entries_edit(request, pk):
         messages.error(request, "لا يمكن تعديل قيد تم عكسه أو قيد عكسي.")
         return redirect("financial:journal_entries_detail", pk=pk)
 
-    # إذا كان القيد مرحلاً، نقوم بإلغاء ترحيله أولاً لإتاحته للتعديل
+    # إذا كان القيد مرحلاً، نقوم بإلغاء ترحيله أولاً لإتاحته للتعديل للمدير المالي فقط
     if journal_entry.status == 'posted':
+        is_fm = (
+            request.user.is_superuser or 
+            getattr(request.user, 'is_financial_manager', False) or 
+            request.user.has_perm('financial.unpost_journal_entry')
+        )
+        if not is_fm:
+            messages.error(request, "عفواً، لا يمكن تعديل قيد مرحل. إلغاء ترحيل القيود محصور حصرياً بالمدير المالي.")
+            return redirect("financial:journal_entries_detail", pk=pk)
         try:
             from financial.services.ledger_core_service import LedgerCoreService
             journal_entry = LedgerCoreService.unpost_entry(
@@ -1078,8 +1094,9 @@ def journal_entries_edit(request, pk):
 
 
 @login_required
+@require_permission('financial.delete_journalentry')
 def journal_entries_delete(request, pk):
-    """حذف قيد - يدعم إلغاء الترحيل التلقائي قبل الحذف ويدعم AJAX"""
+    """حذف قيد - يدعم مسودات القيود ويمنع حذف القيود المرحلة حفاظاً على الثبات المحاسبي"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
 
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json'
@@ -1098,16 +1115,29 @@ def journal_entries_delete(request, pk):
         messages.error(request, msg)
         return redirect("financial:journal_entries_detail", pk=pk)
 
+    # التحقق من القيود المرحلة لحماية الثبات المحاسبي
+    if journal_entry.status == 'posted':
+        is_fm = (
+            request.user.is_superuser or 
+            getattr(request.user, 'is_financial_manager', False) or 
+            request.user.has_perm('financial.unpost_journal_entry')
+        )
+        if not is_fm:
+            msg = "لا يمكن حذف القيود المرحلة نهائياً لضمان الثبات المحاسبي. يرجى إنشاء قيد عكسي بدلاً من ذلك أو إلغاء ترحيله بواسطة المدير المالي."
+            if is_ajax:
+                return JsonResponse({"success": False, "message": msg}, status=400)
+            messages.error(request, msg)
+            return redirect("financial:journal_entries_detail", pk=pk)
+
     if request.method == "POST":
         try:
             with transaction.atomic():
-                # إذا كان القيد مرحلاً، نقوم بإلغاء ترحيله أولاً لتحديث الأرصدة والموازنة ومسح مراجع الترحيل
                 if journal_entry.status == 'posted':
                     from financial.services.ledger_core_service import LedgerCoreService
                     journal_entry = LedgerCoreService.unpost_entry(
                         entry_id=journal_entry.pk,
                         user=request.user,
-                        reason="إلغاء الترحيل تمهيداً لحذف القيد"
+                        reason="إلغاء الترحيل تلقائياً بواسطة المدير المالي تمهيداً لحذف القيد"
                     )
 
                 ref = journal_entry.reference or str(journal_entry.number)
@@ -1139,6 +1169,7 @@ def journal_entries_delete(request, pk):
 
 
 @login_required
+@require_permission('financial.post_journal_entry')
 def journal_entries_post(request, pk):
     """ترحيل قيد - AJAX only"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
@@ -1174,9 +1205,18 @@ def journal_entries_post(request, pk):
 
 
 @login_required
+@require_permission('financial.change_journalentry')
 def journal_entries_unpost(request, pk):
-    """إلغاء ترحيل قيد - AJAX only"""
+    """إلغاء ترحيل قيد - AJAX only (محصور حصرياً بالمدير المالي والسوبر يوزر)"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
+
+    is_fm = (
+        request.user.is_superuser or 
+        getattr(request.user, 'is_financial_manager', False) or 
+        request.user.has_perm('financial.unpost_journal_entry')
+    )
+    if not is_fm:
+        return JsonResponse({"success": False, "message": "عفواً، إلغاء ترحيل القيود اليومية محصور حصرياً بالمدير المالي لضمان الثبات المحاسبي."}, status=403)
 
     if request.method == "POST":
         try:
@@ -1217,6 +1257,7 @@ def journal_entries_unpost(request, pk):
 
 
 @login_required
+@require_permission('financial.reverse_journal_entry')
 def journal_entries_reverse(request, pk):
     """إنشاء قيد عكسي للقيود المقفلة أو المرحّلة - AJAX only"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
@@ -1290,6 +1331,7 @@ def journal_entries_reverse(request, pk):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def transaction_list(request):
     """
     عرض قائمة المعاملات النقدية والبنكية فقط
@@ -1518,6 +1560,7 @@ def transaction_list(request):
 
 
 @login_required
+@require_permission('financial.view_journalentry')
 def transaction_detail(request, pk):
     """
     عرض تفاصيل قيد محاسبي معين
@@ -1620,6 +1663,7 @@ def transaction_detail(request, pk):
 
 
 @login_required
+@require_permission('financial.delete_journalentry')
 def journal_entry_delete(request, pk):
     """
     حذف قيد محاسبي مع التحقق من الصلاحيات
@@ -2204,12 +2248,13 @@ def reverse_entry_optimized(entry_id, reversal_date=None, user=None):
 # ============== القيود اليدوية (Manual Journal Entries) ==============
 
 @login_required
+@require_permission('financial.add_journalentry')
 def manual_journal_entry_create(request):
     """
     إنشاء قيد يدوي مركّب ومحسّن - دعم الأسطر المتعددة ومراكز التكلفة والمرفقات
     """
-    if not request.user.is_superuser:
-        messages.error(request, "عذراً، هذه الصفحة متاحة فقط للمسؤول الرئيسي")
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('financial.add_journalentry')):
+        messages.error(request, "عذراً، هذه الصفحة متاحة فقط للمسؤولين والمحاسبين المخولين")
         return redirect('financial:journal_entries_list')
 
     from financial.models import CostCenter

@@ -1,7 +1,9 @@
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
+from users.decorators import require_permission
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -17,6 +19,7 @@ from financial.exceptions import FinancialCoreError
 
 
 @login_required
+@require_permission("purchase.view_goodsreceivednote")
 def grn_list(request):
     """عرض أذون استلام المشتريات (GRN)"""
     grns = GoodsReceivedNote.objects.select_related('supplier', 'warehouse', 'purchase', 'purchase_order', 'journal_entry').order_by('-received_date', '-id')
@@ -84,6 +87,7 @@ def grn_list(request):
 
 
 @login_required
+@require_permission("purchase.add_goodsreceivednote")
 def grn_create(request, purchase_id=None):
     """إنشاء إذن استلام مشتريات جديد (GRN)"""
     purchase_obj = None
@@ -170,6 +174,7 @@ def grn_create(request, purchase_id=None):
 
 
 @login_required
+@require_permission("purchase.view_goodsreceivednote")
 def grn_detail(request, pk):
     """تفاصيل إذن استلام المشتريات (GRN)"""
     grn = get_object_or_404(
@@ -193,59 +198,63 @@ def grn_detail(request, pk):
 
 
 @login_required
+@require_permission("purchase.change_goodsreceivednote")
+@require_POST
 def grn_submit(request, pk):
     """تقديم إذن الاستلام للمراجعة (DRAFT -> SUBMITTED)"""
-    if request.method == "POST":
-        reason = request.POST.get("reason", "")
-        try:
-            grn = GRNApplicationService.submit_grn(grn_id=pk, user=request.user, reason=reason)
-            messages.success(request, _("تم تقديم إذن الاستلام #{ } للمراجعة بنجاح.").format(grn.grn_number))
-        except FinancialCoreError as e:
-            messages.error(request, str(e))
+    reason = request.POST.get("reason", "")
+    try:
+        grn = GRNApplicationService.submit_grn(grn_id=pk, user=request.user, reason=reason)
+        messages.success(request, _("تم تقديم إذن الاستلام #{} للمراجعة بنجاح.").format(grn.grn_number))
+    except FinancialCoreError as e:
+        messages.error(request, str(e))
     return redirect("purchase:grn_detail", pk=pk)
 
 
 @login_required
+@require_permission("purchase.approve_goodsreceivednote")
+@require_POST
 def grn_approve(request, pk):
     """اعتماد إذن الاستلام (SUBMITTED -> APPROVED)"""
-    if request.method == "POST":
-        reason = request.POST.get("reason", "")
-        try:
-            grn = GRNApplicationService.approve_grn(grn_id=pk, user=request.user, reason=reason)
-            messages.success(request, _("تم اعتماد إذن الاستلام #{} بنجاح.").format(grn.grn_number))
-        except FinancialCoreError as e:
-            messages.error(request, str(e))
+    reason = request.POST.get("reason", "")
+    try:
+        grn = GRNApplicationService.approve_grn(grn_id=pk, user=request.user, reason=reason)
+        messages.success(request, _("تم اعتماد إذن الاستلام #{} بنجاح.").format(grn.grn_number))
+    except FinancialCoreError as e:
+        messages.error(request, str(e))
     return redirect("purchase:grn_detail", pk=pk)
 
 
 @login_required
+@require_permission("purchase.post_goodsreceivednote")
+@require_POST
 def grn_post(request, pk):
     """الترحيل النهائي المالي والمخزني لإذن الاستلام (APPROVED -> POSTED)"""
-    if request.method == "POST":
-        reason = request.POST.get("reason", "")
-        try:
-            grn = GRNApplicationService.post_grn(grn_id=pk, user=request.user, reason=reason)
-            messages.success(request, _("تم ترحيل إذن الاستلام #{} مخزنياً ومالياً بنجاح والقيد المحاسبي مرتبط.").format(grn.grn_number))
-        except FinancialCoreError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, _("حدث خطأ أثناء الترحيل: {}").format(str(e)))
+    reason = request.POST.get("reason", "")
+    try:
+        grn = GRNApplicationService.post_grn(grn_id=pk, user=request.user, reason=reason)
+        messages.success(request, _("تم ترحيل إذن الاستلام #{} مخزنياً ومالياً بنجاح والقيد المحاسبي مرتبط.").format(grn.grn_number))
+    except FinancialCoreError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, _("حدث خطأ أثناء الترحيل: {}").format(str(e)))
     return redirect("purchase:grn_detail", pk=pk)
 
 
 @login_required
+@require_permission("purchase.post_goodsreceivednote")
+@require_POST
 def grn_reverse(request, pk):
     """عكس إذن استلام مرحل (POSTED -> REVERSED)"""
-    if request.method == "POST":
-        reason = request.POST.get("reason", "")
-        if not reason:
-            messages.error(request, _("يلزم إدخال سبب واضح وموثق لعكس إذن الاستلام."))
-            return redirect("purchase:grn_detail", pk=pk)
-        try:
-            grn = GRNApplicationService.reverse_grn(grn_id=pk, user=request.user, reason=reason)
-            messages.success(request, _("تم عكس إذن الاستلام #{} والقيد المعاكس تم ترحيله بنجاح.").format(grn.grn_number))
-        except FinancialCoreError as e:
-            messages.error(request, str(e))
-        except Exception as e:
-            messages.error(request, _("حدث خطأ أثناء إجراء العكس: {}").format(str(e)))
+    reason = request.POST.get("reason", "")
+    if not reason:
+        messages.error(request, _("يلزم إدخال سبب واضح وموثق لعكس إذن الاستلام."))
+        return redirect("purchase:grn_detail", pk=pk)
+    try:
+        grn = GRNApplicationService.reverse_grn(grn_id=pk, user=request.user, reason=reason)
+        messages.success(request, _("تم عكس إذن الاستلام #{} والقيد المعاكس تم ترحيله بنجاح.").format(grn.grn_number))
+    except FinancialCoreError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, _("حدث خطأ أثناء إجراء العكس: {}").format(str(e)))
     return redirect("purchase:grn_detail", pk=pk)

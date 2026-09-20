@@ -25,6 +25,7 @@ from .models import (
 from .forms import SupplierForm, SupplierAccountChangeForm
 from purchase.models import Purchase, PurchaseItem
 from financial.models import ChartOfAccounts, Currency
+from users.decorators import require_permission
 from .decorators import require_printing_pricing_enabled
 
 
@@ -65,6 +66,7 @@ def _get_pricing_types_map():
 
 
 @login_required
+@require_permission("supplier.view_supplier")
 def supplier_list(request):
     """
     عرض قائمة الموردين
@@ -249,23 +251,24 @@ def supplier_list(request):
         },
     ]
 
-    # تعريف أزرار الإجراءات (تم حذف أزرار العرض والتعديل لأن الصف بالكامل قابل للنقر)
-    action_buttons = [
-        {
+    # تعريف أزرار الإجراءات المقيدة بالصلاحيات
+    action_buttons = []
+    if request.user.has_perm("supplier.change_supplier"):
+        action_buttons.append({
             "type": "button",
             "icon": "fa-undo",
             "class": "action-reactivate text-success",
             "label": "إعادة تنشيط",
             "condition": "is_inactive",
             "data_attrs": 'onclick="reactivateSupplier(this.closest(\'tr\').dataset.id)"',
-        },
-        {
+        })
+    if request.user.has_perm("supplier.delete_supplier"):
+        action_buttons.append({
             "modal": True,
             "icon": "fa-trash-alt",
             "class": "action-delete text-danger",
             "label": "حذف / أرشفة",
-        },
-    ]
+        })
 
     inactive_suppliers = Supplier.objects.filter(is_active=False).count()
     from core.models import SystemSetting
@@ -282,12 +285,13 @@ def supplier_list(request):
             "class": "btn-outline-primary",
         })
     else:
-        supplier_header_buttons.append({
-            "url": reverse("supplier:supplier_add"),
-            "icon": "fa-plus",
-            "text": "إضافة مورد",
-            "class": "btn-primary",
-        })
+        if request.user.has_perm("supplier.add_supplier"):
+            supplier_header_buttons.append({
+                "url": reverse("supplier:supplier_add"),
+                "icon": "fa-plus",
+                "text": "إضافة مورد",
+                "class": "btn-primary",
+            })
         supplier_header_buttons.append({
             "url": reverse("supplier:supplier_list") + "?status=inactive",
             "icon": "fa-archive",
@@ -350,6 +354,7 @@ def supplier_list(request):
 
 
 @login_required
+@require_permission("supplier.add_supplier")
 def supplier_add(request):
     """
     إضافة مورد جديد
@@ -427,6 +432,7 @@ def supplier_add(request):
 
 
 @login_required
+@require_permission("supplier.add_supplier")
 def supplier_create_modal(request):
     """
     إضافة مورد جديد عبر المودال
@@ -505,6 +511,7 @@ def supplier_create_modal(request):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 def supplier_edit(request, pk):
     """
     تعديل بيانات مورد
@@ -579,6 +586,7 @@ def supplier_edit(request, pk):
 
 
 @login_required
+@require_permission("supplier.delete_supplier")
 def supplier_delete(request, pk):
     """
     حذف أو أرشفة مورد (فحص سيادي ذكي وتحديث تفاعلي بالـ AJAX)
@@ -657,6 +665,7 @@ def supplier_delete(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 def supplier_reactivate(request, pk):
     """
     إعادة تنشيط مورد مؤرشف وحسابه المالي التابع
@@ -673,6 +682,7 @@ def supplier_reactivate(request, pk):
 
 
 @login_required
+@require_permission("supplier.view_supplier")
 def supplier_detail(request, pk):
     """
     عرض تفاصيل المورد ودفعات الفواتير
@@ -1795,8 +1805,9 @@ def supplier_detail(request, pk):
                 "title": "هذا المورد غير نشط ومؤرشف",
             }
         ]
-        header_buttons = [
-            {
+        header_buttons = []
+        if request.user.has_perm("supplier.change_supplier"):
+            header_buttons.append({
                 "url": "#",
                 "icon": "fa-undo",
                 "text": "إعادة تنشيط المورد",
@@ -1804,12 +1815,12 @@ def supplier_detail(request, pk):
                 "id": "btn-reactivate-supplier",
                 "onclick": "const f = document.getElementById('reactivate-supplier-form'); if(f) { f.submit(); } else { const nf = document.createElement('form'); nf.method='POST'; nf.action='" + reverse('supplier:supplier_reactivate', kwargs={'pk': supplier.pk}) + "'; const c = document.querySelector('[name=csrfmiddlewaretoken]'); if(c) { const i = document.createElement('input'); i.type='hidden'; i.name='csrfmiddlewaretoken'; i.value=c.value; nf.appendChild(i); } document.body.appendChild(nf); nf.submit(); }",
                 "title": "إعادة تنشيط المورد وحسابه المالي",
-            }
-        ]
+            })
     else:
         header_badges = []
-        header_buttons = [
-            {
+        header_buttons = []
+        if request.user.has_perm("financial.add_paymentvoucher"):
+            header_buttons.append({
                 "url": "#",
                 "icon": "fa-plus-circle",
                 "text": "إضافة رصيد مسبق",
@@ -1817,15 +1828,17 @@ def supplier_detail(request, pk):
                 "toggle": "modal",
                 "target": "#addSupplierAdvanceModal",
                 "title": "إضافة رصيد مسبق / دفعة مقدمة للمورد",
-            },
-            {
+            })
+        if request.user.has_perm("purchase.add_purchase"):
+            header_buttons.append({
                 "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
                 "icon": "fa-plus",
                 "text": "فاتورة مشتريات",
                 "class": "btn-success",
                 "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد",
-            },
-            {
+            })
+        if request.user.has_perm("supplier.change_supplier") or request.user.has_perm("supplier.delete_supplier"):
+            header_buttons.append({
                 "url": "#",
                 "icon": "fa-ellipsis-v",
                 "text": "",
@@ -1834,8 +1847,7 @@ def supplier_detail(request, pk):
                 "toggle": "modal",
                 "target": "#actionsModal",
                 "title": "خيارات وإجراءات إضافية",
-            },
-        ]
+            })
 
     # جلب خدمات المورد — المرحلة الثانية (فقط إذا كان موديول التسعير مفعلاً)
     from core.models import SystemModule
@@ -2184,6 +2196,7 @@ def supplier_detail(request, pk):
 
 
 @login_required
+@require_permission("supplier.view_supplier")
 def supplier_list_api(request):
     """
     API لإرجاع قائمة الموردين النشطين
@@ -2216,6 +2229,7 @@ def supplier_list_api(request):
 
 
 @login_required
+@require_permission("financial.change_chartofaccounts")
 def supplier_change_account(request, pk):
     """
     تغيير الحساب المحاسبي للمورد
@@ -2281,6 +2295,7 @@ def supplier_change_account(request, pk):
 
 
 @login_required
+@require_permission("financial.change_chartofaccounts")
 def supplier_create_account(request, pk):
     """
     إنشاء حساب محاسبي جديد للمورد (AJAX)
@@ -2466,6 +2481,7 @@ def _get_preinjected_lookups():
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_service_add(request, pk):
     """إضافة خدمة جديدة للمورد مع الربط العلائقي الكامل وضمان سلامة التسعير الصناعي"""
@@ -2860,6 +2876,7 @@ def supplier_service_add(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_service_edit(request, pk, service_pk):
     """تعديل خدمة مورد مع تحديث الحقول الصناعية والربط العلائقي الكامل وشرائح الكميات"""
@@ -3226,6 +3243,7 @@ def supplier_service_edit(request, pk, service_pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_service_delete(request, pk, service_pk):
     """حذف خدمة مورد (POST فقط) مع حماية السجلات التاريخية"""
@@ -3260,6 +3278,7 @@ def supplier_service_delete(request, pk, service_pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_service_toggle(request, pk, service_pk):
     """تفعيل/تعطيل خدمة مورد (AJAX POST)"""
@@ -3278,6 +3297,7 @@ def supplier_service_toggle(request, pk, service_pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_POST
 def supplier_service_quick_renew_price(request, pk, service_pk):
     """تأكيد وتجديد سريع لسريان سعر خدمة المورد بتاريخ اليوم"""
@@ -3324,6 +3344,7 @@ def supplier_service_quick_renew_price(request, pk, service_pk):
 
 
 @login_required
+@require_permission("supplier.view_supplier")
 @require_printing_pricing_enabled
 def supplier_services_api(request, pk):
     """API — جلب خدمات مورد معين (JSON)"""
@@ -3430,6 +3451,7 @@ def supplier_service_detail(request, pk, service_pk):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.change_supplier')
 def price_tier_add(request, pk, service_pk):
     """إضافة شريحة سعرية جديدة مع التحقق من عدم التداخل"""
     supplier = get_object_or_404(Supplier, pk=pk)
@@ -3514,6 +3536,7 @@ def price_tier_add(request, pk, service_pk):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.change_supplier')
 def price_tier_edit(request, pk, service_pk, tier_pk):
     """تعديل شريحة سعرية مع التحقق من عدم التداخل"""
     supplier = get_object_or_404(Supplier, pk=pk)
@@ -3598,6 +3621,7 @@ def price_tier_edit(request, pk, service_pk, tier_pk):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.change_supplier')
 def price_tier_delete(request, pk, service_pk, tier_pk):
     """حذف شريحة سعرية (POST فقط)"""
     supplier = get_object_or_404(Supplier, pk=pk)
@@ -3616,6 +3640,7 @@ def price_tier_delete(request, pk, service_pk, tier_pk):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.change_supplier')
 def price_tier_toggle(request, pk, service_pk, tier_pk):
     """تفعيل/تعطيل شريحة سعرية (AJAX POST)"""
     supplier = get_object_or_404(Supplier, pk=pk)
@@ -3635,6 +3660,7 @@ def price_tier_toggle(request, pk, service_pk, tier_pk):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.view_supplier')
 def service_price_api(request, service_pk):
     """API — جلب سعر خدمة لكمية معينة"""
     from supplier.services.supplier_service import SupplierService as SupplierServiceClass
@@ -3670,6 +3696,7 @@ def _get_schema_sources(schema):
 
 @login_required
 @require_printing_pricing_enabled
+@require_permission('supplier.view_supplier')
 def service_type_schema_options_api(request):
     """
     API — جلب خيارات حقل source معين من printing_pricing.
@@ -3701,6 +3728,7 @@ def service_type_schema_options_api(request):
 
 
 @login_required
+@require_permission('supplier.view_supplier')
 def supplier_aging_api(request, pk):
     """
     API لكشف شرائح أعمار ديون المورد الكسول (Lazy Supplier Aging Buckets)
@@ -3725,6 +3753,7 @@ def supplier_aging_api(request, pk):
 
 
 @login_required
+@require_permission("financial.add_paymentvoucher")
 def add_supplier_advance_action(request, pk):
     """
     إضافة رصيد مسبق / دفعة مقدمة جديدة للمورد باختيار العملة وسعر الصرف
@@ -3780,6 +3809,7 @@ def add_supplier_advance_action(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 def allocate_supplier_prepaid_action(request, pk):
     """
     تخصيص الدفعات المقدمة للمورد على الفواتير المفتوحة (تخصيص جماعي أو فردي)
@@ -3845,6 +3875,7 @@ def allocate_supplier_prepaid_action(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_services_bulk_update(request, pk):
     """
@@ -4002,6 +4033,7 @@ def supplier_services_bulk_update(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_services_bulk_adjust(request, pk):
     """
@@ -4075,6 +4107,7 @@ def supplier_services_bulk_adjust(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_seed_standard_presses(request, pk):
     """
@@ -4186,6 +4219,7 @@ def supplier_seed_standard_presses(request, pk):
 
 
 @login_required
+@require_permission("supplier.change_supplier")
 @require_printing_pricing_enabled
 def supplier_seed_paper_matrix(request, pk):
     """

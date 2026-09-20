@@ -1,0 +1,115 @@
+<!-- Modal مقارنة الأدوار -->
+<div class="modal fade" id="compareRolesModal" tabindex="-1" aria-labelledby="compareRolesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="compareRolesModalLabel">
+                    <i class="fas fa-balance-scale text-primary me-2"></i>مقارنة صلاحيات الأدوار
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-5">
+                        <label for="compareRole1" class="form-label fw-bold">الدور الأول</label>
+                        <select class="form-select select2-filter" id="compareRole1" dir="rtl" style="width: 100%;">
+                            <option value="">اختر الدور الأول...</option>
+                            {% for r in roles %}
+                            <option value="{{ r.id }}">{{ r.display_name }} ({{ r.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end justify-content-center">
+                        <button type="button" class="btn btn-outline-primary w-100" id="executeRoleCompareBtn">
+                            <i class="fas fa-sync-alt me-1"></i>مقارنة
+                        </button>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="compareRole2" class="form-label fw-bold">الدور الثاني</label>
+                        <select class="form-select select2-filter" id="compareRole2" dir="rtl" style="width: 100%;">
+                            <option value="">اختر الدور الثاني...</option>
+                            {% for r in roles %}
+                            <option value="{{ r.id }}">{{ r.display_name }} ({{ r.name }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- نتيجة المقارنة -->
+                <div id="roleCompareResults" style="display: none;">
+                    <!-- كروت المؤشرات المقارنة -->
+                    <div class="row g-3 mb-4" id="compareStatsCards">
+                        <div class="col-md-3">
+                            <div class="card border p-3 text-center bg-light">
+                                <div class="text-muted small">صلاحيات مشتركة</div>
+                                <div class="fs-4 fw-bold text-success" id="statCommonCount">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border p-3 text-center bg-light">
+                                <div class="text-muted small" id="statRole1Label">خاصة بالدور الأول</div>
+                                <div class="fs-4 fw-bold text-primary" id="statRole1OnlyCount">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border p-3 text-center bg-light">
+                                <div class="text-muted small" id="statRole2Label">خاصة بالدور الثاني</div>
+                                <div class="fs-4 fw-bold text-warning" id="statRole2OnlyCount">0</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border p-3 text-center bg-light">
+                                <div class="text-muted small">نسبة التشابه</div>
+                                <div class="fs-4 fw-bold text-info" id="statSimilarity">0%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- تفاصيل الصلاحيات المقارنة -->
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="card border h-100">
+                                <div class="card-header bg-light py-2 fw-bold text-primary border-bottom" id="role1OnlyHeader">
+                                    خاص بالدور الأول فقط
+                                </div>
+                                <div class="card-body p-2 overflow-auto" style="max-height: 350px;" id="role1OnlyList">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border h-100">
+                                <div class="card-header bg-light py-2 fw-bold text-success border-bottom">
+                                    صلاحيات مشتركة بين الدورين
+                                </div>
+                                <div class="card-body p-2 overflow-auto" style="max-height: 350px;" id="commonPermsList">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border h-100">
+                                <div class="card-header bg-light py-2 fw-bold text-warning border-bottom" id="role2OnlyHeader">
+                                    خاص بالدور الثاني فقط
+                                </div>
+                                <div class="card-body p-2 overflow-auto" style="max-height: 350px;" id="role2OnlyList">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- شاشة التحميل والرسائل التنبيهية -->
+                <div id="roleCompareLoading" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary mb-2" role="status"></div>
+                    <div class="text-muted">جاري تحليل ومقارنة الصلاحيات...</div>
+                </div>
+                <div id="roleCompareEmpty" class="text-center py-5 text-muted">
+                    <i class="fas fa-balance-scale fa-3x mb-3 text-secondary opacity-50"></i>
+                    <div>يرجى اختيار دورين ثم الضغط على زر "مقارنة" لعرض الفروق التفصيلية ونسبة التشابه.</div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>

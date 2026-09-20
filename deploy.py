@@ -20,6 +20,8 @@ try:
         sys.stdout.reconfigure(encoding='utf-8')
     if hasattr(sys.stderr, 'reconfigure'):
         sys.stderr.reconfigure(encoding='utf-8')
+    if os.name == 'nt':
+        os.system('')
 except Exception:
     pass
 
@@ -1020,6 +1022,7 @@ class DeploymentManager:
                 json.dump(previous_hashes, f, indent=2, ensure_ascii=False)
             
             self.uploaded_files = [filename]
+            self._save_upload_log([filename], f"رفع ملف فردي: {filename}")
             self.run_post_deploy_commands(first_deploy=False)
             return True
             
@@ -1460,8 +1463,6 @@ class DeploymentManager:
                 f.write(f"\n" + "=" * 50 + "\n")
                 f.write(f"✅ تم حفظ {len(uploaded_files)} ملف بنجاح\n")
             
-
-            
             # الاحتفاظ بأحدث 10 ملفات فقط وحذف الباقي
             log_dir = log_file.parent
             all_logs = sorted(log_dir.glob("upload_*.txt"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -1470,6 +1471,7 @@ class DeploymentManager:
             
         except Exception as e:
             print(f"⚠️  لا يمكن حفظ log الرفع: {e}")
+
 
 class MultiClientDeployment:
     """نشر متعدد العملاء - Multi-Client Deployment"""
@@ -1494,6 +1496,134 @@ class MultiClientDeployment:
             print(f"❌ خطأ في قراءة ملف العملاء: {e}")
             return {}
 
+    @staticmethod
+    def _format_relative_time(dt):
+        """Relative time formatting in English"""
+        from datetime import datetime
+        now = datetime.now()
+        diff = now - dt
+        seconds = int(diff.total_seconds())
+        if seconds < 60:
+            return "just now"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes} min ago" if minutes != 1 else "1 min ago"
+        hours = minutes // 60
+        if hours < 24:
+            return f"{hours} hours ago" if hours != 1 else "1 hour ago"
+        days = diff.days
+        if days == 1:
+            return "yesterday"
+        if days < 30:
+            return f"{days} days ago"
+        if days < 365:
+            months = max(1, days // 30)
+            return f"{months} months ago" if months != 1 else "1 month ago"
+        years = max(1, days // 365)
+        return f"{years} years ago" if years != 1 else "1 year ago"
+
+    def get_last_deploy_info(self, client_id=None):
+        """
+        Extract last deployment info and timestamp for a client or main platform.
+        Returns (display_text, datetime_object or None)
+        """
+        from datetime import datetime
+        last_dt = None
+
+        if client_id is not None:
+            # 1. Check clients.json first
+            client_data = self.clients.get(client_id, {})
+            last_deploy_val = client_data.get('last_deploy')
+            if last_deploy_val:
+                if isinstance(last_deploy_val, dict):
+                    ts_str = last_deploy_val.get('timestamp') or last_deploy_val.get('date')
+                else:
+                    ts_str = str(last_deploy_val)
+                if ts_str:
+                    for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+                        try:
+                            last_dt = datetime.strptime(ts_str.split('.')[0], fmt)
+                            break
+                        except ValueError:
+                            pass
+
+            # 2. Check client deploy_logs
+            if not last_dt:
+                client_log_dir = self.deployments_dir / client_id / "deploy_logs"
+                if client_log_dir.exists():
+                    log_files = sorted(client_log_dir.glob("upload_*.txt"), key=lambda f: f.stat().st_mtime, reverse=True)
+                    if log_files:
+                        latest_file = log_files[0]
+                        file_name = latest_file.stem
+                        if file_name.startswith("upload_") and len(file_name) >= 22:
+                            try:
+                                last_dt = datetime.strptime(file_name[7:22], '%Y%m%d_%H%M%S')
+                            except ValueError:
+                                pass
+                        if not last_dt:
+                            last_dt = datetime.fromtimestamp(latest_file.stat().st_mtime)
+
+            # 3. Check client .deploy_hashes.json
+            if not last_dt:
+                hash_file = self.deployments_dir / client_id / ".deploy_hashes.json"
+                if hash_file.exists() and hash_file.stat().st_size > 10:
+                    last_dt = datetime.fromtimestamp(hash_file.stat().st_mtime)
+
+        else:
+            # Main platform (MWHEBA)
+            main_log_dir = self.project_root / "deploy_logs"
+            if main_log_dir.exists():
+                log_files = sorted(main_log_dir.glob("upload_*.txt"), key=lambda f: f.stat().st_mtime, reverse=True)
+                if log_files:
+                    latest_file = log_files[0]
+                    file_name = latest_file.stem
+                    if file_name.startswith("upload_") and len(file_name) >= 22:
+                        try:
+                            last_dt = datetime.strptime(file_name[7:22], '%Y%m%d_%H%M%S')
+                        except ValueError:
+                            pass
+                    if not last_dt:
+                        last_dt = datetime.fromtimestamp(latest_file.stat().st_mtime)
+
+            if not last_dt:
+                hash_file = self.project_root / ".deploy_hashes.json"
+                if hash_file.exists() and hash_file.stat().st_size > 10:
+                    last_dt = datetime.fromtimestamp(hash_file.stat().st_mtime)
+
+        if not last_dt:
+            return "\033[91mNever deployed\033[0m", None
+
+        formatted_date = last_dt.strftime('%Y-%m-%d')
+        relative_text = self._format_relative_time(last_dt)
+        display_text = f"{formatted_date} ({relative_text})"
+
+        # Color old deployments in RED (> 30 days), leave recent (<= 30 days) uncolored
+        days = (datetime.now() - last_dt).days
+        if days > 30:
+            return f"\033[91m{display_text}\033[0m", last_dt
+
+        return display_text, last_dt
+
+    def record_client_deploy(self, client_id, mode='modified', files_count=0):
+        """حفظ وتحديث تاريخ آخر رفع للعميل في clients.json"""
+        try:
+            from datetime import datetime
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            if not self.clients_file.exists():
+                return
+            with open(self.clients_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            if 'clients' in data and client_id in data['clients']:
+                data['clients'][client_id]['last_deploy'] = now_str
+                with open(self.clients_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                if client_id in self.clients:
+                    self.clients[client_id]['last_deploy'] = now_str
+        except Exception as e:
+            print(f"⚠️  تعذر تحديث تاريخ آخر رفع في clients.json: {e}")
+
     def list_clients(self):
         """عرض قائمة العملاء"""
         print("\n" + "=" * 60)
@@ -1506,12 +1636,14 @@ class MultiClientDeployment:
 
         for client_id, info in self.clients.items():
             status = "✅ نشط" if info.get('active', True) else "⏸️  معطل"
+            last_deploy_str, _ = self.get_last_deploy_info(client_id)
             print(f"\n🏢 {client_id}")
             print(f"   الاسم: {info.get('name', 'غير محدد')}")
             print(f"   الدومين: {info.get('domain', 'غير محدد')}")
             print(f"   الخادم: {info.get('ssh_host', 'غير محدد')}")
             print(f"   المسار: {info.get('remote_path', 'غير محدد')}")
             print(f"   الحالة: {status}")
+            print(f"   🕒 Last deploy: {last_deploy_str}")
             if info.get('notes'):
                 print(f"   ملاحظات: {info['notes']}")
 
@@ -1617,7 +1749,7 @@ application = get_wsgi_application()
                     print("❌ لازم تحدد الملف بـ --file")
                     return False
                 success = deployer.deploy_single_file(filename)
-                files = []
+                files = [Path(filename)] if success else []
             else:  # modified (default) - اسأل المستخدم
                 all_files = deployer.get_all_files()
                 print(f"\n📊 {len(all_files)} ملف للفحص")
@@ -1640,42 +1772,46 @@ application = get_wsgi_application()
                     print("❌ تم الإلغاء")
                     return False
 
-            # تحديث hash_file الخاص بالعميل بعد أي رفع ناجح
-            if success and files and mode not in ('test', 'status'):
-                is_first_deploy = not deployer.hash_file.exists()
-                current_hashes = {}
-                for file_path in files:
-                    if file_path.exists():
-                        relative_path = str(file_path.relative_to(deployer.project_root)).replace('\\', '/')
-                        current_hashes[relative_path] = deployer.get_file_hash(file_path)
-                deployer.hash_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(deployer.hash_file, 'w', encoding='utf-8') as f:
-                    json.dump(current_hashes, f, indent=2, ensure_ascii=False)
+            # تحديث hash_file وتاريخ آخر رفع الخاص بالعميل بعد أي رفع ناجح
+            if success and mode not in ('test', 'status'):
+                if files:
+                    is_first_deploy = not deployer.hash_file.exists()
+                    current_hashes = {}
+                    for file_path in files:
+                        if file_path.exists():
+                            relative_path = str(file_path.relative_to(deployer.project_root)).replace('\\', '/')
+                            current_hashes[relative_path] = deployer.get_file_hash(file_path)
+                    deployer.hash_file.parent.mkdir(parents=True, exist_ok=True)
+                    with open(deployer.hash_file, 'w', encoding='utf-8') as f:
+                        json.dump(current_hashes, f, indent=2, ensure_ascii=False)
 
-                # رفع .env الخاص بالعميل لو اتغير
-                try:
-                    env_hash_key = f"__client_env__"
-                    current_env_hash = deployer.get_file_hash(env_file)
-                    saved_env_hash = current_hashes.get(env_hash_key)
+                    # رفع .env الخاص بالعميل لو اتغير
+                    try:
+                        env_hash_key = f"__client_env__"
+                        current_env_hash = deployer.get_file_hash(env_file)
+                        saved_env_hash = current_hashes.get(env_hash_key)
 
-                    if current_env_hash != saved_env_hash:
-                        ssh = deployer._create_ssh_connection()
-                        sftp = ssh.open_sftp()
-                        remote_env = f"{deployer.remote_path}/.env"
-                        sftp.put(str(env_file), remote_env)
-                        sftp.close()
-                        ssh.close()
-                        # حفظ hash الـ .env في ملف الـ hashes
-                        current_hashes[env_hash_key] = current_env_hash
-                        with open(deployer.hash_file, 'w', encoding='utf-8') as f:
-                            json.dump(current_hashes, f, indent=2, ensure_ascii=False)
-                        print(f"  ✅ .env → {deployer.remote_path}/.env")
-                    else:
-                        print(f"  ⏭️  .env لم يتغير")
-                except Exception as e:
-                    print(f"  ⚠️  فشل رفع .env: {e}")
+                        if current_env_hash != saved_env_hash:
+                            ssh = deployer._create_ssh_connection()
+                            sftp = ssh.open_sftp()
+                            remote_env = f"{deployer.remote_path}/.env"
+                            sftp.put(str(env_file), remote_env)
+                            sftp.close()
+                            ssh.close()
+                            # حفظ hash الـ .env في ملف الـ hashes
+                            current_hashes[env_hash_key] = current_env_hash
+                            with open(deployer.hash_file, 'w', encoding='utf-8') as f:
+                                json.dump(current_hashes, f, indent=2, ensure_ascii=False)
+                            print(f"  ✅ .env → {deployer.remote_path}/.env")
+                        else:
+                            print(f"  ⏭️  .env لم يتغير")
+                    except Exception as e:
+                        print(f"  ⚠️  فشل رفع .env: {e}")
 
-                deployer.run_post_deploy_commands(first_deploy=is_first_deploy)
+                    deployer.run_post_deploy_commands(first_deploy=is_first_deploy)
+
+                # تسجيل تاريخ آخر رفع للعميل
+                self.record_client_deploy(client_id, mode=mode, files_count=len(files) if files else 1)
 
             if success:
                 print(f"\n✅ اكتمل النشر بنجاح للعميل: {client_id}")
@@ -1738,25 +1874,28 @@ def main():
         if not args.client and not args.force:
             mc = MultiClientDeployment()
             if mc.clients:
-                print("\n📋 اختر جهة النشر (Choose Deployment Target):")
+                print("\n📋 Choose Deployment Target:")
                 
-                # إعداد قائمة العملاء مع وضع test برقم 0 دائماً
+                # Setup client list with test at 0
                 test_info = mc.clients.get('test')
+                test_deploy, _ = mc.get_last_deploy_info('test')
                 other_clients = [(cid, info) for cid, info in mc.clients.items() if cid != 'test']
+                main_deploy, _ = mc.get_last_deploy_info(None)
                 
                 if test_info:
-                    print(f"0️⃣  عميل: {test_info.get('name', 'test')} (test)")
+                    print(f"0️⃣  Client: {test_info.get('name', 'test')} (test) ── {test_deploy}")
                 else:
-                    print("0️⃣  عميل: test (test)")
+                    print(f"0️⃣  Client: test (test) ── {test_deploy}")
 
-                print("1️⃣  المنصة الرئيسية (موهبة) - MWHEBA ERP")
+                print(f"1️⃣  Main Platform (MWHEBA) - MWHEBA ERP ── {main_deploy}")
                 
                 for index, (client_id, info) in enumerate(other_clients, start=2):
                     num_str = f"{index}️⃣" if index <= 9 else f"{index}"
-                    print(f"{num_str}  عميل: {info.get('name', client_id)} ({client_id})")
-                print("❌ أي رقم آخر للإلغاء")
+                    c_deploy, _ = mc.get_last_deploy_info(client_id)
+                    print(f"{num_str}  Client: {info.get('name', client_id)} ({client_id}) ── {c_deploy}")
+                print("❌ Any other number to cancel")
                 
-                choice = input("\n❓ اختيارك (0/1/...): ").strip()
+                choice = input("\n❓ Your choice (0/1/...): ").strip()
                 if choice == "0":
                     target_client = "test"
                 elif choice == "1":
@@ -1764,7 +1903,7 @@ def main():
                 elif choice.isdigit() and 2 <= int(choice) <= len(other_clients) + 1:
                     target_client = other_clients[int(choice) - 2][0]
                 else:
-                    print("❌ تم الإلغاء")
+                    print("❌ Cancelled")
                     return
             else:
                 target_client = None

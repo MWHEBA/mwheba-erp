@@ -23,7 +23,7 @@ class FinancialCoreSprint1TestSuite(TestCase):
     """
 
     def setUp(self):
-        self.user = User.objects.create_user(username="fin_admin", password="password123")
+        self.user = User.objects.create_user(username="fin_admin", password="password123", is_superuser=True, is_staff=True)
 
         # إنشاء أنواع الحسابات
         self.asset_type = AccountType.objects.create(code="AST_TEST", name="أصول", nature="debit")

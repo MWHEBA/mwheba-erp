@@ -83,6 +83,7 @@ class UserManagementService(TransactionalService):
                 
                 # Optimized query with all necessary relations (including inactive users)
                 users = User.objects.all().select_related('role').prefetch_related(
+                    'secondary_roles',
                     Prefetch(
                         'custom_permissions',
                         queryset=Permission.objects.filter(id__in=custom_perm_ids),

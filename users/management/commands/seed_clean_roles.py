@@ -13,8 +13,17 @@ from users.models import User, Role
 class Command(BaseCommand):
     help = "Seed clean enterprise roles and purge legacy/Arabic permissions"
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--force-reset',
+            action='store_true',
+            help='Reset all roles to default canonical permissions, wiping any customizations',
+        )
+
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("=== Starting Clean RBAC Initialization ==="))
+        force_reset = options.get('force_reset', False)
+        mode_str = "FORCE RESET MODE" if force_reset else "SAFE UPDATE MODE (Preserving Customizations)"
+        self.stdout.write(self.style.NOTICE(f"=== Starting Clean RBAC Initialization [{mode_str}] ==="))
 
         # 1. Purge legacy / non-ascii / Arabic permissions from auth_permission
         arabic_perms = Permission.objects.filter(codename__regex=r'[^\x00-\x7F]')
@@ -97,8 +106,11 @@ class Command(BaseCommand):
                         'view_suppliertransaction', 'view_supplieradvancepayment'
                     ]) |
                     Q(content_type__app_label='sale', codename__in=[
-                        'view_sale', 'print_sale_invoice', 'view_salesinvoice',
-                        'view_salepayment', 'view_creditnote', 'view_salereturn'
+                        'view_sale', 'view_all_sales', 'print_sale_invoice', 'view_salesinvoice',
+                        'view_salepayment', 'view_creditnote', 'view_salereturn',
+                        'view_quotation', 'view_all_quotations',
+                        'view_salesorder', 'view_all_salesorders',
+                        'view_deliverynote'
                     ]) |
                     Q(content_type__app_label='purchase', codename__in=[
                         'view_purchase', 'view_purchasepayment', 'view_purchasereturn',
@@ -146,7 +158,10 @@ class Command(BaseCommand):
                         'view_productsize', 'view_producttype'
                     ]) |
                     Q(content_type__app_label='product', codename__in=[
-                        'view_product', 'view_category', 'view_unit', 'view_stock'
+                        'view_product', 'view_category', 'view_unit', 'view_stock', 'view_warehouse'
+                    ]) |
+                    Q(content_type__app_label='financial', codename__in=[
+                        'view_currency', 'view_tax'
                     ])
                 ),
             },
@@ -159,13 +174,16 @@ class Command(BaseCommand):
                     Q(content_type__app_label='supplier') |
                     Q(content_type__app_label='product', codename__in=[
                         'view_product', 'add_product', 'change_product',
-                        'view_category', 'view_unit', 'view_stock', 'view_supplierproductprice',
-                        'add_supplierproductprice', 'change_supplierproductprice'
+                        'view_category', 'view_unit', 'view_stock', 'view_warehouse',
+                        'view_supplierproductprice', 'add_supplierproductprice', 'change_supplierproductprice'
+                    ]) |
+                    Q(content_type__app_label='financial', codename__in=[
+                        'view_currency', 'view_tax'
                     ])
                 ),
             },
             'inventory_manager': {
-                'display_name': 'أمين مخزن ومواد',
+                'display_name': 'أمين مخازن ومنتجات',
                 'description': 'إدارة الأصناف، حركات المخزن، أذونات الاستلام والتحويلات المخزنية',
                 'is_system_role': True,
                 'perm_filter': (
@@ -182,7 +200,7 @@ class Command(BaseCommand):
                 ),
             },
             'production_supervisor': {
-                'display_name': 'مشرف صالة الطباعة والتنفيذ',
+                'display_name': 'مسؤول تشغيل وإنتاج',
                 'description': 'متابعة أوامر الشغل ومراحل الطباعة والتشطيب والتنفيذ الفني',
                 'is_system_role': True,
                 'perm_filter': (
@@ -193,20 +211,20 @@ class Command(BaseCommand):
                         'view_finishingtype', 'view_papersize'
                     ]) |
                     Q(content_type__app_label='product', codename__in=[
-                        'view_product', 'view_stock', 'view_unit'
+                        'view_product', 'view_stock', 'view_unit', 'view_warehouse'
                     ])
                 ),
             },
             'hr_officer': {
-                'display_name': 'مسؤول شؤون عاملين ورواتب',
+                'display_name': 'مسؤول موارد بشرية',
                 'description': 'إدارة الموظفين، الحضور والانصراف، الإجازات، مسيرات الرواتب والسلف',
                 'is_system_role': True,
                 'perm_filter': Q(content_type__app_label='hr'),
             },
             'viewer': {
-                'display_name': 'مستعرض فقط',
+                'display_name': 'مستخدم استعلام',
                 'description': 'الاطلاع العام فقط دون صلاحية إضافة أو تعديل أو حذف أي بيانات',
-                'is_system_role': False,
+                'is_system_role': True,
                 'perm_filter': (
                     Q(codename__startswith='view_') &
                     Q(content_type__app_label__in=[
@@ -216,6 +234,23 @@ class Command(BaseCommand):
                 ),
             },
         }
+
+        # 2.1 Purge Ghost/Obsolete Roles from database
+        ghost_role_names = [
+            'activities_coordinator', 'transportation_coordinator',
+            'receptionist', 'manager', 'hr_manager'
+        ]
+        ghost_roles = Role.objects.filter(name__in=ghost_role_names)
+        ghost_count = ghost_roles.count()
+        if ghost_count > 0:
+            for gr in ghost_roles:
+                # Reassign any users belonging to ghost role to viewer or admin
+                fallback_role = Role.objects.filter(name='viewer').first()
+                for user in gr.users.all():
+                    user.role = fallback_role
+                    user.save(update_fields=['role'])
+                gr.delete()
+            self.stdout.write(self.style.SUCCESS(f"[+] Purged {ghost_count} ghost roles: {ghost_role_names}"))
 
         all_valid_perms = Permission.objects.all()
 
@@ -236,16 +271,29 @@ class Command(BaseCommand):
             role.is_active = True
             role.save()
 
-            if config['perm_filter'] is None:
-                # Admin gets ALL permissions
-                role.permissions.set(all_valid_perms)
+            if created or force_reset:
+                if config['perm_filter'] is None:
+                    # Admin gets ALL permissions
+                    role.permissions.set(all_valid_perms)
+                else:
+                    matched_perms = Permission.objects.filter(config['perm_filter']).distinct()
+                    role.permissions.set(matched_perms)
             else:
-                matched_perms = Permission.objects.filter(config['perm_filter']).distinct()
-                role.permissions.set(matched_perms)
+                # Safe mode: Add base canonical permissions without dropping any user customizations
+                if config['perm_filter'] is None:
+                    role.permissions.add(*all_valid_perms)
+                else:
+                    matched_perms = Permission.objects.filter(config['perm_filter']).distinct()
+                    role.permissions.add(*matched_perms)
+
+            # Auto-resolve prerequisites explicitly in database for every canonical role
+            from users.services.permission_dependency import PermissionDependencyService
+            added_deps = PermissionDependencyService.auto_resolve_dependencies_for_role(role)
 
             count = role.permissions.count()
             verb = "Created" if created else "Updated"
-            self.stdout.write(self.style.SUCCESS(f"[+] {verb} role '{role_name}' ({config['display_name']}): {count} permissions."))
+            dep_msg = f" (+{added_deps} prerequisites resolved)" if added_deps > 0 else ""
+            self.stdout.write(self.style.SUCCESS(f"[+] {verb} role '{role_name}' ({config['display_name']}): {count} permissions{dep_msg}."))
 
         # 3. Establish correct roles and staff/superuser flags for primary users
         admin_role = Role.objects.get(name='admin')
