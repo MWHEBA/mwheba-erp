@@ -105,19 +105,19 @@ class SupplierFormTest(TestCase):
         """اختبار منع تكرار الكود عند تعديل مورد آخر"""
         Supplier.objects.create(
             name="مورد 1",
-            code="SUP001",
+            code="FRM_SUP001",
             primary_type=self.supplier_type
         )
         
         supplier2 = Supplier.objects.create(
             name="مورد 2",
-            code="SUP002",
+            code="FRM_SUP002",
             primary_type=self.supplier_type
         )
         
         form_data = {
             'name': 'مورد 2 معدل',
-            'code': 'SUP001',
+            'code': 'FRM_SUP001',
             'primary_type': self.supplier_type.id,
             'is_active': True
         }

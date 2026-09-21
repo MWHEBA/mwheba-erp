@@ -28,12 +28,12 @@ class TestCustomerSubledgerService:
         )
 
         period, _ = AccountingPeriod.objects.get_or_create(
-            fiscal_year=fiscal_year,
-            period_number=today.month,
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
             defaults={
+                "fiscal_year": fiscal_year,
+                "period_number": today.month,
                 "name": f"Period {today.month}",
-                "start_date": today.replace(day=1),
-                "end_date": today.replace(day=28),
                 "status": "open"
             }
         )

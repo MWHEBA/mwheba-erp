@@ -381,12 +381,16 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-center">
-                                                    {% if alt.price_adjustment > 0 %}
-                                                    <span class="text-primary">+{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
-                                                    {% elif alt.price_adjustment < 0 %}
-                                                    <span class="text-success">{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
+                                                    {% if can_view_selling_price %}
+                                                        {% if alt.price_adjustment > 0 %}
+                                                        <span class="text-primary">+{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
+                                                        {% elif alt.price_adjustment < 0 %}
+                                                        <span class="text-success">{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
+                                                        {% else %}
+                                                        <span class="text-muted">--</span>
+                                                        {% endif %}
                                                     {% else %}
-                                                    <span class="text-muted">--</span>
+                                                        <span class="text-muted">--</span>
                                                     {% endif %}
                                                 </td>
                                                 <td class="text-center">
@@ -448,20 +452,26 @@
                     <span class="info-value">{{ bundle.unit.name }}</span>
                 </div>
                 
+                {% if can_view_operational_costs %}
                 <div class="info-row">
                     <span class="info-label">سعر التكلفة</span>
                     <span class="info-value">{{ bundle.cost_price|smart_float }} {{ currency_symbol }}</span>
                 </div>
+                {% endif %}
                 
+                {% if can_view_selling_price %}
                 <div class="info-row">
                     <span class="info-label">سعر البيع</span>
                     <span class="info-value">{{ bundle.selling_price|smart_float }} {{ currency_symbol }}</span>
                 </div>
+                {% endif %}
                 
+                {% if can_view_profit_margin and can_view_selling_price and can_view_operational_costs %}
                 <div class="info-row">
                     <span class="info-label">هامش الربح</span>
                     <span class="info-value">{{ bundle.profit_margin|smart_float }}%</span>
                 </div>
+                {% endif %}
                 
                 <div class="info-row">
                     <span class="info-label">الحالة</span>

@@ -15,19 +15,26 @@ class TestAccountingGatewayTreasuryGuard:
 
     @pytest.fixture
     def setup_gateway_data(self):
-        superuser = User.objects.create_superuser(username="cfo_user", email="cfo@test.com", password="password123")
-        cashier_deposit_only = User.objects.create_user(username="cashier_dep", email="dep@test.com", password="password123")
-        cashier_disburse = User.objects.create_user(username="cashier_disb", email="disb@test.com", password="password123")
+        superuser, _ = User.objects.get_or_create(username="cfo_user", defaults={"email": "cfo@test.com"})
+        if not superuser.is_superuser:
+            superuser.is_superuser = True
+            superuser.save()
+        cashier_deposit_only, _ = User.objects.get_or_create(username="cashier_dep", defaults={"email": "dep@test.com"})
+        cashier_disburse, _ = User.objects.get_or_create(username="cashier_disb", defaults={"email": "disb@test.com"})
 
-        cash_type, _ = AccountType.objects.get_or_create(code="CASH", name="نقدي", category="asset")
-        rev_type, _ = AccountType.objects.get_or_create(code="REV", name="إيرادات", category="revenue")
-        exp_type, _ = AccountType.objects.get_or_create(code="EXP", name="مصروفات", category="expense")
+        cash_type, _ = AccountType.objects.get_or_create(code="CASH", defaults={"name": "نقدي", "category": "asset"})
+        rev_type, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "إيرادات", "category": "revenue"})
+        exp_type, _ = AccountType.objects.get_or_create(code="EXP", defaults={"name": "مصروفات", "category": "expense"})
 
-        cash_acc = ChartOfAccounts.objects.create(code="10101", name="خزينة المقر", account_type=cash_type, is_cash_account=True, is_leaf=True, is_active=True)
-        rev_acc = ChartOfAccounts.objects.create(code="41101", name="إيرادات مبيعات", account_type=rev_type, is_leaf=True, is_active=True)
-        exp_acc = ChartOfAccounts.objects.create(code="51101", name="مصروفات عمومية", account_type=exp_type, is_leaf=True, is_active=True)
+        cash_acc, _ = ChartOfAccounts.objects.get_or_create(code="10101", defaults={"name": "خزينة المقر", "account_type": cash_type, "is_cash_account": True, "is_leaf": True, "is_active": True})
+        if not cash_acc.is_cash_account:
+            cash_acc.is_cash_account = True
+            cash_acc.save()
+        rev_acc, _ = ChartOfAccounts.objects.get_or_create(code="41101", defaults={"name": "إيرادات مبيعات", "account_type": rev_type, "is_leaf": True, "is_active": True})
+        exp_acc, _ = ChartOfAccounts.objects.get_or_create(code="51101", defaults={"name": "مصروفات عمومية", "account_type": exp_type, "is_leaf": True, "is_active": True})
 
         # إسناد إيداع فقط للكاشير الأول
+        UserTreasuryAccess.objects.filter(user=cashier_deposit_only, treasury=cash_acc).delete()
         UserTreasuryAccess.objects.create(
             user=cashier_deposit_only,
             treasury=cash_acc,
@@ -36,6 +43,7 @@ class TestAccountingGatewayTreasuryGuard:
         )
 
         # إسناد صرف للكاشير الثاني بسقف 3000
+        UserTreasuryAccess.objects.filter(user=cashier_disburse, treasury=cash_acc).delete()
         UserTreasuryAccess.objects.create(
             user=cashier_disburse,
             treasury=cash_acc,

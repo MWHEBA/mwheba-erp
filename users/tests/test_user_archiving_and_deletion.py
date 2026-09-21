@@ -123,6 +123,7 @@ class TestUserArchivingAndStatusToggle:
 
     def test_cannot_deactivate_last_active_superuser(self, superuser, standard_user):
         """منع تعطيل آخر سوبر يوزر نشط في النظام"""
+        User.objects.filter(is_superuser=True, is_active=True).exclude(pk=superuser.pk).update(is_active=False)
         res = UserManagementService.toggle_user_status(superuser, current_user=standard_user)
         assert res['success'] is False
         assert "المدير النشط الوحيد" in res['message']

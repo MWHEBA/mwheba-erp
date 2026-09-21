@@ -22,6 +22,16 @@ class ProductImportService:
 
     REQUIRED_COLUMNS = ['name', 'category', 'unit', 'cost_price', 'selling_price']
 
+    def get_required_columns(self):
+        req = ['name', 'category', 'unit']
+        can_view_ops = getattr(self.user, 'can_view_operational_costs', True) if self.user else True
+        can_view_sell = getattr(self.user, 'can_view_selling_price', True) if self.user else True
+        if can_view_ops:
+            req.append('cost_price')
+        if can_view_sell:
+            req.append('selling_price')
+        return req
+
     COLUMN_ALIASES = {
         'اسم المنتج': 'name',
         'اسم المنتج *': 'name',
@@ -149,11 +159,12 @@ class ProductImportService:
                 'skipped': 0,
             }
 
+        required_cols = self.get_required_columns()
         normalized_rows = self._normalize_columns(rows)
         if normalized_rows is None:
             return {
                 'success': False,
-                'error': f'الأعمدة المطلوبة غير موجودة. الأعمدة المطلوبة: {", ".join(self.REQUIRED_COLUMNS)}',
+                'error': f'الأعمدة المطلوبة غير موجودة. الأعمدة المطلوبة: {", ".join(required_cols)}',
                 'errors': self.errors,
                 'created': 0,
                 'updated': 0,
@@ -217,17 +228,28 @@ class ProductImportService:
                 if not unit:
                     issues.append(f'وحدة القياس "{unit_name}" غير موجودة')
 
-            try:
-                cost_price = Decimal(str(cost_raw).replace(',', ''))
-            except InvalidOperation:
-                issues.append('سعر التكلفة غير صحيح')
-                cost_price = None
+            can_view_sell = getattr(self.user, 'can_view_selling_price', True) if self.user else True
+            can_view_ops = getattr(self.user, 'can_view_operational_costs', True) if self.user else True
 
-            try:
-                selling_price = Decimal(str(sell_raw).replace(',', ''))
-            except InvalidOperation:
-                issues.append('سعر البيع غير صحيح')
-                selling_price = None
+            cost_price = None
+            if cost_raw is not None and str(cost_raw).strip() != '':
+                try:
+                    cost_price = Decimal(str(cost_raw).replace(',', ''))
+                except InvalidOperation:
+                    if can_view_ops:
+                        issues.append('سعر التكلفة غير صحيح')
+            elif can_view_ops and 'cost_price' in self.get_required_columns():
+                issues.append('سعر التكلفة مطلوب')
+
+            selling_price = None
+            if sell_raw is not None and str(sell_raw).strip() != '':
+                try:
+                    selling_price = Decimal(str(sell_raw).replace(',', ''))
+                except InvalidOperation:
+                    if can_view_sell:
+                        issues.append('سعر البيع غير صحيح')
+            elif can_view_sell and 'selling_price' in self.get_required_columns():
+                issues.append('سعر البيع مطلوب')
 
             initial_qty_raw = row.get('initial_quantity', '0')
             try:
@@ -351,7 +373,8 @@ class ProductImportService:
                 mapping[col] = matched if matched else normalized
 
         mapped_values = set(mapping.values())
-        missing = [r for r in self.REQUIRED_COLUMNS if r not in mapped_values]
+        required_cols = self.get_required_columns()
+        missing = [r for r in required_cols if r not in mapped_values]
         if missing:
             self.errors.append(f'أعمدة مفقودة: {", ".join(missing)}')
             return None
@@ -397,20 +420,58 @@ class ProductImportService:
             self.skipped_count += 1
             return {'error': f'السطر {row_num} ({name}): وحدة القياس "{unit_name}" غير موجودة'}
 
-        try:
-            cost_price = Decimal(str(row.get('cost_price', '0')).replace(',', ''))
-        except InvalidOperation:
-            self.skipped_count += 1
-            return {'error': f'السطر {row_num} ({name}): سعر التكلفة غير صحيح'}
+        can_view_sell = getattr(self.user, 'can_view_selling_price', True) if self.user else True
+        can_view_ops = getattr(self.user, 'can_view_operational_costs', True) if self.user else True
 
-        try:
-            selling_price = Decimal(str(row.get('selling_price', '0')).replace(',', ''))
-        except InvalidOperation:
-            self.skipped_count += 1
-            return {'error': f'السطر {row_num} ({name}): سعر البيع غير صحيح'}
+        cost_price = None
+        if row.get('cost_price') is not None and str(row.get('cost_price')).strip() != '':
+            try:
+                cost_price = Decimal(str(row.get('cost_price')).replace(',', ''))
+            except InvalidOperation:
+                if can_view_ops:
+                    self.skipped_count += 1
+                    return {'error': f'السطر {row_num} ({name}): سعر التكلفة غير صحيح'}
+        elif not can_view_ops:
+            cost_price = Decimal('0.00')
+
+        selling_price = None
+        if row.get('selling_price') is not None and str(row.get('selling_price')).strip() != '':
+            try:
+                selling_price = Decimal(str(row.get('selling_price')).replace(',', ''))
+            except InvalidOperation:
+                if can_view_sell:
+                    self.skipped_count += 1
+                    return {'error': f'السطر {row_num} ({name}): سعر البيع غير صحيح'}
+        elif not can_view_sell:
+            selling_price = cost_price or Decimal('0.00')
 
         name_en = row.get('name_en', '').strip() or None
+        description = row.get('description', '').strip() or ''
         description_en = row.get('description_en', '').strip() or ''
+        sku = row.get('sku', '').strip() or None
+        barcode = row.get('barcode', '').strip() or None
+
+        min_stock_raw = row.get('min_stock', '0')
+        try:
+            min_stock = int(float(str(min_stock_raw).replace(',', ''))) if min_stock_raw else 0
+        except (ValueError, TypeError):
+            min_stock = 0
+
+        is_active = str(row.get('is_active', '1')).strip().lower() not in ['false', '0', 'no', 'لا', 'غير نشط']
+        is_service = str(row.get('is_service', '0')).strip().lower() in ['true', '1', 'yes', 'نعم', 'خدمة']
+        item_type = self._resolve_item_type(row.get('item_type'))
+
+        initial_qty_raw = row.get('initial_quantity', '0')
+        try:
+            initial_quantity = int(float(str(initial_qty_raw).replace(',', ''))) if initial_qty_raw else 0
+        except (ValueError, TypeError):
+            initial_quantity = 0
+
+        existing = None
+        if sku:
+            existing = Product.objects.filter(sku=sku).first()
+        if not existing and name and category:
+            existing = Product.objects.filter(name__iexact=name, category=category).first()
 
         raw_tax = row.get('tax_rate')
         if raw_tax is not None and str(raw_tax).strip() != '':
@@ -430,8 +491,10 @@ class ProductImportService:
                     existing.name_en = name_en
                 existing.category = category
                 existing.unit = unit
-                existing.cost_price = cost_price
-                existing.selling_price = selling_price
+                if cost_price is not None and can_view_ops:
+                    existing.cost_price = cost_price
+                if selling_price is not None and can_view_sell:
+                    existing.selling_price = selling_price
                 existing.description = description
                 if description_en:
                     existing.description_en = description_en
@@ -448,18 +511,21 @@ class ProductImportService:
                 self.updated_count += 1
 
                 if initial_quantity > 0 and not is_service:
-                    self._update_existing_stock(existing, initial_quantity, cost_price, warehouse=warehouse)
+                    self._update_existing_stock(existing, initial_quantity, existing.cost_price, warehouse=warehouse)
             else:
                 if not sku:
                     sku = self._generate_sku(name, category)
+
+                final_cost = cost_price if cost_price is not None else Decimal('0.00')
+                final_sell = selling_price if selling_price is not None else (final_cost or Decimal('0.00'))
 
                 product = Product.objects.create(
                     name=name,
                     name_en=name_en,
                     category=category,
                     unit=unit,
-                    cost_price=cost_price,
-                    selling_price=selling_price,
+                    cost_price=final_cost,
+                    selling_price=final_sell,
                     sku=sku,
                     barcode=barcode,
                     description=description,

@@ -20,6 +20,7 @@ class TestStockListView:
 
     @pytest.fixture
     def setup_stock_data(self, user):
+        Stock.objects.all().delete()
         warehouse = Warehouse.objects.create(name="المخزن الرئيسي", code="WH001")
         category = Category.objects.create(name="إلكترونيات")
         unit = Unit.objects.create(name="قطعة", symbol="PCS")

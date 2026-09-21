@@ -1,4 +1,4 @@
-﻿"""
+"""
 اختبارات نماذج الموردين
 """
 
@@ -55,10 +55,12 @@ class SupplierFunctionalityTest(TestCase):
     
     def setUp(self):
         """إعداد بيانات الاختبار"""
-        self.supplier_type = SupplierType.objects.create(
-            name="مورد عام",
+        self.supplier_type, _ = SupplierType.objects.get_or_create(
             code="general",
-            description="موردي الخدمات العامة"
+            defaults={
+                "name": "مورد عام",
+                "description": "موردي المواد والمستلزمات"
+            }
         )
         
         self.supplier = Supplier.objects.create(

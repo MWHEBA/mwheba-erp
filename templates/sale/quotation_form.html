@@ -219,7 +219,7 @@
                                 <span class="selected-text">{{ item.product.name }}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
-                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-cost-base="{{ item.product.cost_price|default:0 }}" data-cost="{{ item.product.cost_price|default:0 }}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" required>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-cost-base="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-cost="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" required>
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">الكمية</label>

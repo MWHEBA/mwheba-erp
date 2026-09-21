@@ -19,7 +19,7 @@
 
   <!-- كروت الإحصائيات السريعة (KPI Stats Row) -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %} col-sm-6">
       <div class="stats-card stats-card-info">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-print"></i></div>
@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %} col-sm-6">
       <div class="stats-card stats-card-warning">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-hourglass-half"></i></div>
@@ -39,7 +39,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %} col-sm-6">
       <div class="stats-card stats-card-success">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-check-double"></i></div>
@@ -49,7 +49,8 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    {% if can_view_selling_price %}
+    <div class="col-md-3 col-sm-6">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
@@ -59,6 +60,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <!-- قسم الفلترة والبحث القابل للطي (Collapsible Filter Section) -->

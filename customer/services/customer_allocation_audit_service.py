@@ -498,6 +498,11 @@ class CustomerAllocationAuditService:
             PartnerSubledgerService.record_sale_invoice(sale, user)
             from financial.services.partner_balance_service import PartnerBalanceService
             PartnerBalanceService.update_partner_snapshot("customer", locked_customer.id)
+            try:
+                from financial.services.partner_advance_service import PartnerAdvanceService
+                PartnerAdvanceService.rebuild_snapshot(locked_customer)
+            except Exception as snap_err:
+                logger.warning(f"Failed to rebuild customer snapshot: {snap_err}")
 
         return last_audit
 
@@ -1000,6 +1005,12 @@ class CustomerAllocationAuditService:
                         )
                 except Exception as e:
                     logger.warning(f"لم يتم توليد قيد التسوية المحاسبي التلقائي لتخصيص العميل الجماعي: {str(e)}")
+
+            try:
+                from financial.services.partner_advance_service import PartnerAdvanceService
+                PartnerAdvanceService.rebuild_snapshot(locked_customer)
+            except Exception as e:
+                logger.warning(f"Failed to rebuild customer advance snapshot: {str(e)}")
 
             return audits_created
 

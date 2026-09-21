@@ -12,7 +12,9 @@
         <th>{% trans "مسؤول المبيعات" %}</th>
         <th>{% trans "تاريخ الأمر" %}</th>
         <th>{% trans "تاريخ التسليم المتوقع" %}</th>
+        {% if can_view_selling_price %}
         <th>{% trans "القيمة الإجمالية" %}</th>
+        {% endif %}
         <th>{% trans "الحالة" %}</th>
         <th>{% trans "عرض السعر" %}</th>
         <th class="text-end pe-3">{% trans "الإجراءات" %}</th>
@@ -47,6 +49,7 @@
             <span class="text-muted">-</span>
           {% endif %}
         </td>
+        {% if can_view_selling_price %}
         <td class="fw-bold">
           <div>{{ order.total_amount|smart_float:2 }} {{ order.currency_display }}</div>
           {% if order.required_down_payment > 0 %}
@@ -61,6 +64,7 @@
             </div>
           {% endif %}
         </td>
+        {% endif %}
         <td>
           {% if order.status == 'DRAFT' %}
             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-edit me-1"></i>{% trans "مسودة" %}</span>
@@ -121,7 +125,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="10" class="text-center py-5 text-muted">
+        <td colspan="{% if can_view_selling_price %}10{% else %}9{% endif %}" class="text-center py-5 text-muted">
           <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary opacity-50 d-block"></i>
           <h6>{% trans "لا توجد أوامر بيع مطابقة لمعايير البحث." %}</h6>
           <p class="small mb-0">{% trans "يمكنك إنشاء أمر بيع جديد من الزر أعلاه." %}</p>

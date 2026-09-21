@@ -23,8 +23,19 @@ class TestIncomeStatementService:
     def setup_test_data(self):
         # 1. أنواع الحسابات
         self.type_asset_cur, _ = AccountType.objects.get_or_create(code="CUR_ASSET", defaults={"name": "أصول متداولة", "category": "asset", "nature": "debit"})
+        self.type_asset_cur.category = "asset"
+        self.type_asset_cur.nature = "debit"
+        self.type_asset_cur.save()
+
         self.type_rev, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "إيرادات", "category": "revenue", "nature": "credit"})
+        self.type_rev.category = "revenue"
+        self.type_rev.nature = "credit"
+        self.type_rev.save()
+
         self.type_exp, _ = AccountType.objects.get_or_create(code="EXP", defaults={"name": "مصروفات", "category": "expense", "nature": "debit"})
+        self.type_exp.category = "expense"
+        self.type_exp.nature = "debit"
+        self.type_exp.save()
 
         # 2. حسابات شجرة الدخل
         self.acc_cash, _ = ChartOfAccounts.objects.get_or_create(code="11101", defaults={"name": "الخزينة", "account_type": self.type_asset_cur, "is_leaf": True, "level": 3})
@@ -41,6 +52,23 @@ class TestIncomeStatementService:
         self.acc_salaries, _ = ChartOfAccounts.objects.get_or_create(code="52100", defaults={"name": "الرواتب والأجور", "account_type": self.type_exp, "is_leaf": True, "level": 3})
         self.acc_bank_fees, _ = ChartOfAccounts.objects.get_or_create(code="54100", defaults={"name": "مصاريف بنكية", "account_type": self.type_exp, "is_leaf": True, "level": 3})
         self.acc_fx_loss, _ = ChartOfAccounts.objects.get_or_create(code="54300", defaults={"name": "خسائر فروق العملة", "account_type": self.type_exp, "is_leaf": True, "level": 3})
+
+        for acc, acc_type in [
+            (self.acc_cash, self.type_asset_cur),
+            (self.acc_sales, self.type_rev),
+            (self.acc_sales_returns, self.type_rev),
+            (self.acc_other_rev, self.type_rev),
+            (self.acc_fx_gain, self.type_rev),
+            (self.acc_cogs, self.type_exp),
+            (self.acc_pur_returns, self.type_exp),
+            (self.acc_salaries, self.type_exp),
+            (self.acc_bank_fees, self.type_exp),
+            (self.acc_fx_loss, self.type_exp),
+        ]:
+            acc.account_type = acc_type
+            acc.is_leaf = True
+            acc.is_active = True
+            acc.save()
 
         # 3. مركز تكلفة
         self.cost_center, _ = CostCenter.objects.get_or_create(code="CC-01", defaults={"name": "فرع القاهرة", "is_active": True})

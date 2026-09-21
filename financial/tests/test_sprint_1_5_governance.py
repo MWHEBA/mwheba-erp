@@ -50,9 +50,11 @@ class TestSprint15Governance:
 
         asset_type, _ = AccountType.objects.get_or_create(code="AST_GOV", defaults={"name": "Asset Gov", "category": "asset"})
         revenue_type, _ = AccountType.objects.get_or_create(code="REV_GOV", defaults={"name": "Revenue Gov", "category": "revenue"})
-
         cash_acc = ChartOfAccounts.objects.create(code="10100_GOV", name="Cash Gov", account_type=asset_type, is_active=True)
         rev_acc = ChartOfAccounts.objects.create(code="40100_GOV", name="Revenue Gov", account_type=revenue_type, is_active=True)
+
+        from financial.models import UserTreasuryAccess
+        UserTreasuryAccess.objects.create(user=user, treasury=cash_acc, can_deposit=True, can_disburse=True)
 
         return user, fiscal_year, period, cash_acc, rev_acc
 

@@ -18,7 +18,7 @@
 
   <!-- كروت الإحصائيات الحيوية (Direct Grid Row) -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-primary p-3 bg-white rounded shadow-sm border">
         <div class="d-flex align-items-center justify-content-between">
           <div>
@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-warning p-3 bg-white rounded shadow-sm border">
         <div class="d-flex align-items-center justify-content-between">
           <div>
@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-success p-3 bg-white rounded shadow-sm border">
         <div class="d-flex align-items-center justify-content-between">
           <div>
@@ -54,6 +54,7 @@
       </div>
     </div>
 
+    {% if can_view_selling_price %}
     <div class="col-md-3">
       <div class="stats-card stats-card-info p-3 bg-white rounded shadow-sm border">
         <div class="d-flex align-items-center justify-content-between">
@@ -65,6 +66,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <!-- جدول المقايسات الحديثة -->
@@ -80,7 +82,9 @@
             <th>{% trans "العميل" %}</th>
             <th>{% trans "الحالة" %}</th>
             <th>{% trans "الموقع الحالي" %}</th>
+            {% if can_view_operational_costs or can_view_profit_margin %}
             <th>{% trans "التكلفة التقديرية" %}</th>
+            {% endif %}
             <th>{% trans "التاريخ" %}</th>
             <th>{% trans "الإجراءات" %}</th>
           </tr>
@@ -105,7 +109,9 @@
                 <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ order.get_current_stage_display }}
               </span>
             </td>
-            <td class="fw-bold text-success">{{ order.estimated_cost|floatformat:2 }} ج</td>
+            {% if can_view_operational_costs or can_view_profit_margin %}
+            <td class="fw-bold text-success">{{ order.estimated_cost|floatformat:2 }} {% currency_symbol %}</td>
+            {% endif %}
             <td class="text-muted">{{ order.created_at|date:"Y-m-d" }}</td>
             <td class="col-actions" onclick="event.stopPropagation();">
               <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'عرض' %}">
@@ -115,7 +121,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-muted py-4">{% trans "لا توجد طلبات تسعير حديثة." %}</td>
+            <td colspan="{% if can_view_operational_costs or can_view_profit_margin %}8{% else %}7{% endif %}" class="text-muted py-4">{% trans "لا توجد طلبات تسعير حديثة." %}</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -284,7 +284,7 @@ class CustomerAdvancedTest(TestCase):
         Customer.objects.create(name="أحمد", code="C002")
         Customer.objects.create(name="محمد", code="C003")
         
-        customers = list(Customer.objects.all())
+        customers = list(Customer.objects.filter(code__in=["C001", "C002", "C003"]))
         self.assertEqual(customers[0].name, "أحمد")
         self.assertEqual(customers[1].name, "زيد")
         self.assertEqual(customers[2].name, "محمد")
@@ -339,7 +339,7 @@ class CustomerAdvancedTest(TestCase):
         Customer.objects.create(name="نشط 2", code="ACT002", is_active=True)
         Customer.objects.create(name="معطل", code="INACT001", is_active=False)
         
-        active_customers = Customer.objects.filter(is_active=True)
+        active_customers = Customer.objects.filter(code__in=["ACT001", "ACT002", "INACT001"], is_active=True)
         self.assertEqual(active_customers.count(), 2)
 
 

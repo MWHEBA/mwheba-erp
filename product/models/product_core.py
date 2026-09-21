@@ -395,6 +395,27 @@ class Product(models.Model):
         """
         return self.created_by
     
+    def get_default_supplier(self):
+        """
+        إرجاع المورد الافتراضي إما من الحقل المباشر أو من أسعار الموردين
+        """
+        if self.default_supplier:
+            return self.default_supplier
+        try:
+            default_sp = self.supplier_prices.filter(is_active=True, is_default=True).select_related('supplier').first()
+            if default_sp and default_sp.supplier:
+                return default_sp.supplier
+            first_sp = self.supplier_prices.filter(is_active=True).select_related('supplier').first()
+            if first_sp and first_sp.supplier:
+                return first_sp.supplier
+        except Exception:
+            pass
+        return None
+
+    @property
+    def effective_default_supplier(self):
+        return self.get_default_supplier()
+
     @property
     def effective_tax_rate(self):
         """نسبة الضريبة الفعلية المطبقة على المنتج أو الخدمة"""
@@ -438,6 +459,10 @@ class Product(models.Model):
         # معالجة حالة عدم وجود مخزون
         stock = self.stocks.aggregate(Sum("quantity"))
         return stock["quantity__sum"] or 0
+
+    def get_total_stock(self):
+        """إرجاع إجمالي المخزون الحالي للمنتج"""
+        return self.current_stock
 
     @property
     def calculated_stock(self):

@@ -35,12 +35,12 @@ class Sprint5TestSuite(TestCase):
             }
         )
         AccountingPeriod.objects.get_or_create(
-            period_number=8,
-            fiscal_year=fy,
+            start_date=date(2026, 8, 1),
+            end_date=date(2026, 8, 31),
             defaults={
                 "name": "فترة أغسطس 2026",
-                "start_date": date(2026, 8, 1),
-                "end_date": date(2026, 8, 31),
+                "period_number": 8,
+                "fiscal_year": fy,
                 "status": "open"
             }
         )

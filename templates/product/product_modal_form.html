@@ -93,11 +93,19 @@
             </div>
             
             <div class="col-md-6 mb-3">
-                {{ form.cost_price|as_crispy_field }}
+                {% if can_view_operational_costs %}
+                    {{ form.cost_price|as_crispy_field }}
+                {% else %}
+                    <input type="hidden" name="cost_price" value="{{ form.cost_price.value|default:'0' }}">
+                {% endif %}
             </div>
             
             <div class="col-md-6 mb-3">
-                {{ form.selling_price|as_crispy_field }}
+                {% if can_view_selling_price %}
+                    {{ form.selling_price|as_crispy_field }}
+                {% else %}
+                    <input type="hidden" name="selling_price" value="{{ form.selling_price.value|default:'0' }}">
+                {% endif %}
             </div>
 
             <div class="col-md-6 mb-3">

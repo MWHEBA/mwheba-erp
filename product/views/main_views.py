@@ -270,14 +270,27 @@ def product_list(request):
         if in_stock:
             products = products.filter(stocks__quantity__gt=0).distinct()
 
+        can_view_selling = getattr(request.user, 'can_view_selling_price', True) if not hasattr(request.user, 'has_perm') else (
+            request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.can_view_selling_price')
+        )
+        can_view_costs = getattr(request.user, 'can_view_operational_costs', True) if not hasattr(request.user, 'has_perm') else (
+            request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.can_view_operational_costs')
+        )
+
         # التصدير المزدوج: تصدير كافة المنتجات المفلترة من الباك إند
         if request.GET.get('export') == 'excel':
             from utils.export import export_queryset_to_excel
+            if can_view_selling:
+                fields = ["sku", "name", "category.name", "selling_price", "is_bundle", "is_active"]
+                headers = ["الكود SKU", "اسم المنتج", "التصنيف", "سعر البيع", "مجمع", "نشط"]
+            else:
+                fields = ["sku", "name", "category.name", "is_bundle", "is_active"]
+                headers = ["الكود SKU", "اسم المنتج", "التصنيف", "مجمع", "نشط"]
             return export_queryset_to_excel(
                 products,
                 filename="products_export.xlsx",
-                fields=["sku", "name", "category.name", "selling_price", "is_bundle", "is_active"],
-                headers=["الكود SKU", "اسم المنتج", "التصنيف", "سعر البيع", "مجمع", "نشط"]
+                fields=fields,
+                headers=headers
             )
 
         # Whitelist الفرز الأمني
@@ -308,9 +321,10 @@ def product_list(request):
             {"key": "name_with_sku", "label": "اسم المنتج", "sortable": True, "class": "text-center", "format": "html"},
             {"key": "product_type", "label": "النوع", "sortable": True, "class": "text-center", "format": "html", "width": "100px"},
             {"key": "category", "label": "التصنيف", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
-            {"key": "sale_price", "label": "سعر البيع", "sortable": True, "class": "text-center", "format": "html", "width": "160px"},
-            {"key": "current_stock", "label": "المخزون", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
         ]
+        if can_view_selling:
+            product_headers.append({"key": "sale_price", "label": "سعر البيع", "sortable": True, "class": "text-center", "format": "html", "width": "160px"})
+        product_headers.append({"key": "current_stock", "label": "المخزون", "sortable": True, "class": "text-center", "format": "html", "width": "120px"})
 
         action_buttons = [
             {
@@ -493,9 +507,10 @@ def product_list(request):
                 {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج", "class": "btn-success"},
                 {"url": reverse("product:product_list") + "?status=inactive", "icon": "fa-archive", "text": f"الأرشيف ({inactive_products_count})", "class": "btn-outline-secondary"},
                 {"url": reverse("product:product_import"), "icon": "fa-file-import", "text": "استيراد منتجات", "class": "btn-outline-primary"},
-                {"url": reverse("product:price_manager") + "?type=product", "icon": "fa-tags", "text": "تحديث الأسعار", "class": "btn-outline-warning"},
-                {"url": reverse("product:bundle_list"), "icon": "fa-list", "text": "المنتجات المجمعة", "class": "btn-outline-primary"},
             ]
+            if can_view_selling or can_view_costs:
+                header_buttons.append({"url": reverse("product:price_manager") + "?type=product", "icon": "fa-tags", "text": "تحديث الأسعار", "class": "btn-outline-warning"})
+            header_buttons.append({"url": reverse("product:bundle_list"), "icon": "fa-list", "text": "المنتجات المجمعة", "class": "btn-outline-primary"})
             breadcrumb_items = [
                 {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
                 {"title": "المنتجات", "active": True},
@@ -805,6 +820,8 @@ def service_list(request):
             if filter_form.cleaned_data.get('is_active'):
                 services = services.filter(is_active=True)
 
+        can_view_selling_price = getattr(request.user, 'can_view_selling_price', True)
+
         # تعريف أعمدة جدول الخدمات
         service_headers = [
             {
@@ -830,30 +847,34 @@ def service_list(request):
                 "format": "html",
                 "width": "120px",
             },
-            {
+        ]
+        if can_view_selling_price:
+            service_headers.append({
                 "key": "sale_price",
                 "label": "السعر",
                 "sortable": True,
                 "class": "text-center",
                 "format": "html",
                 "width": "160px",
-            },
-            {
-                "key": "is_active",
-                "label": "الحالة",
-                "sortable": True,
-                "class": "text-center",
-                "format": "html",
-                "width": "90px",
-            },
-        ]
+            })
+        service_headers.append({
+            "key": "is_active",
+            "label": "الحالة",
+            "sortable": True,
+            "class": "text-center",
+            "format": "html",
+            "width": "90px",
+        })
 
         # حساب إحصائيات الخدمات للمؤشرات
         total_services_count = Product.objects.filter(is_service=True).count()
         active_services_count = Product.objects.filter(is_service=True, is_active=True).count()
-        avg_service_price = Product.objects.filter(is_service=True, is_active=True).aggregate(
-            avg=models.Avg('selling_price')
-        )['avg'] or Decimal('0.00')
+        if can_view_selling_price:
+            avg_service_price = Product.objects.filter(is_service=True, is_active=True).aggregate(
+                avg=models.Avg('selling_price')
+            )['avg'] or Decimal('0.00')
+        else:
+            avg_service_price = Decimal('0.00')
         service_categories_count = Category.objects.filter(products__is_service=True).distinct().count()
 
         service_stats = {
@@ -882,27 +903,30 @@ def service_list(request):
             category_html = f'<span class="badge bg-light text-dark">{service.category.name}</span>' if service.category else '-'
             
             # حساب السعر الأساسي والشامل للخدمة
-            base_price = service.selling_price or Decimal('0.00')
-            tax_rate = service.tax_rate if (service.tax_rate is not None and service.tax_rate > Decimal('0.00')) else (
-                service.tax_code.rate if (service.tax_code and service.tax_code.rate) else Decimal('0.00')
-            )
-            if tax_rate > Decimal('0.00'):
-                tax_amount = (base_price * tax_rate) / Decimal('100.00')
-                gross_price = base_price + tax_amount
-                tax_rate_str = smart_float(tax_rate)
-                price_html = (
-                    f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
-                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
-                    f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
-                    f'</div>'
+            if can_view_selling_price:
+                base_price = service.selling_price or Decimal('0.00')
+                tax_rate = service.tax_rate if (service.tax_rate is not None and service.tax_rate > Decimal('0.00')) else (
+                    service.tax_code.rate if (service.tax_code and service.tax_code.rate) else Decimal('0.00')
                 )
+                if tax_rate > Decimal('0.00'):
+                    tax_amount = (base_price * tax_rate) / Decimal('100.00')
+                    gross_price = base_price + tax_amount
+                    tax_rate_str = smart_float(tax_rate)
+                    price_html = (
+                        f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                        f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                        f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
+                        f'</div>'
+                    )
+                else:
+                    price_html = (
+                        f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                        f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                        f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
+                        f'</div>'
+                    )
             else:
-                price_html = (
-                    f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
-                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
-                    f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
-                    f'</div>'
-                )
+                price_html = '<span class="text-muted">---</span>'
             status_html = '<span class="badge bg-success">نشط</span>' if service.is_active else '<span class="badge bg-danger">غير نشط</span>'
 
             row_data = {
@@ -954,6 +978,28 @@ def service_list(request):
                 'count': pagination_context["total_count"],
             })
 
+        header_buttons = [
+            {
+                "url": reverse("product:product_create") + "?is_service=true",
+                "icon": "fa-plus",
+                "text": "إضافة خدمة",
+                "class": "btn-success",
+            }
+        ]
+        if can_view_selling_price:
+            header_buttons.append({
+                "url": reverse("product:price_manager") + "?type=service",
+                "icon": "fa-tags",
+                "text": "تحديث الأسعار",
+                "class": "btn-outline-warning",
+            })
+        header_buttons.append({
+            "url": reverse("product:product_list"),
+            "icon": "fa-boxes",
+            "text": "المنتجات",
+            "class": "btn-outline-primary",
+        })
+
         context = {
             "products": page_obj,
             "page_obj": page_obj,
@@ -968,26 +1014,7 @@ def service_list(request):
             "page_title": "قائمة الخدمات",
             "page_subtitle": "إدارة الخدمات المقدمة في النظام وأسعارها وتصنيفاتها",
             "page_icon": "fas fa-concierge-bell",
-            "header_buttons": [
-                {
-                    "url": reverse("product:product_create") + "?is_service=true",
-                    "icon": "fa-plus",
-                    "text": "إضافة خدمة",
-                    "class": "btn-success",
-                },
-                {
-                    "url": reverse("product:price_manager") + "?type=service",
-                    "icon": "fa-tags",
-                    "text": "تحديث الأسعار",
-                    "class": "btn-outline-warning",
-                },
-                {
-                    "url": reverse("product:product_list"),
-                    "icon": "fa-boxes",
-                    "text": "المنتجات",
-                    "class": "btn-outline-primary",
-                },
-            ],
+            "header_buttons": header_buttons,
             "breadcrumb_items": [
                 {
                     "title": "الرئيسية",
@@ -1219,30 +1246,33 @@ def product_detail(request, pk):
     else:
         supplier_prices = []
 
-    # أسعار العملات المخصصة الاسترشادية
+    # أسعار العملات المخصصة الاسترشادية وسجل الأسعار وإحصائيات المبيعات
     active_currencies = []
-    try:
-        from financial.models import Currency
-        active_currencies = list(Currency.objects.filter(is_active=True).exclude(code="EGP"))
-    except Exception:
-        pass
-
-    currency_prices_list = list(product.currency_prices.select_related("currency").all())
-
-    # سجل تاريخ الأسعار الموحد للمنتج
+    currency_prices_list = []
     price_history = []
-    try:
-        from product.models import PriceHistory
-        price_history = list(
-            PriceHistory.objects.filter(product=product)
-            .select_related("currency", "changed_by")
-            .order_by("-change_date")[:50]
-        )
-    except Exception:
-        pass
+    sales_stats = {}
 
-    # إحصائيات المبيعات
-    sales_stats = get_product_sales_statistics(product)
+    can_view_selling_price = getattr(request.user, 'can_view_selling_price', True)
+    if can_view_selling_price:
+        try:
+            from financial.models import Currency
+            active_currencies = list(Currency.objects.filter(is_active=True).exclude(code="EGP"))
+        except Exception:
+            pass
+
+        currency_prices_list = list(product.currency_prices.select_related("currency").all())
+
+        try:
+            from product.models import PriceHistory
+            price_history = list(
+                PriceHistory.objects.filter(product=product)
+                .select_related("currency", "changed_by")
+                .order_by("-change_date")[:50]
+            )
+        except Exception:
+            pass
+
+        sales_stats = get_product_sales_statistics(product)
 
     context = {
         "product": product,
@@ -1791,6 +1821,8 @@ def bundle_list(request):
         active_bundles = stats.get('active_bundles', 0)
         inactive_bundles = total_bundles - active_bundles
 
+        can_view_selling_price = getattr(request.user, 'can_view_selling_price', True)
+
         # تعريف أعمدة جدول المنتجات المجمعة
         bundle_headers = [
             {
@@ -1818,14 +1850,17 @@ def bundle_list(request):
                 "format": "html",
                 "width": "120px",
             },
-            {
+        ]
+        if can_view_selling_price:
+            bundle_headers.append({
                 "key": "selling_price",
                 "label": "سعر البيع",
                 "sortable": True,
                 "class": "text-center",
                 "template": "components/cells/product_price.html",
                 "width": "120px",
-            },
+            })
+        bundle_headers.extend([
             {
                 "key": "calculated_stock",
                 "label": "المخزون المحسوب",
@@ -1848,7 +1883,7 @@ def bundle_list(request):
                 "class": "text-center",
                 "width": "150px",
             },
-        ]
+        ])
 
         # تحضير بيانات الجدول
         table_data = []
@@ -1883,7 +1918,7 @@ def bundle_list(request):
                 "name": bundle.name,
                 "category": bundle.category,
                 "components_count": f'<span class="badge bg-info">{components_count} مكون</span>',
-                "selling_price": bundle.selling_price,
+                "selling_price": bundle.selling_price if can_view_selling_price else None,
                 "calculated_stock": f'<span class="badge bg-{"success" if calculated_stock > 0 else "warning"}">{calculated_stock}</span>',
                 "is_active": bundle.is_active,
                 "actions": actions,
@@ -4429,29 +4464,49 @@ def export_products_pdf_weasy(request, products):
             story.append(Paragraph(f'<b>الفلاتر:</b> {filters_text}', filter_style))
             story.append(Spacer(1, 0.1*inch))
         
+        can_view_selling_price = getattr(request.user, 'can_view_selling_price', True)
+
         # إعداد بيانات الجدول
-        table_data = [
-            ['#', 'كود المنتج', 'اسم المنتج', 'التصنيف', 'سعر البيع', 'المخزون', 'الحالة']
-        ]
+        if can_view_selling_price:
+            table_data = [
+                ['#', 'كود المنتج', 'اسم المنتج', 'التصنيف', 'سعر البيع', 'المخزون', 'الحالة']
+            ]
+        else:
+            table_data = [
+                ['#', 'كود المنتج', 'اسم المنتج', 'التصنيف', 'المخزون', 'الحالة']
+            ]
         
         # إضافة صفوف المنتجات (بدون الصور لتبسيط الـ PDF)
         for idx, product in enumerate(products, 1):
             total_stock = product.stocks.aggregate(total=Sum('quantity'))['total'] or 0
             status = 'نشط' if product.is_active else 'غير نشط'
             
-            row = [
-                str(idx),
-                product.sku,
-                product.name,
-                product.category.name if product.category else '-',
-                f'{product.selling_price:.2f} {currency}',
-                str(int(total_stock)),
-                status
-            ]
+            if can_view_selling_price:
+                row = [
+                    str(idx),
+                    product.sku,
+                    product.name,
+                    product.category.name if product.category else '-',
+                    f'{product.selling_price:.2f} {currency}',
+                    str(int(total_stock)),
+                    status
+                ]
+            else:
+                row = [
+                    str(idx),
+                    product.sku,
+                    product.name,
+                    product.category.name if product.category else '-',
+                    str(int(total_stock)),
+                    status
+                ]
             table_data.append(row)
         
         # إنشاء الجدول
-        table = Table(table_data, colWidths=[0.7*cm, 2.5*cm, 5*cm, 3*cm, 2.5*cm, 2*cm, 2*cm])
+        if can_view_selling_price:
+            table = Table(table_data, colWidths=[0.7*cm, 2.5*cm, 5*cm, 3*cm, 2.5*cm, 2*cm, 2*cm])
+        else:
+            table = Table(table_data, colWidths=[0.7*cm, 3*cm, 6.5*cm, 3.5*cm, 2.5*cm, 2.5*cm])
         
         # تنسيق الجدول
         table_style = TableStyle([
@@ -5255,7 +5310,7 @@ def bundle_create(request):
     Requirements: 1.1, 1.2, 1.3
     """
     if request.method == "POST":
-        form = BundleForm(request.POST)
+        form = BundleForm(request.POST, user=request.user)
         formset = BundleComponentFormSet(request.POST)
         
         # طباعة الأخطاء للتشخيص
@@ -5327,7 +5382,7 @@ def bundle_create(request):
                 for error in formset.non_form_errors():
                     messages.error(request, f"خطأ في المكونات: {error}")
     else:
-        form = BundleForm()
+        form = BundleForm(user=request.user)
         formset = BundleComponentFormSet()
         
         # تأكد من أن الـ instance في الـ form هو منتج مجمع
@@ -5402,7 +5457,7 @@ def bundle_edit(request, pk):
     usage_info = BundleManager.check_bundle_usage_in_orders(bundle)
     
     if request.method == "POST":
-        form = BundleForm(request.POST, instance=bundle)
+        form = BundleForm(request.POST, instance=bundle, user=request.user)
         formset = BundleComponentFormSet(request.POST, instance=bundle)
         
         if form.is_valid() and formset.is_valid():
@@ -5517,7 +5572,7 @@ def bundle_edit(request, pk):
             except Exception as e:
                 messages.error(request, f"حدث خطأ أثناء تحديث المنتج المجمع: {str(e)}")
     else:
-        form = BundleForm(instance=bundle)
+        form = BundleForm(instance=bundle, user=request.user)
         formset = BundleComponentFormSet(instance=bundle)
     
     # إحصائيات المنتج المجمع

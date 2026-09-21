@@ -82,9 +82,13 @@
             <th>#</th>
             <th>{% trans "كود المنتج (SKU)" %}</th>
             <th class="text-start">{% trans "اسم المنتج" %}</th>
+            {% if can_view_selling_price %}
             <th>{% trans "سعر البيع في القائمة" %}</th>
+            {% endif %}
             <th>{% trans "الحد الأدنى للكمية" %}</th>
+            {% if can_view_selling_price %}
             <th>{% trans "سعر البيع الافتراضي للمنتج" %}</th>
+            {% endif %}
           </tr>
         </thead>
         <tbody>
@@ -93,9 +97,13 @@
             <td>{{ forloop.counter }}</td>
             <td class="fw-bold text-muted">{{ item.product.sku }}</td>
             <td class="text-start fw-bold text-primary">{{ item.product.name }}</td>
+            {% if can_view_selling_price %}
             <td class="fw-bold fs-6 text-success">{{ item.unit_price|floatformat:2 }} {{ price_list.currency }}</td>
+            {% endif %}
             <td>{{ item.min_quantity }}</td>
+            {% if can_view_selling_price %}
             <td class="text-muted">{{ item.product.selling_price|floatformat:2 }} EGP</td>
+            {% endif %}
           </tr>
           {% endfor %}
         </tbody>

@@ -21,12 +21,46 @@ class TestTreasurySecurityService:
         cashier = User.objects.create_user(username="cashier_cairo", email="cashier_cairo@corp.local", password="password123")
         restricted = User.objects.create_user(username="unassigned_user", email="unassigned_user@corp.local", password="password123")
 
-        acc_type, _ = AccountType.objects.get_or_create(code="CASH", name="نقدي", category="asset")
-        bank_type, _ = AccountType.objects.get_or_create(code="BANK", name="بنكي", category="asset")
+        acc_type, _ = AccountType.objects.get_or_create(code="CASH", defaults={"name": "نقدي", "category": "asset"})
+        if acc_type.category != "asset":
+            acc_type.category = "asset"
+            acc_type.save()
 
-        cash1 = ChartOfAccounts.objects.create(code="10101", name="خزينة القاهرة", account_type=acc_type, is_cash_account=True, is_leaf=True, is_active=True)
-        cash2 = ChartOfAccounts.objects.create(code="10102", name="خزينة الإسكندرية", account_type=acc_type, is_cash_account=True, is_leaf=True, is_active=True)
-        bank1 = ChartOfAccounts.objects.create(code="10201", name="البنك الأهلي", account_type=bank_type, is_bank_account=True, is_leaf=True, is_active=True)
+        bank_type, _ = AccountType.objects.get_or_create(code="BANK", defaults={"name": "بنكي", "category": "asset"})
+        if bank_type.category != "asset":
+            bank_type.category = "asset"
+            bank_type.save()
+
+        cash1, _ = ChartOfAccounts.objects.get_or_create(
+            code="10101_TSSERV",
+            defaults={
+                "name": "خزينة القاهرة",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
+        )
+        cash2, _ = ChartOfAccounts.objects.get_or_create(
+            code="10102_TSSERV",
+            defaults={
+                "name": "خزينة الإسكندرية",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
+        )
+        bank1, _ = ChartOfAccounts.objects.get_or_create(
+            code="10201_TSSERV",
+            defaults={
+                "name": "البنك الأهلي",
+                "account_type": bank_type,
+                "is_bank_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
+        )
 
         # إسناد خزينة القاهرة فقط للكاشير (إيداع + صرف بحد أقصى 5000)
         UserTreasuryAccess.objects.create(
@@ -51,7 +85,10 @@ class TestTreasurySecurityService:
     def test_superuser_has_full_access(self, setup_environment):
         su = setup_environment["superuser"]
         treasuries = TreasurySecurityService.get_user_accessible_treasuries(su, action="any")
-        assert treasuries.count() == 3
+        assert treasuries.count() >= 3
+        assert setup_environment["cash1"] in treasuries
+        assert setup_environment["cash2"] in treasuries
+        assert setup_environment["bank1"] in treasuries
         assert TreasurySecurityService.can_user_deposit(su, setup_environment["cash1"].id) is True
         assert TreasurySecurityService.can_user_deposit(su, setup_environment["cash2"].id) is True
 

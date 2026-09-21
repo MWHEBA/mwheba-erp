@@ -130,8 +130,10 @@
         <th style="width: 45%;">البيان / الصنف والمواصفات</th>
         <th style="width: 15%;" class="text-center">وحدة القياس</th>
         <th style="width: 15%;" class="text-center">الكمية</th>
+        {% if can_view_operational_costs %}
         <th style="width: 10%;" class="text-end">سعر الوحدة</th>
         <th style="width: 10%;" class="text-end">القيمة الإجمالية</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
@@ -144,11 +146,14 @@
         </td>
         <td class="text-center">{{ item.unit.name|default:item.product.unit.name|default:"-" }}</td>
         <td class="text-center fw-bold">{{ item.ordered_qty|floatformat:2 }}</td>
+        {% if can_view_operational_costs %}
         <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
         <td class="text-end fw-bold">{{ item.total_price|floatformat:2 }}</td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>
+    {% if can_view_operational_costs %}
     <tfoot>
       <tr>
         <th colspan="5" class="text-end fw-bold">المجموع الفرعي:</th>
@@ -183,6 +188,7 @@
         <th class="text-end fw-bold fs-6">{{ po.total_amount|floatformat:2 }} {{ currency_symbol }}</th>
       </tr>
     </tfoot>
+    {% endif %}
   </table>
 
   <!-- Payment Terms & Notes -->

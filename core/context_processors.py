@@ -139,13 +139,37 @@ def global_settings(request):
 
 def user_permissions(request):
     """
-    إضافة بيانات المستخدم والصلاحيات للقوالب
+    إضافة بيانات المستخدم وصلاحيات سرية الأسعار وهوامش الربح للقوالب بحساب لمرة واحدة لكل طلب
     """
-    if not request.user.is_authenticated:
-        return {"user_permissions": {}}
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        empty_flags = {
+            "can_view_selling_price": False,
+            "can_view_profit_margin": False,
+            "can_view_work_order_commercials": False,
+            "can_view_operational_costs": False,
+        }
+        return {
+            **empty_flags,
+            "user_permissions": empty_flags,
+        }
 
-    permissions = {}
-    return {"user_permissions": permissions}
+    can_view_selling_price = getattr(user, 'can_view_selling_price', True)
+    can_view_profit_margin = getattr(user, 'can_view_profit_margin', True)
+    can_view_work_order_commercials = getattr(user, 'can_view_work_order_commercials', True)
+    can_view_operational_costs = getattr(user, 'can_view_operational_costs', True)
+
+    perms_dict = {
+        "can_view_selling_price": can_view_selling_price,
+        "can_view_profit_margin": can_view_profit_margin,
+        "can_view_work_order_commercials": can_view_work_order_commercials,
+        "can_view_operational_costs": can_view_operational_costs,
+    }
+
+    return {
+        **perms_dict,
+        "user_permissions": perms_dict,
+    }
 
 
 def payment_accounts(request):
@@ -153,8 +177,7 @@ def payment_accounts(request):
     إضافة حسابات الدفع (الخزينة/البنك/العهد) المصنفة للقوالب مع User-Scoped Cache
     ✅ حماية الأداء للزوار وفصل صلاحيات الإيداع والصرف للمستخدم المسجل
     """
-    user = getattr(request, "user", None)
-    if not user or not user.is_authenticated:
+    if hasattr(request, "user") and not request.user.is_authenticated:
         return {
             "payment_accounts": [],
             "cash_payment_accounts": [],
@@ -168,8 +191,11 @@ def payment_accounts(request):
             "default_bank_account": None,
         }
 
+    user = getattr(request, "user", None)
+    user_id = user.id if (user and user.is_authenticated) else "raw_request"
+
     from financial.services.treasury_security_service import TreasurySecurityService
-    cache_key = TreasurySecurityService.get_cache_key(user.id)
+    cache_key = TreasurySecurityService.get_cache_key(user_id)
     cached_data = cache.get(cache_key)
 
     if cached_data is None:

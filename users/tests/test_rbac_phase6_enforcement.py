@@ -411,8 +411,15 @@ def test_financial_accounting_periods_views_enforce_permissions(phase6_setup):
 @pytest.mark.django_db
 def test_financial_period_close_view_enforces_close_permission(phase6_setup):
     """accounting_periods_close requires financial.close_accounting_period."""
-    fy = FiscalYear.objects.create(name="2026", year_code="FY2026", start_date=date(2026, 1, 1), end_date=date(2026, 12, 31), status="open")
-    period = AccountingPeriod.objects.create(fiscal_year=fy, name="يناير 2026", period_number=1, start_date=date(2026, 1, 1), end_date=date(2026, 1, 31), status="open")
+    fy, _ = FiscalYear.objects.get_or_create(
+        year_code="FY2055",
+        defaults={"name": "2055", "start_date": date(2055, 1, 1), "end_date": date(2055, 12, 31), "status": "open"}
+    )
+    period, _ = AccountingPeriod.objects.get_or_create(
+        start_date=date(2055, 1, 1),
+        end_date=date(2055, 1, 31),
+        defaults={"fiscal_year": fy, "name": "يناير 2055", "period_number": 1, "status": "open"}
+    )
 
     client = Client()
     client.force_login(phase6_setup["regular_user"])
@@ -424,7 +431,10 @@ def test_financial_period_close_view_enforces_close_permission(phase6_setup):
 @pytest.mark.django_db
 def test_financial_fiscal_year_wizard_restricted(phase6_setup):
     """fiscal_year_wizard requires financial.close_accounting_period."""
-    fy = FiscalYear.objects.create(name="2026", year_code="FY2026", start_date=date(2026, 1, 1), end_date=date(2026, 12, 31), status="open")
+    fy, _ = FiscalYear.objects.get_or_create(
+        year_code="FY2056",
+        defaults={"name": "2056", "start_date": date(2056, 1, 1), "end_date": date(2056, 12, 31), "status": "open"}
+    )
 
     client = Client()
     client.force_login(phase6_setup["regular_user"])

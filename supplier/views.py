@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.db import models, transaction
 from django.db.models import Q, Sum
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
@@ -136,21 +137,26 @@ def supplier_list(request):
     # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
         from utils.export import export_queryset_to_excel
+        export_fields = [
+            "code", "name", "entity_type", "primary_type__name", "phone",
+            "contact_person", "tax_number", "national_id", "commercial_registry",
+            "bank_name", "bank_account_number"
+        ]
+        export_headers = [
+            "الكود", "اسم المورد", "الكيان القانوني", "مجال التوريد", "رقم الهاتف",
+            "الشخص المسؤول", "الرقم الضريبي", "الرقم القومي", "السجل التجاري",
+            "اسم البنك", "رقم الحساب/IBAN"
+        ]
+        if request.user.is_superuser or getattr(request.user, 'can_view_operational_costs', True):
+            export_fields.extend(["balance", "credit_limit"])
+            export_headers.extend(["الاستحقاق الحالي", "سقف التسهيلات"])
+        export_fields.extend(["is_preferred", "is_active"])
+        export_headers.extend(["مفضل", "نشط"])
         return export_queryset_to_excel(
             suppliers,
             filename="suppliers_export.xlsx",
-            fields=[
-                "code", "name", "entity_type", "primary_type__name", "phone",
-                "contact_person", "tax_number", "national_id", "commercial_registry",
-                "bank_name", "bank_account_number", "balance", "credit_limit",
-                "is_preferred", "is_active"
-            ],
-            headers=[
-                "الكود", "اسم المورد", "الكيان القانوني", "مجال التوريد", "رقم الهاتف",
-                "الشخص المسؤول", "الرقم الضريبي", "الرقم القومي", "السجل التجاري",
-                "اسم البنك", "رقم الحساب/IBAN", "الاستحقاق الحالي", "سقف التسهيلات",
-                "مفضل", "نشط"
-            ]
+            fields=export_fields,
+            headers=export_headers
         )
 
     active_suppliers = suppliers.filter(is_active=True).count()
@@ -235,21 +241,24 @@ def supplier_list(request):
             "sortable": True,
             "format": "boolean_badge",
         },
-        {
+    ]
+
+    if request.user.is_superuser or getattr(request.user, 'can_view_operational_costs', True):
+        headers.append({
             "key": "actual_balance_display",
             "label": "الاستحقاق",
             "sortable": True,
             "format": "html",
             "class": "text-center",
-        },
-        {
-            "key": "services_count",
-            "label": "الخدمات",
-            "sortable": False,
-            "class": "text-center",
-            "format": "html",
-        },
-    ]
+        })
+
+    headers.append({
+        "key": "services_count",
+        "label": "الخدمات",
+        "sortable": False,
+        "class": "text-center",
+        "format": "html",
+    })
 
     # تعريف أزرار الإجراءات المقيدة بالصلاحيات
     action_buttons = []
@@ -2196,7 +2205,6 @@ def supplier_detail(request, pk):
 
 
 @login_required
-@require_permission("supplier.view_supplier")
 def supplier_list_api(request):
     """
     API لإرجاع قائمة الموردين النشطين
@@ -3297,10 +3305,12 @@ def supplier_service_toggle(request, pk, service_pk):
 
 
 @login_required
-@require_permission("supplier.change_supplier")
 @require_POST
 def supplier_service_quick_renew_price(request, pk, service_pk):
     """تأكيد وتجديد سريع لسريان سعر خدمة المورد بتاريخ اليوم"""
+    if not (request.user.is_superuser or request.user.is_staff or getattr(request.user, 'is_admin', False) or request.user.has_perm('supplier.change_supplier') or request.user.has_perm('supplier.change_supplierservice')):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("غير مصرح لك بتجديد أسعار الخدمات")
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService, ServicePriceHistory
     service = get_object_or_404(SupplierService, pk=service_pk, supplier=supplier)

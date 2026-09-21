@@ -460,6 +460,23 @@ class OperationsSettingsForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'})
     )
 
+    # 5. سياسات الخصوصية وسرية الأسعار والأرباح
+    policy_hide_selling_prices_for_non_privileged = forms.BooleanField(
+        label=_('تفعيل سياسة إخفاء أسعار البيع عن الموظفين غير المصرح لهم (فنيين/مخازن/مشتريات)'),
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    policy_hide_profit_margins_for_non_privileged = forms.BooleanField(
+        label=_('تفعيل سياسة إخفاء هوامش وتفاصيل الأرباح عن الموظفين غير المصرح لهم'),
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    policy_work_order_hide_selling_price = forms.BooleanField(
+        label=_('إخفاء أسعار البيع والربحية في أوامر الشغل مع إبقاء تكاليف المشتريات والخامات للورشة'),
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
     def clean_default_sale_invoice_notes(self):
         val = self.cleaned_data.get('default_sale_invoice_notes', '')
         return re.sub(r'<script.*?>.*?</script>', '', val, flags=re.IGNORECASE | re.DOTALL) if val else ''

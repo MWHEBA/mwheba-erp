@@ -3,6 +3,7 @@ Serializers لنظام API
 يحتوي على جميع الـ Serializers للنماذج الرئيسية في النظام
 """
 
+from decimal import Decimal
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from product.models import Product, Category, Stock, StockMovement, Warehouse
@@ -86,7 +87,18 @@ class ProductListSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
     
     def get_total_stock(self, obj):
-        return obj.get_total_stock()
+        return getattr(obj, 'current_stock', 0) or 0
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            if not getattr(user, 'can_view_selling_price', True):
+                data.pop('selling_price', None)
+            if not getattr(user, 'can_view_profit_margin', True) and not getattr(user, 'can_view_operational_costs', True):
+                data.pop('cost_price', None)
+        return data
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -108,10 +120,24 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_total_stock(self, obj):
-        return obj.get_total_stock()
+        return getattr(obj, 'current_stock', 0) or 0
     
     def get_stock_value(self, obj):
-        return obj.get_total_stock() * obj.cost_price
+        stock = getattr(obj, 'current_stock', 0) or 0
+        cost = getattr(obj, 'cost_price', 0) or 0
+        return stock * cost
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            if not getattr(user, 'can_view_selling_price', True):
+                data.pop('selling_price', None)
+            if not getattr(user, 'can_view_profit_margin', True) and not getattr(user, 'can_view_operational_costs', True):
+                data.pop('cost_price', None)
+                data.pop('stock_value', None)
+        return data
 
 
 class StockSerializer(serializers.ModelSerializer):
@@ -170,6 +196,15 @@ class WarehouseSerializer(serializers.ModelSerializer):
             total += stock.quantity * stock.product.cost_price
         return total
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated:
+            if not getattr(user, 'can_view_operational_costs', True) and not getattr(user, 'can_view_profit_margin', True):
+                data.pop('total_value', None)
+        return data
+
 
 # ==================== Supplier Serializers ====================
 
@@ -190,25 +225,25 @@ class SupplierTypeSerializer(serializers.ModelSerializer):
 class SupplierListSerializer(serializers.ModelSerializer):
     """Serializer لقائمة الموردين (مختصر)"""
     
-    type_name = serializers.CharField(source='type.name', read_only=True)
+    type_name = serializers.CharField(source='primary_type.name', read_only=True)
     total_purchases = serializers.SerializerMethodField()
     
     class Meta:
         model = Supplier
         fields = [
-            'id', 'name', 'type', 'type_name', 'phone', 'email',
+            'id', 'name', 'code', 'primary_type', 'type_name', 'phone', 'email',
             'total_purchases', 'is_active', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
     
     def get_total_purchases(self, obj):
-        return obj.purchases.count()
+        return getattr(obj, 'purchases', []).count() if hasattr(obj, 'purchases') else 0
 
 
 class SupplierDetailSerializer(serializers.ModelSerializer):
     """Serializer لتفاصيل المورد (كامل)"""
     
-    type_name = serializers.CharField(source='type.name', read_only=True)
+    type_name = serializers.CharField(source='primary_type.name', read_only=True)
     total_purchases = serializers.SerializerMethodField()
     total_amount = serializers.SerializerMethodField()
     account_balance = serializers.SerializerMethodField()
@@ -216,24 +251,24 @@ class SupplierDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Supplier
         fields = [
-            'id', 'name', 'type', 'type_name', 'phone', 'email',
-            'address', 'city', 'country', 'tax_number', 'account',
-            'payment_terms', 'credit_limit', 'notes',
+            'id', 'name', 'code', 'primary_type', 'type_name', 'phone', 'email',
+            'address', 'tax_number', 'financial_account',
+            'default_payment_term', 'credit_limit', 'notes',
             'total_purchases', 'total_amount', 'account_balance',
             'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
     
     def get_total_purchases(self, obj):
-        return obj.purchases.count()
+        return getattr(obj, 'purchases', []).count() if hasattr(obj, 'purchases') else 0
     
     def get_total_amount(self, obj):
-        return sum(p.total_amount for p in obj.purchases.all())
+        if hasattr(obj, 'purchases'):
+            return sum(getattr(p, 'total_amount', 0) for p in obj.purchases.all())
+        return 0
     
     def get_account_balance(self, obj):
-        if obj.account:
-            return obj.account.get_balance()
-        return 0
+        return getattr(obj, 'balance', Decimal('0.00')) or Decimal('0.00')
 
 
 # ==================== Purchase Serializers ====================

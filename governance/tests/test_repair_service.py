@@ -193,6 +193,7 @@ class TestRepairService(TestCase):
              patch.object(self.repair_service, '_scan_multiple_active_accounting_periods', return_value=([], 'HIGH', {})), \
              patch.object(self.repair_service, '_scan_unbalanced_journal_entries', return_value=([], 'HIGH', {})):
             
+            self.repair_service._initialize_scanners()
             report = self.repair_service.scan_for_corruption()
         
         # Should create report with no issues

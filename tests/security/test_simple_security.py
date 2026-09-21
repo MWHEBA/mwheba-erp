@@ -107,7 +107,7 @@ class SimpleSecurityTestCase(TestCase):
                 if user.password != weak_password:
                     weak_rejected += 1
                 
-                user.delete()
+                user.delete(force=True)
                 
             except Exception:
                 weak_rejected += 1
@@ -124,7 +124,7 @@ class SimpleSecurityTestCase(TestCase):
                 if user and user.check_password(strong_password):
                     strong_accepted += 1
                 
-                user.delete()
+                user.delete(force=True)
                 
             except Exception:
                 pass

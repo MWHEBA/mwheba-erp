@@ -166,12 +166,12 @@ class SignalIntegrationTest(TestCase):
         for i in range(3):
             Supplier.objects.create(
                 name=f"مورد {i+1}",
-                code=f"SUP00{i+1}",
+                code=f"SIG_SUP00{i+1}",
                 primary_type=self.supplier_type
             )
         
         # التحقق من إنشاء 3 موردين
-        self.assertEqual(Supplier.objects.count(), 3)
+        self.assertEqual(Supplier.objects.filter(primary_type=self.supplier_type).count(), 3)
         
     def test_signal_with_bulk_create(self):
         """اختبار Signal مع bulk_create (لا يشتغل - سلوك Django طبيعي)"""

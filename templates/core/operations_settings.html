@@ -28,6 +28,11 @@
                         <i class="fas fa-print me-2 text-success"></i>نماذج الطباعة والحراري
                     </button>
                 </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="privacy-tab" data-bs-toggle="tab" data-bs-target="#privacy" type="button" role="tab">
+                        <i class="fas fa-user-shield me-2 text-info"></i>سياسات سرية الأسعار والأرباح
+                    </button>
+                </li>
             </ul>
 
             <!-- Main Settings Form -->
@@ -203,6 +208,54 @@
                                         <label class="form-label fw-bold">{{ form.receipt_paper_width.label }}</label>
                                         {{ form.receipt_paper_width }}
                                         <div class="form-text text-muted">عرض الورق الحراري المستخدم (80 مم هو القياسي للطابعات المكتبية، 57 مم للطابعات المحمولة).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. سياسات الخصوصية وسرية الأسعار والأرباح -->
+                    <div class="tab-pane fade" id="privacy" role="tabpanel">
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-shield-alt text-info me-2"></i>حوكمة سرية الأسعار وهوامش الربح
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch p-3 border rounded">
+                                            {{ form.policy_hide_selling_prices_for_non_privileged }}
+                                            <label class="form-check-label fw-bold ms-2" for="{{ form.policy_hide_selling_prices_for_non_privileged.id_for_label }}">
+                                                {{ form.policy_hide_selling_prices_for_non_privileged.label }}
+                                            </label>
+                                            <div class="form-text text-muted mt-2">
+                                                عند التفعيل، يتم حجب أسعار البيع المحلية والعملات الأجنبية في شاشات الأصناف، المخازن، والباركود عن الفنيين وأمناء المخازن والمشتريات لغير المصرح لهم.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch p-3 border rounded">
+                                            {{ form.policy_hide_profit_margins_for_non_privileged }}
+                                            <label class="form-check-label fw-bold ms-2" for="{{ form.policy_hide_profit_margins_for_non_privileged.id_for_label }}">
+                                                {{ form.policy_hide_profit_margins_for_non_privileged.label }}
+                                            </label>
+                                            <div class="form-text text-muted mt-2">
+                                                حجب هوامش الربح وتكاليف الأصناف في شاشات المبيعات والـ APIs عن مندوبي المبيعات لغير المصرح لهم بصلاحية رؤية الربحية.
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch p-3 border rounded">
+                                            {{ form.policy_work_order_hide_selling_price }}
+                                            <label class="form-check-label fw-bold ms-2" for="{{ form.policy_work_order_hide_selling_price.id_for_label }}">
+                                                {{ form.policy_work_order_hide_selling_price.label }}
+                                            </label>
+                                            <div class="form-text text-muted mt-2">
+                                                إخفاء أسعار بيع العميل وإيرادات وأرباح أمر الشغل عن فنيي الورشة والإنتاج مع استمرار إظهار تكاليف المشتريات ومصروفات الخامات.
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

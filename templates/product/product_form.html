@@ -313,6 +313,7 @@
                                 <small class="text-muted d-block mt-1">سعر شراء الوحدة أو تكلفة الإنتاج المباشرة.</small>
                             </div>
 
+                            {% if can_view_selling_price %}
                             <div class="col-md-4">
                                 <label class="form-label fw-medium" for="{{ form.selling_price.id_for_label }}">
                                     سعر البيع الأساسي (بدون ضريبة) <span class="text-danger">*</span>
@@ -332,6 +333,9 @@
                                 {% endif %}
                                 <small class="text-muted d-block mt-1">السعر المعتمد قبل احتساب الضريبة.</small>
                             </div>
+                            {% else %}
+                            <input type="hidden" name="{{ form.selling_price.html_name }}" id="{{ form.selling_price.id_for_label }}" value="{{ form.selling_price.value|default:'' }}">
+                            {% endif %}
 
                             <div class="col-md-4" id="min-stock-field-col">
                                 <label class="form-label fw-medium" for="{{ form.min_stock.id_for_label }}">
@@ -435,13 +439,14 @@
                             <!-- لوحة التحليل والحساب اللحظي المالي والضريبي -->
                             <div class="row g-3 mt-2">
                                 <!-- ملخص الحسابات اللحظية -->
-                                <div class="col-md-7">
+                                <div class="{% if can_view_selling_price %}col-md-7{% else %}col-12{% endif %}">
                                     <div class="tax-summary-box">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
                                             <span class="small fw-bold text-dark"><i class="fas fa-receipt me-1 text-primary"></i>تفاصيل السعر والضريبة اللحظية</span>
                                             <span class="badge bg-primary text-white" id="tax-status-badge">خاضع للقيمة المضافة (14%)</span>
                                         </div>
                                         
+                                        {% if can_view_selling_price %}
                                         <div class="tax-summary-item">
                                             <span class="tax-summary-label">سعر البيع الأساسي (بدون ضريبة):</span>
                                             <span class="tax-summary-value" id="summary-net-price">0.00 ج.م</span>
@@ -454,14 +459,18 @@
                                             <span class="tax-summary-label fw-bold text-dark">سعر البيع النهائي (شامل الضريبة):</span>
                                             <span class="tax-summary-value text-success fs-6" id="summary-gross-price">0.00 ج.م</span>
                                         </div>
+                                        {% endif %}
+                                        {% if can_view_profit_margin and can_view_selling_price and can_view_operational_costs %}
                                         <div class="tax-summary-item">
                                             <span class="tax-summary-label">هامش الربح التقديري (قبل الضريبة):</span>
                                             <span class="tax-summary-value" id="summary-profit-margin">0.00 ج.م (0.0%)</span>
                                         </div>
+                                        {% endif %}
                                     </div>
                                 </div>
 
                                 <!-- حاسبة السعر الشامل العكسية (Smart Inclusive Price Calculator) -->
+                                {% if can_view_selling_price %}
                                 <div class="col-md-5">
                                     <div class="tax-summary-box h-100 d-flex flex-column justify-content-between">
                                         <div>
@@ -483,6 +492,7 @@
                                         </small>
                                     </div>
                                 </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -495,9 +505,11 @@
                         <h6 class="form-section-title">
                             <i class="fas fa-globe text-info"></i>أسعار العملات الأجنبية والموردين
                         </h6>
+                        {% if can_view_selling_price %}
                         <a href="{% url 'product:product_detail' form.instance.pk %}" class="btn btn-xs btn-outline-primary">
                             <i class="fas fa-external-link-alt me-1"></i>إدارة الأسعار بالتفصيل
                         </a>
+                        {% endif %}
                     </div>
                     <div class="form-section-body">
                         <div class="row g-3">
@@ -509,10 +521,10 @@
                                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                                             <span class="fw-medium">{{ cp.currency.name }} ({{ cp.currency.code }})</span>
                                             <div>
-                                                {% if cp.indicative_selling_price %}
+                                                {% if can_view_selling_price and cp.indicative_selling_price %}
                                                 <span class="badge bg-success-subtle text-success border me-1">بيع: {{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</span>
                                                 {% endif %}
-                                                {% if cp.indicative_cost_price %}
+                                                {% if can_view_operational_costs and cp.indicative_cost_price %}
                                                 <span class="badge bg-light text-dark border">تكلفة: {{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</span>
                                                 {% endif %}
                                             </div>
@@ -530,7 +542,11 @@
                                         {% for sp in form.instance.supplier_prices.all %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
                                             <span>{{ sp.supplier.name }}</span>
+                                            {% if can_view_operational_costs %}
                                             <span class="badge bg-light text-dark">{{ sp.purchase_price }} ج.م</span>
+                                            {% else %}
+                                            <span class="badge bg-light text-muted">---</span>
+                                            {% endif %}
                                         </li>
                                         {% endfor %}
                                     </ul>

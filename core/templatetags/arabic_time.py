@@ -48,7 +48,7 @@ def arabic_timesince(value):
         return ""
     
     now = timezone.now()
-    if timezone.is_aware(value):
+    if hasattr(value, 'tzinfo') and value.tzinfo is not None and value.tzinfo.utcoffset(value) is not None:
         diff = now - value
     else:
         diff = datetime.now() - value

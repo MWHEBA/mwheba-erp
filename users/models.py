@@ -276,6 +276,75 @@ class User(AbstractUser):
             (self.pk and self.secondary_roles.filter(name="viewer").exists())
         )
 
+    @property
+    def can_view_selling_price(self):
+        """
+        التحقق من إمكانية رؤية أسعار البيع المحلية والعملات الأجنبية
+        """
+        if not self.is_authenticated or not self.is_active:
+            return False
+        if self.is_superuser or self.is_admin:
+            return True
+        from core.models import SystemSetting
+        if not SystemSetting.get_bool('policy_hide_selling_prices_for_non_privileged', False):
+            return True
+        if self.has_perm('product.view_selling_price') or self.has_perm('sale.view_sale') or self.has_perm('sale.add_sale'):
+            return True
+        if self.is_sales_rep or self.is_sales_manager or self.is_accountant or self.is_financial_manager:
+            return True
+        return False
+
+    @property
+    def can_view_profit_margin(self):
+        """
+        التحقق من إمكانية رؤية هوامش الأرباح وتفاصيل التكلفة في واجهات المبيعات
+        """
+        if not self.is_authenticated or not self.is_active:
+            return False
+        if self.is_superuser or self.is_admin:
+            return True
+        from core.models import SystemSetting
+        if not SystemSetting.get_bool('policy_hide_profit_margins_for_non_privileged', False):
+            return True
+        if self.has_perm('printing_pricing.view_profit_margins') or self.has_perm('sale.view_profit_margins') or self.has_perm('financial.view_journalentry'):
+            return True
+        if self.is_financial_manager or self.is_sales_manager or self.is_accountant:
+            return True
+        return False
+
+    @property
+    def can_view_work_order_commercials(self):
+        """
+        التحقق من إمكانية رؤية المعاملات التجارية وإيرادات وأرباح أوامر الشغل
+        """
+        if not self.is_authenticated or not self.is_active:
+            return False
+        if self.is_superuser or self.is_admin:
+            return True
+        from core.models import SystemSetting
+        if not SystemSetting.get_bool('policy_work_order_hide_selling_price', False):
+            return True
+        if self.has_perm('work_order.view_work_order_commercials') or self.has_perm('sale.view_sale'):
+            return True
+        if self.is_sales_manager or self.is_sales_rep or self.is_financial_manager or self.is_accountant:
+            return True
+        return False
+
+    @property
+    def can_view_operational_costs(self):
+        """
+        التحقق من إمكانية رؤية التكاليف التشغيلية (الخامات، المشتريات، مقاولي الباطن)
+        """
+        if not self.is_authenticated or not self.is_active:
+            return False
+        if self.is_superuser or self.is_admin:
+            return True
+        if self.has_perm('purchase.view_purchase') or self.has_perm('work_order.view_workorder'):
+            return True
+        if self.is_production_supervisor or self.is_procurement_officer or self.is_inventory_manager or self.is_accountant or self.is_financial_manager:
+            return True
+        return False
+
     def get_all_permissions(self, obj=None):
         """
         الحصول على جميع صلاحيات المستخدم كنصوص قياسية بصيغة 'app_label.codename'

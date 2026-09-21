@@ -49,11 +49,16 @@ def test_setup(db):
 
     # 3. Create Accounts
     ChartOfAccounts.objects.get_or_create(code='10100', defaults={'name': 'Cash', 'account_type': cash_type, 'is_active': True})
+    ChartOfAccounts.objects.get_or_create(code='11110', defaults={'name': 'Cash Drawer', 'account_type': cash_type, 'is_active': True})
     ChartOfAccounts.objects.get_or_create(code='10300', defaults={'name': 'Accounts Receivable', 'account_type': asset_type, 'is_active': True})
+    ChartOfAccounts.objects.get_or_create(code='11210', defaults={'name': 'Accounts Receivable', 'account_type': asset_type, 'is_active': True})
     ChartOfAccounts.objects.get_or_create(code='10400', defaults={'name': 'Inventory', 'account_type': asset_type, 'is_active': True})
+    ChartOfAccounts.objects.get_or_create(code='11310', defaults={'name': 'Inventory', 'account_type': asset_type, 'is_active': True})
     ChartOfAccounts.objects.get_or_create(code='40100', defaults={'name': 'Sales Revenue', 'account_type': revenue_type, 'is_active': True})
+    ChartOfAccounts.objects.get_or_create(code='41100', defaults={'name': 'Sales Revenue', 'account_type': revenue_type, 'is_active': True})
     ChartOfAccounts.objects.get_or_create(code='40200', defaults={'name': 'Services Revenue', 'account_type': revenue_type, 'is_active': True})
     ChartOfAccounts.objects.get_or_create(code='50100', defaults={'name': 'COGS', 'account_type': expense_type, 'is_active': True})
+    ChartOfAccounts.objects.get_or_create(code='51100', defaults={'name': 'COGS', 'account_type': expense_type, 'is_active': True})
 
     # 4. Create Customer
     customer, _ = Customer.objects.get_or_create(
@@ -187,7 +192,7 @@ def test_create_mixed_sale_invoice(test_setup):
     # حساب توزيع الإيرادات بالتناسب:
     # نسبة المادي = 200 / 350 = 57.1428% -> الإيراد = 300 * 57.1428% = 171.43
     # نسبة الخدمة = 150 / 350 = 42.8571% -> الإيراد = 300 * 42.8571% = 128.57
-    physical_rev_line = lines.filter(account__code='40100').first()
+    physical_rev_line = lines.filter(account__code__in=['40100', '41100']).first()
     assert physical_rev_line is not None
     assert physical_rev_line.credit == Decimal('171.43')
 
@@ -196,10 +201,10 @@ def test_create_mixed_sale_invoice(test_setup):
     assert service_rev_line.credit == Decimal('128.57')
 
     # قيد التكلفة والمخزن (فقط للمنتج المادي: 2 * 50 = 100)
-    cogs_line = lines.filter(account__code='50100').first()
+    cogs_line = lines.filter(account__code__in=['50100', '51100']).first()
     assert cogs_line is not None
     assert cogs_line.debit == Decimal('100.00')
 
-    inventory_line = lines.filter(account__code='10400').first()
+    inventory_line = lines.filter(account__code__in=['10400', '11310']).first()
     assert inventory_line is not None
     assert inventory_line.credit == Decimal('100.00')

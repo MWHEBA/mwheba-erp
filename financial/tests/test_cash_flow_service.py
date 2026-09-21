@@ -32,10 +32,29 @@ def cf_setup(db):
 
     # 2. أنواع الحسابات
     asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "أصول", "category": "asset", "nature": "debit"})
+    asset_type.category = "asset"
+    asset_type.nature = "debit"
+    asset_type.save()
+
     liability_type, _ = AccountType.objects.get_or_create(code="LIAB", defaults={"name": "خصوم", "category": "liability", "nature": "credit"})
+    liability_type.category = "liability"
+    liability_type.nature = "credit"
+    liability_type.save()
+
     equity_type, _ = AccountType.objects.get_or_create(code="EQUITY", defaults={"name": "حقوق ملكية", "category": "equity", "nature": "credit"})
+    equity_type.category = "equity"
+    equity_type.nature = "credit"
+    equity_type.save()
+
     revenue_type, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "إيرادات", "category": "revenue", "nature": "credit"})
+    revenue_type.category = "revenue"
+    revenue_type.nature = "credit"
+    revenue_type.save()
+
     expense_type, _ = AccountType.objects.get_or_create(code="EXP", defaults={"name": "مصروفات", "category": "expense", "nature": "debit"})
+    expense_type.category = "expense"
+    expense_type.nature = "debit"
+    expense_type.save()
 
     # 3. الحسابات الرئيسية والطرفية
     cash_acc, _ = ChartOfAccounts.objects.get_or_create(
@@ -49,8 +68,8 @@ def cf_setup(db):
     )
 
     customer_acc, _ = ChartOfAccounts.objects.get_or_create(
-        code="11210",
-        defaults={"name": "العملاء", "account_type": asset_type, "level": 3, "is_leaf": True, "currency": currency}
+        code="11210001",
+        defaults={"name": "عميل نقدي تجريبي", "account_type": asset_type, "level": 4, "is_leaf": True, "currency": currency}
     )
 
     inventory_acc, _ = ChartOfAccounts.objects.get_or_create(
@@ -92,6 +111,24 @@ def cf_setup(db):
         code="52800",
         defaults={"name": "مصروف إهلاك الأصول", "account_type": expense_type, "level": 3, "is_leaf": True, "currency": currency}
     )
+
+    for acc, acc_type in [
+        (cash_acc, asset_type),
+        (bank_acc, asset_type),
+        (customer_acc, asset_type),
+        (inventory_acc, asset_type),
+        (fixed_assets_acc, asset_type),
+        (accum_depr_acc, asset_type),
+        (supplier_acc, liability_type),
+        (capital_acc, equity_type),
+        (sales_acc, revenue_type),
+        (cogs_acc, expense_type),
+        (depr_exp_acc, expense_type),
+    ]:
+        acc.account_type = acc_type
+        acc.is_leaf = True
+        acc.is_active = True
+        acc.save()
 
     user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@example.com", "is_staff": True, "is_superuser": True})
     if not user.is_superuser:

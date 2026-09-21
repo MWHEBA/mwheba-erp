@@ -273,7 +273,10 @@ class QuotationSystemTest(TestCase):
         quotation.save()
 
         # تشغيل دالة التحويل عبر الـ view
-        response = self.client.post(reverse("sale:quotation_convert_to_sale", kwargs={"pk": quotation.pk}))
+        response = self.client.post(
+            reverse("sale:quotation_convert_to_sale", kwargs={"pk": quotation.pk}),
+            data={"warehouse": self.warehouse.id}
+        )
         
         # يجب أن يعيد التوجيه لصفحة تفاصيل الفاتورة الناتجة
         self.assertEqual(response.status_code, 302)

@@ -253,12 +253,12 @@ class CustomerSignalsIntegrationTest(TestCase):
             # التحقق من إنشاء حساب لكل عميل
             self.assertIsNotNone(customer.financial_account)
         
-        # التحقق من إنشاء 3 حسابات فرعية
-        customer_accounts = ChartOfAccounts.objects.filter(
-            code__startswith='11210',
-            parent__code='11210'
-        )
-        self.assertEqual(customer_accounts.count(), 3)
+        # التحقق من إنشاء 3 حسابات فرعية للعملاء
+        created_accounts = [
+            c.financial_account for c in Customer.objects.filter(code__startswith='MULTI')
+            if c.financial_account is not None
+        ]
+        self.assertEqual(len(created_accounts), 3)
         
     @override_settings(AUTO_CREATE_CUSTOMER_ACCOUNTS=True)
     def test_signal_with_bulk_create(self):

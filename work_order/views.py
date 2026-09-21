@@ -277,16 +277,20 @@ def work_order_detail(request, pk):
     # 1. عروض الأسعار المرتبطة
     quotations = work_order.quotations.select_related("customer", "salesman", "currency", "created_by").all()
 
-    # فحص الصلاحية المالية: تكاليف وهوامش ربح
-    can_view_financials = (
-        request.user.is_superuser
-        or request.user.has_perm('printing_pricing.view_cost_breakdown')
-        or request.user.has_perm('printing_pricing.view_profit_margins')
-        or request.user.has_perm('financial.view_account')
-    )
+    # فحص الصلاحيات بحسب المبدأ الهيكلي: الفصل بين التجاري والتشغيلي
+    can_view_commercials = getattr(request.user, 'can_view_work_order_commercials', True)
+    can_view_operational_costs = getattr(request.user, 'can_view_operational_costs', True)
+    can_view_profit_margin = getattr(request.user, 'can_view_profit_margin', True)
+    can_view_financials = can_view_commercials or can_view_operational_costs
 
-    if can_view_financials:
-        # 2. فواتير المبيعات المؤكدة (الإيراد التشغيلي الصافي قبل الضريبة بالعملة المحلية)
+    # 1. عروض الأسعار المرتبطة
+    if can_view_commercials:
+        quotations = work_order.quotations.select_related("customer", "salesman", "currency", "created_by").all()
+    else:
+        quotations = work_order.quotations.none()
+
+    # 2. فواتير المبيعات المؤكدة (الإيراد التجاري والتشغيلي للعميل)
+    if can_view_commercials:
         sales = work_order.sales.select_related("customer", "warehouse", "salesman", "currency", "created_by").filter(status='confirmed')
         sales_operating_egp = Decimal('0.00')
         for s in sales:
@@ -304,7 +308,23 @@ def work_order_detail(request, pk):
 
         net_sales_revenue = sales_operating_egp - sale_returns_operating_egp
 
-        # 3. فواتير المشتريات المؤكدة (تكلفة الخامات والخدمات الخارجية بالعملة المحلية)
+        # نظام الدفعات المقدمة (الحصالة)
+        payments = work_order.payments.select_related("financial_account", "created_by").all()
+        total_deposits = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        total_allocated = payments.aggregate(total=Sum('allocated_currency_amount_cached'))['total'] or Decimal('0.00')
+        remaining_deposit = max(Decimal('0.00'), total_deposits - total_allocated)
+    else:
+        sales = work_order.sales.none()
+        sales_operating_egp = None
+        sale_returns_operating_egp = None
+        net_sales_revenue = None
+        payments = work_order.payments.none()
+        total_deposits = None
+        total_allocated = None
+        remaining_deposit = None
+
+    # 3. فواتير المشتريات المؤكدة (تكلفة الخامات والخدمات الخارجية بالعملة المحلية)
+    if can_view_operational_costs:
         purchases = work_order.purchases.select_related("supplier", "warehouse", "currency", "created_by").filter(status='confirmed')
         raw_materials_egp = Decimal('0.00')
         services_egp = Decimal('0.00')
@@ -328,52 +348,44 @@ def work_order_detail(request, pk):
 
         net_raw_materials_cost = max(Decimal('0.00'), raw_materials_egp - purchase_returns_egp)
         net_purchases_cost = net_raw_materials_cost + services_egp
-
-        # 4. المعاملات والمصروفات المالية المباشرة المعتمدة
-        financial_transactions = work_order.financial_transactions.select_related("category", "account", "to_account", "journal_entry").exclude(status__in=['cancelled', 'rejected'])
-        incomes_direct = financial_transactions.filter(transaction_type='income')
-        incomes_direct_total = incomes_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        
-        expenses_direct = financial_transactions.filter(transaction_type='expense')
-        expenses_direct_total = expenses_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-        # 5. الحسابات المالية الكلية للربح التشغيلي
-        total_revenue = net_sales_revenue + incomes_direct_total
-        total_cost = net_purchases_cost + expenses_direct_total
-        net_profit = total_revenue - total_cost
-        profit_margin = ((net_profit / total_revenue) * Decimal('100.00')).quantize(Decimal('0.01')) if total_revenue > Decimal('0.00') else Decimal('0.00')
-
-        # 6. نظام الدفعات المقدمة (الحصالة)
-        payments = work_order.payments.select_related("financial_account", "created_by").all()
-        total_deposits = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        total_allocated = payments.aggregate(total=Sum('allocated_currency_amount_cached'))['total'] or Decimal('0.00')
-        remaining_deposit = max(Decimal('0.00'), total_deposits - total_allocated)
     else:
-        # حجب الاستعلامات والتفاصيل المالية لترشيد الأداء وحماية السرية
-        sales = work_order.sales.none()
         purchases = work_order.purchases.none()
-        financial_transactions = work_order.financial_transactions.none()
-        incomes_direct = work_order.financial_transactions.none()
-        expenses_direct = work_order.financial_transactions.none()
-        sales_operating_egp = None
-        net_sales_revenue = None
+        raw_materials_egp = None
+        purchase_returns_egp = None
         net_raw_materials_cost = None
         services_egp = None
         net_purchases_cost = None
+
+    # 4. المعاملات والمصروفات المالية المباشرة المعتمدة
+    if can_view_operational_costs or can_view_commercials:
+        financial_transactions = work_order.financial_transactions.select_related("category", "account", "to_account", "journal_entry").exclude(status__in=['cancelled', 'rejected'])
+        incomes_direct = financial_transactions.filter(transaction_type='income') if can_view_commercials else work_order.financial_transactions.none()
+        incomes_direct_total = incomes_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00') if can_view_commercials else Decimal('0.00')
+        
+        expenses_direct = financial_transactions.filter(transaction_type='expense') if can_view_operational_costs else work_order.financial_transactions.none()
+        expenses_direct_total = expenses_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00') if can_view_operational_costs else Decimal('0.00')
+    else:
+        financial_transactions = work_order.financial_transactions.none()
+        incomes_direct = work_order.financial_transactions.none()
+        expenses_direct = work_order.financial_transactions.none()
         incomes_direct_total = None
         expenses_direct_total = None
+
+    # 5. الحسابات المالية الكلية للربح التشغيلي
+    if can_view_profit_margin and can_view_commercials and can_view_operational_costs:
+        total_revenue = (net_sales_revenue or Decimal('0.00')) + incomes_direct_total
+        total_cost = (net_purchases_cost or Decimal('0.00')) + expenses_direct_total
+        net_profit = total_revenue - total_cost
+        profit_margin = ((net_profit / total_revenue) * Decimal('100.00')).quantize(Decimal('0.01')) if total_revenue > Decimal('0.00') else Decimal('0.00')
+    else:
         total_revenue = None
         total_cost = None
         net_profit = None
         profit_margin = None
-        payments = work_order.payments.none()
-        total_deposits = None
-        total_allocated = None
-        remaining_deposit = None
 
     # حسابات نقدية/بنكية لتسجيل الدفعات
     from financial.services.account_helper import AccountHelperService
-    cash_accounts = AccountHelperService.get_cash_and_bank_accounts() if can_view_financials else []
+    cash_accounts = AccountHelperService.get_cash_and_bank_accounts() if can_view_commercials else []
 
     context = {
         "work_order": work_order,
@@ -385,6 +397,9 @@ def work_order_detail(request, pk):
         "expenses_direct": expenses_direct,
         "payments": payments,
         "can_view_financials": can_view_financials,
+        "can_view_commercials": can_view_commercials,
+        "can_view_operational_costs": can_view_operational_costs,
+        "can_view_profit_margin": can_view_profit_margin,
         
         "sales_total": net_sales_revenue,
         "sales_operating_egp": sales_operating_egp,
@@ -442,7 +457,7 @@ def work_order_detail(request, pk):
         },
     ]
 
-    if can_view_financials:
+    if can_view_operational_costs or can_view_commercials:
         header_badges.append({
             "text": _("التكلفة التقديرية: {} {}").format(est_cost_str, currency),
             "icon": "fas fa-calculator",
@@ -454,7 +469,7 @@ def work_order_detail(request, pk):
     # بناء أزرار الترويسة بحسب الصلاحيات الفردية وحالة أمر الشغل
     dropdown_items = []
     if not is_closed:
-        if request.user.is_superuser or request.user.has_perm('sale.add_quotation'):
+        if can_view_commercials and (request.user.is_superuser or request.user.has_perm('sale.add_quotation')):
             dropdown_items.append({
                 "url": reverse("sale:quotation_create") + f"?work_order={work_order.id}",
                 "icon": "fa-file-signature",
@@ -463,7 +478,7 @@ def work_order_detail(request, pk):
                 "desc": _("إنشاء عرض سعر جديد لهذا العميل مرتبط بأمر الشغل"),
             })
 
-        if request.user.is_superuser or request.user.has_perm('sale.add_sale'):
+        if can_view_commercials and (request.user.is_superuser or request.user.has_perm('sale.add_sale')):
             dropdown_items.append({
                 "url": reverse("sale:sale_create") + f"?work_order={work_order.id}",
                 "icon": "fa-file-invoice-dollar",
@@ -472,7 +487,7 @@ def work_order_detail(request, pk):
                 "desc": _("إصدار فاتورة مبيعات جديدة لطلب مستحقات أمر الشغل"),
             })
 
-        if request.user.is_superuser or request.user.has_perm('purchase.add_purchase'):
+        if can_view_operational_costs and (request.user.is_superuser or request.user.has_perm('purchase.add_purchase')):
             dropdown_items.append({
                 "url": reverse("purchase:purchase_create") + f"?work_order={work_order.id}",
                 "icon": "fa-file-invoice",
@@ -481,26 +496,25 @@ def work_order_detail(request, pk):
                 "desc": _("تسجيل فاتورة شراء مواد أو خدمات خاصة بأمر الشغل"),
             })
 
-        if can_view_financials:
-            if request.user.is_superuser or request.user.has_perm('financial.add_expensetransaction'):
-                dropdown_items.append({
-                    "url": "javascript:void(0)",
-                    "onclick": f"openQuickExpenseModal({work_order.id})",
-                    "icon": "fa-money-bill-wave",
-                    "icon_class": "text-danger bg-danger-subtle",
-                    "text": _("مصروف مباشر"),
-                    "desc": _("تسجيل مصروف تشغيلي مباشر لحساب أمر الشغل"),
-                })
+        if can_view_operational_costs and (request.user.is_superuser or request.user.has_perm('financial.add_expensetransaction')):
+            dropdown_items.append({
+                "url": "javascript:void(0)",
+                "onclick": f"openQuickExpenseModal({work_order.id})",
+                "icon": "fa-money-bill-wave",
+                "icon_class": "text-danger bg-danger-subtle",
+                "text": _("مصروف مباشر"),
+                "desc": _("تسجيل مصروف تشغيلي مباشر لحساب أمر الشغل"),
+            })
 
-            if request.user.is_superuser or request.user.has_perm('financial.add_incometransaction'):
-                dropdown_items.append({
-                    "url": "javascript:void(0)",
-                    "onclick": f"openQuickIncomeModal({work_order.id})",
-                    "icon": "fa-hand-holding-usd",
-                    "icon_class": "text-success bg-success-subtle",
-                    "text": _("إيراد مباشر"),
-                    "desc": _("تسجيل إيراد مباشر لحساب أمر الشغل"),
-                })
+        if can_view_commercials and (request.user.is_superuser or request.user.has_perm('financial.add_incometransaction')):
+            dropdown_items.append({
+                "url": "javascript:void(0)",
+                "onclick": f"openQuickIncomeModal({work_order.id})",
+                "icon": "fa-hand-holding-usd",
+                "icon_class": "text-success bg-success-subtle",
+                "text": _("إيراد مباشر"),
+                "desc": _("تسجيل إيراد مباشر لحساب أمر الشغل"),
+            })
 
         can_record_deposit = (
             request.user.is_superuser
@@ -508,7 +522,7 @@ def work_order_detail(request, pk):
             or request.user.has_perm('financial.add_receiptvoucher')
             or request.user.has_perm('work_order.change_workorder')
         )
-        if can_record_deposit and can_view_financials:
+        if can_record_deposit and can_view_commercials:
             if dropdown_items:
                 dropdown_items.append({"divider": True})
             dropdown_items.append({

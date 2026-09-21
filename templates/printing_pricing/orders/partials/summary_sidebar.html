@@ -21,7 +21,7 @@
     <div>
       
       <!-- أ. تفصيل عناصر التكلفة المباشرة (محمية للمديرين فقط) -->
-      {% if can_view_margins or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}
+      {% if can_view_profit_margin and can_view_margins and can_view_operational_costs or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}
       <div class="mb-2 pb-2 border-bottom" id="internal_cost_breakdown">
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-layer-group me-1 text-primary"></i>{% trans "تكلفة خام الورق:" %}</span>
@@ -93,6 +93,7 @@
       {% endif %}
 
       <!-- ب. أسعار البيع الصافية للعميل -->
+      {% if can_view_selling_price %}
       <div class="mb-3">
         <!-- سعر القطعة للعميل -->
         <div class="d-flex justify-content-between align-items-center mb-1">
@@ -128,6 +129,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
       <!-- هـ. أزرار الحفظ والإجراءات السريعة -->
       <!-- شارة حالة الاعتماد وأمر الشغل -->

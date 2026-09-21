@@ -7,6 +7,7 @@ supplier, financial, printing_pricing, work_order, and users modules.
 
 import pytest
 import json
+from datetime import timedelta
 from decimal import Decimal
 from django.urls import reverse
 from django.utils import timezone
@@ -83,7 +84,7 @@ def rbac_entities(db, rbac_users):
         defaults={
             "name": "السنة المالية 2026",
             "start_date": timezone.now().date(),
-            "end_date": timezone.now().date() + timezone.timedelta(days=365),
+            "end_date": timezone.now().date() + timedelta(days=365),
             "status": "open",
         }
     )

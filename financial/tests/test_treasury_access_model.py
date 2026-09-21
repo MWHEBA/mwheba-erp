@@ -16,22 +16,30 @@ class TestUserTreasuryAccessModel:
         user1 = User.objects.create_user(username="cashier1", email="cashier1@test.com", password="password123")
         user2 = User.objects.create_user(username="cashier2", email="cashier2@test.com", password="password123")
         
-        acc_type, _ = AccountType.objects.get_or_create(code="CASH", name="نقدي", category="asset")
-        treasury1 = ChartOfAccounts.objects.create(
-            code="10101",
-            name="خزينة الفرع الرئيسي",
-            account_type=acc_type,
-            is_cash_account=True,
-            is_leaf=True,
-            is_active=True
+        acc_type, _ = AccountType.objects.get_or_create(code="CASH", defaults={"name": "نقدي", "category": "asset"})
+        if acc_type.category != "asset":
+            acc_type.category = "asset"
+            acc_type.save()
+
+        treasury1, _ = ChartOfAccounts.objects.get_or_create(
+            code="10101_TAM",
+            defaults={
+                "name": "خزينة الفرع الرئيسي",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
         )
-        treasury2 = ChartOfAccounts.objects.create(
-            code="10102",
-            name="خزينة فرع المعادي",
-            account_type=acc_type,
-            is_cash_account=True,
-            is_leaf=True,
-            is_active=True
+        treasury2, _ = ChartOfAccounts.objects.get_or_create(
+            code="10102_TAM",
+            defaults={
+                "name": "خزينة فرع المعادي",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
         )
         return {
             "user1": user1,

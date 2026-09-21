@@ -17,7 +17,7 @@
 
   <!-- KPI Stats Row -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-info">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-clipboard-list"></i></div>
@@ -26,7 +26,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-success">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
@@ -35,7 +35,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-warning">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-truck-loading"></i></div>
@@ -44,6 +44,7 @@
         </div>
       </div>
     </div>
+    {% if can_view_selling_price %}
     <div class="col-md-3">
       <div class="stats-card stats-card-danger">
         <div class="stats-card-body">
@@ -54,6 +55,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <!-- Collapsible Filter Section -->

@@ -388,15 +388,22 @@
                 {% endwith %}
             </div>
 
-            <!-- شريط مؤشرات الأداء الحيوية (4 KPI Metrics Cards) -->
+            <!-- شريط مؤشرات الأداء الحيوية (4 KPI Metrics Cards) التكيفي -->
             <div class="col-lg-7 col-md-12">
                 <div class="row g-2">
+                    {% if can_view_selling_price %}
                     <!-- 1. سعر البيع -->
                     <div class="col-sm-3 col-6">
                         <div class="kpi-stat-card">
                             <div class="kpi-title"><i class="fas fa-tag text-primary"></i>سعر البيع</div>
                             <div class="kpi-value text-primary">{{ product.selling_price|currency }}</div>
-                            <div class="kpi-sub">هامش الربح: {{ product.profit_margin|smart_float }}%</div>
+                            <div class="kpi-sub">
+                                {% if can_view_profit_margin %}
+                                هامش الربح: {{ product.profit_margin|smart_float }}%
+                                {% else %}
+                                الوحدة: {{ product.unit.name|default:"-" }}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
@@ -438,6 +445,62 @@
                             <div class="kpi-sub">متوسط السعر: {{ sales_stats.average_sale_price|default:0|currency }}</div>
                         </div>
                     </div>
+                    {% else %}
+                    <!-- بطاقات المؤشرات التشغيلية واللوجستية (للورشة والمخازن والمشتريات) -->
+                    <!-- 1. سعر التكلفة التشغيلية -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-file-invoice-dollar text-primary"></i>سعر التكلفة</div>
+                            <div class="kpi-value text-primary">
+                                {% if can_view_operational_costs %}
+                                {{ product.cost_price|currency }}
+                                {% else %}
+                                <span class="text-muted fs-6">محجوب</span>
+                                {% endif %}
+                            </div>
+                            <div class="kpi-sub">الوحدة: {{ product.unit.name|default:"-" }}</div>
+                        </div>
+                    </div>
+
+                    <!-- 2. الرصيد الفعلي بالمخازن -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            {% if product.is_service %}
+                            <div class="kpi-title"><i class="fas fa-concierge-bell text-success"></i>طبيعة العنصر</div>
+                            <div class="kpi-value text-success fs-6">خدمة تشغيلية</div>
+                            <div class="kpi-sub">لا تتطلب رصيد مخزني</div>
+                            {% else %}
+                            <div class="kpi-title"><i class="fas fa-boxes text-success"></i>الرصيد الفعلي</div>
+                            <div class="kpi-value text-success">
+                                {% if product.is_bundle %}
+                                {{ product.calculated_stock|smart_float }}
+                                {% else %}
+                                {{ product.current_stock|smart_float }}
+                                {% endif %}
+                            </div>
+                            <div class="kpi-sub">الحد الأدنى: {{ product.min_stock|smart_float }} {{ product.unit.name }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 3. التصنيف الأساسي -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-folder text-info"></i>التصنيف</div>
+                            <div class="kpi-value text-dark fs-6">{{ product.category.name|default:"عام"|truncatechars:18 }}</div>
+                            <div class="kpi-sub">الكود: {{ product.sku }}</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. المورد الافتراضي / التوريدات -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-truck text-warning"></i>المورد الافتراضي</div>
+                            <div class="kpi-value text-dark fs-6">{{ product.effective_default_supplier.name|default:"غير محدد"|truncatechars:18 }}</div>
+                            <div class="kpi-sub">حالة الصنف: {% if product.is_active %}نشط{% else %}معطل{% endif %}</div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -448,34 +511,40 @@
        ========================================================================== -->
     <ul class="nav nav-tabs nav-tabs-custom" id="productDetailTabs" role="tablist">
         {% if product.is_service %}
-        <!-- التكيف التلقائي للخدمات (Service 2-Tab Layout) -->
+        <!-- التكيف التلقائي للخدمات (Service Layout) -->
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-service-core-link" data-bs-toggle="tab" data-bs-target="#tab-service-core" type="button" role="tab">
                 <i class="fas fa-concierge-bell me-2"></i>تفاصيل الخدمة والتسعير والموردين
             </button>
         </li>
+        {% if can_view_selling_price %}
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-sales-link" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
                 <i class="fas fa-chart-pie me-2"></i>تحليلات ومبيعات الخدمة
             </button>
         </li>
+        {% endif %}
         {% else %}
-        <!-- التكيف التلقائي للمنتجات (Product 3-Tab Layout) -->
+        <!-- التكيف التلقائي للمنتجات (Product Layout) -->
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-core-link" data-bs-toggle="tab" data-bs-target="#tab-core" type="button" role="tab">
                 <i class="fas fa-box-open me-2"></i>البيانات الأساسية والمخزون
             </button>
         </li>
+        {% if can_view_operational_costs or can_view_selling_price %}
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-pricing-link" data-bs-toggle="tab" data-bs-target="#tab-pricing" type="button" role="tab">
                 <i class="fas fa-tags me-2"></i>التسعير والعملات والموردين
             </button>
         </li>
+        {% endif %}
+        {% if can_view_selling_price %}
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="tab-sales-link" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
                 <i class="fas fa-chart-pie me-2"></i>تحليلات المبيعات والعملاء
             </button>
         </li>
+        {% endif %}
         {% endif %}
     </ul>
 
@@ -530,10 +599,10 @@
                                 | خصم: {{ product.discount_rate|smart_float }}%
                             </span>
                         </div>
-                        {% if product.default_supplier %}
+                        {% if product.effective_default_supplier %}
                         <div class="info-row">
                             <span class="info-label">المورد / مقدم الخدمة الافتراضي</span>
-                            <span class="info-value text-primary fw-bold">{{ product.default_supplier.name }}</span>
+                            <span class="info-value text-primary fw-bold">{{ product.effective_default_supplier.name }}</span>
                         </div>
                         {% endif %}
                         <div class="info-row">
@@ -555,6 +624,7 @@
                 <!-- العمود الأيمن: التسعير والعملات ومقدمو الخدمة وسجل الأسعار -->
                 <div class="col-lg-6 col-md-12">
                     <!-- أسعار الخدمة بالعملات الأجنبية -->
+                    {% if can_view_selling_price or can_view_operational_costs %}
                     <div class="info-card mb-4">
                         <div class="info-card-header">
                             <h5 class="info-card-title"><i class="fas fa-coins text-warning"></i>أسعار الخدمة بالعملات الأجنبية</h5>
@@ -568,8 +638,8 @@
                                 <thead>
                                     <tr>
                                         <th class="text-center">العملة</th>
-                                        <th class="text-center">سعر البيع</th>
-                                        <th class="text-center">سعر التكلفة</th>
+                                        {% if can_view_selling_price %}<th class="text-center">سعر البيع</th>{% endif %}
+                                        {% if can_view_operational_costs %}<th class="text-center">سعر التكلفة</th>{% endif %}
                                         <th class="text-center">الحالة</th>
                                         <th class="text-center">إجراءات</th>
                                     </tr>
@@ -579,8 +649,8 @@
                                         <td class="text-center">
                                             <strong class="text-primary">EGP (العملة الأساسية)</strong>
                                         </td>
-                                        <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
-                                        <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
+                                        {% if can_view_selling_price %}<td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>{% endif %}
+                                        {% if can_view_operational_costs %}<td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>{% endif %}
                                         <td class="text-center"><span class="badge bg-success">أساسي</span></td>
                                         <td class="text-center text-muted small">-</td>
                                     </tr>
@@ -589,6 +659,7 @@
                                         <td class="text-center">
                                             <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
                                         </td>
+                                        {% if can_view_selling_price %}
                                         <td class="text-center">
                                             {% if cp.indicative_selling_price %}
                                             <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
@@ -596,6 +667,8 @@
                                             <span class="text-muted small">تلقائي حسب الصرف</span>
                                             {% endif %}
                                         </td>
+                                        {% endif %}
+                                        {% if can_view_operational_costs %}
                                         <td class="text-center">
                                             {% if cp.indicative_cost_price %}
                                             <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
@@ -603,13 +676,14 @@
                                             <span class="text-muted small">تلقائي حسب الصرف</span>
                                             {% endif %}
                                         </td>
+                                        {% endif %}
                                         <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
                                         <td class="text-center">
                                             <div class="btn-group btn-group-sm">
                                                 <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
                                                         data-code="{{ cp.currency.code }}" 
-                                                        data-selling="{{ cp.indicative_selling_price|default:'' }}" 
-                                                        data-cost="{{ cp.indicative_cost_price|default:'' }}" 
+                                                        data-selling="{% if can_view_selling_price %}{{ cp.indicative_selling_price|default:'' }}{% endif %}" 
+                                                        data-cost="{% if can_view_operational_costs %}{{ cp.indicative_cost_price|default:'' }}{% endif %}" 
                                                         data-notes="{{ cp.notes|default:'' }}" 
                                                         title="تعديل السعر">
                                                     <i class="fas fa-edit"></i>
@@ -633,8 +707,10 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% endif %}
 
                     <!-- مقدمو الخدمة وأسعار الموردين -->
+                    {% if can_view_operational_costs %}
                     <div class="info-card mb-4">
                         <div class="info-card-header">
                             <h5 class="info-card-title"><i class="fas fa-truck text-primary"></i>مقدمو الخدمة وسعر التكلفة</h5>
@@ -660,7 +736,7 @@
                                         <td>
                                             <strong class="text-dark">{{ sp.supplier.name }}</strong>
                                             {% if sp.is_default %}
-                                            <span class="badge bg-warning text-dark ms-1">افتراضي</span>
+                                             <span class="badge bg-warning text-dark ms-1">افتراضي</span>
                                             {% endif %}
                                         </td>
                                         <td class="text-center"><strong class="text-success">{{ sp.cost_price|currency }}</strong></td>
@@ -700,6 +776,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% endif %}
 
                     <!-- سجل تاريخ أسعار الخدمة الموحد -->
                     <div class="info-card">
@@ -831,10 +908,10 @@
                             <span class="info-label">نسبة الضريبة / الخصم</span>
                             <span class="info-value">ضريبة: {{ product.tax_rate|smart_float }}% | خصم: {{ product.discount_rate|smart_float }}%</span>
                         </div>
-                        {% if product.default_supplier %}
+                        {% if product.effective_default_supplier %}
                         <div class="info-row">
                             <span class="info-label">المورد الافتراضي</span>
-                            <span class="info-value text-primary fw-bold">{{ product.default_supplier.name }}</span>
+                            <span class="info-value text-primary fw-bold">{{ product.effective_default_supplier.name }}</span>
                         </div>
                         {% endif %}
                         <div class="info-row">
@@ -1010,6 +1087,7 @@
         <!-- ==========================================================================
            TAB 2 (FOR PRODUCT): التسعير والعملات والموردين (Pricing, FX & Suppliers)
            ========================================================================== -->
+        {% if can_view_operational_costs or can_view_selling_price %}
         <div class="tab-pane fade" id="tab-pricing" role="tabpanel">
             <div class="row">
                 <div class="col-lg-6 col-md-12">
@@ -1027,8 +1105,8 @@
                                 <thead>
                                     <tr>
                                         <th class="text-center">العملة</th>
-                                        <th class="text-center">سعر البيع</th>
-                                        <th class="text-center">سعر التكلفة</th>
+                                        {% if can_view_selling_price %}<th class="text-center">سعر البيع</th>{% endif %}
+                                        {% if can_view_operational_costs %}<th class="text-center">سعر التكلفة</th>{% endif %}
                                         <th class="text-center">الحالة</th>
                                         <th class="text-center">إجراءات</th>
                                     </tr>
@@ -1038,8 +1116,8 @@
                                         <td class="text-center">
                                             <strong class="text-primary">EGP (العملة الأساسية)</strong>
                                         </td>
-                                        <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
-                                        <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
+                                        {% if can_view_selling_price %}<td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>{% endif %}
+                                        {% if can_view_operational_costs %}<td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>{% endif %}
                                         <td class="text-center"><span class="badge bg-success">أساسي</span></td>
                                         <td class="text-center text-muted small">-</td>
                                     </tr>
@@ -1048,6 +1126,7 @@
                                         <td class="text-center">
                                             <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
                                         </td>
+                                        {% if can_view_selling_price %}
                                         <td class="text-center">
                                             {% if cp.indicative_selling_price %}
                                             <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
@@ -1055,6 +1134,8 @@
                                             <span class="text-muted small">تلقائي حسب الصرف</span>
                                             {% endif %}
                                         </td>
+                                        {% endif %}
+                                        {% if can_view_operational_costs %}
                                         <td class="text-center">
                                             {% if cp.indicative_cost_price %}
                                             <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
@@ -1062,13 +1143,14 @@
                                             <span class="text-muted small">تلقائي حسب الصرف</span>
                                             {% endif %}
                                         </td>
+                                        {% endif %}
                                         <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
                                         <td class="text-center">
                                             <div class="btn-group btn-group-sm">
                                                 <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
                                                         data-code="{{ cp.currency.code }}" 
-                                                        data-selling="{{ cp.indicative_selling_price|default:'' }}" 
-                                                        data-cost="{{ cp.indicative_cost_price|default:'' }}" 
+                                                        data-selling="{% if can_view_selling_price %}{{ cp.indicative_selling_price|default:'' }}{% endif %}" 
+                                                        data-cost="{% if can_view_operational_costs %}{{ cp.indicative_cost_price|default:'' }}{% endif %}" 
                                                         data-notes="{{ cp.notes|default:'' }}" 
                                                         title="تعديل السعر">
                                                     <i class="fas fa-edit"></i>
@@ -1094,6 +1176,7 @@
                     </div>
 
                     <!-- أسعار الموردين وسجل الشراء -->
+                    {% if can_view_operational_costs %}
                     <div class="info-card">
                         <div class="info-card-header">
                             <h5 class="info-card-title"><i class="fas fa-truck text-primary"></i>أسعار الموردين وسجل الشراء</h5>
@@ -1163,6 +1246,7 @@
                         </div>
                         {% endif %}
                     </div>
+                    {% endif %}
                 </div>
 
                 <div class="col-lg-6 col-md-12">
@@ -1231,7 +1315,9 @@
             </div>
         </div>
         {% endif %}
+        {% endif %}
 
+        {% if can_view_selling_price %}
         <!-- ==========================================================================
            COMMON TAB (FOR BOTH PRODUCT & SERVICE): تحليلات المبيعات والعملاء
            ========================================================================== -->
@@ -1349,6 +1435,7 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -1419,14 +1506,18 @@
                             {% endfor %}
                         </select>
                     </div>
+                    {% if can_view_selling_price %}
                     <div class="mb-3">
                         <label class="form-label fw-medium">سعر البيع بالعملة</label>
                         <input type="number" step="0.0001" min="0" name="selling_price" id="fx_selling_price" class="form-control" placeholder="أدخل سعر البيع بالعملة">
                     </div>
+                    {% endif %}
+                    {% if can_view_operational_costs %}
                     <div class="mb-3">
                         <label class="form-label fw-medium">سعر التكلفة بالعملة</label>
                         <input type="number" step="0.0001" min="0" name="cost_price" id="fx_cost_price" class="form-control" placeholder="أدخل سعر التكلفة بالعملة">
                     </div>
+                    {% endif %}
                     <div class="mb-3">
                         <label class="form-label fw-medium">ملاحظات</label>
                         <input type="text" name="notes" id="fx_notes" class="form-control" placeholder="سبب تعيين السعر الاسترشادي">
@@ -1447,7 +1538,7 @@
    JavaScript Handlers & AJAX Logic (محتفظ به كاملاً 100%)
    ========================================================================== -->
 <script>
-    const productId = PRODUCT_ID;
+    const productId = parseInt("{{ product.pk|default:'0' }}", 10);
 
     // دالة التغيير بين الصورة الرئيسية والفرعية
     function changeMainImage(imageUrl, altText) {
@@ -1763,18 +1854,28 @@
 
     // أسعار العملات
     function openCurrencyPriceModal(code, selling, cost, notes) {
-        document.getElementById('fx_action').value = 'update';
+        var actionInput = document.getElementById('fx_action');
+        if (actionInput) actionInput.value = 'update';
+        
         var select = document.getElementById('fx_currency_code');
         if (select) {
             select.value = code || '';
             select.disabled = false;
         }
-        document.getElementById('fx_selling_price').value = selling || '';
-        document.getElementById('fx_cost_price').value = cost || '';
-        document.getElementById('fx_notes').value = notes || '';
+        var sellingInput = document.getElementById('fx_selling_price');
+        if (sellingInput) sellingInput.value = selling || '';
         
-        var modal = new bootstrap.Modal(document.getElementById('currencyPricesModal'));
-        modal.show();
+        var costInput = document.getElementById('fx_cost_price');
+        if (costInput) costInput.value = cost || '';
+        
+        var notesInput = document.getElementById('fx_notes');
+        if (notesInput) notesInput.value = notes || '';
+        
+        var modalEl = document.getElementById('currencyPricesModal');
+        if (modalEl) {
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
     }
 
     function deleteCurrencyPrice(code) {

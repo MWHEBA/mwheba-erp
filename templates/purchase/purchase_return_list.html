@@ -29,7 +29,7 @@
 
   <!-- كروت الإحصائيات السريعة -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-header"></div>
         <div class="stats-card-body">
@@ -42,6 +42,7 @@
         </div>
       </div>
     </div>
+    {% if can_view_operational_costs %}
     <div class="col-md-3">
       <div class="stats-card stats-card-info">
         <div class="stats-card-header"></div>
@@ -55,7 +56,8 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    {% endif %}
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-success">
         <div class="stats-card-header"></div>
         <div class="stats-card-body">
@@ -68,7 +70,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %}">
       <div class="stats-card stats-card-warning">
         <div class="stats-card-header"></div>
         <div class="stats-card-body">

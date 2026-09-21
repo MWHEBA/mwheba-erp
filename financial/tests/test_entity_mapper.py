@@ -93,6 +93,7 @@ class TestEntityAccountMapperIntegration(TestCase):
             defaults={'name': 'حساب اختبار', 'account_type': self.account_type, 'is_active': True, 'is_leaf': True}
         )
         
+        Supplier.objects.filter(code='SUP001').delete()
         self.supplier_with_account = Supplier.objects.create(
             name='مورد اختبار',
             code='SUP001',

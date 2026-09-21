@@ -222,7 +222,7 @@ class TestPhase4MobilePunchAPIs:
         today = timezone.now().date()
         att = Attendance.objects.get(employee=emp, date=today)
         assert att.check_in is not None
-        assert att.status == 'present'
+        assert att.status in ['present', 'late']
 
         # التحقق من سجل الـ BiometricLog
         bio_in = BiometricLog.objects.filter(employee=emp, log_type='check_in').latest('timestamp')

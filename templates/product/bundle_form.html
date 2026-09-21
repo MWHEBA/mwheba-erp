@@ -334,12 +334,16 @@
                                 <div class="col-md-4 mb-3">
                                     {{ form.barcode|as_crispy_field }}
                                 </div>
+                                {% if can_view_operational_costs %}
                                 <div class="col-md-4 mb-3">
                                     {{ form.cost_price|as_crispy_field }}
                                 </div>
+                                {% endif %}
+                                {% if can_view_selling_price %}
                                 <div class="col-md-4 mb-3">
                                     {{ form.selling_price|as_crispy_field }}
                                 </div>
+                                {% endif %}
                                 <div class="col-md-4 mb-3">
                                     {{ form.min_stock|as_crispy_field }}
                                 </div>
@@ -530,18 +534,24 @@
                             <span>عدد المكونات:</span>
                             <span id="components-count">{{ components_count|default:0 }}</span>
                         </div>
+                        {% if can_view_operational_costs %}
                         <div class="summary-item">
                             <span>إجمالي تكلفة المكونات:</span>
                             <span id="total-cost">0.00 {{ currency_symbol }}</span>
                         </div>
+                        {% endif %}
+                        {% if can_view_selling_price %}
                         <div class="summary-item">
                             <span>سعر البيع المحدد:</span>
                             <span id="selling-price">{{ bundle.selling_price|smart_float|default:"0.00" }} {{ currency_symbol }}</span>
                         </div>
+                        {% endif %}
+                        {% if can_view_profit_margin %}
                         <div class="summary-item">
                             <span>هامش الربح المتوقع:</span>
                             <span id="profit-margin">0%</span>
                         </div>
+                        {% endif %}
                         {% if calculated_stock is not None %}
                         <div class="summary-item">
                             <span>المخزون المحسوب:</span>
@@ -1298,10 +1308,11 @@ $(document).ready(function() {
                     if (data.success && data.products) {
                         return {
                             results: data.products.map(function(product) {
+                                var priceText = product.selling_price ? (' - ' + product.selling_price + ' {{ currency_symbol }}') : '';
                                 return {
                                     id: product.id,
-                                    text: `${product.name} (${product.sku}) - ${product.selling_price} {{ currency_symbol }} - ${product.current_stock} متوفر`,
-                                    price: product.selling_price,
+                                    text: product.name + ' (' + product.sku + ')' + priceText + ' - ' + product.current_stock + ' متوفر',
+                                    price: product.selling_price || 0,
                                     stock: product.current_stock,
                                     name: product.name,
                                     sku: product.sku

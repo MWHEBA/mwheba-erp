@@ -96,7 +96,9 @@
                                     <th class="text-center">{% trans "الرمز" %}</th>
                                     <th class="text-center">{% trans "التصنيف" %}</th>
                                     <th class="text-center">{% trans "النوع" %}</th>
+                                    {% if can_view_selling_price %}
                                     <th class="text-center">{% trans "سعر البيع" %}</th>
+                                    {% endif %}
                                     <th class="text-center">{% trans "خيارات" %}</th>
                                 </tr>
                             </thead>
@@ -108,7 +110,9 @@
                                     <td class="text-center"><code>{{ product.sku }}</code></td>
                                     <td class="text-center">{{ product.category.name }}</td>
                                     <td class="text-center">-</td>
+                                    {% if can_view_selling_price %}
                                     <td class="text-center">{{ product.selling_price|smart_float }}</td>
+                                    {% endif %}
                                     <td class="text-center">
                                         <a href="{% url 'product:product_detail' product.pk %}" class="btn btn-sm btn-outline-info">
                                             <i class="fas fa-eye"></i>

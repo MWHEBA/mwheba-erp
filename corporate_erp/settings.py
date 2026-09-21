@@ -195,13 +195,13 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.media",
                 
-                # Custom (3 فقط) - الأساسي - Memory optimization
+                # Custom context processors
                 "core.context_processors.global_settings",
+                "core.context_processors.user_permissions",
                 "core.context_processors.payment_accounts",
                 "utils.context_processors.common_variables",
                 
                 # ❌ REMOVED - مكرر أو غير ضروري - Memory optimization
-                # "core.context_processors.user_permissions",  # مكرر مع auth
                 # "core.context_processors.notifications",  # مش مفعل
                 # "core.context_processors.enabled_modules",  # نادر الاستخدام
                 # "utils.context_processors.user_permissions",  # مكرر

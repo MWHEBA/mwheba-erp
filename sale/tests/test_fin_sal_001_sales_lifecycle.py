@@ -24,17 +24,16 @@ class TestFINSAL001SalesDocumentLifecycle:
         revenue_type, _ = AccountType.objects.get_or_create(code="REVENUE", defaults={"name": "Revenue", "category": "REVENUE"})
         expense_type, _ = AccountType.objects.get_or_create(code="EXPENSE", defaults={"name": "Expense", "category": "EXPENSE"})
 
-        inv_acc = ChartOfAccounts.objects.create(code="10400", name="Inventory Asset", account_type=asset_type, is_active=True)
-        ar_acc = ChartOfAccounts.objects.create(code="11010", name="Customer AR Control", account_type=asset_type, is_active=True)
-        sales_acc = ChartOfAccounts.objects.create(code="40100", name="Sales Revenue Control", account_type=revenue_type, is_active=True)
-        cogs_acc = ChartOfAccounts.objects.create(code="50100", name="COGS Control", account_type=expense_type, is_active=True)
+        inv_acc, _ = ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset", "account_type": asset_type, "is_active": True})
+        ar_acc, _ = ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "Customer AR Control", "account_type": asset_type, "is_active": True})
+        sales_acc, _ = ChartOfAccounts.objects.get_or_create(code="40100", defaults={"name": "Sales Revenue Control", "account_type": revenue_type, "is_active": True})
+        cogs_acc, _ = ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "COGS Control", "account_type": expense_type, "is_active": True})
 
         today = timezone.now().date()
         AccountingPeriod.objects.get_or_create(
-            name=f"Period_{today.year}_{today.month}",
             start_date=today.replace(day=1),
             end_date=today.replace(day=28),
-            defaults={"status": "open"}
+            defaults={"name": f"Period_{today.year}_{today.month}", "status": "open"}
         )
 
         customer = Customer.objects.create(name="Middle East Trading", code="CUST-SL-001", financial_account=ar_acc, credit_limit=Decimal("100000.00"))

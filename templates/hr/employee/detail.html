@@ -1078,6 +1078,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% if employee.registered_device_uuid and perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
 <!-- Modal فك ارتباط هاتف الموظف (Corporate Centered Modal) -->
 <div class="modal fade" id="resetDeviceModal" tabindex="-1">

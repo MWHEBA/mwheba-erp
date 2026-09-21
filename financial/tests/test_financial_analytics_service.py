@@ -30,23 +30,97 @@ def analytics_setup(db):
     )
 
     asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "أصول", "category": "asset", "nature": "debit"})
+    if asset_type.category != "asset" or asset_type.nature != "debit":
+        asset_type.category = "asset"
+        asset_type.nature = "debit"
+        asset_type.save()
+
     liability_type, _ = AccountType.objects.get_or_create(code="LIAB", defaults={"name": "خصوم", "category": "liability", "nature": "credit"})
+    if liability_type.category != "liability" or liability_type.nature != "credit":
+        liability_type.category = "liability"
+        liability_type.nature = "credit"
+        liability_type.save()
+
     equity_type, _ = AccountType.objects.get_or_create(code="EQUITY", defaults={"name": "حقوق ملكية", "category": "equity", "nature": "credit"})
+    if equity_type.category != "equity" or equity_type.nature != "credit":
+        equity_type.category = "equity"
+        equity_type.nature = "credit"
+        equity_type.save()
+
     revenue_type, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "إيرادات", "category": "revenue", "nature": "credit"})
+    if revenue_type.category != "revenue" or revenue_type.nature != "credit":
+        revenue_type.category = "revenue"
+        revenue_type.nature = "credit"
+        revenue_type.save()
+
     expense_type, _ = AccountType.objects.get_or_create(code="EXP", defaults={"name": "مصروفات", "category": "expense", "nature": "debit"})
+    if expense_type.category != "expense" or expense_type.nature != "debit":
+        expense_type.category = "expense"
+        expense_type.nature = "debit"
+        expense_type.save()
+
+    codes = ["11110", "11210", "11310", "12110", "21110", "31110", "32210", "41100", "51100", "52100"]
+    ChartOfAccounts.objects.filter(parent__code__in=codes).delete()
 
     cash_acc, _ = ChartOfAccounts.objects.get_or_create(code="11110", defaults={"name": "الخزينة", "account_type": asset_type, "level": 3, "is_leaf": True})
+    cash_acc.is_leaf = True
+    cash_acc.is_active = True
+    cash_acc.account_type = asset_type
+    cash_acc.save()
+
     ar_acc, _ = ChartOfAccounts.objects.get_or_create(code="11210", defaults={"name": "العملاء", "account_type": asset_type, "level": 3, "is_leaf": True})
+    ar_acc.is_leaf = True
+    ar_acc.is_active = True
+    ar_acc.account_type = asset_type
+    ar_acc.save()
+
     inv_acc, _ = ChartOfAccounts.objects.get_or_create(code="11310", defaults={"name": "المخزون", "account_type": asset_type, "level": 3, "is_leaf": True})
+    inv_acc.is_leaf = True
+    inv_acc.is_active = True
+    inv_acc.account_type = asset_type
+    inv_acc.save()
+
     fa_acc, _ = ChartOfAccounts.objects.get_or_create(code="12110", defaults={"name": "الأصول الثابتة", "account_type": asset_type, "level": 3, "is_leaf": True})
+    fa_acc.is_leaf = True
+    fa_acc.is_active = True
+    fa_acc.account_type = asset_type
+    fa_acc.save()
 
     ap_acc, _ = ChartOfAccounts.objects.get_or_create(code="21110", defaults={"name": "الموردون", "account_type": liability_type, "level": 3, "is_leaf": True})
+    ap_acc.is_leaf = True
+    ap_acc.is_active = True
+    ap_acc.account_type = liability_type
+    ap_acc.save()
+
     capital_acc, _ = ChartOfAccounts.objects.get_or_create(code="31110", defaults={"name": "رأس المال", "account_type": equity_type, "level": 3, "is_leaf": True})
+    capital_acc.is_leaf = True
+    capital_acc.is_active = True
+    capital_acc.account_type = equity_type
+    capital_acc.save()
+
     retained_acc, _ = ChartOfAccounts.objects.get_or_create(code="32210", defaults={"name": "الأرباح المرحلة", "account_type": equity_type, "level": 3, "is_leaf": True})
+    retained_acc.is_leaf = True
+    retained_acc.is_active = True
+    retained_acc.account_type = equity_type
+    retained_acc.save()
 
     sales_acc, _ = ChartOfAccounts.objects.get_or_create(code="41100", defaults={"name": "المبيعات", "account_type": revenue_type, "level": 3, "is_leaf": True})
+    sales_acc.is_leaf = True
+    sales_acc.is_active = True
+    sales_acc.account_type = revenue_type
+    sales_acc.save()
+
     cogs_acc, _ = ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "تكلفة المبيعات", "account_type": expense_type, "level": 3, "is_leaf": True})
+    cogs_acc.is_leaf = True
+    cogs_acc.is_active = True
+    cogs_acc.account_type = expense_type
+    cogs_acc.save()
+
     admin_acc, _ = ChartOfAccounts.objects.get_or_create(code="52100", defaults={"name": "مصروفات إدارية", "account_type": expense_type, "level": 3, "is_leaf": True})
+    admin_acc.is_leaf = True
+    admin_acc.is_active = True
+    admin_acc.account_type = expense_type
+    admin_acc.save()
 
     user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@example.com", "is_staff": True, "is_superuser": True})
     if not user.is_superuser:

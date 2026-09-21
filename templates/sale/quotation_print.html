@@ -85,6 +85,7 @@
         )</span>
         {% endif %}
     </td>
+    {% if can_view_selling_price %}
     <td class="col-amount" style="text-align: center;">{{ item.unit_price|currency:currency_symbol_active }}</td>
     {% if has_item_discounts or quotation.has_item_discounts %}
     <td style="text-align: center;">
@@ -96,6 +97,7 @@
     </td>
     {% endif %}
     <td class="col-amount" style="text-align: center; font-weight: 700;">{{ item.total|currency:currency_symbol_active }}</td>
+    {% endif %}
 </tr>
 {% endfor %}
 {% endblock %}
@@ -110,6 +112,7 @@
 {% endblock %}
 
 {% block summary_rows %}
+{% if can_view_selling_price %}
 <tr>
     <td>{% if is_english %}Subtotal{% else %}المجموع الفرعي{% endif %}</td>
     <td>{{ quotation.subtotal|currency:currency_symbol_active }}</td>
@@ -142,6 +145,7 @@
     <td>{% if is_english %}Grand Total{% else %}إجمالي عرض السعر{% endif %}</td>
     <td>{{ quotation.total|currency:currency_symbol_active }}</td>
 </tr>
+{% endif %}
 {% endblock %}
 
 {% block header_custom_fields %}

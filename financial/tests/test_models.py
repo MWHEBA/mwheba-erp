@@ -450,11 +450,13 @@ class CategoryBudgetModelTest(TestCase):
             defaults={'name': 'Administrative Expenses', 'account_type': account_type, 'is_active': True}
         )
         
-        self.category = FinancialCategory.objects.create(
+        self.category, _ = FinancialCategory.objects.get_or_create(
             code='admin_expenses',
-            name='مصروفات إدارية',
-            default_expense_account=self.expense_account,
-            is_active=True
+            defaults={
+                'name': 'مصروفات إدارية',
+                'default_expense_account': self.expense_account,
+                'is_active': True
+            }
         )
     
     def test_create_category_budget(self):

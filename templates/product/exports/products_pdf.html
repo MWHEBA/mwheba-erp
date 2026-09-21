@@ -125,7 +125,9 @@
                 <th style="width: 27%;" class="text-center">اسم المنتج</th>
                 <th style="width: 15%;" class="text-center">التصنيف</th>
                 <th style="width: 12%;" class="text-center">النوع</th>
+                {% if can_view_selling_price %}
                 <th style="width: 10%;" class="text-center">سعر البيع</th>
+                {% endif %}
                 <th style="width: 8%;" class="text-center">المخزون</th>
                 <th style="width: 10%;" class="text-center">الحالة</th>
             </tr>
@@ -138,7 +140,9 @@
                 <td class="text-start">{{ product.name }}</td>
                 <td class="text-center">{{ product.category.name|default:"-" }}</td>
                 <td class="text-center">-</td>
+                {% if can_view_selling_price %}
                 <td class="text-center">{{ product.sale_price|smart_float }} {{ currency_symbol }}</td>
+                {% endif %}
                 <td class="text-center">{{ product.total_stock|smart_float }}</td>
                 <td class="text-center">
                     {% if product.is_active %}
@@ -150,7 +154,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" class="text-center">لا توجد منتجات</td>
+                <td colspan="{% if can_view_selling_price %}8{% else %}7{% endif %}" class="text-center">لا توجد منتجات</td>
             </tr>
             {% endfor %}
         </tbody>

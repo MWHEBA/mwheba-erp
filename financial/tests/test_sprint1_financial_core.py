@@ -26,23 +26,26 @@ class FinancialCoreSprint1TestSuite(TestCase):
         self.user = User.objects.create_user(username="fin_admin", password="password123", is_superuser=True, is_staff=True)
 
         # إنشاء أنواع الحسابات
-        self.asset_type = AccountType.objects.create(code="AST_TEST", name="أصول", nature="debit")
-        self.equity_type = AccountType.objects.create(code="EQ_TEST", name="حقوق ملكية", nature="credit")
+        self.asset_type, _ = AccountType.objects.get_or_create(code="AST_TEST", defaults={"name": "أصول", "nature": "debit"})
+        self.equity_type, _ = AccountType.objects.get_or_create(code="EQ_TEST", defaults={"name": "حقوق ملكية", "nature": "credit"})
 
         # إنشاء حسابات أستاذ فرعية فعالة
-        self.cash_account = ChartOfAccounts.objects.create(
-            code="10100_T", name="الصندوق التجريبي", account_type=self.asset_type, is_active=True, is_leaf=True
+        self.cash_account, _ = ChartOfAccounts.objects.get_or_create(
+            code="10100_T", defaults={"name": "الصندوق التجريبي", "account_type": self.asset_type, "is_active": True, "is_leaf": True}
         )
-        self.capital_account = ChartOfAccounts.objects.create(
-            code="30100_T", name="رأس المال التجريبي", account_type=self.equity_type, is_active=True, is_leaf=True
+        self.capital_account, _ = ChartOfAccounts.objects.get_or_create(
+            code="30100_T", defaults={"name": "رأس المال التجريبي", "account_type": self.equity_type, "is_active": True, "is_leaf": True}
         )
+
+        AccountingPeriod.objects.filter(start_date__gte=date(2035, 1, 1), end_date__lte=date(2035, 12, 31)).delete()
+        FiscalYear.objects.filter(year_code="FY2035_TEST").delete()
 
         # إنشاء سنة مالية وفترة محاسبية
         self.fiscal_year = PeriodControlService.create_fiscal_year_with_periods(
-            year_code="FY2026_TEST",
-            name="السنة المالية 2026",
-            start_date=date(2026, 1, 1),
-            end_date=date(2026, 12, 31)
+            year_code="FY2035_TEST",
+            name="السنة المالية 2035",
+            start_date=date(2035, 1, 1),
+            end_date=date(2035, 12, 31)
         )
         self.period = self.fiscal_year.periods.first()
 
@@ -59,7 +62,7 @@ class FinancialCoreSprint1TestSuite(TestCase):
             {"account": self.capital_account, "debit": Decimal("0.00"), "credit": Decimal("1000.00")},
         ]
         draft = LedgerCoreService.create_draft_entry(
-            date=date(2026, 1, 15),
+            date=date(2035, 1, 15),
             description="إيداع رأس مال أول المدة",
             reference="REF-001",
             entry_type="manual",
@@ -96,7 +99,7 @@ class FinancialCoreSprint1TestSuite(TestCase):
         ]
         with self.assertRaises(FinancialCoreError):
             LedgerCoreService.create_draft_entry(
-                date=date(2026, 1, 15),
+                date=date(2035, 1, 15),
                 description="قيد غير متوازن",
                 reference="REF-UNBAL",
                 entry_type="manual",
@@ -111,7 +114,7 @@ class FinancialCoreSprint1TestSuite(TestCase):
             {"account": self.capital_account, "debit": Decimal("0.00"), "credit": Decimal("500.00")},
         ]
         original = LedgerCoreService.create_draft_entry(
-            date=date(2026, 1, 15),
+            date=date(2035, 1, 15),
             description="قيد أصلي المراد عكسه",
             reference="REF-ORIG",
             entry_type="manual",
@@ -157,8 +160,9 @@ class FinancialCoreSprint1TestSuite(TestCase):
         """التحقق من إنشاء ونشر وقفل دفعة الأرصدة الافتتاحية"""
         batch = OpeningBalanceBatch.objects.create(
             fiscal_year=self.fiscal_year,
-            batch_number="OB-2026-TEST",
-            description="الأرصدة الافتتاحية لسنة 2026",
+            opening_date=date(2035, 1, 1),
+            batch_number="OB-2035-TEST",
+            description="الأرصدة الافتتاحية لسنة 2035",
             status="draft",
             created_by=self.user
         )

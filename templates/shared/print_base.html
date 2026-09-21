@@ -711,11 +711,23 @@
                             {% endif %}
                             <th class="col-desc">{% if is_english %}Item & Description{% else %}البند / البيان{% endif %}</th>
                             <th style="width: 100px; text-align: center;">{% if is_english %}Qty{% else %}الكمية{% endif %}</th>
-                            <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Unit Price{% else %}سعر الوحدة{% endif %}</th>
-                            {% if has_item_discounts or sale and sale.has_item_discounts or quotation and quotation.has_item_discounts or purchase and purchase.has_item_discounts %}
-                            <th style="width: 100px; text-align: center;">{% if is_english %}Discount{% else %}الخصم{% endif %}</th>
+                            {% if purchase or po %}
+                                {% if can_view_operational_costs %}
+                                <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Unit Price{% else %}سعر الوحدة{% endif %}</th>
+                                {% if has_item_discounts or purchase and purchase.has_item_discounts %}
+                                <th style="width: 100px; text-align: center;">{% if is_english %}Discount{% else %}الخصم{% endif %}</th>
+                                {% endif %}
+                                <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Total{% else %}الإجمالي{% endif %}</th>
+                                {% endif %}
+                            {% else %}
+                                {% if can_view_selling_price %}
+                                <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Unit Price{% else %}سعر الوحدة{% endif %}</th>
+                                {% if has_item_discounts or sale and sale.has_item_discounts or quotation and quotation.has_item_discounts %}
+                                <th style="width: 100px; text-align: center;">{% if is_english %}Discount{% else %}الخصم{% endif %}</th>
+                                {% endif %}
+                                <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Total{% else %}الإجمالي{% endif %}</th>
+                                {% endif %}
                             {% endif %}
-                            <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Total{% else %}الإجمالي{% endif %}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -725,6 +737,7 @@
             </div>
 
             <!-- Financial Summary Section -->
+            {% if purchase and can_view_operational_costs or po and can_view_operational_costs or not purchase and not po and can_view_selling_price %}
             <div class="financial-summary-wrapper keep-together">
                 <div class="summary-notes-side">
                     {% block summary_notes %}
@@ -736,6 +749,7 @@
                     </table>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Terms & Conditions Section -->
             <div class="terms-section keep-together">

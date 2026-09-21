@@ -40,6 +40,7 @@
 
   <!-- Overview Cards (Rule 7 Compliant - Direct Grid Row) -->
   <div class="row g-3 mb-4">
+    {% if can_view_selling_price %}
     <div class="col-md-6 col-lg-3">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-header"></div>
@@ -95,6 +96,47 @@
         </div>
       </div>
     </div>
+    {% else %}
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice"></i>
+          </div>
+          <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+          <div class="stats-card-value">{{ invoices_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-clipboard-list"></i>
+          </div>
+          <div class="stats-card-title">{% trans "أوامر البيع" %}</div>
+          <div class="stats-card-value">{{ sales_orders_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "أمر" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stats-card-title">{% trans "حالة الحساب" %}</div>
+          <div class="stats-card-value" style="font-size: 1.1rem;">{% if customer.is_active %}{% trans "نشط" %}{% else %}{% trans "معطل" %}{% endif %}</div>
+          <div class="stats-card-unit"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
 
@@ -110,7 +152,7 @@
             <i class="fas fa-info-circle me-2"></i>{% trans "معلومات العميل" %}
           </button>
         </li>
-        {% if enable_quotations %}
+        {% if enable_quotations and can_view_selling_price %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="quotations-tab" data-bs-toggle="tab"
             data-bs-target="#quotations-tab-pane" type="button" role="tab" aria-controls="quotations-tab-pane"
@@ -128,6 +170,7 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ sales_orders_count|default:"0" }}</span>
           </button>
         </li>
+        {% if can_view_selling_price %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="invoices-tab" data-bs-toggle="tab"
             data-bs-target="#invoices-tab-pane" type="button" role="tab" aria-controls="invoices-tab-pane"
@@ -158,6 +201,7 @@
             <i class="fas fa-clock me-2"></i>{% trans "أعمار الديون" %}
           </button>
         </li>
+        {% endif %}
       </ul>
     </div>
     <div class="card-body p-3">

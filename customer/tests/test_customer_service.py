@@ -30,8 +30,8 @@ def chart_of_accounts(db):
     """Create necessary chart of accounts"""
     # Create asset account type if not exists
     asset_type, _ = AccountType.objects.get_or_create(
-        name='أصول',
-        defaults={'code': 'ASSET', 'nature': 'debit'}
+        code='ASSET',
+        defaults={'name': 'أصول', 'nature': 'debit'}
     )
     
     # Create main customers account (10300)

@@ -100,7 +100,7 @@ class TestSettingsArchitecture:
     def test_system_settings_password_preservation(self, client):
         """اختبار الحفاظ على كلمة المرور القديمة عند إرسال حقل فارغ"""
         from financial.models import Currency
-        curr = Currency.objects.create(name="Egyptian Pound", code="EGP", symbol="EGP", is_functional=True, is_active=True)
+        curr, _ = Currency.objects.get_or_create(code="EGP", defaults={"name": "Egyptian Pound", "symbol": "EGP", "is_functional": True, "is_active": True})
         
         client.force_login(self.superuser)
         SystemSetting.objects.create(key="email_password", value="SecretP@ss123", is_active=True)

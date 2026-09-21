@@ -151,6 +151,9 @@ class ServicePriceGovernanceModelTest(TestCase):
                 'is_functional': False,
             }
         )
+        # تنظيف أي أسعار صرف سابقة لنفس العملة لضمان عزل الاختبار
+        ExchangeRate.objects.filter(from_currency=usd).delete()
+        
         # تسجيل سعر صرف قديم (قبل 10 أيام - متجاوز لقاعدة 7 أيام)
         rate_date = timezone.now().date() - timedelta(days=10)
         ExchangeRate.objects.create(

@@ -94,12 +94,13 @@ class SupplierProductPrice(models.Model):
 
         super().save(*args, **kwargs)
 
-        # تحديث سعر التكلفة الرئيسي للمنتج إذا كان هذا المورد افتراضي
-        if self.is_default and self.product.cost_price != self.cost_price:
+        # تحديث سعر التكلفة والمورد الافتراضي للمنتج إذا كان هذا المورد افتراضي
+        if self.is_default:
             from .product_core import Product
-            Product.objects.filter(pk=self.product.pk).update(
-                cost_price=self.cost_price
-            )
+            update_data = {"default_supplier": self.supplier}
+            if self.product.cost_price != self.cost_price:
+                update_data["cost_price"] = self.cost_price
+            Product.objects.filter(pk=self.product.pk).update(**update_data)
 
     @property
     def price_difference_from_main(self):

@@ -167,6 +167,7 @@
         </span>
         {% endif %}
     </td>
+    {% if can_view_selling_price %}
     <td class="col-amount" style="text-align: center;">{{ item.unit_price|currency:currency_symbol_active }}</td>
     {% if has_item_discounts %}
     <td style="text-align: center;">
@@ -178,6 +179,7 @@
     </td>
     {% endif %}
     <td class="col-amount" style="text-align: center; font-weight: 700;">{{ item.line_total|currency:currency_symbol_active }}</td>
+    {% endif %}
 </tr>
 {% endfor %}
 {% endblock %}
@@ -190,6 +192,7 @@
     </span>
 </div>
 
+{% if can_view_selling_price %}
 {% if amount_in_words %}
 <div class="p-2 border rounded bg-light small mb-2">
     <strong>{% if is_english %}Amount in Words:{% else %}المبلغ بالحروف:{% endif %}</strong>
@@ -207,9 +210,11 @@
     </span>
 </div>
 {% endif %}
+{% endif %}
 {% endblock %}
 
 {% block summary_rows %}
+{% if can_view_selling_price %}
 <tr>
     <td>{% if is_english %}Subtotal{% else %}المجموع الفرعي{% endif %}</td>
     <td>{{ so.subtotal|currency:currency_symbol_active }}</td>
@@ -258,6 +263,7 @@
     <td>{% if is_english %}Remaining Order Balance{% else %}المتبقي من قيمة أمر البيع{% endif %}</td>
     <td>{{ so.total_amount|subtract:so.paid_down_payment|currency:currency_symbol_active }}</td>
 </tr>
+{% endif %}
 {% endif %}
 {% endblock %}
 

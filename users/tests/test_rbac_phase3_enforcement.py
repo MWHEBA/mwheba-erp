@@ -380,19 +380,22 @@ class RBACPhase3EnforcementTests(TestCase):
     # -------------------------------------------------------------------------
     def test_period_close_draft_guard_and_permission(self):
         """التحقق من أن إغلاق الفترة يشترط صلاحية financial.close_accounting_period ويحظر المسودات"""
-        fy = FiscalYear.objects.create(
-            year_code="FY2026-P3",
-            name="سنة 2026 تجريبية",
-            start_date=date(2026, 1, 1),
-            end_date=date(2026, 12, 31),
-            status="open"
+        fy, _ = FiscalYear.objects.get_or_create(
+            year_code="FY2045-P3",
+            defaults={
+                "name": "سنة 2045 تجريبية",
+                "start_date": date(2045, 1, 1),
+                "end_date": date(2045, 12, 31),
+                "status": "open"
+            }
         )
+        AccountingPeriod.objects.filter(start_date=date(2045, 1, 1), end_date=date(2045, 1, 31)).delete()
         period = AccountingPeriod.objects.create(
             fiscal_year=fy,
-            name="فترة يناير 2026",
+            name="فترة يناير 2045",
             period_number=1,
-            start_date=date(2026, 1, 1),
-            end_date=date(2026, 1, 31),
+            start_date=date(2045, 1, 1),
+            end_date=date(2045, 1, 31),
             status="open"
         )
 
@@ -404,7 +407,7 @@ class RBACPhase3EnforcementTests(TestCase):
         JournalEntry.objects.create(
             number="JE-DRAFT-01",
             accounting_period=period,
-            date=date(2026, 1, 15),
+            date=date(2045, 1, 15),
             status="draft",
             description="قيد مسودة تجريبي"
         )

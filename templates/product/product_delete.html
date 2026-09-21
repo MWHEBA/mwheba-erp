@@ -83,12 +83,16 @@
                                     </p>
                                 </div>
                                 <div class="col-md-6">
+                                    {% if can_view_operational_costs %}
                                     <p class="mb-2"><strong>سعر التكلفة:</strong> 
                                         <span class="badge bg-info">{{ product.cost_price|smart_float }} {{ currency_symbol }}</span>
                                     </p>
+                                    {% endif %}
+                                    {% if can_view_selling_price %}
                                     <p class="mb-2"><strong>سعر البيع:</strong> 
                                         <span class="badge bg-success">{{ product.selling_price|smart_float }} {{ currency_symbol }}</span>
                                     </p>
+                                    {% endif %}
                                     {% if not product.is_service %}
                                     <p class="mb-2"><strong>المخزون الحالي:</strong> 
                                         <span class="badge bg-primary">{{ product.current_stock }} {{ product.unit.name }}</span>

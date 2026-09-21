@@ -36,20 +36,24 @@ class CoreSupplierFunctionalityTest(TestCase):
         )
         
         # إنشاء أنواع موردين أساسية للشركة
-        self.educational_type = SupplierType.objects.create(
-            name='مورد متخصص',
+        self.educational_type, _ = SupplierType.objects.get_or_create(
             code='educational',
-            description='موردي المواد والمستلزمات المتخصصة',
-            icon='fas fa-book',
-            color='#007bff'
+            defaults={
+                'name': 'مورد متخصص',
+                'description': 'موردي المواد والمستلزمات المتخصصة',
+                'icon': 'fas fa-book',
+                'color': '#007bff'
+            }
         )
         
-        self.service_type = SupplierType.objects.create(
-            name='مقدم خدمات',
+        self.service_type, _ = SupplierType.objects.get_or_create(
             code='service_provider',
-            description='مقدمي خدمات الصيانة والتنظيف',
-            icon='fas fa-tools',
-            color='#ffc107'
+            defaults={
+                'name': 'مقدم خدمات',
+                'description': 'مقدمي خدمات الصيانة والتنظيف',
+                'icon': 'fas fa-tools',
+                'color': '#ffc107'
+            }
         )
         
         # إنشاء مورد أساسي للاختبار
@@ -234,10 +238,12 @@ class SupplierAdminInterfaceTest(TestCase):
         )
         
         # إنشاء نوع مورد
-        self.supplier_type = SupplierType.objects.create(
-            name='مورد عام',
+        self.supplier_type, _ = SupplierType.objects.get_or_create(
             code='general',
-            description='مورد عام للشركة'
+            defaults={
+                'name': 'مورد عام',
+                'description': 'مورد عام للشركة'
+            }
         )
         
         # إنشاء مورد
@@ -388,9 +394,9 @@ class SupplierSystemIntegrationTest(TestCase):
         
         # اختبار إنشاء النماذج
         try:
-            supplier_type = SupplierType.objects.create(
-                name='اختبار النظام',
-                code='system_test'
+            supplier_type, _ = SupplierType.objects.get_or_create(
+                code='system_test',
+                defaults={'name': 'اختبار النظام'}
             )
             
             supplier = Supplier.objects.create(
@@ -419,9 +425,9 @@ class SupplierSystemIntegrationTest(TestCase):
         print("🧪 اختبار سلامة البيانات...")
         
         # إنشاء بيانات اختبار
-        supplier_type = SupplierType.objects.create(
-            name='اختبار السلامة',
-            code='integrity_test'
+        supplier_type, _ = SupplierType.objects.get_or_create(
+            code='integrity_test',
+            defaults={'name': 'اختبار السلامة'}
         )
         
         supplier = Supplier.objects.create(
@@ -450,10 +456,12 @@ class SupplierSystemIntegrationTest(TestCase):
         print("🧪 اختبار سير العمل الكامل للموردين...")
         
         # 1. إنشاء نوع مورد
-        supplier_type = SupplierType.objects.create(
-            name='مورد سير العمل',
+        supplier_type, _ = SupplierType.objects.get_or_create(
             code='workflow_test',
-            description='اختبار سير العمل الكامل'
+            defaults={
+                'name': 'مورد سير العمل',
+                'description': 'اختبار سير العمل الكامل'
+            }
         )
         
         # 2. إنشاء مورد
@@ -467,9 +475,9 @@ class SupplierSystemIntegrationTest(TestCase):
         supplier.refresh_from_db()
         
         # 3. إضافة نوع خدمات إضافية
-        service_type = SupplierType.objects.create(
-            name='خدمات إضافية',
-            code='additional_service'
+        service_type, _ = SupplierType.objects.get_or_create(
+            code='additional_service',
+            defaults={'name': 'خدمات إضافية'}
         )
         
         # 4. تحديث بيانات المورد

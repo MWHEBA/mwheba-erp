@@ -124,10 +124,18 @@ class ProductForm(forms.ModelForm):
         }
         
     def __init__(self, *args, **kwargs):
-        # استخراج is_service من kwargs إذا كان موجود
+        # استخراج is_service و user من kwargs إذا كانا موجودين
         is_service = kwargs.pop('is_service', None)
+        user = kwargs.pop('user', None)
+        self.user = user
         
         super().__init__(*args, **kwargs)
+        
+        # حجب سعر البيع للمستخدمين غير المصرح لهم مع الحفاظ على القيمة في قاعدة البيانات
+        if user and hasattr(user, 'can_view_selling_price') and not user.can_view_selling_price:
+            if 'selling_price' in self.fields:
+                self.fields['selling_price'].required = False
+                self.fields['selling_price'].widget = forms.HiddenInput()
         
         from financial.models.tax import TaxCode
         
@@ -279,7 +287,9 @@ class ProductForm(forms.ModelForm):
         selling_price = self.cleaned_data.get('selling_price')
         if selling_price is not None:
             return Decimal(str(selling_price)).quantize(Decimal('0.01'))
-        return selling_price
+        if self.instance and self.instance.pk and self.instance.selling_price is not None:
+            return self.instance.selling_price
+        return Decimal('0.00')
 
     def clean_min_stock(self):
         min_stock = self.cleaned_data.get("min_stock")
@@ -508,7 +518,15 @@ class BundleForm(forms.ModelForm):
         }
     
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        self.user = user
         super().__init__(*args, **kwargs)
+        
+        # حجب سعر البيع للمستخدمين غير المصرح لهم مع الحفاظ على القيمة السابقة
+        if user and hasattr(user, 'can_view_selling_price') and not user.can_view_selling_price:
+            if 'selling_price' in self.fields:
+                self.fields['selling_price'].required = False
+                self.fields['selling_price'].widget = forms.HiddenInput()
         
         # تعيين is_bundle = True تلقائياً للمنتجات الجديدة
         if not self.instance.pk:
@@ -534,6 +552,14 @@ class BundleForm(forms.ModelForm):
         self.fields['category'].queryset = Category.objects.filter(is_active=True)
         self.fields['unit'].queryset = Unit.objects.filter(is_active=True)
     
+    def clean_selling_price(self):
+        selling_price = self.cleaned_data.get('selling_price')
+        if selling_price is not None:
+            return Decimal(str(selling_price)).quantize(Decimal('0.01'))
+        if self.instance and self.instance.pk and self.instance.selling_price is not None:
+            return self.instance.selling_price
+        return Decimal('0.00')
+
     def save(self, commit=True):
         """
         حفظ المنتج المجمع مع تعيين is_bundle = True

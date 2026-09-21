@@ -145,6 +145,9 @@ class AccountingGateway:
         'product.BatchVoucher',
         'product.BundleSale',
         'product.Product',
+        'operations.WorkOrder',
+        'operations.ProductionRun',
+        'operations.MaintenanceTask',
     }
     
     # High-priority workflows that require strict validation

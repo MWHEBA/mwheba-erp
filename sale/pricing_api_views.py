@@ -110,9 +110,15 @@ def evaluate_cart_api(request):
         clean_response = sanitize_decimal(cart_result)
         clean_response["success"] = True
         clean_response["lines"] = clean_response.get("items", [])
+        can_view_profit_margin = getattr(request.user, 'can_view_profit_margin', True)
         for line in clean_response["lines"]:
             if "discount" not in line:
                 line["discount"] = line.get("applied_discount", 0)
+            if not can_view_profit_margin:
+                line.pop("cost_price", None)
+                line.pop("is_below_cost", None)
+                if isinstance(line.get("price_snapshot"), dict):
+                    line["price_snapshot"].pop("cost_price", None)
         return JsonResponse(clean_response)
 
     except Exception as e:

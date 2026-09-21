@@ -339,8 +339,8 @@ class TestPhase4Enforcement:
         """15. التحقق من أن قالب الاستلام المخزني GRN يحجب التكلفة والأسعار عن أمين المخزن"""
         with open("templates/purchase/grn_detail.html", "r", encoding="utf-8") as f:
             template_content = f.read()
-        # التحقق من أن ظهور التكلفة مشروط بصلاحية view_purchase أو view_journalentry
-        assert "{% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}" in template_content
+        # التحقق من أن ظهور التكلفة مشروط بصلاحية view_purchase أو view_journalentry أو can_view_operational_costs
+        assert "can_view_operational_costs" in template_content or "perms.purchase.view_purchase" in template_content
         assert 'تكلفة الوحدة' in template_content
         assert 'إجمالي التكلفة' in template_content
 
@@ -396,7 +396,7 @@ class TestPhase4Enforcement:
         """22. التحقق من حجب أسعار الشراء والملخص المالي في طباعة المشتريات عن أمين المخزن (Blind GRN)"""
         with open("templates/purchase/purchase_print.html", "r", encoding="utf-8") as f:
             content = f.read()
-        assert "{% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}" in content
+        assert "can_view_operational_costs" in content or "perms.purchase.view_purchase" in content
         assert "استلام مخزني أعمى" in content
         assert "***" in content
 

@@ -581,8 +581,9 @@ class MultiCurrencyLedgerTestCase(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='fx_user', password='fx_password123')
         self.period, _ = AccountingPeriod.objects.get_or_create(
-            name="2026",
-            defaults={"start_date": date(2026, 1, 1), "end_date": date(2026, 12, 31), "status": "open"}
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            defaults={"name": "السنة المالية 2026", "status": "open"}
         )
 
         from financial.models.currency import Currency
@@ -599,6 +600,10 @@ class MultiCurrencyLedgerTestCase(TestCase):
             name="أصول متداولة",
             defaults={"category": "asset", "nature": "debit"}
         )
+
+        JournalEntryLine.objects.filter(account__code__in=["10100", "10101", "10102"]).delete()
+        ChartOfAccounts.objects.filter(code__in=["10101", "10102"]).delete()
+        ChartOfAccounts.objects.filter(code="10100").delete()
 
         # حساب رئيسي (أب) للخزائن
         self.parent_safe = ChartOfAccounts.objects.create(

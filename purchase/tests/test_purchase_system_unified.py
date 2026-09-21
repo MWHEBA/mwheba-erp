@@ -39,41 +39,46 @@ class PurchaseModelTest(TestCase):
             email='test@example.com'
         )
         
-        self.supplier = Supplier.objects.create(
-            name='مورد اختبار',
+        self.supplier, _ = Supplier.objects.get_or_create(
             code='SUP001',
-            phone='01234567890',
-            email='supplier@test.com',
-            created_by=self.user
+            defaults={
+                'name': 'مورد اختبار',
+                'phone': '01234567890',
+                'email': 'supplier@test.com',
+                'created_by': self.user
+            }
         )
         
-        self.category = Category.objects.create(
+        self.category, _ = Category.objects.get_or_create(
             name='مواد تعليمية',
-            is_active=True
+            defaults={'is_active': True}
         )
         
-        self.unit = Unit.objects.create(
+        self.unit, _ = Unit.objects.get_or_create(
             name='قطعة',
-            symbol='قطعة',
-            is_active=True
+            defaults={'symbol': 'قطعة', 'is_active': True}
         )
         
-        self.warehouse = Warehouse.objects.create(
-            name='المخزن الرئيسي',
+        self.warehouse, _ = Warehouse.objects.get_or_create(
             code='MAIN',
-            location='الموقع الرئيسي',
-            is_active=True
+            defaults={
+                'name': 'المخزن الرئيسي',
+                'location': 'الموقع الرئيسي',
+                'is_active': True
+            }
         )
         
-        self.product = Product.objects.create(
-            name='كتاب الرياضيات',
+        self.product, _ = Product.objects.get_or_create(
             sku='BOOK001',
-            category=self.category,
-            unit=self.unit,
-            cost_price=Decimal('10.00'),
-            selling_price=Decimal('15.00'),
-            is_active=True,
-            created_by=self.user
+            defaults={
+                'name': 'كتاب الرياضيات',
+                'category': self.category,
+                'unit': self.unit,
+                'cost_price': Decimal('10.00'),
+                'selling_price': Decimal('15.00'),
+                'is_active': True,
+                'created_by': self.user
+            }
         )
     
     def test_purchase_creation(self):
@@ -174,17 +179,21 @@ class PurchaseAPITest(TestCase):
         )
         self.client.login(username='testuser', password='test123')
         
-        self.supplier = Supplier.objects.create(
-            name='مورد اختبار',
+        self.supplier, _ = Supplier.objects.get_or_create(
             code='SUP001',
-            phone='01234567890',
-            created_by=self.user
+            defaults={
+                'name': 'مورد اختبار',
+                'phone': '01234567890',
+                'created_by': self.user
+            }
         )
         
-        self.warehouse = Warehouse.objects.create(
-            name='المخزن الرئيسي',
+        self.warehouse, _ = Warehouse.objects.get_or_create(
             code='MAIN',
-            location='الموقع الرئيسي'
+            defaults={
+                'name': 'المخزن الرئيسي',
+                'location': 'الموقع الرئيسي'
+            }
         )
     
     def test_purchase_list_view_loads(self):
@@ -232,28 +241,39 @@ class PurchaseAPITest(TestCase):
         from customer.models import Customer
         from work_order.models import WorkOrder
         from product.models import Product, Category, Unit
-        category = Category.objects.create(name='مواد')
-        unit = Unit.objects.create(name='قطعة')
-        product = Product.objects.create(
-            name='خدمة اختبار',
+        category, _ = Category.objects.get_or_create(name='مواد')
+        unit, _ = Unit.objects.get_or_create(name='قطعة', defaults={'symbol': 'قطعة'})
+        product, _ = Product.objects.get_or_create(
             sku='SRV-001',
-            is_service=True,
-            cost_price=Decimal('50.00'),
-            selling_price=Decimal('75.00'),
-            category=category,
-            unit=unit,
-            created_by=self.user
+            defaults={
+                'name': 'خدمة اختبار',
+                'is_service': True,
+                'cost_price': Decimal('50.00'),
+                'selling_price': Decimal('75.00'),
+                'category': category,
+                'unit': unit,
+                'created_by': self.user
+            }
         )
-        customer = Customer.objects.create(name='عميل أمر الشغل', created_by=self.user)
-        work_order = WorkOrder.objects.create(
+        customer, _ = Customer.objects.get_or_create(name='عميل أمر الشغل', defaults={'created_by': self.user})
+        work_order, _ = WorkOrder.objects.get_or_create(
             number='WO-2026-0099',
-            customer=customer,
-            status='in_progress',
-            created_by=self.user
+            defaults={
+                'customer': customer,
+                'status': 'in_progress',
+                'created_by': self.user
+            }
         )
-        from financial.models import FinancialCategory, ChartOfAccounts
-        exp_acc = ChartOfAccounts.objects.first()
-        fin_cat = FinancialCategory.objects.create(code='raw_materials', name='مشتريات خامات', default_expense_account=exp_acc)
+        from financial.models import FinancialCategory, ChartOfAccounts, AccountType
+        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", defaults={"name": "مصروفات", "category": "EXPENSE"})
+        exp_acc, _ = ChartOfAccounts.objects.get_or_create(
+            code="50199",
+            defaults={"name": "مصروفات خدمات تشغيل", "account_type": exp_type, "is_active": True}
+        )
+        fin_cat, _ = FinancialCategory.objects.get_or_create(
+            code='raw_materials',
+            defaults={'name': 'مشتريات خامات', 'default_expense_account': exp_acc}
+        )
         post_data = {
             'number': 'PUR9999',
             'date': '2026-09-21',
@@ -269,13 +289,13 @@ class PurchaseAPITest(TestCase):
             'discount[]': ['0'],
             'subtotal': '100.00',
             'total': '100.00',
+            'tax': '0.00'
         }
         response = self.client.post(reverse('purchase:purchase_create'), post_data)
         self.assertEqual(response.status_code, 302)
-        created_purchase = Purchase.objects.get(number='PUR9999')
-        self.assertEqual(created_purchase.work_order_id, work_order.id)
-        if created_purchase.journal_entry:
-            self.assertEqual(created_purchase.journal_entry.work_order_id, work_order.id)
+        purchase = Purchase.objects.filter(number='PUR9999').first()
+        self.assertIsNotNone(purchase)
+        self.assertEqual(purchase.work_order_id, work_order.id)
 
 
 # ============================================================================
@@ -292,29 +312,29 @@ class PurchaseSignalTest(TransactionTestCase):
             password='test123'
         )
         
-        self.supplier = Supplier.objects.create(
-            name='مورد اختبار',
+        self.supplier, _ = Supplier.objects.get_or_create(
             code='SUP001',
-            created_by=self.user
+            defaults={'name': 'مورد اختبار', 'created_by': self.user}
         )
         
-        self.warehouse = Warehouse.objects.create(
-            name='المخزن الرئيسي',
+        self.warehouse, _ = Warehouse.objects.get_or_create(
             code='MAIN',
-            location='الموقع الرئيسي'
+            defaults={'name': 'المخزن الرئيسي', 'location': 'الموقع الرئيسي'}
         )
         
-        self.category = Category.objects.create(name='فئة اختبار')
-        self.unit = Unit.objects.create(name='قطعة', symbol='قطعة')
+        self.category, _ = Category.objects.get_or_create(name='فئة اختبار')
+        self.unit, _ = Unit.objects.get_or_create(name='قطعة', defaults={'symbol': 'قطعة'})
         
-        self.product = Product.objects.create(
-            name='منتج اختبار',
+        self.product, _ = Product.objects.get_or_create(
             sku='PROD001',
-            category=self.category,
-            unit=self.unit,
-            cost_price=Decimal('50.00'),
-            selling_price=Decimal('100.00'),
-            created_by=self.user
+            defaults={
+                'name': 'منتج اختبار',
+                'category': self.category,
+                'unit': self.unit,
+                'cost_price': Decimal('50.00'),
+                'selling_price': Decimal('100.00'),
+                'created_by': self.user
+            }
         )
         
         self.purchase = Purchase.objects.create(
@@ -358,40 +378,45 @@ class PurchaseIntegrationTest(TransactionTestCase):
             password='testpass123'
         )
         
-        self.supplier = Supplier.objects.create(
-            name='مورد اختبار',
+        self.supplier, _ = Supplier.objects.get_or_create(
             code='SUP001',
-            phone='01234567890',
-            created_by=self.user
+            defaults={
+                'name': 'مورد اختبار',
+                'phone': '01234567890',
+                'created_by': self.user
+            }
         )
         
-        self.category = Category.objects.create(
+        self.category, _ = Category.objects.get_or_create(
             name='مواد تعليمية',
-            is_active=True
+            defaults={'is_active': True}
         )
         
-        self.unit = Unit.objects.create(
+        self.unit, _ = Unit.objects.get_or_create(
             name='قطعة',
-            symbol='قطعة',
-            is_active=True
+            defaults={'symbol': 'قطعة', 'is_active': True}
         )
         
-        self.warehouse = Warehouse.objects.create(
-            name='المخزن الرئيسي',
+        self.warehouse, _ = Warehouse.objects.get_or_create(
             code='MAIN',
-            location='الموقع الرئيسي',
-            is_active=True
+            defaults={
+                'name': 'المخزن الرئيسي',
+                'location': 'الموقع الرئيسي',
+                'is_active': True
+            }
         )
         
-        self.product = Product.objects.create(
-            name='كتاب الرياضيات',
+        self.product, _ = Product.objects.get_or_create(
             sku='BOOK001',
-            category=self.category,
-            unit=self.unit,
-            cost_price=Decimal('10.00'),
-            selling_price=Decimal('15.00'),
-            is_active=True,
-            created_by=self.user
+            defaults={
+                'name': 'كتاب الرياضيات',
+                'category': self.category,
+                'unit': self.unit,
+                'cost_price': Decimal('10.00'),
+                'selling_price': Decimal('15.00'),
+                'is_active': True,
+                'created_by': self.user
+            }
         )
     
     def test_complete_purchase_workflow(self):

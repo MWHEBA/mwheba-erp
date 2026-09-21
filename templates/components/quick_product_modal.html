@@ -124,14 +124,24 @@
                                     <label class="form-label fw-medium" for="qp-cost-price">
                                         سعر التكلفة <span class="text-muted qp-currency-symbol"></span>
                                     </label>
+                                    {% if can_view_operational_costs %}
                                     <input type="number" id="qp-cost-price" class="form-control" value="0" min="0" step="0.01">
+                                    {% else %}
+                                    <input type="number" id="qp-cost-price" class="form-control" value="0" min="0" step="0.01" style="display: none;">
+                                    <input type="text" class="form-control" value="---" disabled>
+                                    {% endif %}
                                 </div>
 
                                 <div class="col-md-6 col-12">
                                     <label class="form-label fw-medium" for="qp-selling-price">
                                         سعر البيع الافتراضي <span class="text-muted qp-currency-symbol"></span>
                                     </label>
+                                    {% if can_view_selling_price %}
                                     <input type="number" id="qp-selling-price" class="form-control" value="0" min="0" step="0.01">
+                                    {% else %}
+                                    <input type="number" id="qp-selling-price" class="form-control" value="0" min="0" step="0.01" style="display: none;">
+                                    <input type="text" class="form-control" value="---" disabled>
+                                    {% endif %}
                                 </div>
 
                                 <div class="col-md-6 col-12">

@@ -399,6 +399,7 @@ class CustomerFormIntegrationTest(TestCase):
     
     def test_create_and_update_customer_via_form(self):
         """اختبار إنشاء وتعديل عميل عبر النموذج"""
+        initial_count = Customer.objects.count()
         # إنشاء
         create_data = {
             'name': 'عميل التكامل',
@@ -416,6 +417,7 @@ class CustomerFormIntegrationTest(TestCase):
         # التحقق من الإنشاء
         self.assertEqual(customer.name, 'عميل التكامل')
         self.assertEqual(customer.code, 'INT001')
+        self.assertEqual(Customer.objects.count(), initial_count + 1)
         
         # التعديل
         update_data = {
@@ -435,4 +437,4 @@ class CustomerFormIntegrationTest(TestCase):
         self.assertEqual(updated_customer.name, 'عميل التكامل المحدث')
         self.assertEqual(updated_customer.phone, '+201098765432')
         self.assertEqual(updated_customer.credit_limit, Decimal('20000.00'))
-        self.assertEqual(Customer.objects.count(), 1)  # لم يتم إنشاء عميل جديد
+        self.assertEqual(Customer.objects.count(), initial_count + 1)  # لم يتم إنشاء عميل جديد

@@ -87,11 +87,18 @@ def customer_list(request):
     # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
         from utils.export import export_queryset_to_excel
+        export_fields = ["code", "name", "phone", "tier__name", "address", "default_currency__code"]
+        export_headers = ["الكود", "اسم العميل", "رقم الهاتف", "الشريحة", "العنوان", "العملة"]
+        if request.user.is_superuser or getattr(request.user, 'can_view_selling_price', True):
+            export_fields.append("balance")
+            export_headers.append("المديونية")
+        export_fields.append("is_active")
+        export_headers.append("نشط")
         return export_queryset_to_excel(
             customers_qs,
             filename="customers_export.xlsx",
-            fields=["code", "name", "phone", "tier__name", "address", "default_currency__code", "balance", "is_active"],
-            headers=["الكود", "اسم العميل", "رقم الهاتف", "الشريحة", "العنوان", "العملة", "المديونية", "نشط"]
+            fields=export_fields,
+            headers=export_headers
         )
 
     active_customers = Customer.objects.filter(is_active=True).count()
@@ -132,14 +139,16 @@ def customer_list(request):
             "format": "html",
             "class": "text-center",
         },
-        {
+    ]
+
+    if request.user.is_superuser or getattr(request.user, 'can_view_selling_price', True):
+        headers.append({
             "key": "actual_balance_display",
             "label": "المديونية",
             "sortable": True,
             "format": "html",
             "class": "text-center",
-        },
-    ]
+        })
 
     # تعريف أزرار الإجراءات المتزامنة مع صلاحيات المستخدم الفعلي
     action_buttons = []

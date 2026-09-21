@@ -132,7 +132,7 @@
             <th style="width: 50px;">#</th>
             <th>{% trans "المنتج" %}</th>
             <th class="text-center">{% trans "الكمية المستلمة" %}</th>
-            {% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
+            {% if can_view_operational_costs or perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
               <th class="text-end">{% trans "تكلفة الوحدة" %}</th>
               <th class="text-end">{% trans "إجمالي التكلفة" %}</th>
             {% endif %}
@@ -149,7 +149,7 @@
               {% endif %}
             </td>
             <td class="text-center fw-bold fs-6">{{ item.received_qty }}</td>
-            {% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
+            {% if can_view_operational_costs or perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
               <td class="text-end">
                 {{ item.unit_price|smart_float:2 }} {% if grn.currency and grn.currency != 'EGP' and grn.currency.code != 'EGP' %}{{ grn.currency.code|default:grn.currency }}{% else %}{% currency_symbol %}{% endif %}
               </td>
@@ -160,7 +160,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="{% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}5{% else %}3{% endif %}" class="text-center py-4 text-muted">
+            <td colspan="{% if can_view_operational_costs or perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}5{% else %}3{% endif %}" class="text-center py-4 text-muted">
               {% trans "لا توجد بنود لهذا الإذن" %}
             </td>
           </tr>

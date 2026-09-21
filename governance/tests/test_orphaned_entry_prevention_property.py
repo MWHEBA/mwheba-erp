@@ -755,21 +755,25 @@ class OrphanedEntryPreventionIntegrationTest(HypothesisTestCase):
             self.accounting_period.save()
         
         # Create test account type
-        self.account_type = AccountType.objects.create(
+        self.account_type, _ = AccountType.objects.get_or_create(
             code='INTTEST',
-            name='Integration Test Account Type',
-            category='asset',
-            nature='debit'
+            defaults={
+                'name': 'Integration Test Account Type',
+                'category': 'asset',
+                'nature': 'debit'
+            }
         )
         
         # Create test accounts
         account_codes = ['1001', '2001']
         for code in account_codes:
-            ChartOfAccounts.objects.create(
+            ChartOfAccounts.objects.get_or_create(
                 code=code,
-                name=f"Integration Test Account {code}",
-                account_type=self.account_type,
-                is_active=True
+                defaults={
+                    'name': f"Integration Test Account {code}",
+                    'account_type': self.account_type,
+                    'is_active': True
+                }
             )
         
         self.gateway = AccountingGateway()

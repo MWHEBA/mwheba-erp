@@ -39,6 +39,7 @@
 
   <!-- Overview Cards (Rule 7 Compliant - Direct Grid Row) -->
   <div class="row g-3 mb-4">
+    {% if can_view_operational_costs %}
     <div class="col-md-6 col-lg-3">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-header"></div>
@@ -94,6 +95,47 @@
         </div>
       </div>
     </div>
+    {% else %}
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice"></i>
+          </div>
+          <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+          <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-boxes"></i>
+          </div>
+          <div class="stats-card-title">{% trans "المنتجات الموردة" %}</div>
+          <div class="stats-card-value">{{ products_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stats-card-title">{% trans "حالة المورد" %}</div>
+          <div class="stats-card-value" style="font-size: 1.1rem;">{% if supplier.is_active %}{% trans "نشط" %}{% else %}{% trans "معطل" %}{% endif %}</div>
+          <div class="stats-card-unit"></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- نظام التابات -->
@@ -107,7 +149,7 @@
             <i class="fas fa-info-circle me-2"></i>{% trans "معلومات المورد" %}
           </button>
         </li>
-        {% if enable_purchase_orders %}
+        {% if enable_purchase_orders and can_view_operational_costs %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="po-tab" data-bs-toggle="tab"
             data-bs-target="#po-tab-pane" type="button" role="tab" aria-controls="po-tab-pane"
@@ -117,6 +159,7 @@
           </button>
         </li>
         {% endif %}
+        {% if can_view_operational_costs %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab"
             data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane"
@@ -125,6 +168,7 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ purchases_count|default:"0" }}</span>
           </button>
         </li>
+        {% endif %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="products-tab" data-bs-toggle="tab"
             data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane"
@@ -144,6 +188,7 @@
           </button>
         </li>
         {% endif %}
+        {% if can_view_operational_costs %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="payments-tab" data-bs-toggle="tab"
             data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane"
@@ -166,6 +211,7 @@
             <i class="fas fa-clock me-2"></i>{% trans "أعمار الديون" %}
           </button>
         </li>
+        {% endif %}
       </ul>
     </div>
     <div class="card-body p-3">
@@ -494,7 +540,7 @@
 
         </div>
 
-        {% if enable_purchase_orders %}
+        {% if enable_purchase_orders and can_view_operational_costs %}
         <!-- تاب أوامر الشراء -->
         <div class="tab-pane fade" id="po-tab-pane" role="tabpanel" aria-labelledby="po-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -547,6 +593,7 @@
         </div>
         {% endif %}
 
+        {% if can_view_operational_costs %}
         <!-- تاب فواتير الشراء -->
         <div class="tab-pane fade" id="purchases-tab-pane" role="tabpanel" aria-labelledby="purchases-tab" tabindex="0">
           <div class="d-flex justify-content-end mb-3">
@@ -583,6 +630,7 @@
           </div>
           {% endif %}
         </div>
+        {% endif %}
 
         <!-- تاب المنتجات -->
         <div class="tab-pane fade" id="products-tab-pane" role="tabpanel" aria-labelledby="products-tab" tabindex="0">

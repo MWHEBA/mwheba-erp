@@ -2,11 +2,15 @@
 {% load utils_extras %}
 {% load i18n %}
 <span class="product-price fw-bold text-primary">
-  {% if object.sale_price %}
-    <strong>{{ object.sale_price|smart_float }} {{ currency_symbol }}</strong>
-  {% elif object.selling_price %}
-    <strong>{{ object.selling_price|smart_float }} {{ currency_symbol }}</strong>
+  {% if can_view_selling_price %}
+    {% if object.sale_price %}
+      <strong>{{ object.sale_price|smart_float }} {{ currency_symbol }}</strong>
+    {% elif object.selling_price %}
+      <strong>{{ object.selling_price|smart_float }} {{ currency_symbol }}</strong>
+    {% else %}
+      <span class="text-muted">{% trans "غير محدد" %}</span>
+    {% endif %}
   {% else %}
-    <span class="text-muted">{% trans "غير محدد" %}</span>
+    <span class="text-muted">---</span>
   {% endif %}
 </span>

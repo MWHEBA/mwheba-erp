@@ -136,8 +136,9 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, SmartPermissionR
         context['selected_date_from'] = date_from
         context['selected_date_to'] = date_to
 
-        # تعريف أعمدة جدول البيانات الموحد (Unified Data Table Headers)
-        context['headers'] = [
+        can_view_selling = getattr(self.request.user, 'can_view_selling_price', True)
+        
+        headers = [
             {
                 'key': 'order_number',
                 'label': _('رقم الطلب'),
@@ -172,14 +173,19 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, SmartPermissionR
                 'width': '90px',
                 'format': 'number',
             },
-            {
+        ]
+
+        if can_view_selling:
+            headers.append({
                 'key': 'final_price',
                 'label': _('قيمة التسعير'),
                 'sortable': True,
                 'class': 'text-center fw-bold text-success',
                 'width': '130px',
                 'format': 'currency',
-            },
+            })
+
+        headers.extend([
             {
                 'key': 'status',
                 'label': _('الحالة'),
@@ -196,7 +202,8 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, SmartPermissionR
                 'width': '110px',
                 'format': 'date',
             },
-        ]
+        ])
+        context['headers'] = headers
 
         # أزرار الإجراءات للجدول الموحد محكومة بالصلاحيات
         action_buttons = [

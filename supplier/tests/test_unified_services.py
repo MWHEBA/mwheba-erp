@@ -25,19 +25,19 @@ class BasicSupplierTest(TestCase):
     
     def test_supplier_creation_works(self):
         """اختبار أن إنشاء الموردين يعمل بعد حذف الخدمات المتخصصة"""
-        supplier_type = SupplierType.objects.create(
-            name="مورد عام",
-            code="general"
+        supplier_type, _ = SupplierType.objects.get_or_create(
+            code="general",
+            defaults={"name": "مورد عام"}
         )
         
         supplier = Supplier.objects.create(
             name="مورد اختبار",
-            code="TEST001",
+            code="TEST_UNI_001",
             primary_type=supplier_type
         )
         
         self.assertEqual(supplier.name, "مورد اختبار")
-        self.assertEqual(supplier.code, "TEST001")
+        self.assertEqual(supplier.code, "TEST_UNI_001")
         self.assertTrue(supplier.is_active)
 
 

@@ -14,7 +14,7 @@ from decimal import Decimal
 from datetime import date, timedelta
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from django.db import connection, transaction
+from django.db import connection, transaction, models
 from django.core.cache import cache
 from django.test.utils import override_settings
 import uuid
@@ -41,6 +41,16 @@ def test_user(db):
         first_name='مستخدم',
         last_name='الاختبار'
     )
+    
+    from financial.models import ChartOfAccounts, UserTreasuryAccess
+    from django.contrib.auth.models import Permission
+    perm = Permission.objects.filter(codename='override_credit_limit').first()
+    if perm:
+        user.user_permissions.add(perm)
+        
+    for tr in ChartOfAccounts.objects.filter(models.Q(is_cash_account=True) | models.Q(is_bank_account=True) | models.Q(code__startswith='1145') | models.Q(code__startswith='101') | models.Q(code__startswith='102') | models.Q(code__startswith='111')):
+        UserTreasuryAccess.objects.get_or_create(user=user, treasury=tr, defaults={'can_deposit': True, 'can_disburse': True, 'is_default': True})
+        
     yield user
     
     # تنظيف بعد الاختبار
@@ -245,7 +255,7 @@ def test_customer(db, test_user):
         email='customer@e2e.test',
         address='شارع الاختبار، المنصورة',
         customer_type='individual',
-        credit_limit=Decimal('10000.00')
+        credit_limit=Decimal('0.00')
     )
     yield customer
     

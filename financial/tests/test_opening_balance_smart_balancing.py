@@ -47,8 +47,19 @@ def setup_smart_balancing_env(db):
     )
 
     acc_type_asset, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "أصول", "category": "asset"})
+    if acc_type_asset.category != "asset":
+        acc_type_asset.category = "asset"
+        acc_type_asset.save()
+
     acc_type_liab, _ = AccountType.objects.get_or_create(code="LIAB", defaults={"name": "خصوم", "category": "liability"})
+    if acc_type_liab.category != "liability":
+        acc_type_liab.category = "liability"
+        acc_type_liab.save()
+
     acc_type_equity, _ = AccountType.objects.get_or_create(code="EQUITY", defaults={"name": "حقوق ملكية", "category": "equity"})
+    if acc_type_equity.category != "equity":
+        acc_type_equity.category = "equity"
+        acc_type_equity.save()
 
     # Accounts
     bank_acc = ChartOfAccounts.objects.create(

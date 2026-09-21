@@ -276,6 +276,23 @@ def update_leave_accrual_on_hire_date_change(sender, instance, created, **kwargs
         delattr(instance, '_old_hire_date')
 
 
+@receiver(post_save, sender='hr.Employee')
+def sync_employee_status_to_user(sender, instance, created, **kwargs):
+    """مزامنة حالة الموظف في HR مع حساب المستخدم النشط/المعطل"""
+    if instance.user_id:
+        user = instance.user
+        if instance.status in ['suspended', 'terminated', 'resigned', 'inactive']:
+            if user.is_active:
+                user.is_active = False
+                user.status = 'inactive'
+                user.save(update_fields=['is_active', 'status'])
+        elif instance.status == 'active':
+            if not user.is_active:
+                user.is_active = True
+                user.status = 'active'
+                user.save(update_fields=['is_active', 'status'])
+
+
 @governed_signal_handler(
     signal_name="hr_contract_notifications",
     critical=False,

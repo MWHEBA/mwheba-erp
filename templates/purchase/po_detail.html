@@ -21,7 +21,7 @@
 
   <!-- 4-Way KPI Summary Cards -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3">
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %} col-12">
       <div class="stats-card stats-card-info">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-boxes"></i></div>
@@ -30,7 +30,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %} col-12">
       <div class="stats-card stats-card-success">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-truck-loading"></i></div>
@@ -39,7 +39,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="{% if can_view_operational_costs %}col-md-3{% else %}col-md-4{% endif %} col-12">
       <div class="stats-card stats-card-warning">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-hourglass-half"></i></div>
@@ -48,7 +48,8 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    {% if can_view_operational_costs %}
+    <div class="col-md-3 col-12">
       <div class="stats-card stats-card-danger">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
@@ -57,6 +58,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <div class="row g-4">
@@ -86,9 +88,11 @@
                 <th class="text-center">{% trans "المستلم" %}</th>
                 <th class="text-center">{% trans "المفوتر" %}</th>
                 <th class="text-center">{% trans "المتبقي" %}</th>
+                {% if can_view_operational_costs %}
                 <th class="text-end">{% trans "سعر الوحدة" %}</th>
                 <th class="text-center">{% trans "الضريبة" %}</th>
                 <th class="text-end pe-3">{% trans "الإجمالي" %}</th>
+                {% endif %}
               </tr>
             </thead>
             <tbody>
@@ -105,6 +109,7 @@
                 <td class="text-center fw-bold {% if item.ordered_qty > item.received_qty %}text-warning{% else %}text-muted{% endif %}">
                   {{ item.ordered_qty|subtract:item.received_qty|floatformat:2 }}
                 </td>
+                {% if can_view_operational_costs %}
                 <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
                 <td class="text-center">
                   {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
@@ -114,15 +119,18 @@
                   {% endif %}
                 </td>
                 <td class="text-end pe-3 fw-bold">{{ item.total_price|floatformat:2 }} {{ po.currency|default:"EGP" }}</td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>
+            {% if can_view_operational_costs %}
             <tfoot class="table-light">
               <tr>
                 <th colspan="8" class="text-end fw-bold">{% trans "الإجمالي الكلي:" %}</th>
                 <th class="text-end pe-3 fw-bold text-primary fs-6">{{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}</th>
               </tr>
             </tfoot>
+            {% endif %}
           </table>
         </div>
       </div>

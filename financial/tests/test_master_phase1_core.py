@@ -45,6 +45,8 @@ class TestMasterPhase1Core:
     def test_fail_fast_rate_policy(self):
         """اختبار سياسة الرفض الصارم Fail Fast عند غياب سعر الصرف"""
         # 1. No rate registered between EUR and EGP -> Must raise ValidationError
+        ExchangeRate.objects.filter(from_currency__code="EUR", to_currency__code="EGP").delete()
+        ExchangeRate.objects.filter(from_currency__code="EGP", to_currency__code="EUR").delete()
         with pytest.raises(ValidationError) as excinfo:
             ExchangeRateService.get_rate(from_code="EUR", to_code="EGP", date=self.today)
         assert "لا يوجد سعر صرف مسجل" in str(excinfo.value)

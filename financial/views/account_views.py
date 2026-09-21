@@ -2541,11 +2541,7 @@ def cash_account_movements(request, pk):
     # فحص السرية التامة والحجب (Stealth 404)
     if not request.user.is_superuser and not getattr(request.user, "is_admin", False):
         from financial.services.treasury_security_service import TreasurySecurityService
-        has_access = (
-            request.user.has_perm("financial.view_chartofaccounts")
-            or TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists()
-        )
-        if not has_access:
+        if not TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists():
             from django.http import Http404
             raise Http404("الحساب غير موجود أو غير مصرح لك بالوصول إليه.")
 

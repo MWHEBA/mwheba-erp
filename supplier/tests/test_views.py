@@ -19,10 +19,12 @@ class SupplierCreateModalViewTest(TestCase):
         self.client.login(username='testuser', password='test123')
         
         # إنشاء نوع مورد مطلوب لإنشاء مورد جديد
-        self.supplier_type = SupplierType.objects.create(
-            name='مورد عام',
+        self.supplier_type, _ = SupplierType.objects.get_or_create(
             code='general',
-            description='مورد عام'
+            defaults={
+                'name': 'مورد عام',
+                'description': 'مورد عام'
+            }
         )
         
     def test_get_supplier_create_modal(self):

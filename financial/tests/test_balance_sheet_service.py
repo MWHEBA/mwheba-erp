@@ -22,11 +22,34 @@ class TestBalanceSheetService:
     def setup_accounts(self):
         # 1. إنشاء أنواع الحسابات
         self.type_asset_cur, _ = AccountType.objects.get_or_create(code="CUR_ASSET", defaults={"name": "أصول متداولة", "category": "asset", "nature": "debit"})
+        self.type_asset_cur.category = "asset"
+        self.type_asset_cur.nature = "debit"
+        self.type_asset_cur.save()
+
         self.type_asset_fix, _ = AccountType.objects.get_or_create(code="FIX_ASSET", defaults={"name": "أصول ثابتة", "category": "asset", "nature": "debit"})
+        self.type_asset_fix.category = "asset"
+        self.type_asset_fix.nature = "debit"
+        self.type_asset_fix.save()
+
         self.type_liab_cur, _ = AccountType.objects.get_or_create(code="CUR_LIAB", defaults={"name": "خصوم متداولة", "category": "liability", "nature": "credit"})
+        self.type_liab_cur.category = "liability"
+        self.type_liab_cur.nature = "credit"
+        self.type_liab_cur.save()
+
         self.type_equity, _ = AccountType.objects.get_or_create(code="EQUITY", defaults={"name": "حقوق الملكية", "category": "equity", "nature": "credit"})
+        self.type_equity.category = "equity"
+        self.type_equity.nature = "credit"
+        self.type_equity.save()
+
         self.type_rev, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "إيرادات", "category": "revenue", "nature": "credit"})
+        self.type_rev.category = "revenue"
+        self.type_rev.nature = "credit"
+        self.type_rev.save()
+
         self.type_exp, _ = AccountType.objects.get_or_create(code="EXP", defaults={"name": "مصروفات", "category": "expense", "nature": "debit"})
+        self.type_exp.category = "expense"
+        self.type_exp.nature = "debit"
+        self.type_exp.save()
 
         # 2. إنشاء شجرة حسابات تجريبية
         self.acc_cash, _ = ChartOfAccounts.objects.get_or_create(code="11101", defaults={"name": "الخزينة التجريبية", "account_type": self.type_asset_cur, "is_leaf": True, "level": 3})
@@ -38,6 +61,21 @@ class TestBalanceSheetService:
         self.acc_sales, _ = ChartOfAccounts.objects.get_or_create(code="41100", defaults={"name": "المبيعات", "account_type": self.type_rev, "is_leaf": True, "level": 3})
         self.acc_cogs, _ = ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "تكلفة البضاعة", "account_type": self.type_exp, "is_leaf": True, "level": 3})
 
+        for acc, acc_type in [
+            (self.acc_cash, self.type_asset_cur),
+            (self.acc_cust, self.type_asset_cur),
+            (self.acc_fixed, self.type_asset_fix),
+            (self.acc_supp, self.type_liab_cur),
+            (self.acc_cap, self.type_equity),
+            (self.acc_retained, self.type_equity),
+            (self.acc_sales, self.type_rev),
+            (self.acc_cogs, self.type_exp),
+        ]:
+            acc.account_type = acc_type
+            acc.is_leaf = True
+            acc.is_active = True
+            acc.save()
+
         # 3. إنشاء مستخدم
         self.user, _ = User.objects.get_or_create(username="test_cfo", defaults={"email": "cfo@mwheba.com", "is_staff": True, "is_superuser": True})
         if not self.user.is_superuser:
@@ -46,6 +84,7 @@ class TestBalanceSheetService:
 
     def test_balance_sheet_generation_and_equation(self):
         """اختبار صحة توليد الميزانية والتطابق التام للمعادلة المحاسبية"""
+        JournalEntry.objects.all().delete()
         # قيد رأسمال: من حـ/ الخزينة إلى حـ/ رأس المال بمبلغ 100,000
         jv1 = JournalEntry.objects.create(number="JV-BS-001", date=date.today(), status="posted", created_by=self.user)
         JournalEntryLine.objects.create(journal_entry=jv1, account=self.acc_cash, debit=Decimal("100000.00"), credit=Decimal("0.00"))
@@ -63,7 +102,6 @@ class TestBalanceSheetService:
 
         # توليد الميزانية
         bs = BalanceSheetService.generate_balance_sheet(as_of_date=date.today())
-
         assert bs['is_balanced'] is True
         assert abs(bs['difference']) <= Decimal("0.05")
         assert bs['total_assets'] == bs['total_liabilities_equity']

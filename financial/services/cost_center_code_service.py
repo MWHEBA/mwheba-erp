@@ -37,26 +37,18 @@ class CostCenterCodeService:
         numeric_values = []
         for code in root_codes:
             cleaned = cls.sanitize_code(code)
-            # استخراج الأرقام إذا كان الكود رقمياً خالصاً
+            # نعتمد فقط على الأكواد الرقمية الخالصة في التسلسل الرئيسي بالعشرات
             if cleaned.isdigit():
                 numeric_values.append(int(cleaned))
-            else:
-                # محاولة استخراج الرقم لو كان مثل CC-01 أو CC-10
-                match = re.search(r'\d+', cleaned)
-                if match:
-                    numeric_values.append(int(match.group(0)))
 
         if not numeric_values:
             next_num = cls.ROOT_DEFAULT_START
         else:
             max_val = max(numeric_values)
-            # لو كانت الأكواد الحالية متسلسلة بالعشرات (10, 20) أو بالمئات (100, 200)
             if max_val >= cls.ROOT_DEFAULT_START:
-                # نزيد بمقدار 10
                 next_num = ((max_val // cls.ROOT_STEP) + 1) * cls.ROOT_STEP
             else:
-                # لو كانت فردية 1, 2, 3.. نزيد 1 أو ننتقل للعشرات
-                next_num = max_val + 1
+                next_num = cls.ROOT_DEFAULT_START
 
         # التأكد التام من أن الكود المقترح غير موجود في أي مكان بقاعدة البيانات
         while CostCenter.objects.filter(code=str(next_num)).exists():

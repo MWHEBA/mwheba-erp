@@ -203,7 +203,7 @@ class CustomerSupplierBalancesService:
 
         sales = Sale.objects.filter(
             customer=customer,
-            issue_date__lte=self.as_of_date
+            date__lte=self.as_of_date
         ).exclude(payment_status='paid')
 
         current = Decimal("0")
@@ -213,8 +213,8 @@ class CustomerSupplierBalancesService:
         over_90 = Decimal("0")
 
         for sale in sales:
-            due_date = sale.due_date or sale.issue_date
-            remaining = getattr(sale, 'remaining_amount', getattr(sale, 'grand_total', Decimal("0"))) or Decimal("0")
+            due_date = getattr(sale, 'due_date', None) or sale.date
+            remaining = getattr(sale, 'remaining_amount', getattr(sale, 'total', Decimal("0"))) or Decimal("0")
 
             if remaining <= 0:
                 continue

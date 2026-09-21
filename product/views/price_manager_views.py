@@ -28,6 +28,10 @@ def price_manager(request):
     type=product  → من صفحة المنتجات
     type=service  → من صفحة الخدمات
     """
+    if not getattr(request.user, 'can_view_selling_price', True):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("ليس لديك صلاحية للوصول إلى مدير الأسعار.")
+
     item_type   = request.GET.get('type', 'product')
     category_id = request.GET.get('category', '')
     search      = request.GET.get('q', '').strip()
@@ -137,9 +141,12 @@ def price_manager_update_api(request):
     يشترط الصلاحية الاستراتيجية لتعديل المنتجات product.change_product
     """
     can_change_price = (
-        request.user.is_superuser
-        or request.user.has_perm('product.change_product')
-        or getattr(request.user, 'is_financial_manager', False)
+        (
+            request.user.is_superuser
+            or request.user.has_perm('product.change_product')
+            or getattr(request.user, 'is_financial_manager', False)
+        )
+        and getattr(request.user, 'can_view_selling_price', True)
     )
     if not can_change_price:
         return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل الأسعار الأساسية لكتالوج الأصناف'}, status=403)
@@ -209,9 +216,12 @@ def price_manager_bulk_update_api(request):
     يشترط الصلاحية الاستراتيجية لتعديل المنتجات product.change_product
     """
     can_change_price = (
-        request.user.is_superuser
-        or request.user.has_perm('product.change_product')
-        or getattr(request.user, 'is_financial_manager', False)
+        (
+            request.user.is_superuser
+            or request.user.has_perm('product.change_product')
+            or getattr(request.user, 'is_financial_manager', False)
+        )
+        and getattr(request.user, 'can_view_selling_price', True)
     )
     if not can_change_price:
         return JsonResponse({'success': False, 'error': 'غير مصرح لك بتعديل الأسعار الأساسية لكتالوج الأصناف'}, status=403)

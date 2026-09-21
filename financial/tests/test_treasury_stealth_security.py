@@ -28,9 +28,31 @@ class TestTreasuryStealthSecurity:
         user1.user_permissions.add(perm)
         user2.user_permissions.add(perm)
 
-        acc_type, _ = AccountType.objects.get_or_create(code="CASH", name="نقدي", category="asset")
-        cash_alex = ChartOfAccounts.objects.create(code="10101", name="خزينة الإسكندرية", account_type=acc_type, is_cash_account=True, is_leaf=True, is_active=True)
-        cash_cairo = ChartOfAccounts.objects.create(code="10102", name="خزينة القاهرة السرية", account_type=acc_type, is_cash_account=True, is_leaf=True, is_active=True)
+        acc_type, _ = AccountType.objects.get_or_create(code="CASH", defaults={"name": "نقدي", "category": "asset"})
+        if acc_type.category != "asset":
+            acc_type.category = "asset"
+            acc_type.save()
+
+        cash_alex, _ = ChartOfAccounts.objects.get_or_create(
+            code="10101_TSS",
+            defaults={
+                "name": "خزينة الإسكندرية",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
+        )
+        cash_cairo, _ = ChartOfAccounts.objects.get_or_create(
+            code="10102_TSS",
+            defaults={
+                "name": "خزينة القاهرة السرية",
+                "account_type": acc_type,
+                "is_cash_account": True,
+                "is_leaf": True,
+                "is_active": True
+            }
+        )
 
         UserTreasuryAccess.objects.create(user=user1, treasury=cash_alex, can_deposit=True, can_disburse=True, is_default=True)
         UserTreasuryAccess.objects.create(user=user2, treasury=cash_cairo, can_deposit=True, can_disburse=True, is_default=True)

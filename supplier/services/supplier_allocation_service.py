@@ -581,6 +581,12 @@ class SupplierAllocationService:
                 except Exception as e:
                     logger.warning(f"لم يتم توليد قيد التسوية التجميعي الموحد: {str(e)}")
 
+            try:
+                from financial.services.partner_advance_service import PartnerAdvanceService
+                PartnerAdvanceService.rebuild_snapshot(locked_supplier)
+            except Exception as e:
+                logger.warning(f"Failed to rebuild supplier advance snapshot: {str(e)}")
+
             return audits_created
 
     @classmethod

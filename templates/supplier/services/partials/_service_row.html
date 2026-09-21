@@ -14,32 +14,44 @@
     <div class="text-muted small">{{ item.service_type.name }}</div>
   </td>
   <td class="text-end">
-    <div>
-      <span class="fw-bold">{{ item.base_price|smart_float }}</span>
-      <span class="text-muted small">{{ item.currency_symbol }}</span>
-    </div>
-    {% if item.base_price_egp and item.is_foreign_currency %}
-    <div class="text-muted small">{{ item.base_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
+    {% if can_view_operational_costs %}
+      <div>
+        <span class="fw-bold">{{ item.base_price|smart_float }}</span>
+        <span class="text-muted small">{{ item.currency_symbol }}</span>
+      </div>
+      {% if item.base_price_egp and item.is_foreign_currency %}
+      <div class="text-muted small">{{ item.base_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
+      {% endif %}
+    {% else %}
+      <span class="text-muted">***</span>
     {% endif %}
   </td>
   <td class="text-end">
-    {% if item.set_price %}
-    <div>
-      <span class="fw-bold text-primary">{{ item.set_price|smart_float }}</span>
-      <span class="text-muted small">{{ item.currency_symbol }}</span>
-    </div>
-    {% if item.set_price_egp and item.is_foreign_currency %}
-    <div class="text-muted small">{{ item.set_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
-    {% endif %}
+    {% if can_view_operational_costs %}
+      {% if item.set_price %}
+      <div>
+        <span class="fw-bold text-primary">{{ item.set_price|smart_float }}</span>
+        <span class="text-muted small">{{ item.currency_symbol }}</span>
+      </div>
+      {% if item.set_price_egp and item.is_foreign_currency %}
+      <div class="text-muted small">{{ item.set_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
+      {% endif %}
+      {% else %}
+      <span class="text-muted">-</span>
+      {% endif %}
     {% else %}
-    <span class="text-muted">-</span>
+      <span class="text-muted">***</span>
     {% endif %}
   </td>
   <td class="text-center">
-    {% if item.minimum_charge and item.minimum_charge > 0 %}
-    <span class="badge bg-light text-dark border">{{ item.minimum_charge|smart_float }} {{ item.currency_symbol }}</span>
+    {% if can_view_operational_costs %}
+      {% if item.minimum_charge and item.minimum_charge > 0 %}
+      <span class="badge bg-light text-dark border">{{ item.minimum_charge|smart_float }} {{ item.currency_symbol }}</span>
+      {% else %}
+      <span class="text-muted">-</span>
+      {% endif %}
     {% else %}
-    <span class="text-muted">-</span>
+      <span class="text-muted">***</span>
     {% endif %}
   </td>
   <td class="text-center">

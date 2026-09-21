@@ -199,6 +199,7 @@
         </div>
       </div>
     </div>
+    {% if can_view_selling_price %}
     <div class="col-lg col-md-6 col-sm-6">
       <div class="stats-card stats-card-primary h-100">
         <div class="stats-card-body d-flex align-items-center">
@@ -243,6 +244,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <div class="row g-4">
@@ -272,10 +274,12 @@
                 <th>{% trans "المسلم" %}</th>
                 <th>{% trans "المتبقي" %}</th>
                 <th>{% trans "المفوتر" %}</th>
+                {% if can_view_selling_price %}
                 <th class="text-end">{% trans "سعر الوحدة" %}</th>
                 <th>{% trans "الخصم" %}</th>
                 <th>{% trans "الضريبة" %}</th>
                 <th class="text-end">{% trans "الإجمالي" %}</th>
+                {% endif %}
               </tr>
             </thead>
             <tbody>
@@ -317,6 +321,7 @@
                     <span class="badge bg-secondary">0</span>
                   {% endif %}
                 </td>
+                {% if can_view_selling_price %}
                 <td class="text-end">{{ item.unit_price|smart_float:2 }}</td>
                 <td>
                   {% if item.discount_percentage > 0 %}
@@ -333,9 +338,11 @@
                   {% endif %}
                 </td>
                 <td class="text-end fw-bold text-success">{{ item.line_total|smart_float:2 }} {{ so.currency_display }}</td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>
+            {% if can_view_selling_price %}
             <tfoot class="table-light">
               <tr>
                 <td colspan="10" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
@@ -370,11 +377,13 @@
                 <td class="text-end fw-bold fs-5 text-success">{{ so.total_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
             </tfoot>
+            {% endif %}
           </table>
         </div>
       </div>
 
       <!-- سندات قبض الدفعة المقدمة (العربون) -->
+      {% if can_view_selling_price %}
       <div class="section-container mb-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h5 class="section-title mb-0"><i class="fas fa-hand-holding-usd me-2 text-primary"></i>{% trans "سندات قبض الدفعة المقدمة (العربون)" %}</h5>
@@ -427,6 +436,7 @@
           </div>
         {% endif %}
       </div>
+      {% endif %}
 
       <!-- إذون تسليم البضاعة المرتبطة -->
       <div class="section-container mb-4">
@@ -494,7 +504,9 @@
                 <tr>
                   <th>{% trans "رقم الفاتورة" %}</th>
                   <th>{% trans "تاريخ الفاتورة" %}</th>
+                  {% if can_view_selling_price %}
                   <th>{% trans "المبلغ الإجمالي" %}</th>
+                  {% endif %}
                   <th>{% trans "حالة الفاتورة" %}</th>
                   <th>{% trans "حالة السداد" %}</th>
                   <th class="col-actions">{% trans "الإجراءات" %}</th>
@@ -505,7 +517,9 @@
                 <tr class="clickable-row" data-href="{% url 'sale:sale_detail' s.pk %}">
                   <td class="fw-bold text-primary">{{ s.number }}</td>
                   <td>{{ s.date|date:"Y-m-d" }}</td>
+                  {% if can_view_selling_price %}
                   <td class="fw-bold text-success">{{ s.total_amount|smart_float:2 }} {{ s.currency }}</td>
+                  {% endif %}
                   <td><span class="badge bg-{{ s.status }}">{{ s.get_status_display }}</span></td>
                   <td><span class="badge bg-{{ s.payment_status }}">{{ s.get_payment_status_display }}</span></td>
                   <td class="col-actions" onclick="event.stopPropagation();">

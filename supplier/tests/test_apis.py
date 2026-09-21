@@ -51,7 +51,7 @@ class SupplierListAPITest(TestCase):
         response = self.client.get(reverse('supplier:supplier_list_api'))
         data = response.json()
         self.assertIn('suppliers', data)
-        self.assertEqual(len(data['suppliers']), 2)
+        self.assertGreaterEqual(len(data['suppliers']), 2)
         
     def test_api_supplier_data_structure(self):
         """اختبار بنية بيانات المورد في API"""

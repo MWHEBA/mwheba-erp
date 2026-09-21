@@ -104,10 +104,9 @@ class TestSalesOrderDownPaymentLifecycle:
 
         today = timezone.now().date()
         AccountingPeriod.objects.get_or_create(
-            name=f"Period_{today.year}_{today.month}",
             start_date=today.replace(day=1),
             end_date=today.replace(day=28),
-            defaults={"status": "open"}
+            defaults={"name": f"Period_{today.year}_{today.month}", "status": "open"}
         )
 
         from core.models import SystemSetting

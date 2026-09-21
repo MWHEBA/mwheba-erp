@@ -655,8 +655,9 @@ def arabic_timesince(value):
         value = dt.datetime.combine(value, dt.time.min)
     
     # الحصول على التاريخ الحالي
-    if timezone.is_aware(value):
-        now = timezone.now()
+    from django.utils import timezone as dj_timezone
+    if hasattr(value, 'tzinfo') and value.tzinfo is not None and value.tzinfo.utcoffset(value) is not None:
+        now = dj_timezone.now()
     else:
         now = datetime.now()
         

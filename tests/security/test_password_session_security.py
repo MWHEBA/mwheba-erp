@@ -77,7 +77,7 @@ class PasswordSessionSecurityTestCase(TransactionTestCase):
                     weak_passwords_rejected += 1
                 
                 # تنظيف
-                user.delete()
+                user.delete(force=True)
                 
             except Exception:
                 # إذا فشل إنشاء المستخدم، فهذا يعني أن كلمة المرور تم رفضها
@@ -98,7 +98,7 @@ class PasswordSessionSecurityTestCase(TransactionTestCase):
                     strong_passwords_accepted += 1
                 
                 # تنظيف
-                user.delete()
+                user.delete(force=True)
                 
             except Exception:
                 # إذا فشل إنشاء المستخدم بكلمة مرور قوية، فهذا مشكلة
@@ -150,7 +150,7 @@ class PasswordSessionSecurityTestCase(TransactionTestCase):
         self.security_results['total_tests'] += 3
         
         # تنظيف
-        user.delete()
+        user.delete(force=True)
         
         # التأكيد: يجب نجاح معظم اختبارات التشفير
         self.assertGreaterEqual(hashing_tests_passed, 2, "اختبارات تشفير كلمة المرور فشلت")

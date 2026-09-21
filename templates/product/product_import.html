@@ -300,8 +300,12 @@
                         <th>اسم المنتج</th>
                         <th class="text-center">التصنيف</th>
                         <th class="text-center">الوحدة</th>
+                        {% if can_view_operational_costs %}
                         <th class="text-center">سعر التكلفة</th>
+                        {% endif %}
+                        {% if can_view_selling_price %}
                         <th class="text-center">سعر البيع</th>
+                        {% endif %}
                         <th class="text-center">الكمية</th>
                         <th class="text-center">الكود</th>
                     </tr>
@@ -331,8 +335,12 @@
                         </td>
                         <td class="text-center"><span class="badge bg-light text-dark">{{ row.category }}</span></td>
                         <td class="text-center">{{ row.unit }}</td>
+                        {% if can_view_operational_costs %}
                         <td class="text-center">{{ row.cost_price }}</td>
+                        {% endif %}
+                        {% if can_view_selling_price %}
                         <td class="text-center">{{ row.selling_price }}</td>
+                        {% endif %}
                         <td class="text-center">
                             {% if row.initial_quantity > 0 %}
                                 <span class="badge bg-success">{{ row.initial_quantity }}</span>
@@ -457,8 +465,12 @@
                         <div class="col-guide required"><div class="col-name">اسم المنتج</div><div class="text-muted">اسم المنتج كاملاً (عربي)</div></div>
                         <div class="col-guide required"><div class="col-name">التصنيف</div><div class="text-muted">اسم التصنيف في النظام</div></div>
                         <div class="col-guide required"><div class="col-name">وحدة القياس</div><div class="text-muted">مثل: قطعة، كرتونة، باكت</div></div>
+                        {% if can_view_operational_costs %}
                         <div class="col-guide required"><div class="col-name">سعر التكلفة</div><div class="text-muted">رقم موجب (0 أو أكبر)</div></div>
+                        {% endif %}
+                        {% if can_view_selling_price %}
                         <div class="col-guide required"><div class="col-name">سعر البيع</div><div class="text-muted">رقم موجب أكبر من التكلفة</div></div>
+                        {% endif %}
                         <div class="col-guide optional"><div class="col-name">كود المنتج SKU</div><div class="text-muted">يُولَّد تلقائياً إن تُرِك فارغاً</div></div>
                         <div class="col-guide optional"><div class="col-name">الباركود</div><div class="text-muted">رقم الباركود الدولي أو الداخلي</div></div>
                         <div class="col-guide optional"><div class="col-name">الكمية الافتتاحية</div><div class="text-muted">الرصيد الأولي في المخزن</div></div>

@@ -79,7 +79,9 @@
               <th class="text-start">{% trans "العميل" %}</th>
               <th>{% trans "تاريخ البدء" %}</th>
               <th>{% trans "التسليم المتوقع" %}</th>
+              {% if can_view_operational_costs or can_view_work_order_commercials %}
               <th>{% trans "التكلفة التقديرية" %}</th>
+              {% endif %}
               <th>{% trans "الحالة" %}</th>
               <th class="col-actions text-center">{% trans "الإجراءات" %}</th>
             </tr>
@@ -97,7 +99,9 @@
               </td>
               <td>{{ order.start_date|date:"Y-m-d"|default:"-" }}</td>
               <td>{{ order.delivery_date|date:"Y-m-d"|default:"-" }}</td>
+              {% if can_view_operational_costs or can_view_work_order_commercials %}
               <td class="fw-bold text-success">{{ order.estimated_cost|smart_float:2 }} {% currency_symbol %}</td>
+              {% endif %}
               <td>
                 <span class="badge rounded-pill {% if order.status == 'completed' %}bg-success{% elif order.status == 'in_progress' %}bg-primary{% elif order.status == 'pending' %}bg-warning text-dark{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
                   {{ order.get_status_display }}

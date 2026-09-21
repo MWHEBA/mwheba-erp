@@ -114,6 +114,7 @@
                 </div>
             </div>
 
+            {% if can_view_operational_costs %}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-light">
                     <h5 class="card-title mb-0">{% trans "ملخص المالية" %}</h5>
@@ -139,6 +140,7 @@
                     </table>
                 </div>
             </div>
+            {% endif %}
         </div>
 
         <!-- بنود المرتجع -->
@@ -154,10 +156,12 @@
                                 <tr>
                                     <th class="text-center">{% trans "المنتج" %}</th>
                                     <th class="text-center">{% trans "الكمية" %}</th>
+                                    {% if can_view_operational_costs %}
                                     <th class="text-center">{% trans "سعر الوحدة" %}</th>
                                     <th class="text-center">{% trans "الخصم" %}</th>
                                     <th class="text-center">{% trans "الضريبة" %}</th>
                                     <th class="text-center">{% trans "الإجمالي" %}</th>
+                                    {% endif %}
                                     <th class="text-center">{% trans "سبب الإرجاع" %}</th>
                                 </tr>
                             </thead>
@@ -171,6 +175,7 @@
                                         <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
                                         {% endif %}
                                     </td>
+                                    {% if can_view_operational_costs %}
                                     <td class="text-center">{{ item.unit_price|currency }}</td>
                                     <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
                                     <td class="text-center">
@@ -181,10 +186,12 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-center">{{ item.total|currency }}</td>
+                                    {% endif %}
                                     <td class="text-center">{{ item.reason }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
+                            {% if can_view_operational_costs %}
                             <tfoot>
                                 <tr>
                                     <th colspan="5" class="text-end">{% trans "المجموع الفرعي" %}</th>
@@ -202,6 +209,7 @@
                                     <td></td>
                                 </tr>
                             </tfoot>
+                            {% endif %}
                         </table>
                     </div>
                 </div>

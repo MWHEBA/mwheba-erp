@@ -82,7 +82,7 @@
         )</span>
         {% endif %}
     </td>
-    {% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
+    {% if can_view_operational_costs %}
     <td style="text-align: center;">{{ item.unit_price|currency:purchase.currency_symbol }}</td>
     {% if has_item_discounts or purchase.has_item_discounts %}
     <td style="text-align: center;">
@@ -117,7 +117,7 @@
 {% endblock %}
 
 {% block summary_rows %}
-{% if perms.purchase.view_purchase or perms.financial.view_journalentry or user.is_superuser %}
+{% if can_view_operational_costs %}
 <tr>
     <td>{% trans "المجموع الفرعي" %}</td>
     <td>{{ purchase.subtotal|currency:purchase.currency_symbol }}</td>

@@ -79,6 +79,7 @@
         </div>
 
         <!-- متوسط سعر البيع -->
+        {% if can_view_selling_price %}
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="stats-card stats-card-primary">
                 <div class="stats-card-body">
@@ -93,9 +94,10 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- التصنيفات الخدمية -->
-        <div class="col-12 col-sm-6 col-xl-3">
+        <div class="col-12 col-sm-6 {% if can_view_selling_price %}col-xl-3{% else %}col-xl-6{% endif %}">
             <div class="stats-card stats-card-warning">
                 <div class="stats-card-body">
                     <div class="stats-card-icon">
@@ -121,13 +123,14 @@
         <div class="collapse" id="filtersSection">
             <form method="get" id="filter-form" onsubmit="event.preventDefault(); window.doSearch();">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
+                    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-5{% endif %}">
                         <label for="id_name" class="form-label">اسم الخدمة</label>
                         <input type="text" name="name" id="id_name" class="form-control" placeholder="بحث بالاسم أو الكود..." value="{{ request.GET.name }}">
                     </div>
-                    <div class="col-md-3">
+                    <div class="{% if can_view_selling_price %}col-md-3{% else %}col-md-5{% endif %}">
                         {{ filter_form.category|as_crispy_field }}
                     </div>
+                    {% if can_view_selling_price %}
                     <div class="col-md-2">
                         <label for="id_min_price" class="form-label">السعر من</label>
                         <input type="number" step="0.01" name="min_price" id="id_min_price" class="form-control" placeholder="0.00" value="{{ request.GET.min_price }}">
@@ -136,6 +139,7 @@
                         <label for="id_max_price" class="form-label">السعر إلى</label>
                         <input type="number" step="0.01" name="max_price" id="id_max_price" class="form-control" placeholder="0.00" value="{{ request.GET.max_price }}">
                     </div>
+                    {% endif %}
                     <div class="col-md-2">
                         <div class="form-check mb-2">
                             <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input" {% if request.GET.is_active or not request.GET %}checked{% endif %}>

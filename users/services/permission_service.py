@@ -98,6 +98,7 @@ class PermissionService:
             
             # Printing & Work Order
             'view_cost_breakdown', 'view_profit_margins', 'view_all_orders',
+            'view_work_order_commercials',
             'override_pricing_rules', 'manage_pricing_settings',
             'change_workorder_status', 'cancel_workorder',
             'add_workorder', 'change_workorder', 'view_workorder',
@@ -112,7 +113,7 @@ class PermissionService:
             'add_supplier', 'change_supplier', 'view_supplier',
             
             # Products, Warehouses & Inventory
-            'add_product', 'change_product', 'view_product',
+            'add_product', 'change_product', 'view_product', 'view_selling_price',
             'add_warehouse', 'change_warehouse', 'view_warehouse',
             'view_stock', 'add_stockmovement', 'view_stockmovement',
             'add_unit', 'change_unit', 'view_unit',

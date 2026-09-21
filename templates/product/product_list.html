@@ -90,6 +90,7 @@
         </div>
 
         <!-- إجمالي قيمة المخزون -->
+        {% if can_view_operational_costs %}
         <div class="col-12 col-sm-6 col-xl-3">
             <div class="stats-card stats-card-success">
                 <div class="stats-card-body">
@@ -104,6 +105,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- تحت حد الأمان -->
         <div class="col-12 col-sm-6 col-xl-3">
@@ -266,10 +268,16 @@
                         <label class="form-label">الحقل المراد تعديله <span class="text-danger">*</span></label>
                         <select id="bulk-field" class="form-select" onchange="onFieldChange()">
                             <option value="">-- اختر الحقل --</option>
+                            {% if can_view_selling_price or can_view_operational_costs %}
                             <optgroup label="الأسعار">
+                                {% if can_view_selling_price %}
                                 <option value="selling_price">سعر البيع</option>
+                                {% endif %}
+                                {% if can_view_operational_costs %}
                                 <option value="cost_price">سعر التكلفة</option>
+                                {% endif %}
                             </optgroup>
+                            {% endif %}
                             <optgroup label="الحالة والتصنيف">
                                 <option value="is_active">الحالة (نشط/غير نشط)</option>
                                 <option value="category">التصنيف</option>

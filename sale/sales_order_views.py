@@ -698,8 +698,6 @@ def sales_order_edit(request, pk):
     from financial.models import Currency, CostCenter
     from django.contrib.auth import get_user_model
     currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
-    for c in currencies:
-        c.current_rate = ExchangeRateService.get_exchange_rate(c)
 
     customers = Customer.objects.filter(is_active=True).order_by("name")
     warehouses = DataScopingService.get_transaction_warehouses(request.user)

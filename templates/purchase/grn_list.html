@@ -15,7 +15,7 @@
   {% include "shared/page_header.html" with title=title|default:"إذونات استلام المشتريات (GRN)" subtitle="إدارة ومتابعة استلام خامات ومواد المشتريات بالمخازن والمطابقة المالية" icon="fas fa-truck-loading" header_buttons=header_buttons %}
 
   <!-- KPI Stats Row -->
-  {% if grni_summary %}
+  {% if grni_summary and can_view_operational_costs %}
   <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="stats-card stats-card-info">

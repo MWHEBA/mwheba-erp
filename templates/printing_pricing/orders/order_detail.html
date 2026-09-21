@@ -22,6 +22,7 @@
   <!-- كروت المؤشرات المالية والإنتاجية السريعة (KPI Stats Cards) -->
   <div class="row g-3 mb-4">
     <!-- قيمة البيع للعميل -->
+    {% if can_view_selling_price %}
     <div class="col-xl-3 col-md-6 col-12">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-body">
@@ -39,8 +40,9 @@
         </div>
       </div>
     </div>
+    {% endif %}
 
-    {% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}
+    {% if can_view_profit_margin and can_view_margins and can_view_operational_costs or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}
     <!-- إجمالي التكاليف المقدرة -->
     <div class="col-xl-3 col-md-6 col-12">
       <div class="stats-card stats-card-danger">
@@ -81,7 +83,7 @@
     {% endif %}
 
     <!-- الكمية ومواصفات الحجم -->
-    <div class="col-xl-{% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}3{% else %}9{% endif %} col-md-6 col-12">
+    <div class="col-xl-{% if can_view_selling_price and can_view_profit_margin and can_view_margins and can_view_operational_costs %}3{% elif can_view_selling_price %}9{% else %}12{% endif %} col-md-6 col-12">
       <div class="stats-card stats-card-info">
         <div class="stats-card-body">
           <div class="stats-card-icon">

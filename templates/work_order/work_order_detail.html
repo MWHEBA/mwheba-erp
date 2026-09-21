@@ -13,8 +13,7 @@
   {% include "shared/page_header.html" %}
 
   <!-- لوحة مركز التكلفة والربحية (Cost Center & Metrics) -->
-  {% if can_view_financials %}
-  {% if perms.printing_pricing.view_cost_breakdown or perms.printing_pricing.view_profit_margins or user.is_superuser or perms.financial.view_account %}
+  {% if perms.printing_pricing.view_cost_breakdown or perms.printing_pricing.view_profit_margins or can_view_profit_margin and can_view_commercials and can_view_operational_costs or user.is_superuser %}
   <div class="row g-3 mb-4">
     <!-- إجمالي الإيرادات -->
     <div class="col-md-3 col-sm-6">
@@ -103,7 +102,119 @@
       </div>
     </div>
   </div>
-  {% endif %}
+  {% elif can_view_operational_costs and not can_view_commercials %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-shopping-cart"></i>
+          </div>
+          <div class="stats-card-title">{% trans "مشتريات وخامات أمر الشغل" %}</div>
+          <div class="stats-card-value">
+            {{ net_purchases_cost|smart_float:2 }}
+            <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "الخامات:" %} {{ net_raw_materials_cost|smart_float:2 }}</span> |
+            <span>{% trans "الخدمات:" %} {{ services_egp|smart_float:2 }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+          <div class="stats-card-title">{% trans "المصروفات المباشرة" %}</div>
+          <div class="stats-card-value">
+            {{ expenses_direct_total|smart_float:2 }}
+            <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "معاملات تشغيلية مسجلة" %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-tasks"></i>
+          </div>
+          <div class="stats-card-title">{% trans "حالة أمر الشغل" %}</div>
+          <div class="stats-card-value" style="font-size: 1.2rem;">
+            {{ work_order.get_status_display }}
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "البدء:" %} {{ work_order.start_date|date:"Y-m-d"|default:"-" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% elif can_view_commercials and not can_view_operational_costs %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <div class="stats-card-title">{% trans "إجمالي الإيرادات الصافية" %}</div>
+          <div class="stats-card-value">
+            {{ net_sales_revenue|smart_float:2 }}
+            <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "الفواتير المؤكدة" %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-piggy-bank"></i>
+          </div>
+          <div class="stats-card-title">{% trans "الدفعات المقدمة" %}</div>
+          <div class="stats-card-value">
+            {{ remaining_deposit|smart_float:2 }}
+            <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "المقبوض:" %} {{ total_deposits|smart_float:2 }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-signature"></i>
+          </div>
+          <div class="stats-card-title">{% trans "عروض الأسعار" %}</div>
+          <div class="stats-card-value">
+            {{ quotations.count }}
+          </div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "عرض سعر مرتبط" %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   {% endif %}
 
   {% if enabled_modules.printing_pricing and work_order.printing_orders.exists %}
@@ -140,7 +251,7 @@
           <div class="fw-bold text-dark fs-6">{{ p_order.width|default:"21" }} × {{ p_order.height|default:"29.7" }} {% trans "سم" %}</div>
         </div>
       </div>
-      {% if perms.printing_pricing.view_profit_margins %}
+      {% if can_view_profit_margin and perms.printing_pricing.view_profit_margins %}
       <div class="col-md-3 col-sm-6">
         <div class="p-3 bg-light rounded border text-center">
           <div class="small text-muted mb-1">{% trans "صافي ربح التسعير" %}</div>
@@ -214,6 +325,7 @@
 
     <div class="card-header bg-white border-0 pt-3 px-3 pb-0">
       <ul class="nav nav-tabs card-header-tabs border-bottom" id="workOrderTabs" role="tablist">
+        {% if can_view_commercials %}
         <li class="nav-item" role="presentation">
           <button class="nav-link active fw-semibold px-3" id="quotations-tab" data-bs-toggle="tab"
             data-bs-target="#quotations" type="button" role="tab" aria-controls="quotations" aria-selected="true">
@@ -221,7 +333,6 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ quotations.count }}</span>
           </button>
         </li>
-        {% if can_view_financials %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales"
             type="button" role="tab" aria-controls="sales" aria-selected="false">
@@ -229,13 +340,17 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ sales.count }}</span>
           </button>
         </li>
+        {% endif %}
+        {% if can_view_operational_costs %}
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases"
-            type="button" role="tab" aria-controls="purchases" aria-selected="false">
+          <button class="nav-link {% if not can_view_commercials %}active{% endif %} fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases"
+            type="button" role="tab" aria-controls="purchases" aria-selected="{% if not can_view_commercials %}true{% else %}false{% endif %}">
             <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ purchases.count }}</span>
           </button>
         </li>
+        {% endif %}
+        {% if can_view_operational_costs or can_view_commercials %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="transactions-tab" data-bs-toggle="tab"
             data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
@@ -249,6 +364,7 @@
 
     <div class="card-body p-3">
       <div class="tab-content" id="workOrderTabsContent">
+        {% if can_view_commercials %}
         <!-- عروض الأسعار -->
         <div class="tab-pane fade show active" id="quotations" role="tabpanel" aria-labelledby="quotations-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -266,7 +382,7 @@
                   <th>{% trans "رقم العرض" %}</th>
                   <th>{% trans "التاريخ" %}</th>
                   <th>{% trans "تاريخ الانتهاء" %}</th>
-                  {% if can_view_financials %}<th>{% trans "الإجمالي" %}</th>{% endif %}
+                  <th>{% trans "الإجمالي" %}</th>
                   <th>{% trans "الحالة" %}</th>
                   <th>{% trans "عرض" %}</th>
                 </tr>
@@ -277,7 +393,7 @@
                   <td class="fw-bold">{{ q.number }}</td>
                   <td>{{ q.date|date:"Y-m-d" }}</td>
                   <td>{{ q.valid_until|date:"Y-m-d"|default:"-" }}</td>
-                  {% if can_view_financials %}<td>{{ q.total|smart_float:2 }} {% currency_symbol %}</td>{% endif %}
+                  <td>{{ q.total|smart_float:2 }} {% currency_symbol %}</td>
                   <td>
                     <span
                       class="badge rounded-pill {% if q.status == 'accepted' %}bg-success{% elif q.status == 'sent' %}bg-info{% elif q.status == 'draft' %}bg-secondary{% else %}bg-danger{% endif %}">
@@ -292,7 +408,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                  <td colspan="{% if can_view_financials %}6{% else %}5{% endif %}" class="text-muted py-3">{% trans "لا يوجد عروض أسعار مرتبطة حالياً." %}</td>
+                  <td colspan="6" class="text-muted py-3">{% trans "لا يوجد عروض أسعار مرتبطة حالياً." %}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -300,7 +416,6 @@
           </div>
         </div>
 
-        {% if can_view_financials %}
         <!-- فواتير المبيعات -->
         <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -353,9 +468,11 @@
             </table>
           </div>
         </div>
+        {% endif %}
 
+        {% if can_view_operational_costs %}
         <!-- فواتير المشتريات -->
-        <div class="tab-pane fade" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
+        <div class="tab-pane fade {% if not can_view_commercials %}show active{% endif %}" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0">{% trans "فواتير المشتريات المرتبطة" %}</h6>
             {% if not is_closed and perms.purchase.add_purchase %}
@@ -408,11 +525,14 @@
             </table>
           </div>
         </div>
+        {% endif %}
 
+        {% if can_view_operational_costs or can_view_commercials %}
         <!-- المعاملات المالية المباشرة -->
         <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
           <div class="row g-3 mb-3">
-            <div class="col-md-6">
+            {% if can_view_operational_costs %}
+            <div class="{% if can_view_commercials %}col-md-6{% else %}col-12{% endif %}">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="fw-bold mb-0"><i class="fas fa-arrow-circle-up text-danger me-2"></i>{% trans "المصروفات المباشرة" %}</h6>
                 {% if not is_closed and perms.financial.add_expensetransaction %}
@@ -448,7 +568,10 @@
                 </table>
               </div>
             </div>
-            <div class="col-md-6">
+            {% endif %}
+
+            {% if can_view_commercials %}
+            <div class="{% if can_view_operational_costs %}col-md-6{% else %}col-12{% endif %}">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="fw-bold mb-0"><i class="fas fa-arrow-circle-down text-success me-2"></i>{% trans "الإيرادات المباشرة" %}</h6>
                 {% if not is_closed and perms.financial.add_incometransaction %}
@@ -484,6 +607,7 @@
                 </table>
               </div>
             </div>
+            {% endif %}
           </div>
         </div>
         {% endif %}

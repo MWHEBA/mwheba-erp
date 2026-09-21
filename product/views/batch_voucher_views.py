@@ -90,7 +90,7 @@ class BatchVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         form = super().get_form(form_class)
         from users.services.data_scoping_service import DataScopingService
         managed_warehouses = DataScopingService.get_managed_warehouses(self.request.user)
-        if managed_warehouses is not None and 'warehouse' in form.fields:
+        if managed_warehouses is not None and managed_warehouses.exists() and 'warehouse' in form.fields:
             form.fields['warehouse'].queryset = managed_warehouses
         return form
 
@@ -395,7 +395,7 @@ class BatchVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View)
         
         from users.services.data_scoping_service import DataScopingService
         managed_warehouses = DataScopingService.get_managed_warehouses(request.user)
-        if managed_warehouses is not None and voucher.warehouse not in managed_warehouses:
+        if managed_warehouses is not None and managed_warehouses.exists() and voucher.warehouse not in managed_warehouses:
             err_msg = 'غير مصرح لك باعتماد أذون لمخزن غير مسند إليك'
             if is_ajax:
                 return JsonResponse({'success': False, 'error': err_msg}, status=403)

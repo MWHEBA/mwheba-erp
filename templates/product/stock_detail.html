@@ -41,12 +41,7 @@
                         {% with percentage=stock.quantity|smart_float|default:"0"|stringformat:"i"|add:"0" %}
                             {% with min_stock=stock.product.min_stock|smart_float|default:"0"|stringformat:"i"|add:"0" %}
                                 {% with percent=percentage|divide:min_stock|multiply:100|smart_float %}
-                                    <div class="progress-bar 
-                                        {% if stock.quantity <= 0 %}bg-danger
-                                        {% elif stock.quantity < stock.product.min_stock %}bg-warning
-                                        {% else %}bg-success{% endif %}"
-                                        role="progressbar" style="width: {% if percent > 100 %}100{% else %}{{ percent }}{% endif %}%">
-                                    </div>
+                                    <div class="progress-bar {% if stock.quantity <= 0 %}bg-danger{% elif stock.quantity < stock.product.min_stock %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" data-progress="{{ percent|default:0 }}"></div>
                                 {% endwith %}
                             {% endwith %}
                         {% endwith %}
@@ -93,11 +88,15 @@
                     <dt class="col-sm-5">وحدة القياس</dt>
                     <dd class="col-sm-7">{{ stock.product.unit|default:"-" }}</dd>
                     
+                    {% if can_view_operational_costs %}
                     <dt class="col-sm-5">سعر التكلفة</dt>
                     <dd class="col-sm-7">{{ stock.product.cost_price|smart_float }} {{ currency_symbol }}</dd>
+                    {% endif %}
                     
+                    {% if can_view_selling_price %}
                     <dt class="col-sm-5">سعر البيع</dt>
                     <dd class="col-sm-7">{{ stock.product.selling_price|smart_float }} {{ currency_symbol }}</dd>
+                    {% endif %}
                 </dl>
             </div>
         </div>
@@ -185,4 +184,12 @@
 
 {% block extra_js %}
 <script src="{% static 'js/stock.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.progress-bar[data-progress]').forEach(function(bar) {
+            var val = parseFloat(bar.getAttribute('data-progress')) || 0;
+            bar.style.width = Math.min(100, Math.max(0, val)) + '%';
+        });
+    });
+</script>
 {% endblock %} 

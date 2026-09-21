@@ -22,7 +22,7 @@ def test_user(db):
 
 
 @pytest.fixture
-def cash_account(db):
+def cash_account(db, test_user):
     """Get or create cash account"""
     account = ChartOfAccounts.objects.filter(code='10100').first()
     if not account:
@@ -37,6 +37,12 @@ def cash_account(db):
             account_type=account_type,
             is_active=True
         )
+    from financial.models import UserTreasuryAccess
+    UserTreasuryAccess.objects.get_or_create(
+        user=test_user,
+        treasury=account,
+        defaults={"can_deposit": True, "can_disburse": True}
+    )
     return account
 
 

@@ -547,7 +547,7 @@
                                 </div>
                             </div>
                             {% endif %}
-                            {% if sale.journal_entry %}
+                            {% if sale.journal_entry and perms.financial.view_journalentry or sale.journal_entry and can_view_profit_margin %}
                             <div class="party-info">
                                 <div class="party-label">{% trans "القيد المحاسبي:" %}</div>
                                 <div class="party-value">
@@ -932,9 +932,13 @@
                                         </td>
                                         <td>
                                             {% if payment.financial_transaction %}
-                                            <a href="{% url 'financial:journal_entries_detail' payment.financial_transaction.id %}" class="text-success fw-bold" target="_blank" onclick="event.stopPropagation();">
-                                                <i class="fas fa-book me-1"></i>{{ payment.financial_transaction.number }}
-                                            </a>
+                                                {% if perms.financial.view_journalentry or can_view_profit_margin %}
+                                                <a href="{% url 'financial:journal_entries_detail' payment.financial_transaction.id %}" class="text-success fw-bold" target="_blank" onclick="event.stopPropagation();">
+                                                    <i class="fas fa-book me-1"></i>{{ payment.financial_transaction.number }}
+                                                </a>
+                                                {% else %}
+                                                <span class="badge bg-light text-dark"><i class="fas fa-book me-1"></i>{{ payment.financial_transaction.number }}</span>
+                                                {% endif %}
                                             {% else %}
                                             <span class="text-muted">-</span>
                                             {% endif %}
@@ -950,7 +954,7 @@
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 {% elif payment.status == 'posted' %}
-                                                {% if payment.financial_transaction %}
+                                                {% if payment.financial_transaction and perms.financial.view_journalentry or payment.financial_transaction and can_view_profit_margin %}
                                                 <a href="{% url 'financial:journal_entries_detail' payment.financial_transaction.id %}" class="btn btn-sm btn-outline-info" target="_blank" title="عرض القيد">
                                                     <i class="fas fa-book"></i>
                                                 </a>
