@@ -229,7 +229,7 @@ class TestPhase5ReportsAndPayrollIntegration:
             late_minutes=0,
             status='present'
         )
-        # حركة بصمة جوال مرتبطة
+        # حركة بصمة هاتف مرتبطة
         BiometricLog.objects.create(
             attendance=att1,
             employee=emp,

@@ -47,6 +47,20 @@ def smart_float(value, decimal_places=2):
     return custom_number_format(value, decimal_places)
 
 
+@register.filter(name='abs')
+def absolute_value(value):
+    """إرجاع القيمة المطلقة للرقم"""
+    if value is None:
+        return 0
+    try:
+        return abs(Decimal(str(value)))
+    except Exception:
+        try:
+            return abs(float(value))
+        except Exception:
+            return value
+
+
 register.filter('smartfloat', smart_float)
 
 

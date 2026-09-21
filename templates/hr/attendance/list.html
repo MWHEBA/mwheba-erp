@@ -229,10 +229,7 @@
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">اختر ملف Excel (.xlsx) <span class="text-danger">*</span></label>
-                        <input type="file" name="excel_file" id="import_excel_file" class="form-control" accept=".xlsx, .xls" required>
-                    </div>
+                    {% include "components/file_upload_field.html" with name="excel_file" id="import_excel_file" label="ملف حضور وانصراف الموظفين" accept=".xlsx,.xls" required=True icon="fa-file-excel" %}
 
                     <!-- حاوية نتائج الاستيراد والتقرير التفصيلي -->
                     <div id="importReportContainer" style="display: none;">

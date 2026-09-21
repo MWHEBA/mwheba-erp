@@ -100,16 +100,16 @@
                 <div class="payment-actions">
                     {% if can_edit %}
                         <button class="btn btn-sm btn-outline-primary me-2" 
-                                onclick="editPayment({{ payment.id }})" 
+                                onclick="editPayment('{{ payment.id }}')" 
                                 title="تعديل الدفعة">
                             <i class="fas fa-edit me-1"></i>
                             تعديل
                         </button>
                     {% endif %}
                     
-                    {% if can_unpost and user.has_perm:'financial.can_unpost_payments' %}
+                    {% if can_unpost and perms.financial.can_unpost_payments %}
                         <button class="btn btn-sm btn-outline-warning me-2" 
-                                onclick="unpostPayment({{ payment.id }})" 
+                                onclick="unpostPayment('{{ payment.id }}')" 
                                 title="إلغاء الترحيل">
                             <i class="fas fa-undo me-1"></i>
                             إلغاء الترحيل
@@ -117,7 +117,7 @@
                     {% endif %}
                     
                     <button class="btn btn-sm btn-outline-info me-2" 
-                            onclick="showPaymentHistory({{ payment.id }})" 
+                            onclick="showPaymentHistory('{{ payment.id }}')" 
                             title="تاريخ التغييرات">
                         <i class="fas fa-history me-1"></i>
                         التاريخ
@@ -125,7 +125,7 @@
                     
                     {% if can_delete %}
                         <button class="btn btn-sm btn-outline-danger" 
-                                onclick="deletePayment({{ payment.id }})" 
+                                onclick="deletePayment('{{ payment.id }}')" 
                                 title="حذف الدفعة">
                             <i class="fas fa-trash me-1"></i>
                             حذف

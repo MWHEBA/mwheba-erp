@@ -1,0 +1,235 @@
+{% load static %}
+{% load i18n %}
+
+{% comment %}
+Enterprise Unified Drag & Drop File Uploader Component
+المعلمات المقبولة:
+- name: اسم حقل الإرسال (الافتراضي: 'file')
+- id: معرّف الحقل (الافتراضي: 'id_file')
+- label: عنوان الحقل (اختياري)
+- icon: أيقونة الحقل (الافتراضي: 'fa-cloud-upload-alt')
+- accept: الصيغ المقبولة (الافتراضي: '*/*')
+- required: هل الحقل إجباري (الافتراضي: False)
+- multiple: السماح باختيار عدة ملفات (الافتراضي: False)
+- max_size_mb: الحد الأقصى للحجم بالميجابايت (الافتراضي: 15)
+- help_text: نص مساعد أسفل الحقل (اختياري)
+- existing_file_name: اسم الملف المسجل مسبقاً إن وجد (اختياري)
+- existing_file_url: رابط الملف المسجل مسبقاً إن وجد (اختياري)
+{% endcomment %}
+
+{% with input_name=name|default:'file' input_id=id|default:'id_file' max_mb=max_size_mb|default:15 %}
+<div class="mb-3 unified-file-uploader" id="wrapper_{{ input_id }}" data-uploader-id="{{ input_id }}" data-max-size="{{ max_mb }}">
+    {% if label %}
+    <label for="{{ input_id }}" class="form-label fw-semibold text-secondary mb-1">
+        <i class="fas {{ icon|default:'fa-file-alt' }} text-primary me-1"></i>
+        {{ label }}
+        {% if required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+    {% endif %}
+
+    <!-- عرض الملف الحالي إن وجد -->
+    {% if existing_file_name and existing_file_url %}
+    <div class="mb-2" id="existing_{{ input_id }}">
+        <div class="d-flex align-items-center justify-content-between bg-light border rounded-2 p-2 shadow-xs">
+            <div class="d-flex align-items-center gap-2 overflow-hidden">
+                <i class="fas fa-paperclip text-primary fs-5 ms-1"></i>
+                <div class="text-truncate">
+                    <span class="fw-semibold text-dark fs-7" dir="ltr">{{ existing_file_name }}</span>
+                    <span class="badge bg-secondary-subtle text-secondary ms-1">الملف الحالي</span>
+                </div>
+            </div>
+            <a href="{{ existing_file_url }}" target="_blank" class="btn btn-sm btn-outline-primary px-2 py-1 fs-8">
+                <i class="fas fa-download me-1"></i>تحميل
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- منطقة السحب والإفلات -->
+    <div class="file-dropzone border border-2 border-dashed rounded-3 p-3 text-center bg-light position-relative transition-all cursor-pointer"
+         id="dropzone_{{ input_id }}"
+         style="border-color: var(--bs-border-color, #dee2e6) !important; min-height: 110px;">
+        
+        <input type="file" 
+               class="d-none" 
+               id="{{ input_id }}" 
+               name="{{ input_name }}{% if multiple %}[]{% endif %}" 
+               data-max-mb="{{ max_mb }}"
+               {% if accept %}accept="{{ accept }}"{% endif %}
+               {% if multiple %}multiple{% endif %}
+               {% if required and not existing_file_url %}required{% endif %}>
+
+        <!-- شاشة الحث على السحب والاختيار -->
+        <div class="dropzone-prompt d-flex flex-column align-items-center justify-content-center py-2" id="prompt_{{ input_id }}">
+            <i class="fas {{ icon|default:'fa-cloud-upload-alt' }} text-primary fs-2 mb-1"></i>
+            <span class="fs-7 text-dark fw-medium">
+                اسحب وأسقط الملف هنا، أو <span class="text-primary text-decoration-underline">استعرض الجهاز</span>
+            </span>
+            <small class="text-muted fs-8 mt-1">
+                {% if accept %}الصيغ المدعومة: {{ accept }} &bull; {% endif %}الحد الأقصى: {{ max_mb }} ميجابايت
+            </small>
+        </div>
+
+        <!-- قائمة معاينة الملفات المختارة حديثاً -->
+        <div class="file-preview-list d-none flex-column gap-2 mt-2 text-start" id="preview_list_{{ input_id }}"></div>
+    </div>
+
+    {% if help_text %}
+    <div class="form-text mt-1 small text-muted">{{ help_text }}</div>
+    {% endif %}
+
+    <script>
+    (function() {
+        const uploaderId = "{{ input_id }}";
+        
+        function initFileUploader() {
+            const dropzone = document.getElementById('dropzone_' + uploaderId);
+            const fileInput = document.getElementById(uploaderId);
+            const prompt = document.getElementById('prompt_' + uploaderId);
+            const previewList = document.getElementById('preview_list_' + uploaderId);
+
+            if (!dropzone || !fileInput) return;
+
+            const maxSizeBytes = (parseInt(fileInput.getAttribute('data-max-mb'), 10) || 15) * 1024 * 1024;
+            const isMultiple = fileInput.hasAttribute('multiple');
+            let selectedFiles = [];
+
+            dropzone.addEventListener('click', function(e) {
+                if (e.target.closest('.btn-remove-file')) return;
+                fileInput.click();
+            });
+
+            ['dragenter', 'dragover'].forEach(function(eventName) {
+                dropzone.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('border-primary', 'bg-primary-subtle');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(function(eventName) {
+                dropzone.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-primary', 'bg-primary-subtle');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    handleNewFiles(Array.from(files));
+                }
+            });
+
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    handleNewFiles(Array.from(this.files));
+                }
+            });
+
+            function handleNewFiles(newFiles) {
+                for (let i = 0; i < newFiles.length; i++) {
+                    const f = newFiles[i];
+                    if (f.size > maxSizeBytes) {
+                        const maxMb = (maxSizeBytes / (1024 * 1024)).toFixed(0);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('حجم الملف "' + f.name + '" يتجاوز الحد الأقصى (' + maxMb + 'MB)');
+                        } else {
+                            alert('حجم الملف "' + f.name + '" يتجاوز الحد الأقصى (' + maxMb + 'MB)');
+                        }
+                        return;
+                    }
+                }
+
+                if (!isMultiple) {
+                    selectedFiles = [newFiles[0]];
+                } else {
+                    newFiles.forEach(function(f) {
+                        if (!selectedFiles.some(function(existing) { return existing.name === f.name && existing.size === f.size; })) {
+                            selectedFiles.push(f);
+                        }
+                    });
+                }
+
+                syncInput();
+                renderList();
+            }
+
+            function removeFile(index) {
+                selectedFiles.splice(index, 1);
+                syncInput();
+                renderList();
+            }
+
+            function syncInput() {
+                const dt = new DataTransfer();
+                selectedFiles.forEach(function(f) { dt.items.add(f); });
+                fileInput.files = dt.files;
+            }
+
+            function getFileIcon(filename) {
+                const name = filename.toLowerCase();
+                if (name.endsWith('.pdf')) return 'fas fa-file-pdf text-danger';
+                if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) return 'fas fa-file-excel text-success';
+                if (name.endsWith('.doc') || name.endsWith('.docx')) return 'fas fa-file-word text-primary';
+                if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.webp') || name.endsWith('.gif')) return 'fas fa-file-image text-info';
+                if (name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.tar') || name.endsWith('.gz')) return 'fas fa-file-archive text-warning';
+                if (name.endsWith('.json') || name.endsWith('.txt')) return 'fas fa-file-code text-secondary';
+                return 'fas fa-file text-secondary';
+            }
+
+            function renderList() {
+                previewList.innerHTML = '';
+                if (selectedFiles.length === 0) {
+                    previewList.classList.add('d-none');
+                    previewList.classList.remove('d-flex');
+                    prompt.classList.remove('d-none');
+                    return;
+                }
+
+                prompt.classList.add('d-none');
+                previewList.classList.remove('d-none');
+                previewList.classList.add('d-flex');
+
+                selectedFiles.forEach(function(file, idx) {
+                    const sizeStr = file.size > 1024 * 1024 
+                        ? (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+                        : (file.size / 1024).toFixed(1) + ' KB';
+
+                    const card = document.createElement('div');
+                    card.className = 'file-preview-card d-flex align-items-center justify-content-between bg-white border rounded-2 p-2 shadow-xs';
+                    card.innerHTML = 
+                        '<div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">' +
+                            '<div class="bg-light rounded p-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">' +
+                                '<i class="' + getFileIcon(file.name) + ' fs-5"></i>' +
+                            '</div>' +
+                            '<div class="overflow-hidden" style="max-width: 80%;">' +
+                                '<div class="text-truncate fw-semibold text-dark fs-7" dir="ltr">' + file.name + '</div>' +
+                                '<small class="text-muted fs-8">' + sizeStr + '</small>' +
+                            '</div>' +
+                        '</div>' +
+                        '<button type="button" class="btn btn-sm btn-outline-danger btn-remove-file px-2 py-1 fs-8" title="إلغاء">' +
+                            '<i class="fas fa-times"></i>' +
+                        '</button>';
+
+                    card.querySelector('.btn-remove-file').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        removeFile(idx);
+                    });
+
+                    previewList.appendChild(card);
+                });
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initFileUploader);
+        } else {
+            initFileUploader();
+        }
+    })();
+    </script>
+</div>
+{% endwith %}

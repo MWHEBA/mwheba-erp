@@ -488,7 +488,7 @@
                                   <div class="d-flex justify-content-between align-items-start">
                                       <div class="salary-item-name">
                                           {{ line.name }}
-                                          {% if line.code|in_list:'SOCIAL_INSURANCE,SOCIAL_INSURANCE_EMP,INCOME_TAX' %}
+                                          {% if line.code == 'SOCIAL_INSURANCE' or line.code == 'SOCIAL_INSURANCE_EMP' or line.code == 'INCOME_TAX' %}
                                               <span class="badge bg-secondary badge-sm ms-1">محسوب</span>
                                           {% elif line.source == 'advance' %}
                                               <span class="badge bg-secondary badge-sm ms-1">سلفة</span>

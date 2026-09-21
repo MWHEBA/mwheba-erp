@@ -16,6 +16,7 @@ urlpatterns = [
     path("", views.user_list, name="user_list"),  # تغيير من "users/" لـ ""
     path("create/", views.user_create, name="user_create"),  # تغيير من "users/create/" لـ "create/"
     path("<int:user_id>/edit/", views.user_edit, name="user_edit"),
+    path("<int:user_id>/link-employee/", views.user_link_employee, name="user_link_employee"),
     path("<int:user_id>/delete/", views.user_delete, name="user_delete"),
     path("<int:user_id>/toggle-status/", views.user_toggle_status, name="user_toggle_status"),
     path("<int:user_id>/check-delete/", views.user_check_delete, name="user_check_delete"),

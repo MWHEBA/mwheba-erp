@@ -1,234 +1,389 @@
 {% load static %}
+{% load i18n %}
 
-<div class="mb-3">
-    <label for="{{ field.id_for_label }}" class="form-label">
-        {% if prepend_icon %}
-            <i class="fas {{ prepend_icon }} me-2"></i>
+{% comment %}
+Enterprise Unified Drag & Drop Image Uploader Component
+المعلمات المقبولة:
+- field: كائن حقل النموذج من Django (اختياري، مثال: form.photo)
+- name: اسم الحقل (الافتراضي: field.name أو 'image')
+- id: معرّف الحقل (الافتراضي: field.id_for_label أو 'id_' + name)
+- label: عنوان الحقل (الافتراضي: field.label أو 'الصورة')
+- icon: أيقونة FontAwesome (الافتراضي: 'fa-camera' أو 'fa-image')
+- required: هل الحقل إجباري (الافتراضي: False)
+- initial_image: رابط الصورة الحالية المسجلة مسبقاً (اختياري)
+- max_size_mb: الحد الأقصى لحجم الصورة بالميجابايت (الافتراضي: 5)
+- help_text: نص مساعد أسفل الحقل (اختياري)
+{% endcomment %}
+
+{% if field %}
+    {% with field_name=name|default:field.name field_id=id|default:field.id_for_label field_label=label|default:field.label is_req=required|default:field.field.required field_help=help_text|default:field.help_text field_errors=field.errors current_img=initial_image|default:'' max_mb=max_size_mb|default:5 %}
+    <div class="mb-3 unified-image-uploader" id="wrapper_{{ field_id }}" data-uploader-id="{{ field_id }}">
+        {% if field_label %}
+        <label for="{{ field_id }}" class="form-label fw-semibold text-secondary mb-1">
+            <i class="fas {{ icon|default:'fa-camera' }} text-primary me-1"></i>
+            {{ field_label }}
+            {% if is_req %}<span class="text-danger">*</span>{% endif %}
+        </label>
         {% endif %}
-        {{ field.label }}
-        {% if field.field.required %}
-            <span class="text-danger">*</span>
-        {% endif %}
-    </label>
-    
-    <div class="image-upload-container">
-        <!-- منطقة رفع الصورة -->
-        <div class="image-upload-area" id="image-upload-area-{{ field.name }}">
-            <div class="upload-placeholder" id="upload-placeholder-{{ field.name }}">
-                <div class="upload-icon">
-                    <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+        
+        <div class="image-upload-container">
+            <div class="image-upload-area" id="dropzone_{{ field_id }}" role="button" tabindex="0">
+                <div class="upload-placeholder" id="placeholder_{{ field_id }}" {% if current_img %}style="display: none;"{% endif %}>
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="upload-text">
+                        <h6>اسحب وأسقط الصورة هنا، أو اضغط للاختيار</h6>
+                        <small>الحد الأقصى: {{ max_mb }} ميجابايت (JPG, PNG, GIF, WEBP)</small>
+                    </div>
                 </div>
-                <div class="upload-text">
-                    <h6 class="text-muted mb-1">اضغط لاختيار صورة أو اسحب الصورة هنا</h6>
-                    <small class="text-muted">الحد الأقصى: 5 ميجابايت | JPG, PNG, GIF</small>
-                </div>
-            </div>
-            
-            <!-- معاينة الصورة -->
-            <div class="image-preview" id="image-preview-{{ field.name }}" style="display: none;">
-                <img id="preview-img-{{ field.name }}" src="" alt="معاينة الصورة" class="preview-image">
-                <div class="image-overlay">
-                    <div class="image-actions">
-                        <button type="button" class="btn btn-sm btn-light" onclick="changeImage('{{ field.name }}')">
-                            <i class="fas fa-edit me-1"></i>تغيير
-                        </button>
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeImage('{{ field.name }}')">
-                            <i class="fas fa-trash me-1"></i>حذف
-                        </button>
+                <div class="image-preview" id="preview_{{ field_id }}" {% if not current_img %}style="display: none;"{% endif %}>
+                    <img id="preview_img_{{ field_id }}" src="{% if current_img %}{{ current_img }}{% endif %}" alt="{{ field_label }}" class="preview-image">
+                    <div class="image-overlay">
+                        <div class="image-actions">
+                            <button type="button" class="btn btn-sm btn-light shadow-sm" id="btn_change_{{ field_id }}" title="تغيير الصورة">
+                                <i class="fas fa-sync-alt me-1 text-primary"></i>تغيير
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger shadow-sm" id="btn_remove_{{ field_id }}" title="حذف الصورة">
+                                <i class="fas fa-trash-alt me-1"></i>حذف
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- حقل الرفع المخفي -->
-        {{ field }}
-        
-        <!-- معلومات الصورة -->
-        <div class="image-info" id="image-info-{{ field.name }}" style="display: none;">
-            <small class="text-muted">
-                <i class="fas fa-info-circle me-1"></i>
-                <span id="image-name-{{ field.name }}"></span>
-                <span id="image-size-{{ field.name }}"></span>
-            </small>
-        </div>
-        
-        <!-- رسائل الخطأ -->
-        {% if field.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in field.errors %}
-                    {{ error }}
-                {% endfor %}
+            
+            <input type="file" class="d-none" id="{{ field_id }}" name="{{ field_name }}" accept="image/*" data-max-mb="{{ max_mb }}" {% if is_req %}{% if not current_img %}required{% endif %}{% endif %}>
+            <input type="hidden" name="{{ field_name }}-clear" id="{{ field_id }}_clear" value="0">
+            
+            <div class="image-info" id="info_{{ field_id }}" {% if not current_img %}style="display: none;"{% endif %}>
+                <div class="d-flex align-items-center justify-content-between">
+                    <small class="text-muted d-flex align-items-center">
+                        <i class="fas fa-image me-1 text-primary"></i>
+                        <span id="name_{{ field_id }}" class="text-truncate" style="max-width: 250px;">{% if current_img %}صورة مسجلة مسبقاً{% endif %}</span>
+                        <span id="size_{{ field_id }}" class="ms-1"></span>
+                    </small>
+                    {% if current_img %}
+                    <a href="{{ current_img }}" target="_blank" class="btn btn-sm btn-link p-0 text-decoration-none fs-8 text-primary" id="view_link_{{ field_id }}">
+                        <i class="fas fa-external-link-alt me-1"></i>معاينة بحجم كامل
+                    </a>
+                    {% endif %}
+                </div>
             </div>
-        {% endif %}
-        
-        {% if field.help_text %}
-            <div class="form-text">{{ field.help_text }}</div>
-        {% endif %}
-    </div>
-</div>
+            
+            {% if field_errors %}
+                <div class="invalid-feedback d-block mt-1">
+                    {% for error in field_errors %}{{ error }}{% endfor %}
+                </div>
+            {% endif %}
+            {% if field_help %}
+                <div class="form-text mt-1 small text-muted">{{ field_help }}</div>
+            {% endif %}
+        </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fieldName = '{{ field.name }}';
-    const fileInput = document.getElementById('id_' + fieldName);
-    const uploadArea = document.getElementById('image-upload-area-' + fieldName);
-    const placeholder = document.getElementById('upload-placeholder-' + fieldName);
-    const preview = document.getElementById('image-preview-' + fieldName);
-    const previewImg = document.getElementById('preview-img-' + fieldName);
-    const imageInfo = document.getElementById('image-info-' + fieldName);
-    const imageName = document.getElementById('image-name-' + fieldName);
-    const imageSize = document.getElementById('image-size-' + fieldName);
-    
-    // إذا كانت هناك صورة موجودة مسبقاً
-    if (fileInput.value && fileInput.value.trim() !== '') {
-        showExistingImage();
-    }
-    
-    // معالجة النقر على منطقة الرفع
-    uploadArea.addEventListener('click', function(e) {
-        if (e.target !== fileInput && !e.target.closest('.image-actions')) {
-            fileInput.click();
-        }
-    });
-    
-    // معالجة تغيير الملف
-    fileInput.addEventListener('change', function(e) {
-        handleFileSelect(e.target.files[0]);
-    });
-    
-    // معالجة السحب والإفلات
-    uploadArea.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
-    
-    uploadArea.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-    });
-    
-    uploadArea.addEventListener('drop', function(e) {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-        
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            const file = files[0];
-            if (file.type.startsWith('image/')) {
-                fileInput.files = files;
-                handleFileSelect(file);
+        <script>
+        (function() {
+            const fieldId = "{{ field_id }}";
+            function initUploader() {
+                const dropzone = document.getElementById('dropzone_' + fieldId);
+                const fileInput = document.getElementById(fieldId);
+                const placeholder = document.getElementById('placeholder_' + fieldId);
+                const preview = document.getElementById('preview_' + fieldId);
+                const previewImg = document.getElementById('preview_img_' + fieldId);
+                const info = document.getElementById('info_' + fieldId);
+                const nameSpan = document.getElementById('name_' + fieldId);
+                const sizeSpan = document.getElementById('size_' + fieldId);
+                const clearInput = document.getElementById(fieldId + '_clear');
+                const btnChange = document.getElementById('btn_change_' + fieldId);
+                const btnRemove = document.getElementById('btn_remove_' + fieldId);
+                const viewLink = document.getElementById('view_link_' + fieldId);
+                
+                if (!dropzone || !fileInput) return;
+                const maxSize = (parseInt(fileInput.getAttribute('data-max-mb'), 10) || 5) * 1024 * 1024;
+                
+                dropzone.addEventListener('click', function(e) {
+                    if (e.target.closest('.image-actions')) return;
+                    fileInput.click();
+                });
+                
+                if (btnChange) {
+                    btnChange.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        fileInput.click();
+                    });
+                }
+                
+                if (btnRemove) {
+                    btnRemove.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        removeSelectedImage();
+                    });
+                }
+                
+                ['dragenter', 'dragover'].forEach(function(eventName) {
+                    dropzone.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.add('dragover');
+                    }, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(function(eventName) {
+                    dropzone.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.remove('dragover');
+                    }, false);
+                });
+                
+                dropzone.addEventListener('drop', function(e) {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    if (files && files.length > 0) {
+                        handleFile(files[0]);
+                    }
+                });
+                
+                fileInput.addEventListener('change', function() {
+                    if (this.files && this.files.length > 0) {
+                        handleFile(this.files[0]);
+                    }
+                });
+                
+                function handleFile(file) {
+                    if (!file) return;
+                    if (!file.type.startsWith('image/')) {
+                        if (typeof toastr !== 'undefined') {
+                            toastr.warning('يرجى اختيار ملف صورة صالح (JPG, PNG, GIF, WEBP)');
+                        } else {
+                            alert('يرجى اختيار ملف صورة صالح');
+                        }
+                        return;
+                    }
+                    if (file.size > maxSize) {
+                        const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('حجم الصورة يتجاوز الحد الأقصى المسموح (' + maxMb + ' ميجابايت)');
+                        } else {
+                            alert('حجم الصورة يجب ألا يتجاوز ' + maxMb + ' ميجابايت');
+                        }
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        preview.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        nameSpan.textContent = file.name;
+                        const sizeKb = (file.size / 1024).toFixed(1);
+                        const sizeStr = file.size > 1024 * 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : sizeKb + ' KB';
+                        sizeSpan.textContent = ' (' + sizeStr + ')';
+                        info.style.display = 'block';
+                        if (viewLink) viewLink.style.display = 'none';
+                        if (clearInput) clearInput.value = '0';
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                function removeSelectedImage() {
+                    fileInput.value = '';
+                    previewImg.src = '';
+                    preview.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                    info.style.display = 'none';
+                    nameSpan.textContent = '';
+                    sizeSpan.textContent = '';
+                    if (clearInput) clearInput.value = '1';
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initUploader);
             } else {
-                showMessage('يرجى اختيار ملف صورة صالح', 'error');
+                initUploader();
             }
-        }
-    });
-    
-    function handleFileSelect(file) {
-        if (!file) {
-            showPlaceholder();
-            return;
-        }
+        })();
+        </script>
+    </div>
+    {% endwith %}
+{% else %}
+    {% with field_name=name|default:'image' field_id=id|default:'id_image' field_label=label|default:'الصورة' is_req=required|default:False field_help=help_text|default:'' current_img=initial_image|default:'' max_mb=max_size_mb|default:5 %}
+    <div class="mb-3 unified-image-uploader" id="wrapper_{{ field_id }}" data-uploader-id="{{ field_id }}">
+        {% if field_label %}
+        <label for="{{ field_id }}" class="form-label fw-semibold text-secondary mb-1">
+            <i class="fas {{ icon|default:'fa-camera' }} text-primary me-1"></i>
+            {{ field_label }}
+            {% if is_req %}<span class="text-danger">*</span>{% endif %}
+        </label>
+        {% endif %}
         
-        // التحقق من نوع الملف
-        if (!file.type.startsWith('image/')) {
-            alert('يرجى اختيار ملف صورة صالح');
-            return;
-        }
-        
-        // التحقق من حجم الملف (5 ميجابايت)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
-            return;
-        }
-        
-        // عرض الصورة
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            previewImg.src = e.target.result;
-            showPreview();
-            updateImageInfo(file);
-        };
-        reader.readAsDataURL(file);
-    }
-    
-    function showPreview() {
-        placeholder.style.display = 'none';
-        preview.style.display = 'block';
-        imageInfo.style.display = 'block';
-    }
-    
-    function showPlaceholder() {
-        placeholder.style.display = 'flex';
-        preview.style.display = 'none';
-        imageInfo.style.display = 'none';
-    }
-    
-    function showExistingImage() {
-        // إذا كانت هناك صورة موجودة، عرضها
-        if (fileInput.value && fileInput.value.trim() !== '') {
-            // إذا كان المسار يبدأ بـ /media/ أو http، استخدمه مباشرة
-            let imagePath = fileInput.value;
-            if (!imagePath.startsWith('http') && !imagePath.startsWith('/media/')) {
-                imagePath = '/media/' + imagePath;
+        <div class="image-upload-container">
+            <div class="image-upload-area" id="dropzone_{{ field_id }}" role="button" tabindex="0">
+                <div class="upload-placeholder" id="placeholder_{{ field_id }}" {% if current_img %}style="display: none;"{% endif %}>
+                    <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                    <div class="upload-text">
+                        <h6>اسحب وأسقط الصورة هنا، أو اضغط للاختيار</h6>
+                        <small>الحد الأقصى: {{ max_mb }} ميجابايت (JPG, PNG, GIF, WEBP)</small>
+                    </div>
+                </div>
+                <div class="image-preview" id="preview_{{ field_id }}" {% if not current_img %}style="display: none;"{% endif %}>
+                    <img id="preview_img_{{ field_id }}" src="{% if current_img %}{{ current_img }}{% endif %}" alt="{{ field_label }}" class="preview-image">
+                    <div class="image-overlay">
+                        <div class="image-actions">
+                            <button type="button" class="btn btn-sm btn-light shadow-sm" id="btn_change_{{ field_id }}" title="تغيير الصورة">
+                                <i class="fas fa-sync-alt me-1 text-primary"></i>تغيير
+                            </button>
+                            <button type="button" class="btn btn-sm btn-danger shadow-sm" id="btn_remove_{{ field_id }}" title="حذف الصورة">
+                                <i class="fas fa-trash-alt me-1"></i>حذف
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="file" class="d-none" id="{{ field_id }}" name="{{ field_name }}" accept="image/*" data-max-mb="{{ max_mb }}" {% if is_req %}{% if not current_img %}required{% endif %}{% endif %}>
+            <input type="hidden" name="{{ field_name }}-clear" id="{{ field_id }}_clear" value="0">
+            
+            <div class="image-info" id="info_{{ field_id }}" {% if not current_img %}style="display: none;"{% endif %}>
+                <div class="d-flex align-items-center justify-content-between">
+                    <small class="text-muted d-flex align-items-center">
+                        <i class="fas fa-image me-1 text-primary"></i>
+                        <span id="name_{{ field_id }}" class="text-truncate" style="max-width: 250px;">{% if current_img %}صورة مسجلة مسبقاً{% endif %}</span>
+                        <span id="size_{{ field_id }}" class="ms-1"></span>
+                    </small>
+                    {% if current_img %}
+                    <a href="{{ current_img }}" target="_blank" class="btn btn-sm btn-link p-0 text-decoration-none fs-8 text-primary" id="view_link_{{ field_id }}">
+                        <i class="fas fa-external-link-alt me-1"></i>معاينة بحجم كامل
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if field_help %}
+                <div class="form-text mt-1 small text-muted">{{ field_help }}</div>
+            {% endif %}
+        </div>
+
+        <script>
+        (function() {
+            const fieldId = "{{ field_id }}";
+            function initUploader() {
+                const dropzone = document.getElementById('dropzone_' + fieldId);
+                const fileInput = document.getElementById(fieldId);
+                const placeholder = document.getElementById('placeholder_' + fieldId);
+                const preview = document.getElementById('preview_' + fieldId);
+                const previewImg = document.getElementById('preview_img_' + fieldId);
+                const info = document.getElementById('info_' + fieldId);
+                const nameSpan = document.getElementById('name_' + fieldId);
+                const sizeSpan = document.getElementById('size_' + fieldId);
+                const clearInput = document.getElementById(fieldId + '_clear');
+                const btnChange = document.getElementById('btn_change_' + fieldId);
+                const btnRemove = document.getElementById('btn_remove_' + fieldId);
+                const viewLink = document.getElementById('view_link_' + fieldId);
+                
+                if (!dropzone || !fileInput) return;
+                const maxSize = (parseInt(fileInput.getAttribute('data-max-mb'), 10) || 5) * 1024 * 1024;
+                
+                dropzone.addEventListener('click', function(e) {
+                    if (e.target.closest('.image-actions')) return;
+                    fileInput.click();
+                });
+                
+                if (btnChange) {
+                    btnChange.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        fileInput.click();
+                    });
+                }
+                
+                if (btnRemove) {
+                    btnRemove.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        removeSelectedImage();
+                    });
+                }
+                
+                ['dragenter', 'dragover'].forEach(function(eventName) {
+                    dropzone.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.add('dragover');
+                    }, false);
+                });
+                
+                ['dragleave', 'drop'].forEach(function(eventName) {
+                    dropzone.addEventListener(eventName, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropzone.classList.remove('dragover');
+                    }, false);
+                });
+                
+                dropzone.addEventListener('drop', function(e) {
+                    const dt = e.dataTransfer;
+                    const files = dt.files;
+                    if (files && files.length > 0) {
+                        handleFile(files[0]);
+                    }
+                });
+                
+                fileInput.addEventListener('change', function() {
+                    if (this.files && this.files.length > 0) {
+                        handleFile(this.files[0]);
+                    }
+                });
+                
+                function handleFile(file) {
+                    if (!file) return;
+                    if (!file.type.startsWith('image/')) {
+                        if (typeof toastr !== 'undefined') {
+                            toastr.warning('يرجى اختيار ملف صورة صالح (JPG, PNG, GIF, WEBP)');
+                        } else {
+                            alert('يرجى اختيار ملف صورة صالح');
+                        }
+                        return;
+                    }
+                    if (file.size > maxSize) {
+                        const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error('حجم الصورة يتجاوز الحد الأقصى المسموح (' + maxMb + ' ميجابايت)');
+                        } else {
+                            alert('حجم الصورة يجب ألا يتجاوز ' + maxMb + ' ميجابايت');
+                        }
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        preview.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        nameSpan.textContent = file.name;
+                        const sizeKb = (file.size / 1024).toFixed(1);
+                        const sizeStr = file.size > 1024 * 1024 ? (file.size / (1024 * 1024)).toFixed(2) + ' MB' : sizeKb + ' KB';
+                        sizeSpan.textContent = ' (' + sizeStr + ')';
+                        info.style.display = 'block';
+                        if (viewLink) viewLink.style.display = 'none';
+                        if (clearInput) clearInput.value = '0';
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
+                function removeSelectedImage() {
+                    fileInput.value = '';
+                    previewImg.src = '';
+                    preview.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                    info.style.display = 'none';
+                    nameSpan.textContent = '';
+                    sizeSpan.textContent = '';
+                    if (clearInput) clearInput.value = '1';
+                }
             }
             
-            previewImg.src = imagePath;
-            showPreview();
-            imageName.textContent = 'صورة موجودة';
-            imageSize.textContent = '';
-            
-            // التحقق من وجود الصورة
-            previewImg.onerror = function() {
-                showPlaceholder();
-            };
-        }
-    }
-    
-    function updateImageInfo(file) {
-        imageName.textContent = file.name;
-        if (file.size) {
-            imageSize.textContent = ' - ' + formatFileSize(file.size);
-        }
-    }
-    
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 بايت';
-        const k = 1024;
-        const sizes = ['بايت', 'كيلوبايت', 'ميجابايت'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-    
-    // إضافة الدوال للنطاق العام
-    window['changeImage' + fieldName] = function() {
-        fileInput.click();
-    };
-    
-    window['removeImage' + fieldName] = function() {
-        if (confirm('هل أنت متأكد من حذف الصورة؟')) {
-            fileInput.value = '';
-            showPlaceholder();
-        }
-    };
-});
-
-// دوال عامة للاستخدام من الأزرار
-function changeImage(fieldName) {
-    document.getElementById('id_' + fieldName).click();
-}
-
-function removeImage(fieldName) {
-    if (confirm('هل أنت متأكد من حذف الصورة؟')) {
-        const fileInput = document.getElementById('id_' + fieldName);
-        fileInput.value = '';
-        
-        const placeholder = document.getElementById('upload-placeholder-' + fieldName);
-        const preview = document.getElementById('image-preview-' + fieldName);
-        const imageInfo = document.getElementById('image-info-' + fieldName);
-        
-        placeholder.style.display = 'flex';
-        preview.style.display = 'none';
-        imageInfo.style.display = 'none';
-    }
-}
-</script>
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initUploader);
+            } else {
+                initUploader();
+            }
+        })();
+        </script>
+    </div>
+    {% endwith %}
+{% endif %}

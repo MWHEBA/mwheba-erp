@@ -528,10 +528,7 @@
                 {% csrf_token %}
                 <input type="hidden" name="action" value="upload_lines">
                 <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">{% trans "اختر الملف (CSV أو Excel)" %} <span class="text-danger">*</span></label>
-                        <input type="file" name="statement_file" accept=".csv, .txt, .xlsx, .xls" class="form-control" required>
-                    </div>
+                    {% include "components/file_upload_field.html" with name="statement_file" id="detail_statement_file" label="ملف كشف الحساب البنكي (CSV / Excel)" accept=".csv,.txt,.xlsx,.xls" required=True icon="fa-file-invoice-dollar" %}
                     <div class="alert alert-info py-2 px-3 small mb-3">
                         <i class="fas fa-magic me-1 text-primary"></i>{% trans "النظام يلتقط أسماء الأعمدة آلياً لجميع صيغ البنوك (NBE, CIB, QNB, HSBC, إلخ)." %}
                     </div>

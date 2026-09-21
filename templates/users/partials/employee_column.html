@@ -1,18 +1,47 @@
 {% load i18n %}
 {% if object.employee_profile %}
     {% with emp=object.employee_profile %}
-        {% if perms.hr.view_employee or request.user.is_superuser or request.user.is_admin %}
-            <a href="{% url 'hr:employee_detail' pk=emp.pk %}" class="text-decoration-none fw-bold" title="{% trans 'عرض الملف الوظيفي للموظف' %}">
-                <span class="badge bg-light text-primary border">
-                    <i class="fas fa-id-badge me-1"></i>{{ emp.name }} [{{ emp.employee_number }}]
+        <div class="d-inline-flex align-items-center justify-content-center gap-1 mx-auto">
+            {% if perms.hr.view_employee or request.user.is_superuser or request.user.is_admin %}
+                <a href="{% url 'hr:employee_detail' pk=emp.pk %}" class="text-decoration-none fw-bold text-truncate" title="{% trans 'عرض الملف الوظيفي للموظف' %}">
+                    <span class="badge bg-light text-primary border text-truncate">
+                        <i class="fas fa-id-badge me-1"></i>{{ emp.name }}
+                    </span>
+                </a>
+            {% else %}
+                <span class="badge bg-light text-dark border text-truncate">
+                    <i class="fas fa-id-badge text-muted me-1"></i>{{ emp.name }}
                 </span>
-            </a>
-        {% else %}
-            <span class="badge bg-light text-dark border">
-                <i class="fas fa-id-badge text-muted me-1"></i>{{ emp.name }} [{{ emp.employee_number }}]
-            </span>
-        {% endif %}
+            {% endif %}
+            
+            {% if request.user.can_manage_users or request.user.is_superuser or request.user.is_admin %}
+            <button type="button" class="btn btn-sm btn-outline-secondary link-employee-modal-btn p-1 ms-1 lh-1" 
+                    data-user-id="{{ object.id }}" 
+                    data-user-name="{{ object.get_full_name|default:object.username }}"
+                    data-user-username="{{ object.username }}"
+                    data-current-emp-id="{{ emp.id }}" 
+                    data-current-emp-name="{{ emp.name }} [{{ emp.employee_number }}]" 
+                    title="تعديل ربط الموظف">
+                <i class="fas fa-pen fa-xs"></i>
+            </button>
+            {% endif %}
+        </div>
     {% endwith %}
 {% else %}
-    <span class="text-muted">-</span>
+    <div class="d-inline-flex align-items-center justify-content-center gap-1 mx-auto">
+        <span class="text-muted small me-1">-</span>
+        {% if request.user.can_manage_users or request.user.is_superuser or request.user.is_admin %}
+        <button type="button" class="btn btn-sm btn-outline-primary link-employee-modal-btn py-1 px-2 small" 
+                data-user-id="{{ object.id }}" 
+                data-user-name="{{ object.get_full_name|default:object.username }}"
+                data-user-username="{{ object.username }}"
+                data-current-emp-id="" 
+                data-current-emp-name="" 
+                title="ربط بموظف">
+            <i class="fas fa-pen me-1 fa-xs"></i><span class="small">ربط موظف</span>
+        </button>
+        {% endif %}
+    </div>
 {% endif %}
+
+

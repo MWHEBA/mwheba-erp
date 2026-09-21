@@ -163,9 +163,8 @@
                         </h6>
                         <div class="row g-3">
                             <div class="col-md-12">
-                                <label class="form-label fw-bold">{% trans "ملف المعاملات (CSV / Excel)" %}</label>
-                                <input type="file" name="statement_file" accept=".csv, .txt, .xlsx, .xls" class="form-control">
-                                <div class="form-text small text-muted mt-2 p-2 bg-light rounded border">
+                                {% include "components/file_upload_field.html" with name="statement_file" id="modal_statement_file" label="ملف كشف الحساب البنكي (CSV / Excel)" accept=".csv,.txt,.xlsx,.xls" required=False icon="fa-file-invoice-dollar" %}
+                                <div class="form-text small text-muted p-2 bg-light rounded border">
                                     <i class="fas fa-magic me-1 text-primary"></i>{% trans "النظام يلتقط أسماء الأعمدة آلياً لجميع البنوك (NBE, CIB, QNB, HSBC, إلخ). يمكنك اختيار الملف مباشرة." %}
                                 </div>
                             </div>

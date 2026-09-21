@@ -21,7 +21,7 @@
             {% if ajax_url %}data-ajax-url="{{ ajax_url }}"{% endif %}
             {% if min_input %}data-min-input="{{ min_input }}"{% endif %}
             {% if tags %}data-tags="true"{% endif %}
-            {% if clear_button|default:True %}data-allow-clear="true"{% endif %}
+            {% if clear_button|default:"true" %}data-allow-clear="true"{% endif %}
             {% if multiple %}data-close-on-select="false"{% endif %}>
         
         {% if not multiple %}
@@ -31,7 +31,7 @@
         {% if options %}
             {% for option in options %}
                 <option value="{{ option.value }}" 
-                        {% if selected == option.value or option.value in selected|default:[] %}selected{% endif %}
+                        {% if selected == option.value or selected and option.value in selected %}selected{% endif %}
                         {% if option.disabled %}disabled{% endif %}>
                     {{ option.text }}
                 </option>

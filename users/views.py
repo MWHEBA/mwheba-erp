@@ -258,8 +258,8 @@ def user_list(request):
     
     # إعداد headers للجدول الموحد مع دعم عامود الموظف الديناميكي
     headers = [
-        {"key": "id", "label": "#", "sortable": True, "width": "6%" if is_hr_enabled else "8%"},
-        {"key": "get_full_name", "label": "الاسم", "sortable": True, "width": "20%" if is_hr_enabled else "26%"},
+        {"key": "id", "label": "#", "sortable": True, "width": "6%" if is_hr_enabled else "8%", "class": "text-center"},
+        {"key": "get_full_name", "label": "الاسم", "sortable": True, "width": "20%" if is_hr_enabled else "26%", "class": "text-center"},
     ]
     if is_hr_enabled:
         headers.append({
@@ -267,11 +267,12 @@ def user_list(request):
             "label": "الموظف",
             "sortable": False,
             "template": "users/partials/employee_column.html",
-            "width": "20%"
+            "width": "20%",
+            "class": "text-center"
         })
     headers.extend([
-        {"key": "username", "label": "اسم المستخدم", "sortable": True, "width": "18%" if is_hr_enabled else "24%"},
-        {"key": "role", "label": "الدور", "sortable": False, "width": "16%" if is_hr_enabled else "20%", "format": "role_badge"},
+        {"key": "username", "label": "اسم المستخدم", "sortable": True, "width": "18%" if is_hr_enabled else "24%", "class": "text-center"},
+        {"key": "role", "label": "الدور", "sortable": False, "width": "16%" if is_hr_enabled else "20%", "format": "role_badge", "class": "text-center"},
         {"key": "is_active", "label": "الحالة", "sortable": True, "format": "status", "width": "10%", "class": "text-center"},
         {
             "key": "last_login",
@@ -386,6 +387,11 @@ def user_list(request):
         *([{"title": "الأرشيف", "active": True}] if is_archive_view else []),
     ]
 
+    all_employees = []
+    if is_hr_enabled:
+        from hr.models import Employee
+        all_employees = Employee.objects.filter(status='active').select_related('department', 'user').order_by('name')
+
     context = {
         **pagination_data,
         "users": page_obj,
@@ -407,6 +413,7 @@ def user_list(request):
         "selected_role": role_id,
         "selected_status": status,
         "search_query": q,
+        "all_employees": all_employees,
     }
     
     return render_paginated_response(
@@ -415,6 +422,61 @@ def user_list(request):
         context,
         table_template_name="components/data_table.html"
     )
+
+
+@login_required
+def user_link_employee(request, user_id):
+    """ربط مستخدم بموظف أو فك الربط (عبر المودال التفاعلي)"""
+    if not request.user.can_manage_users():
+        return JsonResponse({'success': False, 'message': 'ليس لديك صلاحية لإدارة ربط الموظفين.'}, status=403)
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'طريقة الطلب غير صالحة.'}, status=405)
+    
+    target_user = get_object_or_404(User, pk=user_id)
+    employee_id = request.POST.get('employee_id', '').strip()
+    
+    from hr.models import Employee
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            # إذا تم إرسال معرّف فارغ -> فك الربط
+            if not employee_id:
+                if hasattr(target_user, 'employee_profile') and target_user.employee_profile:
+                    old_emp = target_user.employee_profile
+                    old_emp.user = None
+                    old_emp.save(update_fields=['user'])
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'تم فك ربط المستخدم ({target_user.username}) من الموظف ({old_emp.name}) بنجاح.'
+                    })
+                return JsonResponse({'success': True, 'message': 'المستخدم غير مرتبط بأي موظف حالياً.'})
+            
+            # ربط بموظف محدد
+            target_emp = get_object_or_404(Employee, pk=employee_id)
+            
+            # فك ربط الموظف القديم إذا كان هذا المستخدم مرتبطاً بآخر
+            if hasattr(target_user, 'employee_profile') and target_user.employee_profile and target_user.employee_profile != target_emp:
+                prev_emp = target_user.employee_profile
+                prev_emp.user = None
+                prev_emp.save(update_fields=['user'])
+            
+            # فك ربط أي مستخدم آخر كان مرتبطاً بهذا الموظف المستهدف
+            if target_emp.user and target_emp.user != target_user:
+                target_emp.user = None
+                target_emp.save(update_fields=['user'])
+            
+            # تعيين الربط الجديد
+            target_emp.user = target_user
+            target_emp.save(update_fields=['user'])
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'تم ربط المستخدم ({target_user.username}) بالموظف ({target_emp.name}) بنجاح.'
+            })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'حدث خطأ أثناء تنفيذ الربط: {str(e)}'}, status=400)
 
 
 @login_required

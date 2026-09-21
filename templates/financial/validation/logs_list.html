@@ -30,8 +30,7 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Page Header -->
-    {% include "shared/page_header.html" with title=title subtitle="عرض تفصيلي لجميع محاولات التحقق الفاشلة" icon="fas
-    fa-list" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    {% include "shared/page_header.html" with title=title subtitle="عرض تفصيلي لجميع محاولات التحقق الفاشلة" icon="fas fa-list" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
 
     <!-- Filter Section -->
     <div class="filter-card">
@@ -42,10 +41,10 @@
                     الفترة الزمنية
                 </label>
                 <select name="days" id="days" class="form-select">
-                    <option value="7" {% if days==7 %}selected{% endif %}>آخر 7 أيام</option>
-                    <option value="30" {% if days==30 %}selected{% endif %}>آخر 30 يوم</option>
-                    <option value="60" {% if days==60 %}selected{% endif %}>آخر 60 يوم</option>
-                    <option value="90" {% if days==90 %}selected{% endif %}>آخر 90 يوم</option>
+                    <option value="7" {% if days == 7 or days == '7' %}selected{% endif %}>آخر 7 أيام</option>
+                    <option value="30" {% if days == 30 or days == '30' %}selected{% endif %}>آخر 30 يوم</option>
+                    <option value="60" {% if days == 60 or days == '60' %}selected{% endif %}>آخر 60 يوم</option>
+                    <option value="90" {% if days == 90 or days == '90' %}selected{% endif %}>آخر 90 يوم</option>
                 </select>
             </div>
 
@@ -57,7 +56,7 @@
                 <select name="validation_type" id="validation_type" class="form-select">
                     <option value="">الكل</option>
                     {% for value, label in validation_type_choices %}
-                    <option value="{{ value }}" {% if validation_type==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if validation_type == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -70,7 +69,7 @@
                 <select name="entity_type" id="entity_type" class="form-select">
                     <option value="">الكل</option>
                     {% for value, label in entity_type_choices %}
-                    <option value="{{ value }}" {% if entity_type==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if entity_type == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -83,7 +82,7 @@
                 <select name="module" id="module" class="form-select">
                     <option value="">الكل</option>
                     {% for value, label in module_choices %}
-                    <option value="{{ value }}" {% if module==value %}selected{% endif %}>{{ label }}</option>
+                    <option value="{{ value }}" {% if module == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -119,8 +118,7 @@
             سجل المحاولات الفاشلة
         </h5>
 
-        {% include "components/data_table.html" with table_id="validation-logs-table" headers=table_headers
-        data=table_data primary_key="id" empty_message="لا توجد محاولات فاشلة في الفترة المحددة" %}
+        {% include "components/data_table.html" with table_id="validation-logs-table" headers=table_headers data=table_data primary_key="id" empty_message="لا توجد محاولات فاشلة في الفترة المحددة" %}
     </div>
 </div>
 {% endblock %}

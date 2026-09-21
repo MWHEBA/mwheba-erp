@@ -427,7 +427,76 @@ document.querySelectorAll('#changePasswordModal .toggle-pass-btn').forEach(btn =
 });
 
 // رفع وحذف الصورة الشخصية تلقائياً
+// رفع وحذف الصورة الشخصية تلقائياً ودعم السحب والإفلات (Drag & Drop)
 const fileInput = document.getElementById('id_profile_image');
+
+function uploadAvatarFile(file) {
+    if (!file || !file.type.startsWith('image/')) {
+        toastr.warning('يرجى اختيار ملف صورة صالح (JPG, PNG, WEBP)');
+        return;
+    }
+    const formData = new FormData();
+    formData.append('profile_image', file);
+    formData.append('action', 'upload');
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+    toastr.info('جاري رفع الصورة الشخصية...');
+
+    fetch('{% url "users:update_profile_image" %}', {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const wrapper = document.querySelector('.profile-avatar-wrapper');
+            wrapper.innerHTML = `
+                <img src="${data.image_url}" alt="Profile Avatar" class="profile-avatar-img" id="profileAvatarImg">
+                <div class="profile-avatar-overlay">
+                    <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="حذف الصورة">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            `;
+            initAvatarDelete();
+            initAvatarDragDrop();
+            toastr.success(data.message || 'تم تحديث الصورة الشخصية بنجاح');
+        } else {
+            toastr.error(data.message || 'حدث خطأ أثناء رفع الصورة');
+        }
+    })
+    .catch(() => toastr.error('حدث خطأ في الاتصال أثناء رفع الصورة'));
+}
+
+function initAvatarDragDrop() {
+    const wrapper = document.querySelector('.profile-avatar-wrapper');
+    if (!wrapper) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        wrapper.addEventListener(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            wrapper.style.outline = '3px dashed var(--bs-primary, #0d6efd)';
+            wrapper.style.outlineOffset = '4px';
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        wrapper.addEventListener(eventName, function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            wrapper.style.outline = 'none';
+        }, false);
+    });
+
+    wrapper.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        if (dt.files && dt.files[0]) {
+            uploadAvatarFile(dt.files[0]);
+        }
+    });
+}
 
 function initAvatarUpload() {
     const uploadBtn = document.getElementById('uploadAvatarBtn');
@@ -441,41 +510,12 @@ function initAvatarUpload() {
     if (fileInput) {
         fileInput.addEventListener('change', function(e) {
             if (this.files && this.files[0]) {
-                const file = this.files[0];
-                const formData = new FormData();
-                formData.append('profile_image', file);
-                formData.append('action', 'upload');
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-
-                toastr.info('جاري رفع الصورة الشخصية...');
-
-                fetch('{% url "users:update_profile_image" %}', {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const wrapper = document.querySelector('.profile-avatar-wrapper');
-                        wrapper.innerHTML = `
-                            <img src="${data.image_url}" alt="Profile Avatar" class="profile-avatar-img" id="profileAvatarImg">
-                            <div class="profile-avatar-overlay">
-                                <button type="button" class="avatar-action-btn avatar-delete-btn" id="deleteAvatarBtn" title="حذف الصورة">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
-                        `;
-                        initAvatarDelete();
-                        toastr.success(data.message || 'تم تحديث الصورة الشخصية بنجاح');
-                    } else {
-                        toastr.error(data.message || 'حدث خطأ أثناء رفع الصورة');
-                    }
-                })
-                .catch(() => toastr.error('حدث خطأ في الاتصال أثناء رفع الصورة'));
+                uploadAvatarFile(this.files[0]);
             }
         });
     }
+
+    initAvatarDragDrop();
 }
 
 function initAvatarDelete() {

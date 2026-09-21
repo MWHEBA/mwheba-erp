@@ -296,10 +296,7 @@
                     </div>
                 </div>
 
-                <div class="mb-3">
-                    <label for="importOperationsFileInput" class="form-label fw-bold">اختر ملف الإعدادات (.json):</label>
-                    <input class="form-control" type="file" id="importOperationsFileInput" accept=".json">
-                </div>
+                {% include "components/file_upload_field.html" with name="import_file" id="importOperationsFileInput" label="ملف الإعدادات والسياسات (.json)" accept=".json" icon="fa-file-code" %}
 
                 <!-- Preview Area -->
                 <div id="importPreview" class="d-none mt-3">

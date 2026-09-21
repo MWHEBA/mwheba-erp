@@ -10,19 +10,22 @@
             <a href="{% url 'core:dashboard' %}" class="d-flex align-items-center link-dark text-decoration-none">
                 {# الشعار الكبير (عند توسيع الـ sidebar) #}
                 {% if settings.company_logo_light %}
-                    <img src="{{ MEDIA_URL }}{{ settings.company_logo_light }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-large">
+                <img src="{{ MEDIA_URL }}{{ settings.company_logo_light }}"
+                    alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-large">
                 {% else %}
-                    <img src="{% static 'img/logo-light.png' %}" alt="Logo" class="sidebar-logo-img logo-large">
+                <img src="{% static 'img/logo-light.png' %}" alt="Logo" class="sidebar-logo-img logo-large">
                 {% endif %}
-                
+
                 {# الشعار المصغر (عند تصغير الـ sidebar) #}
                 {% if settings.company_logo_mini %}
-                    <img src="{{ MEDIA_URL }}{{ settings.company_logo_mini }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-small">
+                <img src="{{ MEDIA_URL }}{{ settings.company_logo_mini }}"
+                    alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-small">
                 {% else %}
-                    <img src="{% static 'img/logo-mini.png' %}" alt="Logo" class="sidebar-logo-img logo-small">
+                <img src="{% static 'img/logo-mini.png' %}" alt="Logo" class="sidebar-logo-img logo-small">
                 {% endif %}
             </a>
-            <button type="button" id="sidebar-collapse" class="btn border-0 p-0 sidebar-collapse-btn" title="تصغير/توسيع القائمة">
+            <button type="button" id="sidebar-collapse" class="btn border-0 p-0 sidebar-collapse-btn"
+                title="تصغير/توسيع القائمة">
                 <i class="fas fa-angle-double-right"></i>
             </button>
         </div>
@@ -31,7 +34,8 @@
             <ul class="list-unstyled sidebar-nav">
                 <!-- لوحة التحكم -->
                 <li class="sidebar-item">
-                    <a href="{% url 'core:dashboard' %}" class="sidebar-link {% if active_menu == 'dashboard' %}active{% endif %}">
+                    <a href="{% url 'core:dashboard' %}"
+                        class="sidebar-link {% if active_menu == 'dashboard' %}active{% endif %}">
                         <i class="fas fa-home sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الرئيسية" %}</span>
                     </a>
@@ -43,23 +47,28 @@
                 {% if customers_sales_enabled %}
                 {% if perms.customer.view_customer or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#customerMenu" class="sidebar-link collapsed {% if active_menu == 'customers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#customerMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'customers' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-users sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "العملاء" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'customers' %}show{% endif %}" id="customerMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'customers' %}show{% endif %}"
+                        id="customerMenu">
                         <li>
-                            <a href="{% url "customer:customer_list" %}" class="submenu-link {% if active_submenu == 'customers_list' %}active{% endif %}">
+                            <a href="{% url 'customer:customer_list' %}"
+                                class="submenu-link {% if active_submenu == 'customers_list' %}active{% endif %}">
                                 <i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}
                             </a>
                         </li>
-                        
+
                         {% if perms.customer.change_customertier or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">الإعدادات</li>
                         <li>
-                            <a href="{% url 'customer:settings_index' %}" class="submenu-link {% if active_submenu == 'customer_settings' %}active{% endif %}">
+                            <a href="{% url 'customer:settings_index' %}"
+                                class="submenu-link {% if active_submenu == 'customer_settings' %}active{% endif %}">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات العملاء" %}
                             </a>
                         </li>
@@ -72,25 +81,29 @@
                 <!-- المبيعات -->
                 {% if perms.sale.view_sale or perms.sale.view_quotation or perms.sale.view_salesorder or perms.sale.view_deliverynote or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#salesMenu" class="sidebar-link collapsed {% if active_menu == 'sales' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#salesMenu" class="sidebar-link collapsed {% if active_menu == 'sales' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-cash-register sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "المبيعات" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'sales' %}show{% endif %}" id="salesMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'sales' %}show{% endif %}"
+                        id="salesMenu">
                         <!-- الفواتير -->
                         {% if perms.sale.view_sale or user.is_superuser %}
                         <li>
-                            <a href="{% url 'sale:sale_list' %}" class="submenu-link {% if active_submenu == 'sales_list' %}active{% endif %}">
+                            <a href="{% url 'sale:sale_list' %}"
+                                class="submenu-link {% if active_submenu == 'sales_list' %}active{% endif %}">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المبيعات" %}
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         <!-- عروض الأسعار -->
                         {% if enable_quotations and perms.sale.view_quotation or enable_quotations and user.is_superuser %}
                         <li>
-                            <a href="{% url 'sale:quotation_list' %}" class="submenu-link {% if active_submenu == 'quotations' %}active{% endif %}">
+                            <a href="{% url 'sale:quotation_list' %}"
+                                class="submenu-link {% if active_submenu == 'quotations' %}active{% endif %}">
                                 <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
                             </a>
                         </li>
@@ -100,20 +113,22 @@
                         {% if enable_sales_orders %}
                         {% if perms.sale.view_salesorder or user.is_superuser %}
                         <li>
-                            <a href="{% url 'sale:sales_order_list' %}" class="submenu-link {% if active_submenu == 'sales_orders' or active_menu == 'sales_orders' %}active{% endif %}">
+                            <a href="{% url 'sale:sales_order_list' %}"
+                                class="submenu-link {% if active_submenu == 'sales_orders' or active_menu == 'sales_orders' %}active{% endif %}">
                                 <i class="fas fa-clipboard-list me-2"></i>{% trans "أوامر البيع" %}
                             </a>
                         </li>
                         {% endif %}
                         {% if perms.sale.view_deliverynote or user.is_superuser %}
                         <li>
-                            <a href="{% url 'sale:delivery_note_list' %}" class="submenu-link {% if active_submenu == 'delivery_notes' or active_menu == 'delivery_notes' %}active{% endif %}">
+                            <a href="{% url 'sale:delivery_note_list' %}"
+                                class="submenu-link {% if active_submenu == 'delivery_notes' or active_menu == 'delivery_notes' %}active{% endif %}">
                                 <i class="fas fa-truck me-2"></i>{% trans "إذون تسليم البضاعة" %}
                             </a>
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         <!-- المرتجعات والإشعارات الدائنة -->
                         {% if perms.sale.view_salereturn or perms.sale.view_creditnote or user.is_superuser %}
                         <div class="nav-divider"></div>
@@ -164,7 +179,8 @@
                 {% if work_orders_enabled %}
                 {% if perms.work_order.view_workorder or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="{% url 'work_order:work_order_list' %}" class="sidebar-link {% if active_menu == 'work_orders' %}active{% endif %}">
+                    <a href="{% url 'work_order:work_order_list' %}"
+                        class="sidebar-link {% if active_menu == 'work_orders' %}active{% endif %}">
                         <i class="fas fa-tasks sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "أوامر الشغل" %}</span>
                     </a>
@@ -177,18 +193,21 @@
                 {% if suppliers_purchases_enabled %}
                 {% if perms.supplier.view_supplier or perms.supplier.add_supplier or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#supplierMenu" class="sidebar-link collapsed {% if active_menu == 'suppliers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#supplierMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'suppliers' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-people-carry sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الموردين" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'suppliers' %}show{% endif %}" id="supplierMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'suppliers' %}show{% endif %}"
+                        id="supplierMenu">
                         <li>
                             <a href="{% url 'supplier:supplier_list' %}" class="submenu-link">
                                 <i class="fas fa-list me-2"></i>{% trans "قائمة الموردين" %}
                             </a>
                         </li>
-                        
+
                         {% if perms.supplier.change_suppliertype or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">الإعدادات</li>
@@ -205,12 +224,15 @@
                 <!-- المشتريات -->
                 {% if perms.purchase.view_purchase or perms.purchase.view_purchaseorder or perms.purchase.view_goodsreceivednote or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#purchaseMenu" class="sidebar-link collapsed {% if active_menu == 'purchases' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#purchaseMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'purchases' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-shopping-bag sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "المشتريات" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'purchases' %}show{% endif %}" id="purchaseMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'purchases' %}show{% endif %}"
+                        id="purchaseMenu">
                         <!-- أوامر الشراء -->
                         {% if enable_purchase_orders and perms.purchase.view_purchaseorder or enable_purchase_orders and user.is_superuser %}
                         <li class="submenu-title">أوامر الشراء والتوريد</li>
@@ -231,7 +253,7 @@
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         <!-- أذون الاستلام والتكاليف الإضافية -->
                         {% if perms.purchase.view_goodsreceivednote or perms.purchase.view_landedcost or user.is_superuser %}
                         <div class="nav-divider"></div>
@@ -272,12 +294,15 @@
                 {% if warehouses_enabled %}
                 {% if perms.product.view_product or perms.product.add_product or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#productsMenu" class="sidebar-link collapsed {% if active_menu == 'products' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#productsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'products' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-box sidebar-icon"></i>
                         <span class="sidebar-text">المنتجات والخدمات</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'products' %}show{% endif %}" id="productsMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'products' %}show{% endif %}"
+                        id="productsMenu">
                         <li>
                             <a href="{% url 'product:product_list' %}" class="submenu-link">
                                 <i class="fas fa-boxes me-2"></i>قائمة المنتجات
@@ -288,7 +313,7 @@
                                 <i class="fas fa-concierge-bell me-2"></i>قائمة الخدمات
                             </a>
                         </li>
-                                                
+
                         {% if perms.product.view_category or perms.product.view_unit or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">الإعدادات</li>
@@ -315,12 +340,15 @@
                 <!-- المخازن والمخزون -->
                 {% if perms.product.view_warehouse or perms.product.view_stock or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#warehousesMenu" class="sidebar-link collapsed {% if active_menu == 'warehouses' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#warehousesMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'warehouses' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-warehouse sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "المخازن" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'warehouses' %}show{% endif %}" id="warehousesMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'warehouses' %}show{% endif %}"
+                        id="warehousesMenu">
                         <li>
                             <a href="{% url 'product:warehouse_list' %}" class="submenu-link">
                                 <i class="fas fa-warehouse me-2"></i>{% trans "قائمة المخازن" %}
@@ -336,10 +364,10 @@
                                 <i class="fas fa-exchange-alt me-2"></i>{% trans "حركات المخزون" %}
                             </a>
                         </li>
-                        
+
                         {% if perms.product.view_inventorymovement or perms.sale.view_deliverynote or perms.purchase.view_goodsreceivednote or user.is_superuser %}
                         <div class="nav-divider"></div>
-                        
+
                         <li class="submenu-title">أذون المخزن</li>
                         {% if perms.sale.view_deliverynote or user.is_superuser %}
                         <li>
@@ -383,18 +411,27 @@
                 {% endif %}
                 {% endif %}
 
-                <!-- الموارد البشرية -->
+                <!-- الموارد البشرية والخدمات الذاتية -->
                 {% is_module_enabled 'hr' as hr_enabled %}
                 {% if hr_enabled %}
-                {% if perms.hr.view_employee or perms.hr.view_attendance or perms.hr.view_payroll or user.is_superuser %}
+                {% if user.employee_profile or perms.hr.view_employee or perms.hr.view_attendance or perms.hr.view_payroll or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#hrMenu" class="sidebar-link collapsed {% if active_menu == 'hr' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#hrMenu" class="sidebar-link collapsed {% if active_menu == 'hr' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-users-cog sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الموارد البشرية" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'hr' %}show{% endif %}" id="hrMenu">
+                        <li class="submenu-title">الخدمات الذاتية والبصمة</li>
+                        <li>
+                            <a href="{% url 'hr:self_attendance' %}" class="submenu-link">
+                                <i class="fas fa-mobile-alt me-2 text-success"></i>{% trans "بصمة الهاتف الذكية" %}
+                            </a>
+                        </li>
+
                         {% if perms.hr.view_employee or user.is_superuser %}
+                        <div class="nav-divider"></div>
                         <li class="submenu-title">الموظفين</li>
                         <li>
                             <a href="{% url 'hr:employee_list' %}" class="submenu-link">
@@ -402,21 +439,18 @@
                             </a>
                         </li>
                         {% endif %}
-                        
-                        {% if perms.hr.view_attendance or perms.hr.view_leave or perms.hr.view_permission or user.is_superuser %}
+
+                        {% if perms.hr.view_attendance or perms.hr.view_leave or perms.hr.view_permission or user.employee_profile or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">الحضور والإجازات</li>
-                        {% if perms.hr.view_attendance or user.is_superuser %}
-                        <li>
-                            <a href="{% url 'hr:self_attendance' %}" class="submenu-link">
-                                <i class="fas fa-mobile-alt me-2 text-success"></i>{% trans "بصمة الجوال الذكية" %}
-                            </a>
-                        </li>
+                        {% if perms.hr.add_attendance or perms.hr.view_attendance or user.is_staff or user.is_superuser %}
                         <li>
                             <a href="{% url 'hr:supervisor_crew_punch' %}" class="submenu-link">
                                 <i class="fas fa-users-cog me-2 text-primary"></i>{% trans "بصمة طاقم العمل" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% if perms.hr.view_attendance or user.is_superuser %}
                         <li>
                             <a href="{% url 'hr:attendance_list' %}" class="submenu-link">
                                 <i class="fas fa-clock me-2"></i>{% trans "سجل الحضور" %}
@@ -428,14 +462,14 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% if perms.hr.view_leave or user.is_superuser %}
+                        {% if perms.hr.view_leave or user.employee_profile or user.is_superuser %}
                         <li>
                             <a href="{% url 'hr:leave_list' %}" class="submenu-link">
                                 <i class="fas fa-calendar-alt me-2"></i>{% trans "الإجازات" %}
                             </a>
                         </li>
                         {% endif %}
-                        {% if perms.hr.view_permission or user.is_superuser %}
+                        {% if perms.hr.view_permission or user.employee_profile or user.is_superuser %}
                         <li>
                             <a href="{% url 'hr:permission_list' %}" class="submenu-link">
                                 <i class="fas fa-user-clock me-2"></i>{% trans "الأذونات" %}
@@ -443,7 +477,7 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         {% if perms.hr.view_payroll or perms.hr.view_advance or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">الرواتب</li>
@@ -467,7 +501,7 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         {% if perms.hr.view_contract or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">العقود</li>
@@ -482,7 +516,7 @@
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         {% if perms.hr.change_hrsettings or user.is_superuser %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">نظام البصمة والإعدادات</li>
@@ -512,12 +546,15 @@
                 {% if printing_pricing_enabled %}
                 {% if perms.printing_pricing.view_printingorder or perms.printing_pricing.add_printingorder or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#printingPricingMenu" class="sidebar-link collapsed {% if active_menu == 'printing_pricing' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#printingPricingMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'printing_pricing' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-print sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "تسعير المطبوعات" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'printing_pricing' %}show{% endif %}" id="printingPricingMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'printing_pricing' %}show{% endif %}"
+                        id="printingPricingMenu">
                         <li>
                             <a href="{% url 'printing_pricing:order_list' %}" class="submenu-link">
                                 <i class="fas fa-print me-2"></i>{% trans "أوامر التسعير" %}
@@ -530,12 +567,14 @@
                         </li>
                         <div class="nav-divider"></div>
                         <li>
-                            <a href="{% url 'supplier:service_type_list' %}" class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'service_types' %}active{% endif %}">
+                            <a href="{% url 'supplier:service_type_list' %}"
+                                class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'service_types' %}active{% endif %}">
                                 <i class="fas fa-tags me-2"></i>{% trans "خدمات وقدرات التسعير" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'supplier:service_pricing_matrix' %}" class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'pricing_matrix' %}active{% endif %}">
+                            <a href="{% url 'supplier:service_pricing_matrix' %}"
+                                class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'pricing_matrix' %}active{% endif %}">
                                 <i class="fas fa-table me-2"></i>{% trans "أسعار الخدمات" %}
                             </a>
                         </li>
@@ -553,12 +592,15 @@
                 {% has_module_access 'enhanced_financial' as can_access_enhanced_financial %}
                 {% if can_access_enhanced_financial or perms.financial.view_chartofaccounts or perms.financial.view_journalentry or perms.financial.view_expense or perms.financial.view_income or user.treasury_accesses.exists or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#treasuryManagementMenu" class="sidebar-link collapsed {% if active_menu == 'treasury' or active_menu == 'financial_management' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#treasuryManagementMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'treasury' or active_menu == 'financial_management' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-landmark sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الخزينة والمالية" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'treasury' or active_menu == 'financial_management' %}show{% endif %}" id="treasuryManagementMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'treasury' or active_menu == 'financial_management' %}show{% endif %}"
+                        id="treasuryManagementMenu">
                         <!-- الحسابات النقدية والبنوك -->
                         {% if perms.financial.view_chartofaccounts or perms.financial.view_bankreconciliation or perms.financial.change_chartofaccounts or user.treasury_accesses.exists or user.is_superuser %}
                         <li class="submenu-title">{% trans "الحسابات النقدية والبنوك" %}</li>
@@ -584,7 +626,7 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         <!-- المعاملات اليومية -->
                         {% if perms.financial.view_expense or perms.financial.view_income or user.is_superuser %}
                         <div class="nav-divider"></div>
@@ -604,10 +646,10 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         {% if perms.financial.view_budget or perms.financial.view_journalentry or user.is_superuser %}
                         <div class="nav-divider"></div>
-                        
+
                         <!-- الموازنات والتحليل المالي -->
                         <li class="submenu-title">{% trans "الموازنات والتحليل المالي" %}</li>
                         <li>
@@ -635,7 +677,7 @@
                                 <i class="fas fa-chart-line me-2"></i>{% trans "التحليلات المالية" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
 
                         <!-- الرقابة والحوكمة والشراكة -->
@@ -663,12 +705,15 @@
                 <!-- الحسابات العامة -->
                 {% if perms.financial.view_chartofaccounts or perms.financial.view_journalentry or user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#generalLedgerMenu" class="sidebar-link collapsed {% if active_menu == 'general_ledger' or active_menu == 'accounting' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#generalLedgerMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'general_ledger' or active_menu == 'accounting' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-book-open sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الحسابات العامة" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'general_ledger' or active_menu == 'accounting' %}show{% endif %}" id="generalLedgerMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'general_ledger' or active_menu == 'accounting' %}show{% endif %}"
+                        id="generalLedgerMenu">
                         <!-- التأسيس ودليل الحسابات -->
                         <li class="submenu-title">{% trans "التأسيس ودليل الحسابات" %}</li>
                         <li>
@@ -691,9 +736,9 @@
                                 <i class="fas fa-tags me-2"></i>{% trans "التصنيفات المالية" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
-                        
+
                         <!-- القيود والفترات المحاسبية -->
                         <li class="submenu-title">{% trans "القيود والفترات المحاسبية" %}</li>
                         <li>
@@ -711,7 +756,7 @@
                                 <i class="fas fa-calendar-check me-2"></i>{% trans "السنوات المالية" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
 
                         <!-- المعايير الدولية والضرائب -->
@@ -753,7 +798,7 @@
                                 <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "الإقرارات والتقارير الضريبية" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
 
                         <!-- التقارير والقوائم المالية -->
@@ -796,16 +841,19 @@
                 {% is_module_enabled 'hr' as hr_module_enabled %}
                 {% is_module_enabled 'warehouses' as warehouses_module_enabled %}
                 {% is_module_enabled 'financial' as financial_module_enabled %}
-                
+
                 {% if user.is_superuser or perms.financial.view_journalentry or perms.financial.view_chartofaccounts or perms.hr.view_employee or perms.hr.view_payroll or perms.hr.view_attendance or perms.hr.view_leave or perms.product.view_product or perms.product.view_stock %}
                 <li class="sidebar-item">
-                    <a href="#reportsMenu" class="sidebar-link collapsed {% if active_menu == 'reports' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#reportsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'reports' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-chart-bar sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "التقارير" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'reports' %}show{% endif %}" id="reportsMenu">
-                        
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'reports' %}show{% endif %}"
+                        id="reportsMenu">
+
                         <!-- 1. التقارير والقوائم المالية (للمحاسبين والمديرين فقط) -->
                         {% if financial_module_enabled %}
                         {% if user.is_superuser or perms.financial.view_journalentry or perms.financial.view_chartofaccounts %}
@@ -845,7 +893,7 @@
                                 <i class="fas fa-history me-2"></i>{% trans "سجل التدقيق المحاسبي" %}
                             </a>
                         </li>
-                        
+
                         <!-- 2. تقارير الأرصدة (عملاء وموردين محاسبياً) -->
                         <div class="nav-divider"></div>
                         <li class="submenu-title">تقارير الأرصدة</li>
@@ -861,7 +909,7 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                         <!-- 3. تقارير الموارد البشرية -->
                         {% if hr_module_enabled %}
                         {% if user.is_superuser or perms.hr.view_employee or perms.hr.view_payroll or perms.hr.view_attendance or perms.hr.view_leave %}
@@ -902,7 +950,7 @@
                         {% endif %}
                         {% endif %}
                         {% endif %}
-                        
+
                         <!-- 4. تقارير المخزون -->
                         {% if warehouses_module_enabled %}
                         {% if user.is_superuser or perms.product.view_product or perms.product.view_stock %}
@@ -927,7 +975,7 @@
                         </li>
                         {% endif %}
                         {% endif %}
-                        
+
                     </ul>
                 </li>
                 {% endif %}
@@ -935,43 +983,51 @@
                 <!-- المستخدمين / الملف الشخصي حسب الصلاحية -->
                 {% if user.is_superuser or perms.users.view_user or user.can_manage_users %}
                 <li class="sidebar-item">
-                    <a href="#userMenu" class="sidebar-link collapsed {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#userMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-user-shield sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "المستخدمين" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}show{% endif %}" id="userMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}show{% endif %}"
+                        id="userMenu">
                         <li>
-                            <a href="{% url 'users:user_list' %}" class="submenu-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}">
+                            <a href="{% url 'users:user_list' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}">
                                 <i class="fas fa-users me-2"></i>{% trans "قائمة المستخدمين" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'users:profile' %}" class="submenu-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+                            <a href="{% url 'users:profile' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
                                 <i class="fas fa-user-circle me-2"></i>{% trans "الملف الشخصي" %}
                             </a>
                         </li>
                         {% if user.is_superuser or user.can_manage_roles or perms.users.view_role %}
                         <li>
-                            <a href="{% url 'users:permissions_dashboard' %}" class="submenu-link {% if request.resolver_match.url_name == 'permissions_dashboard' %}active{% endif %}">
+                            <a href="{% url 'users:permissions_dashboard' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'permissions_dashboard' %}active{% endif %}">
                                 <i class="fas fa-user-shield me-2"></i>{% trans "إدارة الصلاحيات" %}
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         <div class="nav-divider"></div>
-                        
+
                         <!-- السجلات -->
                         <li class="submenu-title">السجلات</li>
                         {% if user.is_superuser or perms.users.view_activitylog %}
                         <li>
-                            <a href="{% url 'users:activity_log' %}" class="submenu-link {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
+                            <a href="{% url 'users:activity_log' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
                                 <i class="fas fa-history me-2"></i>{% trans "سجل النشاطات" %}
                             </a>
                         </li>
                         {% endif %}
                         <li>
-                            <a href="{% url 'core:notifications_list' %}" class="submenu-link {% if request.resolver_match.url_name == 'notifications_list' %}active{% endif %}">
+                            <a href="{% url 'core:notifications_list' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'notifications_list' %}active{% endif %}">
                                 <i class="fas fa-bell me-2"></i>{% trans "الإشعارات" %}
                             </a>
                         </li>
@@ -980,7 +1036,8 @@
                 {% else %}
                 <!-- الملف الشخصي للمستخدمين العاديين بدون صلاحية إدارة المستخدمين -->
                 <li class="sidebar-item">
-                    <a href="{% url 'users:profile' %}" class="sidebar-link {% if request.resolver_match.url_name == 'profile' or active_menu == 'profile' %}active{% endif %}">
+                    <a href="{% url 'users:profile' %}"
+                        class="sidebar-link {% if request.resolver_match.url_name == 'profile' or active_menu == 'profile' %}active{% endif %}">
                         <i class="fas fa-user-circle sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الملف الشخصي" %}</span>
                     </a>
@@ -990,12 +1047,15 @@
                 <!-- الإعدادات -->
                 {% if user.is_superuser %}
                 <li class="sidebar-item">
-                    <a href="#settingsMenu" class="sidebar-link collapsed {% if active_menu == 'settings' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#settingsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'settings' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-cogs sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الإعدادات" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'settings' %}show{% endif %}" id="settingsMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'settings' %}show{% endif %}"
+                        id="settingsMenu">
                         <li>
                             <a href="{% url 'core:company_settings' %}" class="submenu-link">
                                 <i class="fas fa-building me-2"></i>{% trans "إعدادات المنشـأة" %}
@@ -1021,9 +1081,9 @@
                                 <i class="fas fa-cubes me-2"></i>{% trans "تطبيقات النظام" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
-                        
+
                         <!-- الصيانة والنسخ الاحتياطي -->
                         <li class="submenu-title">الصيانة والنسخ الاحتياطي</li>
                         <li>
@@ -1036,9 +1096,9 @@
                                 <i class="fas fa-check-circle me-2"></i>{% trans "فحص سلامة البيانات" %}
                             </a>
                         </li>
-                        
+
                         <div class="nav-divider"></div>
-                        
+
                         <!-- الحوكمة والإدارة -->
                         <li class="submenu-title">الحوكمة والإدارة</li>
                         <li>

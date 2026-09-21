@@ -154,9 +154,43 @@
                             </a>
                         </div>
                         {% endif %}
+
+                        <!-- الخدمات الذاتية والبصمة -->
+                        <div class="quick-actions-category">
+                            <h6 class="dropdown-header text-info">
+                                <i class="fas fa-id-card-alt me-2"></i>
+                                <span>الخدمات الذاتية</span>
+                            </h6>
+                            <a class="dropdown-item quick-action-item" href="{% url 'hr:self_attendance' %}">
+                                <div class="quick-action-icon bg-soft-success">
+                                    <i class="fas fa-mobile-alt text-success"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">بصمة الهاتف الذكية</div>
+                                    <div class="quick-action-desc">تسجيل الحضور والانصراف الموثق</div>
+                                </div>
+                            </a>
+                            <a class="dropdown-item quick-action-item" href="{% url 'hr:leave_request' %}">
+                                <div class="quick-action-icon bg-soft-info">
+                                    <i class="fas fa-calendar-plus text-info"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">طلب إجازة</div>
+                                    <div class="quick-action-desc">تقديم طلب إجازة جديد</div>
+                                </div>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- زر البصمة الذكية السريع -->
+            <div class="quick-punch-header">
+                <a href="{% url 'hr:self_attendance' %}" class="btn-icon notification-btn text-decoration-none text-success" title="{% trans "بصمة الهاتف الذكية" %}">
+                    <i class="fas fa-fingerprint"></i>
+                </a>
+            </div>
+
             <!-- صندوق الموافقات الإدارية -->
             {% if perms.governance.approve_workflow or perms.financial.change_journalentry %}
             <div class="approvals-inbox-header">
@@ -316,6 +350,16 @@
                             <div class="dropdown-item-text">
                                 <span>الملف الشخصي</span>
                                 <small>إدارة معلوماتك الشخصية</small>
+                            </div>
+                        </a>
+
+                        <a href="{% url 'hr:self_attendance' %}" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-success">
+                                <i class="fas fa-mobile-alt text-success"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>بصمة الهاتف الذكية</span>
+                                <small>تسجيل الحضور والانصراف الموثق</small>
                             </div>
                         </a>
                         

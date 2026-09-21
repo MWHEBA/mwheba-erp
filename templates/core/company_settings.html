@@ -296,93 +296,36 @@
                                 </div>
                                 
                                 <!-- شعار عادي -->
-                                <div class="mb-4 p-3 border rounded">
-                                    <h6 class="mb-3">
-                                        <i class="fas fa-image text-primary me-2"></i>
-                                        الشعار الأساسي
-                                    </h6>
-                                    <div class="mb-3">
-                                        <label for="company_logo" class="form-label">رفع الشعار الأساسي</label>
-                                        <input type="file" class="form-control logo-upload" id="company_logo" name="company_logo" accept="image/*" data-logo-type="company_logo">
-                                        <div class="help-text">
-                                            <i class="fas fa-info-circle"></i>
-                                            يُستخدم في الصفحات الرئيسية والفواتير (300×100 بكسل)
-                                        </div>
-                                    </div>
+                                <div class="mb-4">
                                     {% if company_logo %}
-                                    <div class="mt-2" id="preview-company_logo">
-                                        <div class="p-2 border rounded d-inline-block bg-light">
-                                            <img src="{{ MEDIA_URL }}{{ company_logo }}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;">
-                                        </div>
-                                        <div class="mt-1">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle"></i> تم الرفع
-                                            </small>
-                                        </div>
-                                    </div>
+                                        {% include "components/image_upload_field.html" with name="company_logo" id="company_logo" label="الشعار الأساسي" initial_image=MEDIA_URL|add:company_logo icon="fa-image" help_text="يُستخدم في الصفحات الرئيسية والفواتير (300×100 بكسل)" %}
+                                    {% else %}
+                                        {% include "components/image_upload_field.html" with name="company_logo" id="company_logo" label="الشعار الأساسي" icon="fa-image" help_text="يُستخدم في الصفحات الرئيسية والفواتير (300×100 بكسل)" %}
                                     {% endif %}
                                 </div>
                                 
                                 <!-- شعار فاتح -->
-                                <div class="mb-4 p-3 border rounded">
-                                    <h6 class="mb-3">
-                                        <i class="fas fa-sun text-warning me-2"></i>
-                                        الشعار الفاتح (Light)
-                                    </h6>
-                                    <div class="mb-3">
-                                        <label for="company_logo_light" class="form-label">رفع الشعار الفاتح</label>
-                                        <input type="file" class="form-control logo-upload" id="company_logo_light" name="company_logo_light" accept="image/*" data-logo-type="company_logo_light">
-                                        <div class="help-text">
-                                            <i class="fas fa-info-circle"></i>
-                                            يُستخدم في الـ Sidebar والخلفيات الداكنة (بخلفية شفافة)
-                                        </div>
-                                    </div>
+                                <div class="mb-4">
                                     {% if company_logo_light %}
-                                    <div class="mt-2" id="preview-company_logo_light">
-                                        <div class="p-2 border rounded d-inline-block bg-secondary">
-                                            <img src="{{ MEDIA_URL }}{{ company_logo_light }}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;">
-                                        </div>
-                                        <div class="mt-1">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle"></i> تم الرفع
-                                            </small>
-                                        </div>
-                                    </div>
+                                        {% include "components/image_upload_field.html" with name="company_logo_light" id="company_logo_light" label="الشعار الفاتح (Light)" initial_image=MEDIA_URL|add:company_logo_light icon="fa-sun" help_text="يُستخدم في الـ Sidebar والخلفيات الداكنة (بخلفية شفافة)" %}
+                                    {% else %}
+                                        {% include "components/image_upload_field.html" with name="company_logo_light" id="company_logo_light" label="الشعار الفاتح (Light)" icon="fa-sun" help_text="يُستخدم في الـ Sidebar والخلفيات الداكنة (بخلفية شفافة)" %}
                                     {% endif %}
                                 </div>
                                 
                                 <!-- شعار مصغر -->
-                                <div class="mb-4 p-3 border rounded">
-                                    <h6 class="mb-3">
-                                        <i class="fas fa-compress text-info me-2"></i>
-                                        الشعار المصغر (Mini)
-                                    </h6>
-                                    <div class="mb-3">
-                                        <label for="company_logo_mini" class="form-label">رفع الشعار المصغر</label>
-                                        <input type="file" class="form-control logo-upload" id="company_logo_mini" name="company_logo_mini" accept="image/*" data-logo-type="company_logo_mini">
-                                        <div class="help-text">
-                                            <i class="fas fa-info-circle"></i>
-                                            يُستخدم عند تصغير الـ Sidebar (مربع 50×50 بكسل)
-                                        </div>
-                                    </div>
+                                <div class="mb-4">
                                     {% if company_logo_mini %}
-                                    <div class="mt-2" id="preview-company_logo_mini">
-                                        <div class="p-2 border rounded d-inline-block bg-secondary">
-                                            <img src="{{ MEDIA_URL }}{{ company_logo_mini }}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;">
-                                        </div>
-                                        <div class="mt-1">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle"></i> تم الرفع
-                                            </small>
-                                        </div>
-                                    </div>
+                                        {% include "components/image_upload_field.html" with name="company_logo_mini" id="company_logo_mini" label="الشعار المصغر (Mini)" initial_image=MEDIA_URL|add:company_logo_mini icon="fa-compress" help_text="يُستخدم عند تصغير الـ Sidebar (مربع 50×50 بكسل)" %}
+                                    {% else %}
+                                        {% include "components/image_upload_field.html" with name="company_logo_mini" id="company_logo_mini" label="الشعار المصغر (Mini)" icon="fa-compress" help_text="يُستخدم عند تصغير الـ Sidebar (مربع 50×50 بكسل)" %}
                                     {% endif %}
                                 </div>
 
                                 <!-- ختم الشركة الرسمى -->
                                 <div class="mb-4 p-3 border rounded">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="mb-0">
+                                        <h6 class="mb-0 fw-bold">
                                             <i class="fas fa-stamp text-danger me-2"></i>
                                             ختم الشركة الرسمى (Company Stamp)
                                         </h6>
@@ -391,25 +334,10 @@
                                             <label class="form-check-label fw-bold text-dark small" for="enable_company_stamp">تفعيل طباعة الختم</label>
                                         </div>
                                     </div>
-                                    <div class="mb-3">
-                                        <label for="company_stamp" class="form-label">رفع ختم الشركة</label>
-                                        <input type="file" class="form-control logo-upload" id="company_stamp" name="company_stamp" accept="image/*" data-logo-type="company_stamp">
-                                        <div class="help-text">
-                                            <i class="fas fa-info-circle"></i>
-                                            يُطبع فوق الفوتر والتوقيع في فواتير البيع وعروض الأسعار. يُفضّل استخدام صيغة PNG بخلفية شفافة.
-                                        </div>
-                                    </div>
                                     {% if company_stamp %}
-                                    <div class="mt-2" id="preview-company_stamp">
-                                        <div class="p-2 border rounded d-inline-block bg-light">
-                                            <img src="{{ MEDIA_URL }}{{ company_stamp }}" class="logo-preview" alt="ختم الشركة" style="max-height: 100px;">
-                                        </div>
-                                        <div class="mt-1">
-                                            <small class="text-success">
-                                                <i class="fas fa-check-circle"></i> تم الرفع
-                                            </small>
-                                        </div>
-                                    </div>
+                                        {% include "components/image_upload_field.html" with name="company_stamp" id="company_stamp" label="ختم الشركة" initial_image=MEDIA_URL|add:company_stamp icon="fa-stamp" help_text="يُطبع فوق الفوتر والتوقيع في فواتير البيع وعروض الأسعار (PNG شفاف)" %}
+                                    {% else %}
+                                        {% include "components/image_upload_field.html" with name="company_stamp" id="company_stamp" label="ختم الشركة" icon="fa-stamp" help_text="يُطبع فوق الفوتر والتوقيع في فواتير البيع وعروض الأسعار (PNG شفاف)" %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -1205,10 +1133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-info-circle me-1"></i>
                     يرجى اختيار ملف JSON تم تصديره مسبقاً من شاشة إعدادات المنشأة.
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">ملف الإعدادات:</label>
-                    <input type="file" class="form-control" id="importCompanyFileInput" accept=".json">
-                </div>
+                {% include "components/file_upload_field.html" with name="import_file" id="importCompanyFileInput" label="ملف إعدادات المنشأة (.json)" accept=".json" icon="fa-file-code" %}
                 <div id="importCompanyPreview" class="d-none p-3 bg-light border rounded mb-3 small">
                     <div class="fw-bold text-dark mb-1"><i class="fas fa-check-circle text-success me-1"></i>ملخص الملف:</div>
                     <div id="importCompanyPreviewContent"></div>

@@ -1,27 +1,27 @@
 {% load i18n %}
 <div class="d-flex align-items-center">
     {% if object.device %}
-        <i class="fas fa-server text-info me-2"></i>
-        <span>{{ object.device.device_name }}</span>
+    <i class="fas fa-server text-info me-2"></i>
+    <span>{{ object.device.device_name }}</span>
     {% elif object.source == 'mobile' %}
-        <i class="fas fa-mobile-alt text-primary me-2"></i>
-        <span>{% if object.matched_location %}{{ object.matched_location.name_ar }}{% else %}جوال ذكي{% endif %}</span>
+    <i class="fas fa-mobile-alt text-primary me-2"></i>
+    <span>{% if object.matched_location %}{{ object.matched_location.name_ar }}{% else %}هاتف ذكي{% endif %}</span>
     {% elif object.source == 'supervisor' %}
-        <i class="fas fa-user-shield text-warning me-2"></i>
-        <span>طاقم مشرف</span>
+    <i class="fas fa-user-shield text-warning me-2"></i>
+    <span>طاقم مشرف</span>
     {% elif object.source == 'field_visit' %}
-        <i class="fas fa-route text-success me-2"></i>
-        <span>زيارة ميدانية</span>
+    <i class="fas fa-route text-success me-2"></i>
+    <span>زيارة ميدانية</span>
     {% elif object.source == 'manual' %}
-        <i class="fas fa-keyboard text-secondary me-2"></i>
-        <span>يدوي</span>
+    <i class="fas fa-keyboard text-secondary me-2"></i>
+    <span>يدوي</span>
     {% else %}
-        <i class="fas fa-fingerprint text-muted me-2"></i>
-        <span>{{ object.get_source_display }}</span>
+    <i class="fas fa-fingerprint text-muted me-2"></i>
+    <span>{{ object.get_source_display }}</span>
     {% endif %}
     {% if object.is_offline_synced %}
-        <span class="badge bg-secondary ms-1" title="تمت المزامنة أوفلاين">
-            <i class="fas fa-cloud-upload-alt me-1"></i>أوفلاين
-        </span>
+    <span class="badge bg-secondary ms-1" title="تمت المزامنة أوفلاين">
+        <i class="fas fa-cloud-upload-alt me-1"></i>أوفلاين
+    </span>
     {% endif %}
 </div>

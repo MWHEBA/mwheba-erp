@@ -48,11 +48,11 @@ class AdvancedSecurityHeadersMiddleware(MiddlewareMixin):
         # 5. Referrer Policy - التحكم في معلومات Referrer
         response['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         
-        # 6. Permissions Policy - تقييد APIs الحساسة
+        # 6. Permissions Policy - تقييد APIs الحساسة والسماح بالصلاحيات اللازمة للنظام
         permissions_policy = [
-            'geolocation=()',
+            'geolocation=(self)',
             'microphone=()',
-            'camera=()',
+            'camera=(self)',
             'payment=()',
             'usb=()',
             'magnetometer=()',

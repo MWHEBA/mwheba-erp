@@ -1443,39 +1443,36 @@
    المودالات التفاعلية والنوافذ المنسدلة (Modals)
    ========================================================================== -->
 
-<!-- مودال رفع الصور -->
+<!-- مودال رفع الصور وفق معايير Rule 8 والمكون الموحد -->
 <div class="modal fade" id="uploadImageModal" tabindex="-1" aria-labelledby="uploadImageModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="uploadImageModalLabel">
-                    <i class="fas fa-upload me-2 text-primary"></i>رفع صورة للمنتج
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="uploadImageModalLabel">
+                    <i class="fas fa-camera text-primary me-2"></i>رفع صورة للمنتج
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="uploadImageForm" action="{% url 'product:product_image_upload' product.pk %}" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-4">
+                    {% include "components/image_upload_field.html" with name="image" id="imageFile" label="صورة المنتج" required=True icon="fa-image" %}
+                    
                     <div class="mb-3">
-                        <label for="imageFile" class="form-label">اختر صورة</label>
-                        <input type="file" class="form-control" id="imageFile" name="image" accept="image/*" required>
-                        <small class="text-muted">الصيغ المدعومة: JPG, PNG, GIF (الحد الأقصى: 5MB)</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="altText" class="form-label">وصف الصورة (اختياري)</label>
+                        <label for="altText" class="form-label fw-semibold text-secondary">وصف الصورة (اختياري)</label>
                         <input type="text" class="form-control" id="altText" name="alt_text" placeholder="مثال: صورة واجهة المنتج">
                     </div>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="isPrimary" name="is_primary" checked>
-                        <label class="form-check-label" for="isPrimary">
+                    <div class="form-check form-switch p-2 border rounded bg-light">
+                        <input type="checkbox" class="form-check-input ms-0 me-2" id="isPrimary" name="is_primary" role="switch" checked>
+                        <label class="form-check-label fw-semibold" for="isPrimary">
                             جعلها الصورة الرئيسية للمنتج
                         </label>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="button" class="btn btn-primary btn-sm" id="uploadImageBtn" onclick="submitImageUpload()">
-                        <i class="fas fa-upload me-1"></i>رفع الصورة
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="uploadImageBtn">
+                        <i class="fas fa-save me-1"></i>رفع وحفظ الصورة
                     </button>
                 </div>
             </form>

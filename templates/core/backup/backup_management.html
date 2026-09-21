@@ -151,15 +151,7 @@
             <form id="restoreUploadForm" enctype="multipart/form-data">
                 <div class="row">
                     <div class="col-md-8 offset-md-2">
-                        <div class="mb-4">
-                            <label for="backupFile" class="form-label fw-bold">اختر ملف النسخة الاحتياطية:</label>
-                            <input type="file" class="form-control form-control-lg" id="backupFile" name="backup_file" 
-                                   accept=".sql,.gz,.tar.gz,.tgz,.zip,.db,.sqlite3,.json" required>
-                            <div class="form-text mt-2">
-                                <i class="fas fa-info-circle me-1"></i>
-                                الصيغ المدعومة: SQL (.sql, .sql.gz)، SQLite (.db, .sqlite3)، JSON (.json, .json.gz)، الميديا (.tar.gz)، والنسخ الكاملة (.zip)
-                            </div>
-                        </div>
+                        {% include "components/file_upload_field.html" with name="backup_file" id="backupFile" label="ملف النسخة الاحتياطية" accept=".sql,.gz,.tar.gz,.tgz,.zip,.db,.sqlite3,.json" max_size_mb=500 required=True icon="fa-database" help_text="الصيغ المدعومة: SQL (.sql, .sql.gz)، SQLite (.db, .sqlite3)، JSON (.json, .json.gz)، الميديا (.tar.gz)، والنسخ الكاملة (.zip)" %}
                         
                         <div class="mb-4">
                             <label class="form-label fw-bold">نوع الاستعادة:</label>

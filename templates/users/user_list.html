@@ -9,6 +9,14 @@
     #users-table tbody tr {
         cursor: pointer;
     }
+    #users-table th,
+    #users-table td {
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+    #users-table .table-sort-link {
+        justify-content: center;
+    }
 </style>
 {% endblock %}
 
@@ -429,6 +437,65 @@
         </div>
     </div>
 </div>
+
+<!-- Modal ربط المستخدم بملف موظف وفق Rule 8 -->
+<div class="modal fade" id="linkEmployeeModal" tabindex="-1" aria-labelledby="linkEmployeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="linkEmployeeModalLabel">
+                    <i class="fas fa-id-badge text-primary me-2"></i>
+                    ربط المستخدم بملف موظف
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="linkEmployeeForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" id="link_user_id" name="user_id">
+                <div class="modal-body p-4">
+                    <!-- بطاقة تعريف المستخدم المستهدف -->
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-white border d-flex align-items-center justify-content-center text-primary fw-bold" style="width: 44px; height: 44px; font-size: 1.1rem;">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <strong class="text-dark d-block mb-0" id="linkModalUserName">-</strong>
+                                <small class="text-muted" id="linkModalUserUsername">-</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- اختيار الموظف المطلوب ربطه -->
+                    <div class="mb-3">
+                        <label for="link_employee_select" class="form-label fw-bold small text-dark">
+                            اختر الموظف المراد ربطه بالحساب <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select select2-modal" id="link_employee_select" name="employee_id">
+                            <option value="">-- بدون ربط (إلغاء ربط الموظف) --</option>
+                            {% for emp in all_employees %}
+                                <option value="{{ emp.id }}">
+                                    {{ emp.name }} [{{ emp.employee_number }}] - {{ emp.department.name_ar|default:"عام" }}{% if emp.user %} (مرتبط حالياً بـ: {{ emp.user.username }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle me-1 text-primary"></i>يمكن للمستخدم المرتبط بموظف تسجيل الحضور واستخدام بصمة الهاتف الذكية PWA والاطلاع على رصيد إجازاته.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="linkEmployeeSubmitBtn">
+                        <i class="fas fa-save me-2"></i>حفظ الربط
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -458,10 +525,18 @@ $(document).ready(function() {
             width: '100%',
             dropdownParent: $('#createUserModal')
         });
+
+        $('#link_employee_select').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%',
+            dropdownParent: $('#linkEmployeeModal')
+        });
     }
 
     initTableEvents();
     initCreateUserModalEvents();
+    initLinkEmployeeModalEvents();
 
     // فتح مودال إضافة مستخدم تلقائياً عند طلب action=create
     const urlParams = new URLSearchParams(window.location.search);
@@ -639,6 +714,15 @@ function initTableEvents() {
 
 // Event Delegation لكافة أزرار الجدول
 document.addEventListener('click', function(e) {
+    // 0. زر ربط وتعديل الموظف
+    const linkEmpBtn = e.target.closest('.link-employee-modal-btn');
+    if (linkEmpBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openLinkEmployeeModal(linkEmpBtn);
+        return;
+    }
+
     // 1. زر تعديل المستخدم
     const editBtn = e.target.closest('.edit-user-btn') || e.target.closest('a[href*="/edit/"]');
     if (editBtn) {
@@ -695,6 +779,70 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+// فتح نافذة ربط المستخدم بملف موظف
+function openLinkEmployeeModal(btn) {
+    const userId = btn.getAttribute('data-user-id');
+    const userName = btn.getAttribute('data-user-name');
+    const username = btn.getAttribute('data-user-username');
+    const currentEmpId = btn.getAttribute('data-current-emp-id');
+
+    document.getElementById('link_user_id').value = userId;
+    document.getElementById('linkModalUserName').textContent = userName || username;
+    document.getElementById('linkModalUserUsername').textContent = '@' + username;
+
+    $('#link_employee_select').val(currentEmpId || '').trigger('change');
+
+    const modalEl = document.getElementById('linkEmployeeModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+// تهيئة أحداث نافذة ربط الموظف
+function initLinkEmployeeModalEvents() {
+    const form = document.getElementById('linkEmployeeForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const userId = document.getElementById('link_user_id').value;
+            const submitBtn = document.getElementById('linkEmployeeSubmitBtn');
+            const origHtml = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+
+            const formData = new FormData(this);
+
+            fetch(`/users/${userId}/link-employee/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('linkEmployeeModal'));
+                    if (modalInstance) modalInstance.hide();
+                    toastr.success(data.message);
+                    setTimeout(() => location.reload(), TOAST_RELOAD_DELAY);
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء تحديث ربط الموظف');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origHtml;
+            });
+        });
+    }
+}
 
 // فتح modal التعديل وتعبئة البيانات
 function openEditModal(userId) {

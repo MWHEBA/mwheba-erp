@@ -2,7 +2,7 @@
 اختبارات شاملة للمرحلة 4:
 1. جلب سياق البصمة الذكية والتوكن المشفر (API Get Punch Context)
 2. تسجيل الحضور والانصراف بالسيلفي والموقع الجغرافي (Mobile Punch In / Out)
-3. حظر البصمة في حالة عدم التصريح باستخدام الجوال (Mobile Punch Authorization Guard)
+3. حظر البصمة في حالة عدم التصريح باستخدام الهاتف (Mobile Punch Authorization Guard)
 4. رفض البصمة خارج النطاق الجغرافي (Geofencing Guard)
 5. كشف وحظر محاولات التلاعب وتزييف الموقع (Mock Location Guard)
 6. حوكمة عتاد الجهاز ورفض الأجهزة غير المصرح بها (Device Binding Guard)
@@ -168,7 +168,7 @@ def phase4_setup(db):
 
 @pytest.mark.django_db
 class TestPhase4MobilePunchAPIs:
-    """اختبارات الـ APIs لمحرك بصمة الجوال الذكية"""
+    """اختبارات الـ APIs لمحرك بصمة الهاتف الذكية"""
 
     def test_get_punch_context_api(self, phase4_setup):
         """اختبار جلب سياق البصمة الحالي والتوكن المشفر"""
@@ -269,7 +269,7 @@ class TestPhase4MobilePunchAPIs:
             longitude=31.432000,
         )
         assert res['success'] is False
-        assert "غير مصرح لك باستخدام بصمة الجوال" in res['message']
+        assert "غير مصرح لك باستخدام بصمة الهاتف" in res['message']
 
     def test_mobile_punch_outside_geofence_rejected(self, phase4_setup):
         """رفض البصمة عند التواجد خارج المقر الجغرافي المعتمد"""

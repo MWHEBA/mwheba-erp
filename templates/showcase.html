@@ -102,16 +102,10 @@
         <div class="component-demo">
             <h4 class="demo-title">3. رأس صفحة مع أزرار</h4>
             <div class="example-output">
-                {% with buttons=[
-                    {'url': '#', 'icon': 'fa-plus', 'text': 'إضافة جديد', 'class': 'btn-primary'},
-                    {'onclick': 'alert("تصدير البيانات")', 'icon': 'fa-download', 'text': 'تصدير', 'class': 'btn-success'}
-                ] %}
                 {% include "shared/page_header.html" with 
                     title="قائمة المنتجات" 
                     icon="fa-box"
-                    header_buttons=buttons
                 %}
-                {% endwith %}
             </div>
             <div class="code-example">
 {% verbatim %}{% with buttons=[
@@ -235,13 +229,7 @@
         <div class="component-demo">
             <h4 class="demo-title">1. مسار تنقل بسيط</h4>
             <div class="example-output">
-                {% with breadcrumb_items=[
-                    {"title": "الرئيسية", "url": "/", "icon": "fa-home"},
-                    {"title": "العملاء", "url": "#", "icon": "fa-users"},
-                    {"title": "قائمة العملاء", "active": True}
-                ] %}
-                {% include "shared/breadcrumb.html" with items=breadcrumb_items %}
-                {% endwith %}
+                {% include "shared/breadcrumb.html" %}
             </div>
             <div class="code-example">
 {% verbatim %}{% with breadcrumb_items=[
@@ -393,27 +381,7 @@
         <div class="component-demo">
             <h4 class="demo-title">1. جدول بيانات بسيط</h4>
             <div class="example-output">
-                {% with 
-                    sample_headers=[
-                        {'key': 'name', 'label': 'الاسم', 'sortable': True},
-                        {'key': 'email', 'label': 'البريد الإلكتروني', 'sortable': True},
-                        {'key': 'status', 'label': 'الحالة', 'format': 'status'},
-                        {'key': 'created_at', 'label': 'تاريخ الإنشاء', 'format': 'date'}
-                    ]
-                    sample_data=[
-                        {'name': 'أحمد محمد', 'email': 'ahmed@example.com', 'status': 'active', 'created_at': '2024-01-15'},
-                        {'name': 'فاطمة علي', 'email': 'fatima@example.com', 'status': 'inactive', 'created_at': '2024-01-10'},
-                        {'name': 'محمد حسن', 'email': 'mohamed@example.com', 'status': 'pending', 'created_at': '2024-01-12'}
-                    ]
-                %}
-                {% include "components/data_table.html" with 
-                    table_id="sample-table"
-                    headers=sample_headers
-                    data=sample_data
-                    show_search=True
-                    show_length_menu=True
-                %}
-                {% endwith %}
+                {% include "components/data_table.html" with table_id="sample-table" show_search=True show_length_menu=True %}
             </div>
             <div class="code-example">
 {% verbatim %}{% include "components/data_table.html" with 

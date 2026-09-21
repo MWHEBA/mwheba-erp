@@ -270,12 +270,8 @@ def product_list(request):
         if in_stock:
             products = products.filter(stocks__quantity__gt=0).distinct()
 
-        can_view_selling = getattr(request.user, 'can_view_selling_price', True) if not hasattr(request.user, 'has_perm') else (
-            request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.can_view_selling_price')
-        )
-        can_view_costs = getattr(request.user, 'can_view_operational_costs', True) if not hasattr(request.user, 'has_perm') else (
-            request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.can_view_operational_costs')
-        )
+        can_view_selling = getattr(request.user, 'can_view_selling_price', True)
+        can_view_costs = getattr(request.user, 'can_view_operational_costs', True)
 
         # التصدير المزدوج: تصدير كافة المنتجات المفلترة من الباك إند
         if request.GET.get('export') == 'excel':
@@ -1253,7 +1249,9 @@ def product_detail(request, pk):
     sales_stats = {}
 
     can_view_selling_price = getattr(request.user, 'can_view_selling_price', True)
-    if can_view_selling_price:
+    can_view_operational_costs = getattr(request.user, 'can_view_operational_costs', True)
+
+    if can_view_selling_price or can_view_operational_costs:
         try:
             from financial.models import Currency
             active_currencies = list(Currency.objects.filter(is_active=True).exclude(code="EGP"))
@@ -1272,6 +1270,7 @@ def product_detail(request, pk):
         except Exception:
             pass
 
+    if can_view_selling_price:
         sales_stats = get_product_sales_statistics(product)
 
     context = {

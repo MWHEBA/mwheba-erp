@@ -1,5 +1,5 @@
 """
-خدمة بصمة الجوال الذكية وسيلفي الحضور والمزامنة (Mobile Punch & Offline Sync Service)
+خدمة بصمة الهاتف الذكية وسيلفي الحضور والمزامنة (Mobile Punch & Offline Sync Service)
 MWHEBA ERP - Mobile Punch Engine
 """
 import base64
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 class MobilePunchService:
-    """خدمة معالجة بصمة الجوال الذكية وسيلفي الحضور والمزامنة الأوفلاين"""
+    """خدمة معالجة بصمة الهاتف الذكية وسيلفي الحضور والمزامنة الأوفلاين"""
 
     @staticmethod
     def get_punch_context(employee: Employee, user: Any) -> Dict[str, Any]:
@@ -142,7 +142,7 @@ class MobilePunchService:
         is_emergency: bool = False,
     ) -> Dict[str, Any]:
         """
-        معالجة بصمة الجوال المركزية الموثقة:
+        معالجة بصمة الهاتف المركزية الموثقة:
         1. فحص تصريح بصمة الموبايل للموظف.
         2. التحقق من التوكن الأمني المشفر (Anti-Replay).
         3. فحص ومكافحة برامج التزييف (Mock Location / Fake GPS).
@@ -156,7 +156,7 @@ class MobilePunchService:
         if not getattr(employee, 'allow_mobile_attendance', True):
             return {
                 'success': False,
-                'message': 'غير مصرح لك باستخدام بصمة الجوال. يرجى استخدام ماكينة البصمة المعتمدة أو مراجعة إدارة الموارد البشرية.',
+                'message': 'غير مصرح لك باستخدام بصمة الهاتف. يرجى استخدام ماكينة البصمة المعتمدة أو مراجعة إدارة الموارد البشرية.',
             }
 
         # 2. التحقق من التوكن الأمني (في حالة البصم المباشر أونلاين)
@@ -198,14 +198,57 @@ class MobilePunchService:
         if not is_loc_valid:
             return {'success': False, 'message': loc_msg}
 
-        # تحديد وقت البصمة
+        # تحديد وقت وتاريخ البصمة
         punch_time = client_timestamp if (is_offline_synced and client_timestamp) else timezone.now()
         punch_date = punch_time.date() if timezone.is_aware(punch_time) else timezone.localtime(punch_time).date()
 
-        # 6. حفظ صورة السيلفي
+        # 6. فحص تسلسل ومنطق البصمة (Attendance Flow & Anti-Spam Validation)
+        effective_shift = employee.shift or AttendanceService.resolve_effective_shift(employee, check_in_dt=punch_time)
+        attendance, created = Attendance.objects.get_or_create(
+            employee=employee,
+            date=punch_date,
+            defaults={
+                'shift': effective_shift,
+                'status': 'present',
+            }
+        )
+
+        if not attendance.shift:
+            attendance.shift = effective_shift
+
+        action_label = ''
+        if punch_type == 'check_in':
+            if attendance.check_in and not created:
+                check_in_fmt = timezone.localtime(attendance.check_in).strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')
+                return {
+                    'success': False,
+                    'message': f'لقد تم تسجيل حضورك مسبقاً اليوم في تمام الساعة {check_in_fmt}. لا يمكن إعادة تسجيل الحضور مرة أخرى.',
+                }
+            attendance.check_in = punch_time
+            action_label = 'تسجيل الحضور'
+        elif punch_type == 'check_out':
+            if not attendance.check_in:
+                return {
+                    'success': False,
+                    'message': 'لا يمكن تسجيل الانصراف قبل تسجيل الحضور أولاً.',
+                }
+            if not attendance.check_out:
+                attendance.check_out = punch_time
+                action_label = 'تسجيل الانصراف'
+            else:
+                diff_checkout_sec = abs((punch_time - attendance.check_out).total_seconds())
+                if diff_checkout_sec < 60:
+                    check_out_fmt = timezone.localtime(attendance.check_out).strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')
+                    return {
+                        'success': False,
+                        'message': f'تم تسجيل انصرافك بالفعل عند الساعة {check_out_fmt}.',
+                    }
+                action_label = 'تحديث بصمة الانصراف'
+                attendance.check_out = max(attendance.check_out, punch_time)
+
+        # 7. حفظ صورة السيلفي وسجل الـ BiometricLog
         selfie_file = MobilePunchService._save_selfie_image(selfie_base64, employee.id)
 
-        # إنشاء سجل البصمة الخام BiometricLog
         bio_log = BiometricLog.objects.create(
             employee=employee,
             user_id=employee.employee_number or str(employee.id),
@@ -224,44 +267,8 @@ class MobilePunchService:
             customer_id=customer_id,
             work_order_id=work_order_id,
             is_processed=True,
+            attendance=attendance,
         )
-
-        # 7. تحديث أو إنشاء سجل الحضور اليومي Attendance
-        effective_shift = employee.shift or AttendanceService.resolve_effective_shift(employee, check_in_dt=punch_time)
-        attendance, created = Attendance.objects.get_or_create(
-            employee=employee,
-            date=punch_date,
-            defaults={
-                'shift': effective_shift,
-                'status': 'present',
-            }
-        )
-
-        if not attendance.shift:
-            attendance.shift = effective_shift
-
-        action_label = ''
-        if punch_type == 'check_in':
-            # إذا لم يكن هناك بصمة دخول سابقة، أو إذا كانت هذه أول بصمة
-            if not attendance.check_in:
-                attendance.check_in = punch_time
-                action_label = 'تسجيل الحضور'
-            else:
-                # تحديث في حالة كانت البصمة الجديدة أبكر
-                action_label = 'تحديث بصمة الحضور'
-                attendance.check_in = min(attendance.check_in, punch_time)
-        elif punch_type == 'check_out':
-            if not attendance.check_out:
-                attendance.check_out = punch_time
-                action_label = 'تسجيل الانصراف'
-            else:
-                # تحديث في حالة كانت البصمة الجديدة أحدث
-                action_label = 'تحديث بصمة الانصراف'
-                attendance.check_out = max(attendance.check_out, punch_time)
-
-        # ربط الـ BiometricLog بسجل الـ Attendance
-        bio_log.attendance = attendance
-        bio_log.save(update_fields=['attendance'])
 
         # تشغيل المحرك الحسابي الموحد لحساب ساعات العمل والغياب والتأخير والإضافي
         AttendanceService.calculate_daily_attendance(attendance)

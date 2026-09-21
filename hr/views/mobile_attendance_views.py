@@ -1,5 +1,5 @@
 """
-Views بصمة الجوال الذكية PWA وسيلفي الحضور والمزامنة (Mobile Attendance & Supervisor Views)
+Views بصمة الهاتف الذكية PWA وسيلفي الحضور والمزامنة (Mobile Attendance & Supervisor Views)
 MWHEBA ERP - Mobile Punch Engine
 """
 import json
@@ -22,7 +22,9 @@ from typing import Optional
 
 def _get_current_employee(request) -> Optional[Employee]:
     """استرجاع الموظف المرتبط بالمستخدم الحالي"""
-    if hasattr(request.user, 'employee'):
+    if hasattr(request.user, 'employee_profile') and request.user.employee_profile:
+        return request.user.employee_profile
+    if hasattr(request.user, 'employee') and request.user.employee:
         return request.user.employee
     # البحث بالربط العكسي
     return Employee.objects.filter(user=request.user).first()
@@ -38,22 +40,22 @@ def self_attendance_view(request):
     if not employee:
         # إذا كان مدير أو مستخدم بدون بروفايل موظف
         first_emp = Employee.objects.filter(status='active').first()
-        if request.user.is_superuser and first_emp:
+        if (request.user.is_superuser or request.user.is_staff) and first_emp:
             employee = first_emp
         else:
             return render(request, 'hr/attendance/no_employee_profile.html', {
-                'page_title': 'بصمة الجوال الذكية',
+                'page_title': 'بصمة الهاتف الذكية',
                 'message': 'حسابك غير مرتبط بملف موظف نشط في النظام. يرجى مراجعة إدارة الموارد البشرية لربط حسابك.'
             })
 
     context = {
         'employee': employee,
-        'page_title': 'بصمة الجوال الذكية',
+        'page_title': 'بصمة الهاتف الذكية',
         'page_subtitle': 'تسجيل الحضور والانصراف الموثق عبر GPS والسيلفي',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'الموارد البشرية', 'url': reverse('hr:attendance_list'), 'icon': 'fas fa-users-cog'},
-            {'title': 'بصمة الجوال الذكية', 'active': True},
+            {'title': 'بصمة الهاتف الذكية', 'active': True},
         ],
     }
     return render(request, 'hr/attendance/self_attendance.html', context)
@@ -87,12 +89,14 @@ def supervisor_attendance_view(request):
 def api_get_punch_context(request):
     """API جلب سياق البصمة الحالي والتوكن الأمني"""
     employee = _get_current_employee(request)
+    emp_id = request.GET.get('employee_id')
+    if emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
+        employee = get_object_or_404(Employee, pk=emp_id)
+    elif not employee and (request.user.is_superuser or request.user.is_staff):
+        employee = Employee.objects.filter(status='active').first()
+
     if not employee:
-        emp_id = request.GET.get('employee_id')
-        if emp_id and (request.user.is_staff or request.user.is_superuser):
-            employee = get_object_or_404(Employee, pk=emp_id)
-        else:
-            return JsonResponse({'success': False, 'message': 'لا يوجد موظف مرتبط بهذا الحساب.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'لا يوجد موظف مرتبط بهذا الحساب.'}, status=400)
 
     data = MobilePunchService.get_punch_context(employee, request.user)
     return JsonResponse({'success': True, 'data': data})
@@ -101,7 +105,7 @@ def api_get_punch_context(request):
 @login_required
 @require_POST
 def api_submit_mobile_punch(request):
-    """API تسجيل بصمة الجوال الذكية"""
+    """API تسجيل بصمة الهاتف الذكية"""
     try:
         if request.content_type == 'application/json':
             payload = json.loads(request.body.decode('utf-8'))
@@ -112,8 +116,10 @@ def api_submit_mobile_punch(request):
 
     employee = _get_current_employee(request)
     target_emp_id = payload.get('employee_id')
-    if target_emp_id and (request.user.is_staff or request.user.is_superuser):
+    if target_emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
         employee = get_object_or_404(Employee, pk=target_emp_id)
+    elif not employee and (request.user.is_superuser or request.user.is_staff):
+        employee = Employee.objects.filter(status='active').first()
 
     if not employee:
         return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف.'}, status=400)
@@ -164,6 +170,12 @@ def api_sync_offline_punches(request):
         return JsonResponse({'success': False, 'message': 'تنسيق حزمة المزامنة غير صالح.'}, status=400)
 
     employee = _get_current_employee(request)
+    target_emp_id = payload.get('employee_id')
+    if target_emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
+        employee = Employee.objects.filter(pk=target_emp_id).first()
+    elif not employee and (request.user.is_superuser or request.user.is_staff):
+        employee = Employee.objects.filter(status='active').first()
+
     if not employee:
         return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف.'}, status=400)
 

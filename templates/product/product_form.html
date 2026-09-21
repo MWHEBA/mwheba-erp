@@ -652,28 +652,26 @@
    المودالات التفاعلية المنسدلة (Modals) وفق معيار Rule 8
    ========================================================================== -->
 
-<!-- نافذة منبثقة لإضافة صورة -->
+<!-- نافذة منبثقة لإضافة صورة وفق Rule 8 والمكون الموحد -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0" id="imageModalLabel"><i class="fas fa-upload me-2 text-primary"></i>إضافة صورة</h5>
+                <h5 class="modal-title fw-bold text-dark mb-0" id="imageModalLabel"><i class="fas fa-camera text-primary me-2"></i>إضافة صورة للمنتج</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
                 <form id="image-form" enctype="multipart/form-data">
                     {% csrf_token %}
+                    {% include "components/image_upload_field.html" with name="image" id="image-file" label="صورة المنتج" required=True icon="fa-image" %}
+                    
                     <div class="mb-3">
-                        <label for="image-file" class="form-label fw-medium">الصورة <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" id="image-file" name="image" accept="image/*" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="image-alt" class="form-label fw-medium">نص بديل (اختياري)</label>
+                        <label for="image-alt" class="form-label fw-semibold text-secondary">نص بديل (اختياري)</label>
                         <input type="text" class="form-control" id="image-alt" name="alt_text" placeholder="وصف الصورة">
                     </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="image-primary" name="is_primary">
-                        <label class="form-check-label ms-1" for="image-primary">
+                    <div class="form-check form-switch p-2 border rounded bg-light">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" id="image-primary" name="is_primary" role="switch">
+                        <label class="form-check-label fw-semibold" for="image-primary">
                             جعلها الصورة الرئيسية
                         </label>
                     </div>

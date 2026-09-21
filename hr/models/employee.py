@@ -287,6 +287,11 @@ class Employee(models.Model):
             )
         return None
     
+    @property
+    def years_of_service(self):
+        """سنوات الخدمة للموظف"""
+        return self.get_service_years() or 0
+
     def get_service_years(self):
         """حساب سنوات الخدمة"""
         if self.hire_date:

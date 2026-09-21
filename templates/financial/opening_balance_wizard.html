@@ -195,10 +195,7 @@
                             <small>{% trans "يرجى الالتزام بالأعمدة المعيارية، وعدم تكرار أرقام الحسابات في نفس الملف." %}</small>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">{% trans "ملف البيانات (.xlsx أو .csv)" %} <span class="text-danger">*</span></label>
-                        <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls, .csv" required>
-                    </div>
+                    {% include "components/file_upload_field.html" with name="excel_file" id="id_ob_excel_file" label="ملف الأرصدة الافتتاحية (Excel / CSV)" accept=".xlsx,.xls,.csv" required=True icon="fa-file-excel" %}
                     <div class="text-start">
                         <a href="{% url 'financial:opening_balance_download_template' %}" class="btn btn-sm btn-outline-secondary">
                             <i class="fas fa-download me-1"></i>{% trans "تحميل القالب المعياري للاستيراد" %}

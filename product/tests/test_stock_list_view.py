@@ -82,3 +82,13 @@ class TestStockListView:
         assert "stats_html" in data
         assert "SKU-001" in data["table_html"]
         assert "SKU-002" not in data["table_html"]
+
+    def test_product_detail_view(self, client, user, setup_stock_data):
+        warehouse, category, stocks = setup_stock_data
+        product = stocks[0].product
+        client.force_login(user)
+        response = client.get(reverse("product:product_detail", kwargs={"pk": product.pk}))
+        assert response.status_code == 200
+        assert "product" in response.context
+        assert response.context["product"] == product
+

@@ -89,55 +89,46 @@
   </div>
 </div>
 
-<!-- مودال الاستيراد -->
+<!-- مودال الاستيراد وفق Rule 8 والمكون الموحد -->
 <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title" id="importModalLabel">
-          <i class="fas fa-file-import me-2"></i>استيراد الموظفين
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="importModalLabel">
+          <i class="fas fa-file-import text-primary me-2"></i>استيراد الموظفين
         </h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <form method="post" action="{% url 'hr:employee_import' %}" enctype="multipart/form-data" id="importForm">
         {% csrf_token %}
-        <div class="modal-body">
+        <div class="modal-body p-4">
           
-          <div class="mb-3">
-            <label for="import_file" class="form-label">
-              <i class="fas fa-file me-1"></i>اختر الملف
-            </label>
-            <input type="file" class="form-control" id="import_file" name="import_file" 
-                   accept=".csv,.xlsx,.xls" required>
-            <div class="form-text">
-              الملفات المدعومة: CSV, Excel (.xlsx, .xls)
-            </div>
-          </div>
+          {% include "components/file_upload_field.html" with name="import_file" id="import_file" label="ملف الاستيراد" accept=".csv,.xlsx,.xls" required=True icon="fa-file-excel" %}
           
-          <div class="card bg-light">
-            <div class="card-body">
-              <h6 class="card-title mb-3">
-                <i class="fas fa-list-check me-2"></i>الحقول المطلوبة:
+          <div class="card bg-light border-0">
+            <div class="card-body p-3">
+              <h6 class="card-title fw-bold text-dark mb-2 fs-7">
+                <i class="fas fa-list-check text-primary me-1"></i>الحقول المطلوبة في الملف:
               </h6>
-              <ul class="mb-2 small">
+              <ul class="mb-0 text-muted fs-8 pe-3">
                 <li><strong>رقم الموظف</strong> - مطلوب (فريد لكل موظف)</li>
                 <li><strong>الاسم الكامل</strong> - مطلوب</li>
                 <li><strong>الرقم القومي</strong> - مطلوب (14 رقم)</li>
                 <li><strong>تاريخ الميلاد</strong> - مطلوب (YYYY-MM-DD)</li>
                 <li><strong>الجنس</strong> - مطلوب (ذكر أو أنثى)</li>
-                <li><strong>القسم</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
-                <li><strong>المسمى الوظيفي</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
+                <li><strong>القسم</strong> - مطلوب (يجب أن يكون مسجلاً بالنظام)</li>
+                <li><strong>المسمى الوظيفي</strong> - مطلوب (يجب أن يكون مسجلاً بالنظام)</li>
               </ul>
             </div>
           </div>
 
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>إلغاء
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            إلغاء
           </button>
-          <button type="submit" class="btn btn-success">
-            <i class="fas fa-upload me-1"></i>استيراد
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-upload me-1"></i>بدء الاستيراد
           </button>
         </div>
       </form>

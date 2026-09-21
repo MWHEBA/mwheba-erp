@@ -77,8 +77,8 @@ class GeofencingService:
         if accuracy_meters is not None:
             try:
                 acc_val = float(accuracy_meters)
-                if acc_val > 150.0:
-                    return False, None, 0.0, f"إشارة الـ GPS ضعيفة ({int(acc_val)} متر). يرجى التواجد في مكان مفتوح والمحاولة مجدداً"
+                if acc_val > 1500.0:
+                    return False, None, 0.0, f"إشارة الـ GPS ضعيفة جداً ({int(acc_val)} متر). يرجى التواجد في مكان مفتوح والمحاولة مجدداً"
                 if acc_val <= 0.0:
                     return False, None, 0.0, "إشارة الـ GPS غير صالحة"
             except (ValueError, TypeError):
