@@ -164,7 +164,10 @@ def payroll_list(request):
             'approved': '<span class="badge bg-primary">معتمد</span>',
             'paid': '<span class="badge bg-success">مدفوع</span>',
         }
-        payroll.status_display = status_badges.get(payroll.status, '<span class="badge bg-secondary">غير محدد</span>')
+        stale_badge = ''
+        if getattr(payroll, 'is_stale', False) and payroll.status in ('draft', 'calculated'):
+            stale_badge = ' <span class="badge bg-warning text-dark ms-1" title="تم تعديل الحضور بعد الحساب — يتطلب إعادة حساب"><i class="fas fa-exclamation-triangle me-1"></i>يحتاج تحديث</span>'
+        payroll.status_display = status_badges.get(payroll.status, '<span class="badge bg-secondary">غير محدد</span>') + stale_badge
     
     # Pagination SSR
     from core.utils import paginate_queryset
@@ -970,9 +973,35 @@ def payroll_run_delete(request, month):
             return redirect('hr:payroll_list')
     
     # أسماء الشهور بالعربي
+    arabic_months = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    month_name = f"{arabic_months[month_date.month]} {month_date.year}"
+    
+    payrolls = Payroll.objects.filter(month=month_date)
+    
+    if not payrolls.exists():
+        messages.warning(request, f'لا توجد مسيرة رواتب لشهر {month_name}')
+        return redirect('hr:payroll_list')
+    
+    # التحقق من وجود رواتب مدفوعة
+    has_paid = payrolls.filter(status='paid').exists()
+    if has_paid:
+        messages.error(request, f'لا يمكن حذف مسيرة رواتب {month_name} لأنها تحتوي على رواتب مدفوعة بالفعل')
+        return redirect('hr:payroll_run_detail', month=month)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                count = payrolls.count()
+                payrolls.delete()
+                messages.success(request, f'تم حذف مسيرة رواتب {month_name} ({count} قسيمة) بنجاح')
+                return redirect('hr:payroll_list')
+        except Exception as e:
+            logger.error(f"❌ خطأ أثناء حذف مسيرة الرواتب: {str(e)}")
+            messages.error(request, f'حدث خطأ أثناء حذف مسيرة الرواتب: {str(e)}')
             return redirect('hr:payroll_run_detail', month=month)
     
     # إحصائيات للعرض — total_net بيتحسب من property لاستبعاد INSURABLE_SALARY
+    from django.db.models import Count
     stats = payrolls.aggregate(
         total_employees=Count('id'),
         approved_count=Count('id', filter=Q(status='approved')),

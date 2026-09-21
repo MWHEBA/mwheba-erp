@@ -419,11 +419,11 @@ def product_list(request):
             pagination_html = render_to_string('partials/pagination.html', {
                 'page_obj': page_obj,
                 'align': 'center',
-            }, request=request) if paginator.num_pages > 1 else ''
+            }, request=request) if page_obj.paginator.num_pages > 1 else ''
             return JsonResponse({
                 'table_html': table_html,
                 'pagination_html': pagination_html,
-                'count': paginator.count,
+                'count': page_obj.paginator.count,
             })
 
         # جلب التصنيفات الرئيسية اللي ليها تصنيفات فرعية فيها منتجات
@@ -1491,6 +1491,21 @@ def product_delete(request, pk):
         has_bundle_components or has_supplier_prices or has_reservations
     )
     can_delete_permanently = not has_transactions
+
+    unit_name = product.unit.name if getattr(product, 'unit', None) else ""
+    transactions_info = []
+    if has_movements:
+        transactions_info.append("حركات مخزنية مسجلة")
+    if has_purchase_items:
+        transactions_info.append("فواتير أو أوامر شراء")
+    if has_sale_items:
+        transactions_info.append("فواتير أو أوامر بيع")
+    if has_bundle_components:
+        transactions_info.append("مكونات منتجات مجمعة")
+    if has_supplier_prices:
+        transactions_info.append("أسعار موردين مسجلة")
+    if has_reservations:
+        transactions_info.append("حجوزات مخزنية")
 
     # فحص المخزون الحالي
     from product.models.stock_management import Stock
@@ -2992,118 +3007,177 @@ def warehouse_detail(request, pk):
 
 
 @login_required
+@require_permission('product.view_product')
 def stock_list(request):
     """
-    عرض قائمة المخزون
+    عرض أرصدة وجرد المخزون المركزي مع دعم التصفية والعزل الإداري
     """
-    stocks = Stock.objects.all().select_related(
+    from users.services.data_scoping_service import DataScopingService
+    
+    # تحديد نطاق المخازن المتاحة للمستخدم
+    allowed_warehouses = DataScopingService.get_transaction_warehouses(request.user)
+    
+    stocks_base = Stock.objects.filter(
+        warehouse__in=allowed_warehouses,
+        is_active=True,
+    ).select_related(
         "product", "product__category", "product__unit", "warehouse"
     )
+
+    # حساب مؤشرات الأداء الإحصائية (KPI Stats) بناء على المخازن المتاحة للمستخدم
+    total_records = stocks_base.count()
+    total_units = stocks_base.aggregate(total=Sum("quantity"))["total"] or 0
+    low_stock_count = stocks_base.filter(
+        quantity__gt=0,
+        quantity__lte=F("product__min_stock"),
+    ).count()
+    out_of_stock_count = stocks_base.filter(quantity__lte=0).count()
+    
+    # حساب القيمة التقديرية للمخزون (للمديرين والمالية فقط)
+    can_view_valuation = (
+        request.user.is_superuser
+        or getattr(request.user, "is_admin", False)
+        or request.user.has_perm("financial.view_journalentry")
+        or request.user.has_perm("financial.view_chartofaccounts")
+        or request.user.has_perm("product.view_product_cost")
+    )
+    total_stock_value = Decimal("0.00")
+    if can_view_valuation:
+        val_agg = stocks_base.aggregate(
+            total_val=Sum(F("quantity") * F("product__cost_price"))
+        )["total_val"]
+        if val_agg:
+            total_stock_value = val_agg
+
+    stats = {
+        "total_records": total_records,
+        "total_units": total_units,
+        "low_stock_count": low_stock_count,
+        "out_of_stock_count": out_of_stock_count,
+        "total_stock_value": total_stock_value,
+        "can_view_valuation": can_view_valuation,
+    }
+
+    # تطبيق الفلاتر على القائمة المعروضة
+    stocks = stocks_base
+
+    # البحث النصي
+    search = request.GET.get("search", "").strip() or request.GET.get("q", "").strip()
+    if search:
+        stocks = stocks.filter(
+            Q(product__name__icontains=search)
+            | Q(product__sku__icontains=search)
+            | Q(product__barcode__icontains=search)
+            | Q(location_code__icontains=search)
+            | Q(warehouse__name__icontains=search)
+        )
 
     # فلترة حسب المخزن
     warehouse_id = request.GET.get("warehouse")
     if warehouse_id:
         stocks = stocks.filter(warehouse_id=warehouse_id)
 
-    # فلترة حسب المنتج
-    product_id = request.GET.get("product")
-    if product_id:
-        stocks = stocks.filter(product_id=product_id)
+    # فلترة حسب التصنيف
+    category_id = request.GET.get("category")
+    if category_id:
+        stocks = stocks.filter(product__category_id=category_id)
 
-    # فلترة حسب الكمية
-    stock_status = request.GET.get("stock_status")
+    # فلترة حسب حالة المخزون
+    stock_status = request.GET.get("stock_status", "").strip()
     if stock_status == "in_stock":
         stocks = stocks.filter(quantity__gt=0)
     elif stock_status == "out_of_stock":
         stocks = stocks.filter(quantity__lte=0)
     elif stock_status == "low_stock":
-        stocks = stocks.filter(quantity__gt=0, quantity__lt=F("product__min_stock"))
+        stocks = stocks.filter(quantity__gt=0, quantity__lte=F("product__min_stock"))
 
-    # المخازن والمنتجات لعناصر التصفية
-    warehouses = Warehouse.objects.filter(is_active=True)
-    products = Product.objects.filter(is_active=True).select_related("category")
+    # الترتيب
+    order_by = request.GET.get("order_by", "")
+    order_dir = request.GET.get("order_dir", "asc")
+    valid_order_fields = {
+        "product": "product__name",
+        "warehouse": "warehouse__name",
+        "quantity": "quantity",
+        "min_stock": "product__min_stock",
+        "updated_at": "updated_at",
+    }
+    if order_by in valid_order_fields:
+        field = valid_order_fields[order_by]
+        if order_dir == "desc":
+            field = f"-{field}"
+        stocks = stocks.order_by(field)
+    else:
+        stocks = stocks.order_by("warehouse__name", "product__name")
 
-    # ترقيم الصفحات
-    from core.utils import paginate_queryset
+    # ترقيم الصفحات الموحد
     pagination_context = paginate_queryset(stocks, request)
     page_obj = pagination_context["page_obj"]
 
-    # تعريف أعمدة جدول المخزون
-    stock_headers = [
+    # فلاتر الاختيار (المخازن المتاحة للمستخدم + التصنيفات)
+    warehouses = allowed_warehouses
+    categories = Category.objects.filter(is_active=True).order_by("name")
+
+    # أزرار الترويسة الموحدة
+    header_buttons = [
         {
-            "key": "product.name",
-            "label": "المنتج",
-            "sortable": True,
-            "class": "text-start",
+            "onclick": "window.print()",
+            "icon": "fa-print",
+            "text": _("طباعة كشف الجرد"),
+            "class": "btn-outline-secondary",
         },
         {
-            "key": "product.category.name",
-            "label": "الفئة",
-            "sortable": True,
-            "class": "text-center",
-            "template": "components/cells/product_category.html",
-            "width": "120px",
+            "url": reverse("product:product_list"),
+            "icon": "fa-box",
+            "text": _("دليل المنتجات"),
+            "class": "btn-outline-primary",
         },
         {
-            "key": "warehouse.name",
-            "label": "المخزن",
-            "sortable": True,
-            "class": "text-center",
-            "width": "120px",
-        },
-        {
-            "key": "quantity",
-            "label": "الكمية المتاحة",
-            "sortable": True,
-            "class": "text-center",
-            "template": "components/cells/stock_quantity.html",
-            "width": "120px",
-        },
-        {
-            "key": "updated_at",
-            "label": "آخر تحديث",
-            "sortable": True,
-            "class": "text-center",
-            "format": "datetime_12h",
-            "width": "150px",
+            "url": reverse("product:stock_movement_list"),
+            "icon": "fa-exchange-alt",
+            "text": _("حركات المخزون"),
+            "class": "btn-outline-info",
         },
     ]
 
-    # أزرار الإجراءات
-    stock_actions = [
-        {
-            "url": "product:stock_detail",
-            "icon": "fa-eye",
-            "label": "عرض",
-            "class": "action-view",
-        },
+    breadcrumb_items = [
+        {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+        {"title": _("المنتجات والمخازن"), "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+        {"title": _("أرصدة وجرد المخزون"), "active": True},
     ]
 
     context = {
         "stocks": page_obj,
         "page_obj": page_obj,
         **pagination_context,
-        "stock_headers": stock_headers,
-        "stock_actions": stock_actions,
-        "primary_key": "id",
+        "stats": stats,
         "warehouses": warehouses,
-        "products": products,
-        "warehouse_id": warehouse_id,
-        "product_id": product_id,
-        "stock_status": stock_status,
-        "page_title": "جرد المخزون",
-        "page_subtitle": "مراقبة المخزون وإدارة الكميات المتاحة من المنتجات",
+        "categories": categories,
+        "current_warehouse": warehouse_id,
+        "current_category": category_id,
+        "current_stock_status": stock_status,
+        "current_search": search,
+        "order_by": order_by,
+        "order_dir": order_dir,
+        "can_view_valuation": can_view_valuation,
+        "page_title": _("أرصدة وجرد المخزون"),
+        "page_subtitle": _("مراقبة أرصدة المنتجات في كافة المخازن ومتابعة نواقص حد الطلب"),
         "page_icon": "fas fa-clipboard-list",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "المخزون", "url": "#", "icon": "fas fa-boxes"},
-            {"title": "جرد المخزون", "active": True},
-        ],
+        "breadcrumb_items": breadcrumb_items,
+        "header_buttons": header_buttons,
+        "active_menu": "warehouses",
     }
+
+    # دعم استجابة AJAX للبحث الفوري
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        table_html = render_to_string("product/partials/stock_table.html", context, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
+        stats_html = render_to_string("product/partials/stock_stats.html", context, request=request)
+        return JsonResponse({
+            "table_html": table_html,
+            "pagination_html": pagination_html,
+            "stats_html": stats_html,
+            "total_count": page_obj.paginator.count if page_obj else 0,
+        })
 
     return render(request, "product/stock_list.html", context)
 
@@ -3167,15 +3241,19 @@ def stock_detail(request, pk):
             ],
             "breadcrumb_items": [
                 {
-                    "title": "الرئيسية",
+                    "title": _("الرئيسية"),
                     "url": reverse("core:dashboard"),
                     "icon": "fas fa-home",
                 },
-                {"title": "المخزون", "url": "#", "icon": "fas fa-boxes"},
                 {
-                    "title": "قائمة المخزون",
+                    "title": _("المنتجات والمخازن"),
+                    "url": reverse("product:product_list"),
+                    "icon": "fas fa-boxes",
+                },
+                {
+                    "title": _("أرصدة وجرد المخزون"),
                     "url": reverse("product:stock_list"),
-                    "icon": "fas fa-list",
+                    "icon": "fas fa-clipboard-list",
                 },
                 {"title": stock.product.name, "active": True},
             ],
@@ -3275,22 +3353,26 @@ def stock_adjust(request, pk):
             ],
             "breadcrumb_items": [
                 {
-                    "title": "الرئيسية",
+                    "title": _("الرئيسية"),
                     "url": reverse("core:dashboard"),
                     "icon": "fas fa-home",
                 },
-                {"title": "المخزون", "url": "#", "icon": "fas fa-boxes"},
                 {
-                    "title": "قائمة المخزون",
+                    "title": _("المنتجات والمخازن"),
+                    "url": reverse("product:product_list"),
+                    "icon": "fas fa-boxes",
+                },
+                {
+                    "title": _("أرصدة وجرد المخزون"),
                     "url": reverse("product:stock_list"),
-                    "icon": "fas fa-list",
+                    "icon": "fas fa-clipboard-list",
                 },
                 {
                     "title": stock.product.name,
                     "url": reverse("product:stock_detail", args=[stock.pk]),
                     "icon": "fas fa-box",
                 },
-                {"title": "تسوية المخزون", "active": True},
+                {"title": _("تسوية الرصيد"), "active": True},
             ],
         }
 

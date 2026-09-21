@@ -912,9 +912,11 @@
                                             <small class="text-muted">{{ payment.created_at|date:"h:i A" }}</small>
                                             {% endif %}
                                         <td class="fw-bold">
-                                            <div>{{ payment.amount|smart_float }} {% if sale.currency %}{{ sale.currency.symbol|default:sale.currency.code }}{% else %}{{ currency_symbol }}{% endif %}</div>
-                                            {% if payment.payment_currency and payment.payment_currency != sale.currency %}
-                                            <small class="text-muted fw-normal d-block">({{ payment.amount_paid_currency|smart_float }} {{ payment.payment_currency.symbol }})</small>
+                                            <div>{{ payment.amount|smart_float }} {% if sale.currency %}{{ sale.currency.symbol|default:sale.currency.code }}{% else %}{{ currency_symbol|default:'ج.م' }}{% endif %}</div>
+                                            {% if payment.payment_currency and payment.payment_currency.code != sale.currency.code %}
+                                            <small class="text-primary fw-normal d-block">
+                                                ({% if payment.amount_paid_currency and payment.amount_paid_currency > 0 %}{{ payment.amount_paid_currency|smart_float }}{% else %}{{ payment.amount|smart_float }}{% endif %} {{ payment.payment_currency.symbol|default:payment.payment_currency.code }})
+                                            </small>
                                             {% endif %}
                                         </td>
                                         <td>

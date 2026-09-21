@@ -22,7 +22,8 @@ def user(db):
     return User.objects.create_user(
         username='testuser',
         email='test@example.com',
-        password='testpass123'
+        password='testpass123',
+        is_superuser=True
     )
 
 

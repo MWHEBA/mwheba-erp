@@ -101,8 +101,27 @@ class LeaveSummary(models.Model):
             # حساب الأيام المتداخلة مع الشهر
             leave_start = max(leave.start_date, start_date)
             leave_end = min(leave.end_date, end_date)
-            days_in_month = (leave_end - leave_start).days + 1
             
+            # تسوية قطع الإجازة: استثناء الأيام التي حضر وبصم فيها الموظف فعلياً
+            from .attendance import Attendance
+            worked_dates = set(Attendance.objects.filter(
+                employee=self.employee,
+                date__gte=leave_start,
+                date__lte=leave_end,
+                status__in=['present', 'late', 'half_day']
+            ).values_list('date', flat=True))
+            
+            days_in_month = 0
+            cur_dt = leave_start
+            while cur_dt <= leave_end:
+                if cur_dt not in worked_dates:
+                    days_in_month += 1
+                cur_dt += timedelta(days=1)
+            
+            # إذا داوم الموظف كامل أيام الإجازة فلا يتم احتساب أي أيام إجازة
+            if days_in_month <= 0:
+                continue
+
             # ✅ تصنيف ديناميكي حسب category
             if leave.leave_type.category == 'annual':
                 self.annual_leave_days += days_in_month

@@ -270,7 +270,7 @@ def work_order_delete(request, pk):
 def work_order_detail(request, pk):
     """
     تفاصيل أمر الشغل ولوحة معلومات مركز التكلفة
-    حسابات مالية دقيقة وفق معيار المحاسبة الدولي IAS 21 ومبدأ الربح التشغيلي الإجمالي الصافي
+    حسابات مالية دقيقة وفق مبدأ الربح التشغيلي الإجمالي الصافي
     """
     work_order = get_object_or_404(WorkOrder.objects.select_related("customer", "created_by"), pk=pk)
 
@@ -286,7 +286,7 @@ def work_order_detail(request, pk):
     )
 
     if can_view_financials:
-        # 2. فواتير المبيعات المؤكدة (الإيراد التشغيلي الصافي قبل الضريبة وفق IAS 21)
+        # 2. فواتير المبيعات المؤكدة (الإيراد التشغيلي الصافي قبل الضريبة بالعملة المحلية)
         sales = work_order.sales.select_related("customer", "warehouse", "salesman", "currency", "created_by").filter(status='confirmed')
         sales_operating_egp = Decimal('0.00')
         for s in sales:
@@ -304,7 +304,7 @@ def work_order_detail(request, pk):
 
         net_sales_revenue = sales_operating_egp - sale_returns_operating_egp
 
-        # 3. فواتير المشتريات المؤكدة (تكلفة الخامات والخدمات الخارجية وفق IAS 21)
+        # 3. فواتير المشتريات المؤكدة (تكلفة الخامات والخدمات الخارجية بالعملة المحلية)
         purchases = work_order.purchases.select_related("supplier", "warehouse", "currency", "created_by").filter(status='confirmed')
         raw_materials_egp = Decimal('0.00')
         services_egp = Decimal('0.00')
@@ -330,7 +330,7 @@ def work_order_detail(request, pk):
         net_purchases_cost = net_raw_materials_cost + services_egp
 
         # 4. المعاملات والمصروفات المالية المباشرة المعتمدة
-        financial_transactions = work_order.financial_transactions.select_related("category", "account", "to_account").filter(status='approved')
+        financial_transactions = work_order.financial_transactions.select_related("category", "account", "to_account", "journal_entry").exclude(status__in=['cancelled', 'rejected'])
         incomes_direct = financial_transactions.filter(transaction_type='income')
         incomes_direct_total = incomes_direct.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         
@@ -449,74 +449,150 @@ def work_order_detail(request, pk):
             "class": "bg-light text-primary border",
         })
 
-    # بناء أزرار الترويسة بحسب الصلاحيات الفردية
+    is_closed = work_order.status in ['completed', 'cancelled']
+
+    # بناء أزرار الترويسة بحسب الصلاحيات الفردية وحالة أمر الشغل
     dropdown_items = []
-    if request.user.is_superuser or request.user.has_perm('sale.add_quotation'):
-        dropdown_items.append({
-            "url": reverse("sale:quotation_create") + f"?work_order={work_order.id}",
-            "icon": "fa-file-signature",
-            "icon_class": "text-warning bg-warning-subtle",
-            "text": _("عرض سعر"),
-            "desc": _("إنشاء عرض سعر جديد لهذا العميل مرتبط بأمر الشغل"),
-        })
+    if not is_closed:
+        if request.user.is_superuser or request.user.has_perm('sale.add_quotation'):
+            dropdown_items.append({
+                "url": reverse("sale:quotation_create") + f"?work_order={work_order.id}",
+                "icon": "fa-file-signature",
+                "icon_class": "text-warning bg-warning-subtle",
+                "text": _("عرض سعر"),
+                "desc": _("إنشاء عرض سعر جديد لهذا العميل مرتبط بأمر الشغل"),
+            })
 
-    if request.user.is_superuser or request.user.has_perm('sale.add_sale'):
-        dropdown_items.append({
-            "url": reverse("sale:sale_create") + f"?work_order={work_order.id}",
-            "icon": "fa-file-invoice-dollar",
-            "icon_class": "text-success bg-success-subtle",
-            "text": _("فاتورة مبيعات"),
-            "desc": _("إصدار فاتورة مبيعات جديدة لطلب مستحقات أمر الشغل"),
-        })
+        if request.user.is_superuser or request.user.has_perm('sale.add_sale'):
+            dropdown_items.append({
+                "url": reverse("sale:sale_create") + f"?work_order={work_order.id}",
+                "icon": "fa-file-invoice-dollar",
+                "icon_class": "text-success bg-success-subtle",
+                "text": _("فاتورة مبيعات"),
+                "desc": _("إصدار فاتورة مبيعات جديدة لطلب مستحقات أمر الشغل"),
+            })
 
-    if request.user.is_superuser or request.user.has_perm('purchase.add_purchase'):
-        dropdown_items.append({
-            "url": reverse("purchase:purchase_create") + f"?work_order={work_order.id}",
-            "icon": "fa-file-invoice",
-            "icon_class": "text-danger bg-danger-subtle",
-            "text": _("فاتورة مشتريات"),
-            "desc": _("تسجيل فاتورة شراء مواد أو خدمات خاصة بأمر الشغل"),
-        })
+        if request.user.is_superuser or request.user.has_perm('purchase.add_purchase'):
+            dropdown_items.append({
+                "url": reverse("purchase:purchase_create") + f"?work_order={work_order.id}",
+                "icon": "fa-file-invoice",
+                "icon_class": "text-danger bg-danger-subtle",
+                "text": _("فاتورة مشتريات"),
+                "desc": _("تسجيل فاتورة شراء مواد أو خدمات خاصة بأمر الشغل"),
+            })
 
-    can_record_deposit = (
-        request.user.is_superuser
-        or request.user.has_perm('customer.add_customerpayment')
-        or request.user.has_perm('financial.add_receiptvoucher')
-        or request.user.has_perm('work_order.change_workorder')
-    )
-    if can_record_deposit and can_view_financials:
-        if dropdown_items:
-            dropdown_items.append({"divider": True})
-        dropdown_items.append({
-            "url": "#",
-            "icon": "fa-piggy-bank",
-            "icon_class": "text-info bg-info-subtle",
-            "text": _("تسجيل دفعة مقدمة"),
-            "desc": _("تسجيل دفعة مقدمة (عربون) من العميل لحساب أمر الشغل"),
-            "data_toggle": "modal",
-            "data_target": "#recordDepositModal",
-        })
+        if can_view_financials:
+            if request.user.is_superuser or request.user.has_perm('financial.add_expensetransaction'):
+                dropdown_items.append({
+                    "url": "javascript:void(0)",
+                    "onclick": f"openQuickExpenseModal({work_order.id})",
+                    "icon": "fa-money-bill-wave",
+                    "icon_class": "text-danger bg-danger-subtle",
+                    "text": _("مصروف مباشر"),
+                    "desc": _("تسجيل مصروف تشغيلي مباشر لحساب أمر الشغل"),
+                })
+
+            if request.user.is_superuser or request.user.has_perm('financial.add_incometransaction'):
+                dropdown_items.append({
+                    "url": "javascript:void(0)",
+                    "onclick": f"openQuickIncomeModal({work_order.id})",
+                    "icon": "fa-hand-holding-usd",
+                    "icon_class": "text-success bg-success-subtle",
+                    "text": _("إيراد مباشر"),
+                    "desc": _("تسجيل إيراد مباشر لحساب أمر الشغل"),
+                })
+
+        can_record_deposit = (
+            request.user.is_superuser
+            or request.user.has_perm('customer.add_customerpayment')
+            or request.user.has_perm('financial.add_receiptvoucher')
+            or request.user.has_perm('work_order.change_workorder')
+        )
+        if can_record_deposit and can_view_financials:
+            if dropdown_items:
+                dropdown_items.append({"divider": True})
+            dropdown_items.append({
+                "url": "#",
+                "icon": "fa-piggy-bank",
+                "icon_class": "text-info bg-info-subtle",
+                "text": _("تسجيل دفعة مقدمة"),
+                "desc": _("تسجيل دفعة مقدمة (عربون) من العميل لحساب أمر الشغل"),
+                "data_toggle": "modal",
+                "data_target": "#recordDepositModal",
+            })
+
+    status_items = []
+    if request.user.is_superuser or request.user.has_perm('work_order.change_workorder'):
+        if work_order.status != 'pending':
+            status_items.append({
+                "url": "javascript:void(0)",
+                "onclick": "changeWorkOrderStatus('pending')",
+                "icon": "fa-clock",
+                "icon_class": "text-warning bg-warning-subtle",
+                "text": _("قيد الانتظار"),
+                "desc": _("إعادة تعيين أمر الشغل إلى قيد الانتظار"),
+            })
+        if work_order.status != 'in_progress':
+            status_items.append({
+                "url": "javascript:void(0)",
+                "onclick": "changeWorkOrderStatus('in_progress')",
+                "icon": "fa-play",
+                "icon_class": "text-primary bg-primary-subtle",
+                "text": _("قيد التشغيل"),
+                "desc": _("بدء تشغيل وتنفيذ أمر الشغل"),
+            })
+        if work_order.status != 'completed':
+            status_items.append({
+                "url": "javascript:void(0)",
+                "onclick": "changeWorkOrderStatus('completed')",
+                "icon": "fa-check-circle",
+                "icon_class": "text-success bg-success-subtle",
+                "text": _("مكتمل"),
+                "desc": _("إنهاء وإغلاق أمر الشغل بنجاح"),
+            })
+        if work_order.status != 'cancelled':
+            if status_items:
+                status_items.append({"divider": True})
+            status_items.append({
+                "url": "javascript:void(0)",
+                "onclick": "changeWorkOrderStatus('cancelled', true)",
+                "icon": "fa-ban",
+                "icon_class": "text-danger bg-danger-subtle",
+                "text": _("إلغاء أمر الشغل"),
+                "desc": _("إلغاء أمر الشغل الحالي وإيقافه"),
+            })
 
     header_buttons = []
-    if dropdown_items:
+    if status_items:
         header_buttons.append({
             "dropdown": True,
             "chic_dropdown": True,
-            "icon": "fa-plus",
-            "text": _("إضافة"),
-            "class": "btn-primary",
-            "items": dropdown_items,
+            "icon": "fa-traffic-light",
+            "text": _("تحديث الحالة"),
+            "class": "btn-outline-primary",
+            "items": status_items,
         })
 
-    header_buttons.append({
-        "url": "#",
-        "icon": "fa-ellipsis-v",
-        "text": "",
-        "class": "btn-outline-secondary",
-        "id": "actions-menu-btn",
-        "toggle": "modal",
-        "target": "#actionsModal",
-    })
+    if not is_closed:
+        if dropdown_items:
+            header_buttons.append({
+                "dropdown": True,
+                "chic_dropdown": True,
+                "icon": "fa-plus",
+                "text": _("إضافة"),
+                "class": "btn-primary",
+                "items": dropdown_items,
+            })
+
+        header_buttons.append({
+            "url": "#",
+            "icon": "fa-ellipsis-v",
+            "text": "",
+            "class": "btn-outline-secondary",
+            "id": "actions-menu-btn",
+            "toggle": "modal",
+            "target": "#actionsModal",
+        })
 
     context.update({
         "title": _("أمر شغل {}").format(work_order.number),
@@ -527,6 +603,7 @@ def work_order_detail(request, pk):
         ),
         "page_icon": "fas fa-briefcase",
         "active_menu": "work_orders",
+        "is_closed": is_closed,
         "header_badges": header_badges,
         "header_buttons": header_buttons,
         "breadcrumb_items": [

@@ -81,6 +81,17 @@
               {% include "components/payment_account_select.html" with field_name="receipt_account" field_id="quick_receiving_account" label="الخزينة / حساب الإيداع" required=True action_type="deposit" %}
             </div>
             
+            <!-- أمر الشغل المرتبط -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_work_order" class="form-label">
+                <i class="fas fa-hammer me-1 text-secondary"></i>
+                {% trans "أمر الشغل المرتبط (اختياري)" %}
+              </label>
+              <select class="form-select" id="quick_income_work_order" name="work_order">
+                <option value="">{% trans "-- بدون أمر شغل (إيراد عام) --" %}</option>
+              </select>
+            </div>
+            
             <!-- ملاحظات -->
             <div class="col-12 mb-3">
               <label for="quick_income_notes" class="form-label">
@@ -114,9 +125,10 @@
 
 <script>
 // دالة فتح مودال الإيراد السريع
-function openQuickIncomeModal() {
-  // تحميل التصنيفات المالية
+function openQuickIncomeModal(workOrderId = null) {
+  // تحميل التصنيفات المالية وأوامر الشغل
   loadIncomeFinancialCategories();
+  loadIncomeWorkOrders(workOrderId);
   
   // إظهار المودال
   const modal = new bootstrap.Modal(document.getElementById('quickIncomeModal'));
@@ -145,57 +157,131 @@ function openQuickIncomeModal() {
   }, 300);
 }
 
+// تحميل أوامر الشغل للإيرادات
+function loadIncomeWorkOrders(selectedId = null) {
+  const $woSelect = $('#quick_income_work_order');
+  if (!$woSelect.length) return;
+  
+  fetch('/work-orders/api/customer-work-orders/')
+    .then(response => response.json())
+    .then(data => {
+      $woSelect.html('<option value="">{% trans "-- بدون أمر شغل (إيراد عام) --" %}</option>');
+      const items = data.results || [];
+      items.forEach(item => {
+        const $opt = $('<option>', {
+          value: item.id,
+          text: item.text
+        });
+        if (selectedId && item.id == selectedId) {
+          $opt.prop('selected', true);
+        }
+        $woSelect.append($opt);
+      });
+
+      if ($woSelect.hasClass('select2-hidden-accessible')) {
+        $woSelect.select2('destroy');
+      }
+      $woSelect.select2({
+        theme: 'bootstrap-5',
+        dir: 'rtl',
+        language: 'ar',
+        placeholder: '{% trans "-- بدون أمر شغل (إيراد عام) --" %}',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#quickIncomeModal')
+      });
+
+      if (selectedId) {
+        $woSelect.val(selectedId).trigger('change');
+      }
+    })
+    .catch(err => console.error('Error loading work orders for income:', err));
+}
+
 // تحميل التصنيفات المالية للإيرادات
 function loadIncomeFinancialCategories(selectedId = null) {
+  const $categorySelect = $('#quick_income_financial_category');
+  if (!$categorySelect.length) return;
+
+  $categorySelect.html('<option value="">{% trans "جاري التحميل..." %}</option>');
+
   fetch('/financial/api/financial-categories/?type=income')
     .then(response => response.json())
     .then(data => {
-      const categorySelect = document.getElementById('quick_income_financial_category');
-      if (!categorySelect) {
-        console.error('Element quick_income_financial_category not found!');
-        return;
-      }
+      $categorySelect.html('<option value="">{% trans "اختر التصنيف المالي" %}</option>');
       
-      categorySelect.innerHTML = '<option value="">{% trans "اختر التصنيف المالي" %}</option>';
-      
-      // الـ API بيرجع object فيه categories array
       const categories = data.categories || [];
       
       categories.forEach(category => {
-        const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = `${category.name} (${category.code})`;
+        // إضافة التصنيف الرئيسي
+        const $parentOpt = $('<option>', {
+          value: category.id,
+          text: category.name,
+          'data-is-parent': 'true'
+        });
         if (selectedId && category.id == selectedId) {
-          option.selected = true;
+          $parentOpt.prop('selected', true);
         }
-        categorySelect.appendChild(option);
+        $categorySelect.append($parentOpt);
         
         // إضافة التصنيفات الفرعية إن وجدت
         if (category.subcategories && category.subcategories.length > 0) {
           category.subcategories.forEach(subcat => {
-            const subOption = document.createElement('option');
-            subOption.value = subcat.id;
-            subOption.textContent = `  ↳ ${subcat.name} (${subcat.code})`;
+            const $subOpt = $('<option>', {
+              value: subcat.id,
+              text: subcat.name,
+              'data-parent': category.id,
+              'data-is-sub': 'true'
+            });
             if (selectedId && subcat.id == selectedId) {
-              subOption.selected = true;
+              $subOpt.prop('selected', true);
             }
-            categorySelect.appendChild(subOption);
+            $categorySelect.append($subOpt);
           });
         }
       });
-      
+
+      // تهيئة Select2 للإيرادات
+      if ($categorySelect.hasClass('select2-hidden-accessible')) {
+        $categorySelect.select2('destroy');
+      }
+      $categorySelect.select2({
+        theme: 'bootstrap-5',
+        dir: 'rtl',
+        language: 'ar',
+        placeholder: '{% trans "اختر التصنيف المالي" %}',
+        allowClear: true,
+        width: '100%',
+        dropdownParent: $('#quickIncomeModal'),
+        templateResult: formatIncomeCategoryOption,
+        templateSelection: formatIncomeCategorySelectionOption
+      });
+
+      if (selectedId) {
+        $categorySelect.val(selectedId).trigger('change');
+      }
     })
     .catch(error => {
       console.error('Error loading financial categories:', error);
-      // استخدام التصنيفات الافتراضية في حالة الخطأ
-      const categorySelect = document.getElementById('quick_income_financial_category');
-      categorySelect.innerHTML = `
-        <option value="">{% trans "اختر التصنيف المالي" %}</option>
-        <option value="1">{% trans "إيرادات عامة" %}</option>
-        <option value="2">{% trans "إيرادات خدمات" %}</option>
-        <option value="3">{% trans "إيرادات أخرى" %}</option>
-      `;
+      $categorySelect.html('<option value="">{% trans "اختر التصنيف المالي" %}</option>');
     });
+}
+
+// تنسيق عرض التصنيفات في قائمة Select2 للإيرادات
+function formatIncomeCategoryOption(item) {
+  if (!item.id) return item.text;
+  const $el = $(item.element);
+  if ($el.data('is-sub')) {
+    return $('<div class="d-flex align-items-center" style="padding-right: 22px; color: var(--text-secondary, #6c757d); font-size: 0.88rem;"><i class="fas fa-level-down-alt fa-rotate-270 me-2 ms-1 text-muted"></i><span>' + item.text + '</span></div>');
+  } else {
+    return $('<div class="d-flex align-items-center fw-bold text-dark"><i class="fas fa-folder text-warning me-2 ms-1"></i><span>' + item.text + '</span></div>');
+  }
+}
+
+// تنسيق العنصر المختار في Select2 للإيرادات
+function formatIncomeCategorySelectionOption(item) {
+  if (!item.id) return item.text;
+  return item.text;
 }
 
 // معالجة إرسال النموذج
@@ -245,10 +331,17 @@ function submitQuickIncome() {
       // عرض رسالة النجاح
       showSuccessToast(data.message);
       
-      // إعادة تحميل الصفحة بعد ثانية
+      // إعادة تحميل الصفحة بعد اكتمال انيميشن التوست (Rule 10)
       setTimeout(() => {
-        location.reload();
-      }, 1000);
+        const currentWorkOrder = formData.get('work_order');
+        if (currentWorkOrder || window.location.pathname.includes('/work-orders/')) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('tab', 'transactions');
+          window.location.href = url.toString();
+        } else {
+          location.reload();
+        }
+      }, 3100);
     } else {
       // عرض الأخطاء
       showQuickIncomeErrors(data.errors || {}, data.message);

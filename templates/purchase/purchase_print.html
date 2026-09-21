@@ -156,6 +156,16 @@
     <td>{% trans "الإجمالي النهائي للمشتريات" %}</td>
     <td>{{ purchase.total|currency:purchase.currency_symbol }}</td>
 </tr>
+{% if purchase.currency and not purchase.currency.is_functional %}
+<tr style="border-top: 1px dashed #cbd5e1; font-size: 0.85em; color: var(--text-muted);">
+    <td>{% trans "سعر الصرف" %}</td>
+    <td>1 {{ purchase.currency.code }} = {{ purchase.exchange_rate|default:"1.000000" }} {{ functional_currency.code|default:"EGP" }}</td>
+</tr>
+<tr style="font-size: 0.85em; color: var(--text-muted); font-weight: 700;">
+    <td>{% trans "الإجمالي بالمعادل المحلي (ج.م)" %}</td>
+    <td>{{ purchase.total_functional|default:purchase.total|currency:"ج.م" }}</td>
+</tr>
+{% endif %}
 {% else %}
 <tr>
     <td colspan="2" class="text-center text-muted py-3">

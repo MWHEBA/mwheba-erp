@@ -51,7 +51,7 @@ class Command(BaseCommand):
             },
             'financial_manager': {
                 'display_name': 'مدير مالي',
-                'description': 'إدارة القيود، الحسابات، إغلاق الفترات، إعادة تقييم العملات IAS 21، ومراجعة التكاليف وهامش الربح',
+                'description': 'إدارة القيود، الحسابات، إغلاق الفترات، إعادة تقييم العملات، ومراجعة التكاليف وهامش الربح',
                 'is_system_role': True,
                 'perm_filter': (
                     Q(content_type__app_label='financial') |

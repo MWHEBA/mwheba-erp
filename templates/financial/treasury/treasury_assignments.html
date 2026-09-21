@@ -38,7 +38,7 @@
                         <option value="">{% trans "جميع الخزن والبنوك" %}</option>
                         {% for t in treasuries %}
                         <option value="{{ t.id }}" {% if selected_treasury|stringformat:'s' == t.id|stringformat:'s' %}selected{% endif %}>
-                            {{ t.code }} - {{ t.name }}
+                            {{ t.name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -239,7 +239,7 @@
                             <select id="modal_treasury_id" class="form-select" required>
                                 <option value="">اختر الخزينة أو الحساب البنكي</option>
                                 {% for t in treasuries %}
-                                <option value="{{ t.id }}">{{ t.code }} - {{ t.name }} ({{ t.currency.code|default:"EGP" }})</option>
+                                <option value="{{ t.id }}">{{ t.name }} ({{ t.currency.code|default:"EGP" }})</option>
                                 {% endfor %}
                             </select>
                         </div>

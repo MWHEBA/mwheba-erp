@@ -175,18 +175,29 @@ def create_journal_entry_for_expense(cleaned_data, user):
         raise ValueError(_('لا توجد فترة محاسبية نشطة لهذا التاريخ'))
     
     work_order_id = cleaned_data.get('work_order_id')
+    description_text = cleaned_data['description']
+    if work_order_id:
+        from work_order.models import WorkOrder
+        wo = WorkOrder.objects.filter(id=work_order_id).select_related('customer').first()
+        if wo and wo.number and wo.number not in description_text:
+            wo_name = f"{wo.number} - {wo.customer.name}" if (hasattr(wo, 'customer') and wo.customer) else wo.number
+            description_text = f"{description_text} (أمر شغل: {wo_name})"
 
     # إنشاء FinancialTransaction كـ source للقيد
     transaction = FinancialTransaction.objects.create(
         transaction_type='expense',
-        title=cleaned_data['description'],
+        title=description_text,
         description=cleaned_data.get('notes', ''),
         account=expense_account,
         to_account=payment_account,
         amount=cleaned_data['amount'],
         date=cleaned_data['date'],
         category=financial_category,
-        work_order_id=work_order_id
+        work_order_id=work_order_id,
+        status='approved',
+        approved_by=user,
+        approved_at=timezone.now(),
+        created_by=user,
     )
     
     # احتساب ضريبة القيمة المضافة والخصم والتحصيل (FIN-TAX-001)
@@ -209,7 +220,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
             account_code=expense_account.code,
             debit=base_amount,
             credit=Decimal('0'),
-            description=cleaned_data['description']
+            description=description_text
         ),
     ]
 
@@ -219,7 +230,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
                 account_code=input_vat_acc,
                 debit=vat_amount,
                 credit=Decimal('0'),
-                description=f"ضريبة القيمة المضافة على المصروف (14%) - {cleaned_data['description']}"
+                description=f"ضريبة القيمة المضافة على المصروف (14%) - {description_text}"
             )
         )
 
@@ -229,7 +240,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
                 account_code=wht_payable_acc,
                 debit=Decimal('0'),
                 credit=wht_amount,
-                description=f"ضريبة الخصم والتحصيل من المنبع ({wht_rate_val}%) - {cleaned_data['description']}"
+                description=f"ضريبة الخصم والتحصيل من المنبع ({wht_rate_val}%) - {description_text}"
             )
         )
 
@@ -238,7 +249,7 @@ def create_journal_entry_for_expense(cleaned_data, user):
             account_code=payment_account.code,
             debit=Decimal('0'),
             credit=net_payment,
-            description=f"سداد صافي المصروف من الخزينة/البنك - {cleaned_data['description']}"
+            description=f"سداد صافي المصروف من الخزينة/البنك - {description_text}"
         )
     )
     
@@ -252,21 +263,24 @@ def create_journal_entry_for_expense(cleaned_data, user):
         idempotency_key=f'JE:financial:FinancialTransaction:{transaction.id}:create',
         user=user,
         date=cleaned_data['date'],
-        description=cleaned_data['description'],
+        description=description_text,
         financial_category=financial_category,
         financial_subcategory=financial_subcategory
     )
     
+    transaction.journal_entry = journal_entry
+    transaction.save(update_fields=['journal_entry', 'status', 'approved_by', 'approved_at'])
+    
     # حفظ الملاحظات وأمر الشغل إذا كانت موجودة
-    update_fields = []
+    update_kwargs = {}
     if cleaned_data.get('notes'):
+        update_kwargs['notes'] = cleaned_data['notes']
         journal_entry.notes = cleaned_data['notes']
-        update_fields.append('notes')
     if work_order_id:
+        update_kwargs['work_order_id'] = work_order_id
         journal_entry.work_order_id = work_order_id
-        update_fields.append('work_order')
-    if update_fields:
-        journal_entry.save(update_fields=update_fields)
+    if update_kwargs:
+        JournalEntry.objects.filter(pk=journal_entry.pk).update(**update_kwargs)
 
     # توثيق الإثبات الضريبي للمصروف
     try:
@@ -346,16 +360,30 @@ def create_journal_entry_for_income(cleaned_data, user):
     if not active_period:
         raise ValueError(_('لا توجد فترة محاسبية نشطة لهذا التاريخ'))
     
+    work_order_id = cleaned_data.get('work_order_id')
+    description_text = cleaned_data['description']
+    if work_order_id:
+        from work_order.models import WorkOrder
+        wo = WorkOrder.objects.filter(id=work_order_id).select_related('customer').first()
+        if wo and wo.number and wo.number not in description_text:
+            wo_name = f"{wo.number} - {wo.customer.name}" if (hasattr(wo, 'customer') and wo.customer) else wo.number
+            description_text = f"{description_text} (أمر شغل: {wo_name})"
+
     # إنشاء FinancialTransaction كـ source للقيد
     transaction = FinancialTransaction.objects.create(
         transaction_type='income',
-        title=cleaned_data['description'],
+        title=description_text,
         description=cleaned_data.get('notes', ''),
         account=income_account,
         to_account=receipt_account,
         amount=cleaned_data['amount'],
         date=cleaned_data['date'],
-        category=financial_category
+        category=financial_category,
+        work_order_id=work_order_id,
+        status='approved',
+        approved_by=user,
+        approved_at=timezone.now(),
+        created_by=user,
     )
     
     # إنشاء القيد عبر AccountingGateway
@@ -366,13 +394,13 @@ def create_journal_entry_for_income(cleaned_data, user):
             account_code=receipt_account.code,
             debit=cleaned_data['amount'],
             credit=Decimal('0'),
-            description=cleaned_data['description']
+            description=description_text
         ),
         JournalEntryLineData(
             account_code=income_account.code,
             debit=Decimal('0'),
             credit=cleaned_data['amount'],
-            description=cleaned_data['description']
+            description=description_text
         )
     ]
     
@@ -385,15 +413,24 @@ def create_journal_entry_for_income(cleaned_data, user):
         idempotency_key=f'JE:financial:FinancialTransaction:{transaction.id}:create',
         user=user,
         date=cleaned_data['date'],
-        description=cleaned_data['description'],
+        description=description_text,
         financial_category=financial_category,
         financial_subcategory=financial_subcategory
     )
     
-    # حفظ الملاحظات إذا كانت موجودة
+    transaction.journal_entry = journal_entry
+    transaction.save(update_fields=['journal_entry', 'status', 'approved_by', 'approved_at'])
+    
+    # حفظ الملاحظات وأمر الشغل إذا كانت موجودة
+    update_kwargs = {}
     if cleaned_data.get('notes'):
+        update_kwargs['notes'] = cleaned_data['notes']
         journal_entry.notes = cleaned_data['notes']
-        journal_entry.save(update_fields=['notes'])
+    if work_order_id:
+        update_kwargs['work_order_id'] = work_order_id
+        journal_entry.work_order_id = work_order_id
+    if update_kwargs:
+        JournalEntry.objects.filter(pk=journal_entry.pk).update(**update_kwargs)
     
     # ملاحظة: القيد يتم ترحيله تلقائياً عند الإنشاء عبر AccountingGateway
     # لا حاجة لاستدعاء post_journal_entry - القيد يُنشأ بحالة 'posted' مباشرة

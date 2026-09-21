@@ -163,6 +163,7 @@
                         <th class="text-center">الغياب</th>
                         <th class="text-center">الإجازات</th>
                         <th class="text-center">دقائق التأخير</th>
+                        <th class="text-center">ساعات الإضافي</th>
                         <th class="text-center">الحالة</th>
                         <th class="text-center">الإجراءات</th>
                     </tr>
@@ -214,6 +215,16 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
+                            {% if summary.approved_overtime_hours is not None %}
+                                <span class="fw-bold text-success">{{ summary.approved_overtime_hours|smart_float }} س</span>
+                                <span class="badge bg-primary ms-1" title="معدل يدوياً (المحسوب: {{ summary.total_overtime_hours|smart_float }} س)">معدل</span>
+                            {% elif summary.total_overtime_hours > 0 %}
+                                <span class="text-primary">{{ summary.total_overtime_hours|smart_float }} س</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
                             {% if summary.is_approved %}
                                 <span class="badge bg-success">
                                     <i class="fas fa-check-circle me-1"></i>معتمد
@@ -251,7 +262,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                             لا توجد ملخصات للعرض
                             {% if exempt_type == 'exempt' %}

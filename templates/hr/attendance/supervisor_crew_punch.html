@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .crew-camera-container {
+        position: relative;
+        width: 100%;
+        max-width: 280px;
+        height: 200px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+        background-color: var(--bg-secondary, #f8f9fa);
+        border: 2px solid var(--border-color, #dee2e6);
+    }
+    .crew-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .crew-canvas {
+        display: none;
+    }
+    .crew-selection-card {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid pb-5">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <div class="row g-3">
+        <!-- لوحة التحكم وتوثيق المشرف -->
+        <div class="col-lg-5">
+            <div class="section-container p-3 text-center">
+                <h6 class="fw-bold mb-3 text-start"><i class="fas fa-camera me-2 text-primary"></i>توثيق المشرف والموقع</h6>
+
+                <!-- كاميرا المشرف -->
+                <div class="crew-camera-container mb-3">
+                    <video id="supervisorVideo" class="crew-video" autoplay playsinline muted></video>
+                    <canvas id="supervisorCanvas" class="crew-canvas"></canvas>
+                </div>
+
+                <!-- حالة GPS المشرف -->
+                <div id="supGeoIndicator" class="p-2 border rounded bg-light text-start mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong class="small text-dark" id="supGeoText"><i class="fas fa-map-marker-alt text-primary me-1"></i>جاري تحديد الموقع...</strong>
+                        <span id="supAccBadge" class="badge bg-secondary">GPS</span>
+                    </div>
+                </div>
+
+                <!-- اختيار نوع البصمة وملاحظات -->
+                <div class="text-start mb-3">
+                    <label class="form-label fw-bold small">نوع البصمة للطاقم <span class="text-danger">*</span></label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="crew_punch_type" id="punchInRadio" value="check_in" checked>
+                            <label class="btn btn-outline-success w-100 fw-bold" for="punchInRadio">
+                                <i class="fas fa-sign-in-alt me-1"></i>حضور جماعي
+                            </label>
+                        </div>
+                        <div class="col-6">
+                            <input type="radio" class="btn-check" name="crew_punch_type" id="punchOutRadio" value="check_out">
+                            <label class="btn btn-outline-danger w-100 fw-bold" for="punchOutRadio">
+                                <i class="fas fa-sign-out-alt me-1"></i>انصراف جماعي
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-start mb-3">
+                    <label class="form-label fw-bold small">ملاحظات / موقع العمل الميداني</label>
+                    <input type="text" id="crewNotes" class="form-control form-control-sm" placeholder="مثال: موقع إنشاءات العاصمة الإدارية">
+                </div>
+
+                <button type="button" class="btn btn-primary w-100 py-3 fw-bold" id="btnSubmitCrewPunch">
+                    <i class="fas fa-users me-2"></i>تسجيل بصمة الطاقم المحدد (<span id="selectedCountDisplay">0</span> موظف)
+                </button>
+            </div>
+        </div>
+
+        <!-- قائمة طاقم العمل للاختيار -->
+        <div class="col-lg-7">
+            <div class="section-container p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-list-check me-2 text-primary"></i>تحديد موظفي الطاقم</h6>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnSelectAll">تحديد الكل</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-1" id="btnDeselectAll">إلغاء التحديد</button>
+                    </div>
+                </div>
+
+                <!-- حقل البحث السريع -->
+                <div class="mb-3">
+                    <input type="text" id="crewSearchInput" class="form-control" placeholder="بحث بالاسم، الكود، أو القسم...">
+                </div>
+
+                <div class="crew-selection-card">
+                    <div class="list-group" id="crewListGroup">
+                        {% for emp in employees %}
+                        <label class="list-group-item list-group-item-action d-flex align-items-center justify-content-between crew-item" data-search="{{ emp.name }} {{ emp.employee_number }} {{ emp.department.name_ar|default:'' }}">
+                            <div class="d-flex align-items-center">
+                                <input class="form-check-input me-3 crew-checkbox" type="checkbox" value="{{ emp.id }}" data-name="{{ emp.get_full_name_ar }}">
+                                <div>
+                                    <strong class="text-dark d-block">{{ emp.get_full_name_ar }}</strong>
+                                    <small class="text-muted">{{ emp.employee_number }} | {{ emp.job_title.title_ar|default:"موظف" }} - {{ emp.department.name_ar|default:"—" }}</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-light text-dark border">{{ emp.shift.name|default:"وردية افتراضية" }}</span>
+                        </label>
+                        {% empty %}
+                        <div class="p-4 text-center text-muted">لا يوجد موظفون نشطون متاحون.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let supervisorPosition = null;
+    let supervisorStream = null;
+
+    // 1. تشغيل كاميرا المشرف
+    async function initSupervisorCamera() {
+        try {
+            const video = document.getElementById('supervisorVideo');
+            supervisorStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            video.srcObject = supervisorStream;
+        } catch (err) {
+            console.warn('تعذر تشغيل كاميرا المشرف:', err.message);
+        }
+    }
+    initSupervisorCamera();
+
+    function captureSupervisorSelfie() {
+        const video = document.getElementById('supervisorVideo');
+        const canvas = document.getElementById('supervisorCanvas');
+        if (!video || !supervisorStream) return null;
+
+        canvas.width = 480;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.7);
+    }
+
+    // 2. تتبع موقع المشرف الجغرافي
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            function(pos) {
+                supervisorPosition = pos;
+                const acc = Math.round(pos.coords.accuracy);
+                $('#supAccBadge').text(`±${acc}م`).addClass(acc <= 50 ? 'bg-success' : 'bg-warning text-dark');
+                $('#supGeoText').html(`<i class="fas fa-check-circle text-success me-1"></i>تم تحديد الموقع (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
+            },
+            function(err) {
+                $('#supGeoText').html(`<i class="fas fa-times-circle text-danger me-1"></i>تعذر قراءة GPS: ${err.message}`);
+                $('#supAccBadge').text('معطل').addClass('bg-danger');
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        );
+    }
+
+    // 3. إدارة التحديد والبحث
+    function updateSelectedCount() {
+        const count = $('.crew-checkbox:checked').length;
+        $('#selectedCountDisplay').text(count);
+    }
+
+    $('.crew-checkbox').on('change', updateSelectedCount);
+
+    $('#btnSelectAll').on('click', function() {
+        $('.crew-item:visible .crew-checkbox').prop('checked', true);
+        updateSelectedCount();
+    });
+
+    $('#btnDeselectAll').on('click', function() {
+        $('.crew-checkbox').prop('checked', false);
+        updateSelectedCount();
+    });
+
+    $('#crewSearchInput').on('input', function() {
+        const q = $(this).val().toLowerCase().trim();
+        $('.crew-item').each(function() {
+            const text = $(this).data('search').toLowerCase();
+            if (text.includes(q)) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
+    });
+
+    // 4. إرسال بصمة الطاقم
+    $('#btnSubmitCrewPunch').on('click', function() {
+        const selectedIds = [];
+        $('.crew-checkbox:checked').each(function() {
+            selectedIds.push(parseInt($(this).val()));
+        });
+
+        if (selectedIds.length === 0) {
+            if (window.showToastr) window.showToastr('يرجى تحديد موظف واحد على الأقل من القائمة.', 'warning');
+            return;
+        }
+
+        if (!supervisorPosition) {
+            if (window.showToastr) window.showToastr('يرجى الانتظار حتى يتم تحديد موقع الـ GPS الخاص بك.', 'warning');
+            return;
+        }
+
+        const punchType = $('input[name="crew_punch_type"]:checked').val();
+        const selfieB64 = captureSupervisorSelfie();
+        const notes = $('#crewNotes').val().trim();
+
+        const btn = $(this);
+        const origHtml = btn.html();
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري تسجيل بصمة الطاقم...');
+
+        $.ajax({
+            url: '{% url "hr:api_supervisor_crew_punch" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            data: JSON.stringify({
+                crew_employee_ids: selectedIds,
+                punch_type: punchType,
+                latitude: supervisorPosition.coords.latitude,
+                longitude: supervisorPosition.coords.longitude,
+                accuracy: supervisorPosition.coords.accuracy,
+                selfie_image: selfieB64,
+                notes: notes
+            }),
+            success: function(res) {
+                if (res.success) {
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showToastr) window.showToastr(res.message || 'حدث خطأ', 'error');
+                    btn.prop('disabled', false).html(origHtml);
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في الخادم';
+                if (window.showToastr) window.showToastr(msg, 'error');
+                btn.prop('disabled', false).html(origHtml);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

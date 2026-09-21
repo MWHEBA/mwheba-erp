@@ -53,7 +53,8 @@ class APIEndpointsTest(APITestCase):
         self.user = User.objects.create_user(
             username="apiuser",
             password="apipass123",
-            is_staff=True
+            is_staff=True,
+            is_superuser=True
         )
         self.client.force_authenticate(user=self.user)
         
@@ -259,7 +260,8 @@ class APIErrorHandlingTest(APITestCase):
         self.user = User.objects.create_user(
             username="apiuser",
             password="apipass123",
-            is_staff=True
+            is_staff=True,
+            is_superuser=True
         )
         self.client.force_authenticate(user=self.user)
         
@@ -298,7 +300,8 @@ class APIVersioningTest(APITestCase):
         self.user = User.objects.create_user(
             username="apiuser",
             password="apipass123",
-            is_staff=True
+            is_staff=True,
+            is_superuser=True
         )
         self.client.force_authenticate(user=self.user)
         

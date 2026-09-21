@@ -51,16 +51,22 @@ def attendance_report(request):
         'total_overtime': sum(float(a.overtime_hours) for a in attendances),
     }
     
+    # تصدير Excel
+    if request.GET.get('export') == 'excel':
+        return export_attendance_excel(attendances, month_date, stats)
+    
+    from .models import Department
+    departments = Department.objects.filter(is_active=True).order_by('name_ar')
+
     context = {
         'attendances': attendances,
         'stats': stats,
         'month': month_date,
         'month_str': month_str,
+        'departments': departments,
+        'selected_department': department_id,
+        'page_title': 'تقرير سجلات الحضور والانصراف',
     }
-    
-    # تصدير Excel
-    if request.GET.get('export') == 'excel':
-        return export_attendance_excel(attendances, month_date, stats)
     
     return render(request, 'hr/reports/attendance.html', context)
 
@@ -197,52 +203,171 @@ def employee_report(request):
 
 # دوال تصدير Excel
 
-def export_attendance_excel(attendances, month, stats):
-    """تصدير تقرير الحضور إلى Excel"""
+def export_attendance_excel(attendances, month, stats=None):
+    """تصدير تقرير الحضور التفصيلي إلى Excel شاملاً المقرات والمصادر وساعات الإضافي"""
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "تقرير الحضور"
+    ws.title = "سجل الحضور اليومي"
+    ws.views.sheetView[0].rightToLeft = True
     
-    # العنوان
-    ws['A1'] = f"تقرير الحضور - {month.strftime('%Y-%m')}"
-    ws['A1'].font = Font(size=16, bold=True)
-    ws.merge_cells('A1:H1')
+    # Title
+    ws['A1'] = f"تقرير سجلات الحضور والانصراف - {month.strftime('%Y-%m')}"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws.merge_cells('A1:N1')
     
-    # الإحصائيات
-    ws['A3'] = "إجمالي الأيام:"
-    ws['B3'] = stats['total_days']
-    ws['D3'] = "الحضور:"
-    ws['E3'] = stats['present']
-    ws['F3'] = "التأخير:"
-    ws['G3'] = stats['late']
+    # Header styling
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
     
-    # العناوين
-    headers = ['الموظف', 'التاريخ', 'الوردية', 'الحضور', 'الانصراف', 'ساعات العمل', 'التأخير', 'الحالة']
-    for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=5, column=col, value=header)
-        cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+    headers = [
+        'كود الموظف',
+        'اسم الموظف',
+        'القسم',
+        'التاريخ',
+        'الوردية',
+        'المقر الجغرافي',
+        'المصدر',
+        'الحضور',
+        'الانصراف',
+        'ساعات العمل',
+        'ساعات الإضافي',
+        'التأخير (دقيقة)',
+        'الحالة',
+        'ملاحظات'
+    ]
     
-    # البيانات
-    for row, attendance in enumerate(attendances, 6):
-        ws.cell(row=row, column=1, value=attendance.employee.get_full_name_ar())
-        ws.cell(row=row, column=2, value=attendance.date.strftime('%Y-%m-%d'))
-        ws.cell(row=row, column=3, value=attendance.shift.name)
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+    
+    for row_idx, att in enumerate(attendances, 4):
+        loc_name = att.work_location.name_ar if getattr(att, 'work_location', None) else 'المقر الرئيسي'
+        source_display = 'ماكينة'
+        first_log = att.biometric_logs.first() if hasattr(att, 'biometric_logs') else None
+        if first_log:
+            source_display = first_log.get_source_display()
+            if first_log.is_offline_synced:
+                source_display += ' (أوفلاين)'
+            if first_log.matched_location:
+                loc_name = first_log.matched_location.name_ar
+        elif getattr(att, 'is_manual_entry', False):
+            source_display = 'يدوي'
+
+        ws.cell(row=row_idx, column=1, value=att.employee.employee_number or '').alignment = center_align
+        ws.cell(row=row_idx, column=2, value=att.employee.get_full_name_ar())
+        ws.cell(row=row_idx, column=3, value=att.employee.department.name_ar if att.employee.department else '—')
+        ws.cell(row=row_idx, column=4, value=att.date.strftime('%Y-%m-%d')).alignment = center_align
+        ws.cell(row=row_idx, column=5, value=att.shift.name if att.shift else '—').alignment = center_align
+        ws.cell(row=row_idx, column=6, value=loc_name).alignment = center_align
+        ws.cell(row=row_idx, column=7, value=source_display).alignment = center_align
         
-        if attendance.status in ['absent', 'on_leave']:
-            ws.cell(row=row, column=4, value='-')
-            ws.cell(row=row, column=5, value='-')
+        if att.status in ['absent', 'on_leave']:
+            ws.cell(row=row_idx, column=8, value='—').alignment = center_align
+            ws.cell(row=row_idx, column=9, value='—').alignment = center_align
         else:
-            ws.cell(row=row, column=4, value=attendance.check_in.strftime('%H:%M') if attendance.check_in else '')
-            ws.cell(row=row, column=5, value=attendance.check_out.strftime('%H:%M') if attendance.check_out else '')
+            ws.cell(row=row_idx, column=8, value=att.check_in.strftime('%H:%M') if att.check_in else '—').alignment = center_align
+            ws.cell(row=row_idx, column=9, value=att.check_out.strftime('%H:%M') if att.check_out else '—').alignment = center_align
             
-        ws.cell(row=row, column=6, value=str(attendance.work_hours))
-        ws.cell(row=row, column=7, value=f"{attendance.late_minutes} دقيقة" if attendance.late_minutes > 0 else '')
-        ws.cell(row=row, column=8, value=attendance.get_status_display())
+        ws.cell(row=row_idx, column=10, value=float(att.work_hours or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=11, value=float(att.overtime_hours or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=12, value=int(att.late_minutes or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=13, value=att.get_status_display()).alignment = center_align
+        ws.cell(row=row_idx, column=14, value=att.notes or '')
     
-    # إعداد الاستجابة
+    # Auto adjust column widths
+    from openpyxl.utils import get_column_letter
+    for col_idx in range(1, len(headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for row in range(3, len(attendances) + 4):
+            val = ws.cell(row=row, column=col_idx).value
+            if val is not None:
+                max_len = max(max_len, len(str(val)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 13)
+        
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="attendance_report_{month.strftime("%Y-%m")}.xlsx"'
+    wb.save(response)
+    return response
+
+
+def export_attendance_summary_excel(summaries, month):
+    """تصدير تقرير ملخصات الحضور الشهرية المعتمدة إلى Excel"""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ملخص الحضور الشهري"
+    ws.views.sheetView[0].rightToLeft = True
+    
+    # Title
+    ws['A1'] = f"تقرير ملخص الحضور والعمل الإضافي والجزاءات - {month.strftime('%Y-%m')}"
+    ws['A1'].font = Font(size=14, bold=True)
+    ws.merge_cells('A1:Q1')
+    
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+    
+    headers = [
+        'كود الموظف',
+        'اسم الموظف',
+        'القسم',
+        'أيام العمل',
+        'الحضور',
+        'الغياب',
+        'نصف يوم',
+        'ساعات العمل',
+        'الإضافي المحسوب',
+        'الإضافي المعتمد',
+        'مبلغ الإضافي',
+        'دقائق التأخير الصافية',
+        'خصم التأخير',
+        'خصم الغياب',
+        'خصم الأذونات',
+        'الحالة',
+        'ملاحظات'
+    ]
+    
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+        
+    summaries_list = list(summaries)
+    for row_idx, summary in enumerate(summaries_list, 4):
+        ws.cell(row=row_idx, column=1, value=summary.employee.employee_number or '').alignment = center_align
+        ws.cell(row=row_idx, column=2, value=summary.employee.get_full_name_ar())
+        ws.cell(row=row_idx, column=3, value=summary.employee.department.name_ar if summary.employee.department else '—')
+        ws.cell(row=row_idx, column=4, value=summary.total_working_days).alignment = center_align
+        ws.cell(row=row_idx, column=5, value=summary.present_days).alignment = center_align
+        ws.cell(row=row_idx, column=6, value=summary.absent_days).alignment = center_align
+        ws.cell(row=row_idx, column=7, value=summary.half_days).alignment = center_align
+        ws.cell(row=row_idx, column=8, value=float(summary.total_work_hours or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=9, value=float(summary.total_overtime_hours or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=10, value=float(summary.approved_overtime_hours) if summary.approved_overtime_hours is not None else float(summary.total_overtime_hours or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=11, value=float(summary.overtime_amount or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=12, value=int(summary.net_penalizable_minutes or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=13, value=float(summary.late_deduction_amount or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=14, value=float(summary.absence_deduction_amount or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=15, value=float(summary.extra_permissions_deduction_amount or 0)).alignment = center_align
+        ws.cell(row=row_idx, column=16, value='معتمد' if summary.is_approved else 'قيد المراجعة').alignment = center_align
+        ws.cell(row=row_idx, column=17, value=summary.overtime_override_reason or summary.notes or '')
+        
+    from openpyxl.utils import get_column_letter
+    for col_idx in range(1, len(headers) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for row in range(3, len(summaries_list) + 4):
+            val = ws.cell(row=row, column=col_idx).value
+            if val is not None:
+                max_len = max(max_len, len(str(val)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 13)
+        
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="attendance_summary_{month.strftime("%Y-%m")}.xlsx"'
     wb.save(response)
     return response
 

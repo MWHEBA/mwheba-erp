@@ -250,9 +250,11 @@
                                 <a href="{% url 'financial:cash_account_movements' account.id %}" class="btn btn-outline-secondary btn-sm" title="عرض حركات الخزينة">
                                     <i class="fas fa-history me-1"></i>الحركات
                                 </a>
+                                {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
                                 <a href="{% url 'financial:cash_account_edit' account.id %}" class="btn btn-outline-primary btn-sm" title="تعديل بيانات الخزينة">
                                     <i class="fas fa-edit me-1"></i>تعديل
                                 </a>
+                                {% endif %}
                             </div>
                             {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
                                 <a href="{% url 'financial:treasury_assignments_list' %}?treasury={{ account.id }}" class="btn btn-outline-info btn-sm fw-bold" title="إدارة إسناد هذه الخزينة للمستخدمين">
@@ -271,14 +273,16 @@
             <div class="empty-icon">
                 <i class="fas fa-money-bill-wave"></i>
             </div>
-            <h4 class="empty-title">لا توجد حسابات نقدية أو بنكية</h4>
+            <h4 class="empty-title">لا توجد حسابات نقدية أو بنكية مسندة إليك</h4>
             <p class="empty-description">
-                لم يتم العثور على أي حسابات نقدية أو بنكية في النظام.<br>
-                ابدأ بإضافة أول حساب لإدارة أموالك بكفاءة.
+                لم يتم العثور على أي خزن أو حسابات نقدية متاحة لحسابك حالياً.<br>
+                يرجى التواصل مع الإدارة المالية لإسناد الخزينة المخصصة لك.
             </p>
+            {% if request.user.is_superuser or perms.financial.add_chartofaccounts %}
             <button type="button" class="btn btn-success" onclick="openQuickAddModal()">
                 <i class="fas fa-plus me-2"></i>إضافة أول خزنة
             </button>
+            {% endif %}
         </div>
     {% endif %}
     
@@ -422,7 +426,7 @@
                                     {% for acc in accounts %}
                                         {% if acc.calculated_balance and acc.calculated_balance > 0 %}
                                             <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}" data-balance="{{ acc.calculated_balance }}">
-                                                {{ acc.code }} - {{ acc.name }} (الرصيد المتاح: {{ acc.calculated_balance|smart_float }} {{ acc.currency_symbol }})
+                                                {{ acc.name }} (الرصيد المتاح: {{ acc.calculated_balance|smart_float }} {{ acc.currency_symbol }})
                                             </option>
                                         {% endif %}
                                     {% endfor %}
@@ -435,7 +439,7 @@
                                     <option value="">-- اختر الحساب المستهدف --</option>
                                     {% for acc in accounts %}
                                         <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}">
-                                            {{ acc.code }} - {{ acc.name }} ({{ acc.currency_code }})
+                                            {{ acc.name }} ({{ acc.currency_code }})
                                         </option>
                                     {% endfor %}
                                 </select>

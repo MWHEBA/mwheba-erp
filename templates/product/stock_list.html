@@ -1,108 +1,272 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load crispy_forms_tags %}
 {% load custom_filters %}
 {% load utils_extras %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}{{ page_title|default:"أرصدة وجرد المخزون" }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+<style>
+/* شارات وفلاتر المخزون الموحدة */
+.hover-primary:hover {
+    color: var(--bs-primary) !important;
+}
+.status-pill-btn {
+    transition: all 0.2s ease;
+    border-radius: 20px;
+    font-weight: 500;
+}
+.status-pill-btn.active {
+    background-color: var(--bs-primary);
+    color: #fff !important;
+    border-color: var(--bs-primary);
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    {% csrf_token %}
+
+    <!-- 1. Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
 
+    <!-- 2. بطاقات المؤشرات الإحصائية (KPI Stats Cards) -->
+    <div id="stats-wrapper">
+        {% include "product/partials/stock_stats.html" %}
+    </div>
+
+    <!-- 3. قسم التصفية والبحث المتقدم الموحد -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection"
+            aria-expanded="false" style="cursor: pointer;">
+            <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث المخزون" %}
+            {% if current_search or current_warehouse or current_category or current_stock_status %}
+                <span class="badge bg-primary ms-2">{% trans "فلاتر نشطة" %}</span>
+            {% endif %}
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse {% if current_search or current_warehouse or current_category or current_stock_status %}show{% endif %}" id="filterSection">
+            <div class="filter-section pt-2">
+                <form method="GET" action="{% url 'product:stock_list' %}" class="row g-3 align-items-end" id="stock-filter-form" onsubmit="event.preventDefault(); window.doSearch();">
+                    <input type="hidden" name="stock_status" id="filter-stock-status" value="{{ current_stock_status }}">
+                    <input type="hidden" name="order_by" id="filter-order-by" value="{{ order_by }}">
+                    <input type="hidden" name="order_dir" id="filter-order-dir" value="{{ order_dir }}">
+
+                    <!-- البحث النصي -->
+                    <div class="col-12 col-md-4">
+                        <label for="search" class="form-label fw-medium">{% trans "بحث سريع" %}</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control" id="search" name="search"
+                                   value="{{ current_search }}" placeholder="{% trans 'اسم المنتج، SKU، باركود، أو كود الموقع...' %}">
+                        </div>
+                    </div>
+
+                    <!-- المخزن -->
+                    <div class="col-12 col-md-3">
+                        <label for="warehouse" class="form-label fw-medium">{% trans "المخزن" %}</label>
+                        <select class="form-select select2-filter" id="warehouse" name="warehouse">
+                            <option value="">{% trans "جميع المخازن المتاحة" %}</option>
+                            {% for wh in warehouses %}
+                                <option value="{{ wh.pk }}" {% if current_warehouse|stringformat:"s" == wh.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ wh.name }} {% if wh.code %}({{ wh.code }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- التصنيف -->
+                    <div class="col-12 col-md-3">
+                        <label for="category" class="form-label fw-medium">{% trans "التصنيف" %}</label>
+                        <select class="form-select select2-filter" id="category" name="category">
+                            <option value="">{% trans "جميع التصنيفات" %}</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.pk }}" {% if current_category|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- أزرار الإجراءات -->
+                    <div class="col-12 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+                        </button>
+                        <a href="{% url 'product:stock_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </form>
+
+                <!-- أزرار التصفية السريعة حسب حالة المخزون -->
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3 pt-3 border-top">
+                    <span class="text-muted small fw-bold me-2"><i class="fas fa-layer-group me-1"></i>{% trans "حالة المخزون" %}:</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary status-pill-btn {% if not current_stock_status %}active{% endif %}" onclick="setStatusFilter('')">
+                        {% trans "الكل" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success status-pill-btn {% if current_stock_status == 'in_stock' %}active{% endif %}" onclick="setStatusFilter('in_stock')">
+                        <i class="fas fa-check-circle me-1"></i>{% trans "متوفر" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning status-pill-btn {% if current_stock_status == 'low_stock' %}active{% endif %}" onclick="setStatusFilter('low_stock')">
+                        <i class="fas fa-exclamation-triangle me-1"></i>{% trans "تحت حد الطلب (منخفض)" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger status-pill-btn {% if current_stock_status == 'out_of_stock' %}active{% endif %}" onclick="setStatusFilter('out_of_stock')">
+                        <i class="fas fa-times-circle me-1"></i>{% trans "نفد من المخزن" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. جدول بيانات أرصدة المخزون -->
     <div class="section-container">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">{% trans "تصفية" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" id="filter-form">
-                            <div class="mb-3">
-                                <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
-                                <select class="form-select" id="warehouse" name="warehouse">
-                                    <option value="">{% trans "جميع المخازن" %}</option>
-                                    {% for wh in warehouses %}
-                                    <option value="{{ wh.id }}" {% if warehouse_id|add:"0" == wh.id %}selected{% endif %}>{{ wh.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="product" class="form-label">{% trans "المنتج" %}</label>
-                                <select class="form-select" id="product" name="product">
-                                    <option value="">{% trans "جميع المنتجات" %}</option>
-                                    {% for prod in products %}
-                                    <option value="{{ prod.id }}" {% if product_id|add:"0" == prod.id %}selected{% endif %}>{{ prod.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-outline-primary">
-                                    <i class="fas fa-filter me-2"></i>{% trans "تصفية" %}
-                                </button>
-                                <a href="{% url 'product:stock_list' %}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-broom me-2"></i>{% trans "إعادة تعيين" %}
-                                </a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-                
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">{% trans "حالة المخزون" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <span class="stock-indicator in-stock me-2"></span>
-                            <span>{% trans "مخزون جيد" %}</span>
-                        </div>
-                        <div class="d-flex align-items-center mb-3">
-                            <span class="stock-indicator low-stock me-2"></span>
-                            <span>{% trans "مخزون منخفض" %}</span>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="stock-indicator out-of-stock me-2"></span>
-                            <span>{% trans "نفذ من المخزون" %}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-9">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">{% trans "قائمة المخزون" %}</h5>
-                    </div>
-                    <div class="card-body">
-                        <!-- استخدام الجدول الموحد - المكون يتعامل مع الحالة الفارغة تلقائياً -->
-                        {% include "components/data_table.html" with table_id="stocks-table" headers=stock_headers data=stocks action_buttons=stock_actions empty_message="لا توجد بيانات مخزون متاحة" clickable_rows=True row_click_url="/products/stock/0/" show_export=True export_filename="stock" %}
-                    </div>
-                </div>
-            </div>
+        <h5 class="section-title mb-3">
+            <i class="fas fa-boxes me-2"></i>{% trans "بيانات أرصدة المخزون" %}
+        </h5>
+
+        <div id="stock-table-container">
+            {% include "product/partials/stock_table.html" %}
+        </div>
+
+        <!-- 5. ترقيم الصفحات الموحد والتصدير -->
+        <div id="pagination-wrapper">
+            {% include "partials/pagination.html" %}
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // التحقق من وجود الجدول قبل التهيئة
-    const tableElement = document.getElementById('stocks-table');
-    if (tableElement && typeof initializeAllTables === 'function') {
-        initializeAllTables();
+// تهيئة أحداث الصفوف القابلة للنقر
+function initTableEvents() {
+    document.querySelectorAll('.clickable-row').forEach(function(row) {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.col-actions') || e.target.closest('a') || e.target.closest('button')) {
+                return;
+            }
+            const href = this.getAttribute('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+    });
+}
+
+// دالة الفلترة السريعة لحالة المخزون
+function setStatusFilter(status) {
+    document.getElementById('filter-stock-status').value = status;
+    document.querySelectorAll('.status-pill-btn').forEach(function(btn) {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    window.doSearch();
+}
+
+// دالة البحث الديناميكي بالـ AJAX وتحديث الـ URL State
+window.doSearch = function(pageNumber) {
+    const form = document.getElementById('stock-filter-form');
+    if (!form) return;
+
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    if (pageNumber) {
+        params.set('page', pageNumber);
+    } else {
+        params.delete('page');
     }
+
+    const cleanParams = new URLSearchParams();
+    for (const [key, val] of params.entries()) {
+        if (val && val.trim() !== '') {
+            cleanParams.set(key, val);
+        }
+    }
+
+    const newUrl = `${window.location.pathname}?${cleanParams.toString()}`;
+    window.history.replaceState({}, '', newUrl);
+
+    // إضافة تأثير التحميل
+    const tableContainer = document.getElementById('stock-table-container');
+    if (tableContainer) {
+        tableContainer.style.opacity = '0.5';
+    }
+
+    fetch(newUrl, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(data => {
+        if (tableContainer && data.table_html) {
+            tableContainer.innerHTML = data.table_html;
+            tableContainer.style.opacity = '1';
+        }
+        const paginationWrapper = document.getElementById('pagination-wrapper');
+        if (paginationWrapper && data.pagination_html !== undefined) {
+            paginationWrapper.innerHTML = data.pagination_html;
+        }
+        const statsWrapper = document.getElementById('stats-wrapper');
+        if (statsWrapper && data.stats_html) {
+            statsWrapper.innerHTML = data.stats_html;
+        }
+        initTableEvents();
+    })
+    .catch(error => {
+        console.error('Error during search:', error);
+        if (tableContainer) tableContainer.style.opacity = '1';
+        window.location.href = newUrl;
+    });
+};
+
+// تشغيل التهيئة عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    initTableEvents();
+
+    // تهيئة Select2 للفلاتر
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('.select2-filter').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        }).on('change', function() {
+            window.doSearch();
+        });
+    }
+
+    // بحث فوري مع Debounce في حقل البحث النصي
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function() {
+                window.doSearch();
+            }, 400);
+        });
+    }
+
+    // ربط روابط الترقيم بالـ AJAX
+    document.addEventListener('click', function(e) {
+        const pageLink = e.target.closest('#pagination-wrapper a.page-link');
+        if (pageLink && !pageLink.closest('.disabled')) {
+            e.preventDefault();
+            const href = pageLink.getAttribute('href');
+            if (href) {
+                const urlParams = new URLSearchParams(href.replace('?', ''));
+                const page = urlParams.get('page');
+                window.doSearch(page);
+            }
+        }
+    });
 });
 </script>
-{% endblock %} 
+{% endblock %}

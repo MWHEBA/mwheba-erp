@@ -5,6 +5,13 @@
   <td class="text-center"><span class="badge bg-danger">{{ shift.end_time|arabic_time }}</span></td>
   <td class="text-center"><strong>{{ shift.calculate_work_hours|smart_float }}</strong> ساعة</td>
   <td class="text-center">
+    {% for day_name in shift.get_weekly_off_days_display %}
+      <span class="badge bg-secondary">{{ day_name }}</span>
+    {% empty %}
+      <span class="badge bg-light text-dark">الجمعة</span>
+    {% endfor %}
+  </td>
+  <td class="text-center">
     <span class="badge bg-primary">{{ shift.employees.count }}</span>
     <small class="text-muted">موظف</small>
   </td>

@@ -1,21 +1,31 @@
-{% load i18n %}
-<div class="text-center">
-    {% if not object.employee %}
-    <button type="button" class="btn btn-sm btn-outline-primary" 
-            onclick="linkLog({{ object.id }})" 
-            title="ربط بموظف">
-        <i class="fas fa-link"></i>
+﻿{% load i18n %}
+<div class="d-flex align-items-center justify-content-center gap-1">
+    {% if object.selfie_image %}
+    <button type="button" class="btn btn-sm btn-outline-info btn-view-selfie" 
+            data-selfie-url="{{ object.selfie_image.url }}"
+            data-employee-name="{{ object.employee.get_full_name_ar|default:object.user_id }}"
+            data-timestamp="{{ object.timestamp|date:'Y-m-d H:i' }}"
+            data-map-url="{% if object.latitude and object.longitude %}https://www.google.com/maps?q={{ object.latitude }},{{ object.longitude }}{% endif %}"
+            onclick="viewSelfieModal(this.dataset.selfieUrl, this.dataset.employeeName, this.dataset.timestamp, this.dataset.mapUrl)"
+            title="عرض صورة السيلفي">
+        <i class="fas fa-camera"></i>
     </button>
-    {% else %}
-    <span class="badge bg-success">
-        <i class="fas fa-check"></i>
-    </span>
+    {% endif %}
+
+    {% if object.latitude and object.longitude %}
+    <a href="https://www.google.com/maps?q={{ object.latitude }},{{ object.longitude }}" 
+       target="_blank" 
+       class="btn btn-sm btn-outline-secondary" 
+       title="عرض الموقع الجغرافي على الخريطة">
+        <i class="fas fa-map-marker-alt"></i>
+    </a>
+    {% endif %}
+
+    {% if not object.employee %}
+    <a href="{% url 'hr:biometric_mapping_create' %}?log_id={{ object.id }}" 
+       class="btn btn-sm btn-outline-primary" 
+       title="ربط بموظف">
+        <i class="fas fa-link"></i>
+    </a>
     {% endif %}
 </div>
-
-<script>
-function linkLog(logId) {
-    // فتح صفحة إضافة ربط جديد
-    window.location.href = `/hr/biometric/mapping/create/?log_id=${logId}`;
-}
-</script>

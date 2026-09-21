@@ -210,6 +210,73 @@ class PurchaseAPITest(TestCase):
         response = self.client.get(reverse('purchase:purchase_create'))
         self.assertEqual(response.status_code, 200)
 
+    def test_purchase_create_view_with_work_order(self):
+        """اختبار تحميل صفحة إنشاء فاتورة مرتبطة بأمر شغل"""
+        from customer.models import Customer
+        from work_order.models import WorkOrder
+        customer = Customer.objects.create(name='عميل اختبار', created_by=self.user)
+        work_order = WorkOrder.objects.create(
+            number='WO-001',
+            customer=customer,
+            status='in_progress',
+            created_by=self.user
+        )
+        response = self.client.get(f"{reverse('purchase:purchase_create')}?work_order={work_order.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id_work_order')
+        self.assertContains(response, 'WO-001')
+        self.assertContains(response, f'value="{work_order.id}" selected')
+
+    def test_purchase_create_post_with_work_order(self):
+        """اختبار حفظ فاتورة مشتريات مرتبطة بأمر شغل وتوليد القيد بنجاح"""
+        from customer.models import Customer
+        from work_order.models import WorkOrder
+        from product.models import Product, Category, Unit
+        category = Category.objects.create(name='مواد')
+        unit = Unit.objects.create(name='قطعة')
+        product = Product.objects.create(
+            name='خدمة اختبار',
+            sku='SRV-001',
+            is_service=True,
+            cost_price=Decimal('50.00'),
+            selling_price=Decimal('75.00'),
+            category=category,
+            unit=unit,
+            created_by=self.user
+        )
+        customer = Customer.objects.create(name='عميل أمر الشغل', created_by=self.user)
+        work_order = WorkOrder.objects.create(
+            number='WO-2026-0099',
+            customer=customer,
+            status='in_progress',
+            created_by=self.user
+        )
+        from financial.models import FinancialCategory, ChartOfAccounts
+        exp_acc = ChartOfAccounts.objects.first()
+        fin_cat = FinancialCategory.objects.create(code='raw_materials', name='مشتريات خامات', default_expense_account=exp_acc)
+        post_data = {
+            'number': 'PUR9999',
+            'date': '2026-09-21',
+            'supplier': str(self.supplier.id),
+            'warehouse': str(self.warehouse.id),
+            'work_order': str(work_order.id),
+            'invoice_type': 'credit',
+            'payment_method': 'credit',
+            'financial_category': f'cat_{fin_cat.id}',
+            'product[]': [str(product.id)],
+            'quantity[]': ['2'],
+            'unit_price[]': ['50.00'],
+            'discount[]': ['0'],
+            'subtotal': '100.00',
+            'total': '100.00',
+        }
+        response = self.client.post(reverse('purchase:purchase_create'), post_data)
+        self.assertEqual(response.status_code, 302)
+        created_purchase = Purchase.objects.get(number='PUR9999')
+        self.assertEqual(created_purchase.work_order_id, work_order.id)
+        if created_purchase.journal_entry:
+            self.assertEqual(created_purchase.journal_entry.work_order_id, work_order.id)
+
 
 # ============================================================================
 # 3. Signal Tests

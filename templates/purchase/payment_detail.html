@@ -316,15 +316,31 @@
                             <div class="info-item">
                                 <span class="info-label">المبلغ المخصوم من الفاتورة:</span>
                                 <span class="info-value amount-highlight">
-                                    {{ payment.amount|smart_float }} {% if payment.purchase.currency %}{{ payment.purchase.currency.symbol|default:payment.purchase.currency.code }}{% else %}{{ currency_symbol }}{% endif %}
+                                    {{ payment.amount|smart_float }} {% if payment.purchase.currency %}{{ payment.purchase.currency.symbol|default:payment.purchase.currency.code }}{% else %}{{ currency_symbol|default:'ج.م' }}{% endif %}
                                 </span>
                             </div>
-                            {% if payment.payment_currency and payment.payment_currency != payment.purchase.currency %}
+                            {% if payment.payment_currency and payment.payment_currency.code != payment.purchase.currency.code %}
                             <div class="info-item">
-                                <span class="info-label">المبلغ المدفوع بالخزينة:</span>
-                                <span class="info-value text-muted fw-bold">
-                                    {{ payment.amount_paid_currency|smart_float }} {{ payment.payment_currency.symbol }}
-                                    <small class="d-block text-muted fw-normal">(سعر الصرف: {{ payment.payment_exchange_rate|smart_float }})</small>
+                                <span class="info-label">المبلغ المسدد من الحساب:</span>
+                                <span class="info-value text-primary fw-bold">
+                                    {% if payment.amount_paid_currency and payment.amount_paid_currency > 0 %}
+                                        {{ payment.amount_paid_currency|smart_float }} {{ payment.payment_currency.symbol|default:payment.payment_currency.code }}
+                                    {% else %}
+                                        {{ payment.amount|smart_float }} {{ payment.payment_currency.symbol|default:payment.payment_currency.code }}
+                                    {% endif %}
+                                    <small class="d-block text-muted fw-normal font-sans">(سعر الصرف: {{ payment.payment_exchange_rate|smart_float:6 }})</small>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">فروق العملة المحققة:</span>
+                                <span class="info-value">
+                                    {% if payment.realized_fx_difference and payment.realized_fx_difference > 0 %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-arrow-down me-1"></i>خسائر فروق عملة: {{ payment.realized_fx_difference|smart_float }} ج.م</span>
+                                    {% elif payment.realized_fx_difference and payment.realized_fx_difference < 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-arrow-up me-1"></i>أرباح فروق عملة: {{ payment.realized_fx_difference|abs|smart_float }} ج.م</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>قيد متزن تماماً بدون فروق صرف</span>
+                                    {% endif %}
                                 </span>
                             </div>
                             {% endif %}

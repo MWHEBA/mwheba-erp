@@ -1,5 +1,5 @@
 """
-currency_views.py - مناظر إدارة العملات، أسعار الصرف، ومقومات إعادة التقييم الدوري (IAS 21)
+currency_views.py - مناظر إدارة العملات، أسعار الصرف، ومقومات إعادة التقييم الدوري
 """
 
 import logging
@@ -111,7 +111,7 @@ def currency_list(request):
 
     return render(request, "financial/currency/currency_list.html", {
         "page_title": _("دليل العملات وأسعار الصرف"),
-        "page_subtitle": _("إدارة العملات المعتمدة، أسعار الصرف الرسمية، وإعادة التقييم الدوري (IAS 21)"),
+        "page_subtitle": _("إدارة العملات المعتمدة، أسعار الصرف الرسمية، وإعادة التقييم الدوري"),
         "page_icon": "fas fa-coins",
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
@@ -252,7 +252,6 @@ def exchange_rate_create(request):
 
 
 @login_required
-@require_permission('financial.change_currency')
 def api_sync_exchange_rates(request):
     """API لمزامنة أسعار الصرف الرسمية من البنك المركزي المصري (CBE API)"""
     if request.method in ["POST", "GET"]:
@@ -265,7 +264,7 @@ def api_sync_exchange_rates(request):
 @login_required
 @require_permission('financial.run_fx_revaluation')
 def fx_revaluation_view(request):
-    """لوحة تدقيق ومحاكاة تقييم أسعار الصرف غير المحققة (IAS 21 Audit & Simulation Center)"""
+    """لوحة تدقيق ومحاكاة تقييم أسعار الصرف غير المحققة (FX Audit & Simulation Center)"""
     from django.urls import reverse
     from django.http import JsonResponse
     from financial.models import AccountingPeriod

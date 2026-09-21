@@ -1,7 +1,7 @@
 """
 LedgerQueryService - الخدمة المركزية الحاكمة لاستعلامات دفتر الأستاذ العام (FIN-CORE-014 Read Contract)
 توفر حقائق دفتر الأستاذ العام حصرياً (حركة الحساب، تجميع المدين والدائن، الرصيد الجاري، وأرصدة البداية والنهاية)
-تدعم العملات المتعددة، الحسابات المجمعة، وفروق التقييم وفق معيار المحاسبة الدولي IAS 21
+تدعم العملات المتعددة، الحسابات المجمعة، وفروق التقييم
 """
 
 import logging
@@ -19,7 +19,7 @@ logger = logging.getLogger("financial.ledger_query_service")
 
 class LedgerQueryService:
     """
-    عقد الاستعلام المركزي لدفتر الأستاذ العام وفق المعايير الدولية IAS 21.
+    عقد الاستعلام المركزي لدفتر الأستاذ العام.
     يحتوي حصرياً على حقائق ومعادلات دفتر الأستاذ دون معالجة فترات الـ Aging التشغيلية.
     """
 
@@ -133,7 +133,7 @@ class LedgerQueryService:
     ) -> Dict[str, Any]:
         """
         توليد كشف حساب تفصيلي جاري مع حساب رصيد الافتتاح وحركة الفترة ورصيد الإغلاق
-        وفق المعايير الدولية IAS 21 مع الدعم الكامل لتعدد العملات والحسابات المجمعة
+        مع الدعم الكامل لتعدد العملات والحسابات المجمعة
         """
         account = cls._resolve_account(account_or_id)
 
@@ -292,7 +292,7 @@ class LedgerQueryService:
             period_foreign_debit += f_debit_val
             period_foreign_credit += f_credit_val
 
-            # تمييز قيود إعادة التقييم الدوري (IAS 21 FX Revaluation)
+            # تمييز قيود إعادة التقييم الدوري (FX Revaluation)
             je_ref = (line.journal_entry.reference or '').upper()
             je_desc_upper = (line.journal_entry.description or '').upper()
             src_model = (line.journal_entry.source_model or '')
@@ -320,7 +320,7 @@ class LedgerQueryService:
                 running_balance += (credit_val - debit_val)
 
             # تحديث الرصيد التراكمي الأجنبي
-            # في قيود التقييم الدوري IAS 21 لا يتأثر الرصيد النقدي الأجنبي
+            # في قيود التقييم الدوري لا يتأثر الرصيد النقدي الأجنبي
             if not is_fx_revaluation:
                 if is_debit_nature:
                     running_foreign_balance += (f_debit_val - f_credit_val)

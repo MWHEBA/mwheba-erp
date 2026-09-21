@@ -47,7 +47,7 @@ class SourceLinkageService:
         'purchase.GoodsReceivedNote',  # Goods Received Note (GRN)
         'purchase.SupplierBill',  # Supplier Bill (FIN-PUR-001)
         'purchase.PurchaseOrder',  # Purchase Order
-        'financial.RevenueRecognitionSchedule',  # Revenue Recognition (IFRS 15)
+        'financial.RevenueRecognitionSchedule',  # Revenue Recognition Schedule
         'hr.PayrollRun',  # Payroll Run
         'product.LandedCostDocument',  # Landed Cost
         'product.BatchVoucher',  # Added for batch vouchers

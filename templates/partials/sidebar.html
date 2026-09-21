@@ -406,6 +406,16 @@
                         <li class="submenu-title">الحضور والإجازات</li>
                         {% if perms.hr.view_attendance or user.is_superuser %}
                         <li>
+                            <a href="{% url 'hr:self_attendance' %}" class="submenu-link">
+                                <i class="fas fa-mobile-alt me-2 text-success"></i>{% trans "بصمة الجوال الذكية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:supervisor_crew_punch' %}" class="submenu-link">
+                                <i class="fas fa-users-cog me-2 text-primary"></i>{% trans "بصمة طاقم العمل" %}
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'hr:attendance_list' %}" class="submenu-link">
                                 <i class="fas fa-clock me-2"></i>{% trans "سجل الحضور" %}
                             </a>
@@ -480,6 +490,11 @@
                             </a>
                         </li>
                         <li>
+                            <a href="{% url 'hr:work_location_list' %}" class="submenu-link">
+                                <i class="fas fa-map-marked-alt me-2"></i>{% trans "مقرات العمل الجغرافية" %}
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'hr:hr_settings' %}" class="submenu-link">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات الموارد البشرية" %}
                             </a>
@@ -534,9 +549,7 @@
 
                 <!-- الخزينة والمالية -->
                 {% has_module_access 'enhanced_financial' as can_access_enhanced_financial %}
-                {% if can_access_enhanced_financial %}
-                {% if perms.financial.view_chartofaccounts or perms.financial.view_journalentry or perms.financial.view_cash_accounts or user.is_superuser %}
-                {% if perms.financial.view_cash_accounts or perms.financial.view_journalentry or user.is_superuser %}
+                {% if can_access_enhanced_financial or perms.financial.view_chartofaccounts or perms.financial.view_journalentry or perms.financial.view_expense or perms.financial.view_income or user.treasury_accesses.exists or user.is_superuser %}
                 <li class="sidebar-item">
                     <a href="#treasuryManagementMenu" class="sidebar-link collapsed {% if active_menu == 'treasury' or active_menu == 'financial_management' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-landmark sidebar-icon"></i>
@@ -545,9 +558,9 @@
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'treasury' or active_menu == 'financial_management' %}show{% endif %}" id="treasuryManagementMenu">
                         <!-- الحسابات النقدية والبنوك -->
-                        {% if perms.financial.view_cashaccount or perms.financial.view_bankreconciliation or user.is_superuser %}
-                        <li class="submenu-title">الحسابات النقدية والبنوك</li>
-                        {% if perms.financial.view_cashaccount or user.is_superuser %}
+                        {% if perms.financial.view_chartofaccounts or perms.financial.view_bankreconciliation or perms.financial.change_chartofaccounts or user.treasury_accesses.exists or user.is_superuser %}
+                        <li class="submenu-title">{% trans "الحسابات النقدية والبنوك" %}</li>
+                        {% if perms.financial.view_chartofaccounts or user.treasury_accesses.exists or user.is_superuser %}
                         <li>
                             <a href="{% url 'financial:cash_accounts_list' %}" class="submenu-link">
                                 <i class="fas fa-money-bill-wave me-2"></i>{% trans "الخزن والحسابات النقدية" %}
@@ -573,7 +586,7 @@
                         <!-- المعاملات اليومية -->
                         {% if perms.financial.view_expense or perms.financial.view_income or user.is_superuser %}
                         <div class="nav-divider"></div>
-                        <li class="submenu-title">المعاملات اليومية</li>
+                        <li class="submenu-title">{% trans "المعاملات اليومية" %}</li>
                         {% if perms.financial.view_expense or user.is_superuser %}
                         <li>
                             <a href="{% url 'financial:expense_list' %}" class="submenu-link">
@@ -590,10 +603,11 @@
                         {% endif %}
                         {% endif %}
                         
+                        {% if perms.financial.view_budget or perms.financial.view_journalentry or user.is_superuser %}
                         <div class="nav-divider"></div>
                         
                         <!-- الموازنات والتحليل المالي -->
-                        <li class="submenu-title">الموازنات والتحليل المالي</li>
+                        <li class="submenu-title">{% trans "الموازنات والتحليل المالي" %}</li>
                         <li>
                             <a href="{% url 'financial:budget_list' %}" class="submenu-link">
                                 <i class="fas fa-calculator me-2"></i>{% trans "الموازنات التقديرية" %}
@@ -623,7 +637,7 @@
                         <div class="nav-divider"></div>
 
                         <!-- الرقابة والحوكمة والشراكة -->
-                        <li class="submenu-title">الرقابة والحوكمة والشراكة</li>
+                        <li class="submenu-title">{% trans "الرقابة والحوكمة والشراكة" %}</li>
                         <li>
                             <a href="{% url 'financial:approval_inbox' %}" class="submenu-link">
                                 <i class="fas fa-user-check me-2"></i>{% trans "صندوق موافقات المؤسسة" %}
@@ -639,6 +653,7 @@
                                 <i class="fas fa-handshake me-2"></i>{% trans "لوحة تحكم الشريك" %}
                             </a>
                         </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -653,7 +668,7 @@
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'general_ledger' or active_menu == 'accounting' %}show{% endif %}" id="generalLedgerMenu">
                         <!-- التأسيس ودليل الحسابات -->
-                        <li class="submenu-title">التأسيس ودليل الحسابات</li>
+                        <li class="submenu-title">{% trans "التأسيس ودليل الحسابات" %}</li>
                         <li>
                             <a href="{% url 'financial:chart_of_accounts_list' %}" class="submenu-link">
                                 <i class="fas fa-sitemap me-2"></i>{% trans "دليل الحسابات" %}
@@ -678,7 +693,7 @@
                         <div class="nav-divider"></div>
                         
                         <!-- القيود والفترات المحاسبية -->
-                        <li class="submenu-title">القيود والفترات المحاسبية</li>
+                        <li class="submenu-title">{% trans "القيود والفترات المحاسبية" %}</li>
                         <li>
                             <a href="{% url 'financial:journal_entries_list' %}" class="submenu-link">
                                 <i class="fas fa-book me-2"></i>{% trans "القيود اليومية" %}
@@ -698,7 +713,7 @@
                         <div class="nav-divider"></div>
 
                         <!-- المعايير الدولية والضرائب -->
-                        <li class="submenu-title">المعايير الدولية والضرائب</li>
+                        <li class="submenu-title">{% trans "المعايير الدولية والضرائب" %}</li>
                         <li>
                             <a href="{% url 'financial:currency_list' %}" class="submenu-link">
                                 <i class="fas fa-coins me-2"></i>{% trans "دليل العملات" %}
@@ -716,11 +731,11 @@
                         </li>
                         <li>
                             <a href="{% url 'financial:revenue_recognition_dashboard' %}" class="submenu-link">
-                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "إقرار وتوزيع الإيرادات (IFRS 15)" %}
+                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "إقرار وتوزيع الإيرادات المؤجلة" %}
                             </a>
                         </li>
 
-                        <li class="submenu-title">الضرائب والمحرك الضريبي</li>
+                        <li class="submenu-title">{% trans "الضرائب والمحرك الضريبي" %}</li>
                         <li>
                             <a href="{% url 'financial:tax_code_list' %}" class="submenu-link">
                                 <i class="fas fa-percent me-2"></i>{% trans "أكواد وإعدادات الضرائب" %}
@@ -740,7 +755,7 @@
                         <div class="nav-divider"></div>
 
                         <!-- التقارير والقوائم المالية -->
-                        <li class="submenu-title">القوائم والتقارير المالية</li>
+                        <li class="submenu-title">{% trans "القوائم والتقارير المالية" %}</li>
                         <li>
                             <a href="{% url 'financial:ledger_report' %}" class="submenu-link">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "كشف الحسابات" %}
@@ -774,11 +789,13 @@
                     </ul>
                 </li>
                 {% endif %}
-                {% endif %}
-                {% endif %}
 
-                <!-- التقارير -->
-                {% if perms.financial.view_journalentry or perms.sale.view_sale or perms.purchase.view_purchase or perms.product.view_stock or user.is_superuser %}
+                <!-- التقارير المركزية (محمية بدقة حسب الصلاحيات التخصصية) -->
+                {% is_module_enabled 'hr' as hr_module_enabled %}
+                {% is_module_enabled 'warehouses' as warehouses_module_enabled %}
+                {% is_module_enabled 'financial' as financial_module_enabled %}
+                
+                {% if user.is_superuser or perms.financial.view_journalentry or perms.financial.view_chartofaccounts or perms.hr.view_employee or perms.hr.view_payroll or perms.hr.view_attendance or perms.hr.view_leave or perms.product.view_product or perms.product.view_stock %}
                 <li class="sidebar-item">
                     <a href="#reportsMenu" class="sidebar-link collapsed {% if active_menu == 'reports' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-chart-bar sidebar-icon"></i>
@@ -786,8 +803,11 @@
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'reports' %}show{% endif %}" id="reportsMenu">
-                        <!-- التقارير المحاسبية -->
-                        <li class="submenu-title">التقارير المحاسبية</li>
+                        
+                        <!-- 1. التقارير والقوائم المالية (للمحاسبين والمديرين فقط) -->
+                        {% if financial_module_enabled %}
+                        {% if user.is_superuser or perms.financial.view_journalentry or perms.financial.view_chartofaccounts %}
+                        <li class="submenu-title">التقارير المحاسبية والمالية</li>
                         <li>
                             <a href="{% url 'financial:ledger_report' %}" class="submenu-link">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "كشف الحسابات" %}
@@ -798,16 +818,6 @@
                                 <i class="fas fa-balance-scale me-2"></i>{% trans "ميزان المراجعة" %}
                             </a>
                         </li>
-                        <li>
-                            <a href="{% url 'governance:audit_management' %}" class="submenu-link">
-                                <i class="fas fa-history me-2"></i>{% trans "سجل التدقيق" %}
-                            </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- القوائم المالية -->
-                        <li class="submenu-title">القوائم المالية</li>
                         <li>
                             <a href="{% url 'financial:balance_sheet' %}" class="submenu-link">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "الميزانية العمومية" %}
@@ -828,10 +838,14 @@
                                 <i class="fas fa-chart-pie me-2"></i>{% trans "التحليلات المالية" %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'governance:audit_management' %}" class="submenu-link">
+                                <i class="fas fa-history me-2"></i>{% trans "سجل التدقيق المحاسبي" %}
+                            </a>
+                        </li>
                         
+                        <!-- 2. تقارير الأرصدة (عملاء وموردين محاسبياً) -->
                         <div class="nav-divider"></div>
-                        
-                        <!-- تقارير الأرصدة -->
                         <li class="submenu-title">تقارير الأرصدة</li>
                         <li>
                             <a href="{% url 'financial:customer_balances_report' %}" class="submenu-link">
@@ -843,60 +857,62 @@
                                 <i class="fas fa-truck me-2"></i>{% trans "أرصدة الموردين" %}
                             </a>
                         </li>
-                        {% comment %}
-                        TODO: إضافة كشف حساب عميل ومورد
-                        <li>
-                            <a href="{% url "customer:customer_statement" %}" class="submenu-link">
-                                <i class="fas fa-receipt me-2"></i>{% trans "كشف حساب عميل" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'supplier:supplier_statement' %}" class="submenu-link">
-                                <i class="fas fa-file-contract me-2"></i>{% trans "كشف حساب مورد" %}
-                            </a>
-                        </li>
-                        {% endcomment %}
+                        {% endif %}
+                        {% endif %}
                         
+                        <!-- 3. تقارير الموارد البشرية -->
+                        {% if hr_module_enabled %}
+                        {% if user.is_superuser or perms.hr.view_employee or perms.hr.view_payroll or perms.hr.view_attendance or perms.hr.view_leave %}
                         <div class="nav-divider"></div>
-                        
-                        <!-- تقارير الموارد البشرية -->
                         <li class="submenu-title">تقارير الموارد البشرية</li>
                         <li>
                             <a href="{% url 'hr:reports_home' %}" class="submenu-link">
-                                <i class="fas fa-chart-bar me-2"></i>{% trans "جميع التقارير" %}
+                                <i class="fas fa-chart-bar me-2"></i>{% trans "جميع تقارير HR" %}
                             </a>
                         </li>
+                        {% if user.is_superuser or perms.hr.view_attendance %}
                         <li>
                             <a href="{% url 'hr:attendance_report' %}" class="submenu-link">
                                 <i class="fas fa-clock me-2"></i>{% trans "تقرير الحضور" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% if user.is_superuser or perms.hr.view_leave %}
                         <li>
                             <a href="{% url 'hr:leave_report' %}" class="submenu-link">
                                 <i class="fas fa-calendar-alt me-2"></i>{% trans "تقرير الإجازات" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% if user.is_superuser or perms.hr.view_payroll %}
                         <li>
                             <a href="{% url 'hr:payroll_report' %}" class="submenu-link">
                                 <i class="fas fa-money-bill-wave me-2"></i>{% trans "تقرير الرواتب" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% if user.is_superuser or perms.hr.view_employee %}
                         <li>
                             <a href="{% url 'hr:employee_report' %}" class="submenu-link">
                                 <i class="fas fa-users me-2"></i>{% trans "تقرير الموظفين" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
                         
+                        <!-- 4. تقارير المخزون -->
+                        {% if warehouses_module_enabled %}
+                        {% if user.is_superuser or perms.product.view_product or perms.product.view_stock %}
                         <div class="nav-divider"></div>
-                        
-                        <!-- تقارير المخزون -->
                         <li class="submenu-title">تقارير المخزون</li>
+                        {% if user.is_superuser or perms.financial.view_journalentry or perms.financial.view_chartofaccounts %}
                         <li>
                             <a href="{% url 'financial:inventory_report' %}" class="submenu-link">
                                 <i class="fas fa-boxes me-2"></i>{% trans "تقرير المخزون المالي" %}
                             </a>
                         </li>
-
+                        {% endif %}
                         <li>
                             <a href="{% url 'product:inventory_turnover_report' %}" class="submenu-link">
                                 <i class="fas fa-sync-alt me-2"></i>{% trans "معدل دوران المخزون" %}
@@ -907,51 +923,65 @@
                                 <i class="fas fa-exclamation-triangle me-2"></i>{% trans "نقطة إعادة الطلب" %}
                             </a>
                         </li>
+                        {% endif %}
+                        {% endif %}
                         
                     </ul>
                 </li>
                 {% endif %}
 
-                <!-- المستخدمين -->
-                {% if user.is_superuser or perms.users.view_user %}
+                <!-- المستخدمين / الملف الشخصي حسب الصلاحية -->
+                {% if user.is_superuser or perms.users.view_user or user.can_manage_users %}
                 <li class="sidebar-item">
-                    <a href="#userMenu" class="sidebar-link collapsed {% if active_menu == 'users' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#userMenu" class="sidebar-link collapsed {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-user-shield sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "المستخدمين" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'users' %}show{% endif %}" id="userMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'users' or request.resolver_match.app_name == 'users' %}show{% endif %}" id="userMenu">
                         <li>
-                            <a href="{% url 'users:user_list' %}" class="submenu-link">
+                            <a href="{% url 'users:user_list' %}" class="submenu-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}">
                                 <i class="fas fa-users me-2"></i>{% trans "قائمة المستخدمين" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'users:profile' %}" class="submenu-link">
+                            <a href="{% url 'users:profile' %}" class="submenu-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
                                 <i class="fas fa-user-circle me-2"></i>{% trans "الملف الشخصي" %}
                             </a>
                         </li>
+                        {% if user.is_superuser or user.can_manage_roles or perms.users.view_role %}
                         <li>
-                            <a href="{% url 'users:permissions_dashboard' %}" class="submenu-link">
+                            <a href="{% url 'users:permissions_dashboard' %}" class="submenu-link {% if request.resolver_match.url_name == 'permissions_dashboard' %}active{% endif %}">
                                 <i class="fas fa-user-shield me-2"></i>{% trans "إدارة الصلاحيات" %}
                             </a>
                         </li>
+                        {% endif %}
                         
                         <div class="nav-divider"></div>
                         
                         <!-- السجلات -->
                         <li class="submenu-title">السجلات</li>
+                        {% if user.is_superuser or perms.users.view_activitylog %}
                         <li>
-                            <a href="{% url 'users:activity_log' %}" class="submenu-link">
+                            <a href="{% url 'users:activity_log' %}" class="submenu-link {% if request.resolver_match.url_name == 'activity_log' %}active{% endif %}">
                                 <i class="fas fa-history me-2"></i>{% trans "سجل النشاطات" %}
                             </a>
                         </li>
+                        {% endif %}
                         <li>
-                            <a href="{% url 'core:notifications_list' %}" class="submenu-link">
+                            <a href="{% url 'core:notifications_list' %}" class="submenu-link {% if request.resolver_match.url_name == 'notifications_list' %}active{% endif %}">
                                 <i class="fas fa-bell me-2"></i>{% trans "الإشعارات" %}
                             </a>
                         </li>
                     </ul>
+                </li>
+                {% else %}
+                <!-- الملف الشخصي للمستخدمين العاديين بدون صلاحية إدارة المستخدمين -->
+                <li class="sidebar-item">
+                    <a href="{% url 'users:profile' %}" class="sidebar-link {% if request.resolver_match.url_name == 'profile' or active_menu == 'profile' %}active{% endif %}">
+                        <i class="fas fa-user-circle sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الملف الشخصي" %}</span>
+                    </a>
                 </li>
                 {% endif %}
 

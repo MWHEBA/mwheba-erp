@@ -18,198 +18,212 @@ from core.models import SystemSetting
 @login_required
 def dashboard(request):
     """
-    لوحة التحكم الرئيسية - Corporate ERP
+    لوحة التحكم الرئيسية - Corporate ERP مع تطبيق حوكمة الصلاحيات وعزل البيانات (RBAC & Data Scoping)
     """
+    from users.services.data_scoping_service import DataScopingService
+    from core.models import SystemModule
+
     now = timezone.now()
     current_year = now.year
     current_month = now.month
     today = now.date()
+    curr_sym = SystemSetting.get_currency_symbol()
 
-    # إحصائيات المشتريات الشهر الحالي
-    purchases_month = Purchase.objects.filter(
-        date__month=current_month,
-        date__year=current_year
-    ).aggregate(
-        total=Sum('total'),
-        count=Count('id')
-    )
-    purchases_month_total = purchases_month.get('total') or 0
-    purchases_month_count = purchases_month.get('count') or 0
+    user = request.user
+    is_super_or_admin = user.is_superuser or getattr(user, 'is_admin', False)
 
-    # إحصائيات الموردين والمنتجات
-    suppliers_count = Supplier.objects.filter(is_active=True).count()
-    
-    try:
-        from product.models import Product
-        products_count = Product.objects.filter(is_active=True).count()
-        
-        # المنتجات منخفضة المخزون
-        low_stock_products = Product.objects.filter(
-            is_active=True,
-            stocks__quantity__lt=F('min_stock')
-        ).distinct()[:5]
-    except Exception:
-        products_count = 0
-        low_stock_products = []
+    # 1. صلاحيات المبيعات وعزل البيانات
+    can_view_sales = is_super_or_admin or user.has_perm('sale.view_sale') or user.has_perm('sale.view_all_sales')
+    sales_month_total = 0
+    sales_month_count = 0
+    customer_dues = 0
+    customer_invoices_headers = []
+    customer_invoices_data = []
 
-    # ديون الموردين = مجموع الفواتير المستحقة
-    try:
-        supplier_dues_total = Purchase.objects.filter(
-            payment_status__in=['unpaid', 'partially_paid']
-        ).aggregate(total=Sum('total'))['total'] or 0
-        
-        supplier_paid_total = Purchase.objects.filter(
-            payment_status__in=['unpaid', 'partially_paid']
-        ).aggregate(paid=Sum('payments__amount', filter=Q(payments__status='posted')))['paid'] or 0
-        
-        supplier_dues = supplier_dues_total - supplier_paid_total
-    except Exception:
-        supplier_dues = 0
-
-    # محاولة جلب بيانات المبيعات والعملاء
-    try:
-        from sale.models import Sale
-        from customer.models import Customer
-        
-        # إحصائيات المبيعات الشهر الحالي
-        sales_month = Sale.objects.filter(
-            date__month=current_month,
-            date__year=current_year
-        ).aggregate(
-            total=Sum('total'),
-            count=Count('id')
-        )
-        sales_month_total = sales_month.get('total') or 0
-        sales_month_count = sales_month.get('count') or 0
-        
-        # ديون العملاء = مجموع الفواتير المستحقة
-        customer_dues_total = Sale.objects.filter(
-            payment_status__in=['unpaid', 'partially_paid']
-        ).aggregate(total=Sum('total'))['total'] or 0
-        
-        customer_paid_total = Sale.objects.filter(
-            payment_status__in=['unpaid', 'partially_paid']
-        ).aggregate(paid=Sum('payments__amount', filter=Q(payments__status='posted')))['paid'] or 0
-        
-        customer_dues = customer_dues_total - customer_paid_total
-        
-        # الفواتير المستحقة للعملاء فقط
-        overdue_customer_invoices = Sale.objects.filter(
-            payment_status__in=['unpaid', 'partially_paid']
-        ).select_related('customer').order_by('date')[:5]
-        
-        # تحضير بيانات جدول فواتير العملاء
-        customer_invoices_headers = [
-            {'key': 'number', 'label': 'رقم الفاتورة', 'width': '20%', 'format': 'html'},
-            {'key': 'customer', 'label': 'العميل', 'width': '25%'},
-            {'key': 'date', 'label': 'التاريخ', 'width': '15%', 'class': 'text-center'},
-            {'key': 'days_overdue', 'label': 'أيام التأخير', 'width': '15%', 'class': 'text-center', 'format': 'html'},
-            {'key': 'amount', 'label': 'المبلغ المستحق', 'width': '25%', 'class': 'text-end fw-bold'}
-        ]
-        
-        customer_invoices_data = []
-        curr_sym = SystemSetting.get_currency_symbol()
-
-        for invoice in overdue_customer_invoices:
-            days_overdue = (today - invoice.date).days
+    if can_view_sales and SystemModule.objects.filter(code__in=['customers_sales', 'sale'], is_enabled=True).exists():
+        try:
+            from sale.models import Sale
+            scoped_sales = DataScopingService.get_scoped_sales(user)
             
-            # تحديد لون البادج حسب عدد الأيام
-            if days_overdue > 60:
-                badge_class = 'bg-danger'
-            elif days_overdue > 30:
-                badge_class = 'bg-warning'
-            else:
-                badge_class = 'bg-info'
+            # إحصائيات المبيعات للشهر الحالي بناء على النطاق المسموح
+            sales_month = scoped_sales.filter(
+                date__month=current_month,
+                date__year=current_year
+            ).aggregate(
+                total=Sum('total'),
+                count=Count('id')
+            )
+            sales_month_total = sales_month.get('total') or 0
+            sales_month_count = sales_month.get('count') or 0
             
-            # حساب المبلغ المستحق
-            remaining = invoice.amount_due
+            # ديون ومستحقات العملاء
+            customer_dues_total = scoped_sales.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).aggregate(total=Sum('total'))['total'] or 0
             
-            customer_invoices_data.append({
-                'number': f'<a href="/sales/{invoice.id}/" class="text-primary">{invoice.number}</a>',
-                'customer': invoice.customer.name if invoice.customer else '-',
-                'date': invoice.date.strftime('%d-%m-%Y'),
-                'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
-                'amount': f'{remaining:,.2f} {curr_sym}'
-            })
-    except Exception:
-        # في حالة عدم وجود موديول المبيعات
-        sales_month_total = 0
-        sales_month_count = 0
-        customer_dues = 0
-        customer_invoices_headers = []
-        customer_invoices_data = []
+            customer_paid_total = scoped_sales.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).aggregate(paid=Sum('payments__amount', filter=Q(payments__status='posted')))['paid'] or 0
+            
+            customer_dues = customer_dues_total - customer_paid_total
+            
+            # فواتير العملاء المستحقة
+            overdue_customer_invoices = scoped_sales.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).select_related('customer').order_by('date')[:5]
+            
+            customer_invoices_headers = [
+                {'key': 'number', 'label': 'رقم الفاتورة', 'width': '20%', 'format': 'html'},
+                {'key': 'customer', 'label': 'العميل', 'width': '25%'},
+                {'key': 'date', 'label': 'التاريخ', 'width': '15%', 'class': 'text-center'},
+                {'key': 'days_overdue', 'label': 'أيام التأخير', 'width': '15%', 'class': 'text-center', 'format': 'html'},
+                {'key': 'amount', 'label': 'المبلغ المستحق', 'width': '25%', 'class': 'text-end fw-bold'}
+            ]
+            
+            for invoice in overdue_customer_invoices:
+                days_overdue = (today - invoice.date).days
+                if days_overdue > 60:
+                    badge_class = 'bg-danger'
+                elif days_overdue > 30:
+                    badge_class = 'bg-warning'
+                else:
+                    badge_class = 'bg-info'
+                
+                remaining = invoice.amount_due
+                customer_invoices_data.append({
+                    'number': f'<a href="/sales/{invoice.id}/" class="text-primary">{invoice.number}</a>',
+                    'customer': invoice.customer.name if invoice.customer else '-',
+                    'date': invoice.date.strftime('%d-%m-%Y'),
+                    'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
+                    'amount': f'{remaining:,.2f} {curr_sym}'
+                })
+        except Exception as e:
+            logger.warning(f"Error calculating scoped sales for dashboard: {e}")
 
-    # الفواتير المستحقة للموردين فقط
-    overdue_supplier_invoices = Purchase.objects.filter(
-        payment_status__in=['unpaid', 'partially_paid']
-    ).select_related('supplier').order_by('date')[:5]
-
-    # تحضير بيانات جدول الفواتير المستحقة للموردين
-    supplier_invoices_headers = [
-        {'key': 'number', 'label': 'رقم الفاتورة', 'width': '20%', 'format': 'html'},
-        {'key': 'supplier', 'label': 'المورد', 'width': '25%'},
-        {'key': 'date', 'label': 'التاريخ', 'width': '15%', 'class': 'text-center'},
-        {'key': 'days_overdue', 'label': 'أيام التأخير', 'width': '15%', 'class': 'text-center', 'format': 'html'},
-        {'key': 'amount', 'label': 'المبلغ المستحق', 'width': '25%', 'class': 'text-end fw-bold'}
-    ]
-    
+    # 2. صلاحيات المشتريات
+    can_view_purchases = is_super_or_admin or user.has_perm('purchase.view_purchase')
+    purchases_month = {'total': 0, 'count': 0}
+    purchases_month_total = 0
+    supplier_dues = 0
+    supplier_invoices_headers = []
     supplier_invoices_data = []
-    for invoice in overdue_supplier_invoices:
-        days_overdue = (today - invoice.date).days
-        
-        # تحديد لون البادج حسب عدد الأيام
-        if days_overdue > 60:
-            badge_class = 'bg-danger'
-        elif days_overdue > 30:
-            badge_class = 'bg-warning'
-        else:
-            badge_class = 'bg-info'
-        
-        # حساب المبلغ المستحق
-        remaining = invoice.amount_due
-        
-        supplier_invoices_data.append({
-            'number': f'<a href="/purchases/{invoice.id}/" class="text-primary">{invoice.number}</a>',
-            'supplier': invoice.supplier.name if invoice.supplier else '-',
-            'date': invoice.date.strftime('%d-%m-%Y'),
-            'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
-            'amount': f'{remaining:,.2f} {curr_sym}'
-        })
 
-    # إجمالي المستحقات
+    if can_view_purchases and SystemModule.objects.filter(code__in=['suppliers_purchases', 'purchase'], is_enabled=True).exists():
+        try:
+            purchases_month_agg = Purchase.objects.filter(
+                date__month=current_month,
+                date__year=current_year
+            ).aggregate(
+                total=Sum('total'),
+                count=Count('id')
+            )
+            purchases_month = purchases_month_agg
+            purchases_month_total = purchases_month_agg.get('total') or 0
+
+            supplier_dues_total = Purchase.objects.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).aggregate(total=Sum('total'))['total'] or 0
+            
+            supplier_paid_total = Purchase.objects.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).aggregate(paid=Sum('payments__amount', filter=Q(payments__status='posted')))['paid'] or 0
+            
+            supplier_dues = supplier_dues_total - supplier_paid_total
+
+            overdue_supplier_invoices = Purchase.objects.filter(
+                payment_status__in=['unpaid', 'partially_paid']
+            ).select_related('supplier').order_by('date')[:5]
+
+            supplier_invoices_headers = [
+                {'key': 'number', 'label': 'رقم الفاتورة', 'width': '20%', 'format': 'html'},
+                {'key': 'supplier', 'label': 'المورد', 'width': '25%'},
+                {'key': 'date', 'label': 'التاريخ', 'width': '15%', 'class': 'text-center'},
+                {'key': 'days_overdue', 'label': 'أيام التأخير', 'width': '15%', 'class': 'text-center', 'format': 'html'},
+                {'key': 'amount', 'label': 'المبلغ المستحق', 'width': '25%', 'class': 'text-end fw-bold'}
+            ]
+            
+            for invoice in overdue_supplier_invoices:
+                days_overdue = (today - invoice.date).days
+                if days_overdue > 60:
+                    badge_class = 'bg-danger'
+                elif days_overdue > 30:
+                    badge_class = 'bg-warning'
+                else:
+                    badge_class = 'bg-info'
+                
+                remaining = invoice.amount_due
+                supplier_invoices_data.append({
+                    'number': f'<a href="/purchases/{invoice.id}/" class="text-primary">{invoice.number}</a>',
+                    'supplier': invoice.supplier.name if invoice.supplier else '-',
+                    'date': invoice.date.strftime('%d-%m-%Y'),
+                    'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
+                    'amount': f'{remaining:,.2f} {curr_sym}'
+                })
+        except Exception as e:
+            logger.warning(f"Error calculating purchases for dashboard: {e}")
+
+    # 3. إحصائيات الموردين
+    can_view_suppliers = is_super_or_admin or user.has_perm('supplier.view_supplier')
+    suppliers_count = 0
+    if can_view_suppliers:
+        suppliers_count = Supplier.objects.filter(is_active=True).count()
+
+    # 4. إحصائيات المخزون والمنتجات
+    can_view_products = is_super_or_admin or user.has_perm('product.view_product')
+    products_count = 0
+    low_stock_products = []
+    if can_view_products:
+        try:
+            from product.models import Product
+            products_count = Product.objects.filter(is_active=True).count()
+            low_stock_products = Product.objects.filter(
+                is_active=True,
+                stocks__quantity__lt=F('min_stock')
+            ).distinct()[:5]
+        except Exception:
+            products_count = 0
+            low_stock_products = []
+
+    # إجمالي المستحقات المسموحة للمستخدم
     total_dues = customer_dues + supplier_dues
 
-    # آخر العمليات (آخر 5 فواتير مبيعات ومشتريات)
+    # 5. آخر العمليات (مفلترة ومحمية بالصلاحيات ونطاق البيانات)
     recent_activities = []
-    
-    try:
-        from sale.models import Sale
-        recent_sales = Sale.objects.select_related('customer').order_by('-created_at')[:3]
-        for sale in recent_sales:
-            recent_activities.append({
-                'icon': 'fa-shopping-cart',
-                'title': f'فاتورة مبيعات {sale.number}',
-                'description': f'العميل: {sale.customer.name if sale.customer else "-"} - المبلغ: {sale.total:,.2f} {curr_sym}',
-                'time': sale.created_at.strftime('%d-%m-%Y %I:%M %p')
-            })
-    except:
-        pass
-    
-    recent_purchases = Purchase.objects.select_related('supplier').order_by('-created_at')[:3]
-    for purchase in recent_purchases:
-        recent_activities.append({
-            'icon': 'fa-truck',
-            'title': f'فاتورة مشتريات {purchase.number}',
-            'description': f'المورد: {purchase.supplier.name if purchase.supplier else "-"} - المبلغ: {purchase.total:,.2f} {curr_sym}',
-            'time': purchase.created_at.strftime('%d-%m-%Y %I:%M %p')
-        })
-    
-    # ترتيب حسب الوقت
-    recent_activities = sorted(recent_activities, key=lambda x: x['time'], reverse=True)[:5]
+    if can_view_sales:
+        try:
+            from sale.models import Sale
+            recent_sales = DataScopingService.get_scoped_sales(user).select_related('customer').order_by('-created_at')[:3]
+            for sale in recent_sales:
+                recent_activities.append({
+                    'icon': 'fa-shopping-cart',
+                    'title': f'فاتورة مبيعات {sale.number}',
+                    'description': f'العميل: {sale.customer.name if sale.customer else "-"} - المبلغ: {sale.total:,.2f} {curr_sym}',
+                    'time': sale.created_at.strftime('%d-%m-%Y %I:%M %p'),
+                    'raw_time': sale.created_at
+                })
+        except Exception:
+            pass
 
+    if can_view_purchases:
+        try:
+            recent_purchases = Purchase.objects.select_related('supplier').order_by('-created_at')[:3]
+            for purchase in recent_purchases:
+                recent_activities.append({
+                    'icon': 'fa-truck',
+                    'title': f'فاتورة مشتريات {purchase.number}',
+                    'description': f'المورد: {purchase.supplier.name if purchase.supplier else "-"} - المبلغ: {purchase.total:,.2f} {curr_sym}',
+                    'time': purchase.created_at.strftime('%d-%m-%Y %I:%M %p'),
+                    'raw_time': purchase.created_at
+                })
+        except Exception:
+            pass
+
+    recent_activities = sorted(recent_activities, key=lambda x: x.get('raw_time', timezone.now()), reverse=True)[:5]
+
+    # 6. السيولة والخزائن
     try:
         from financial.services.treasury_security_service import TreasurySecurityService
-        treasury_balances = TreasurySecurityService.get_user_visible_treasury_balances(request.user)
+        treasury_balances = TreasurySecurityService.get_user_visible_treasury_balances(user)
     except Exception:
         treasury_balances = {"total_cash": 0, "total_bank": 0, "total_liquidity": 0, "count": 0}
 
@@ -243,6 +257,10 @@ def dashboard(request):
 
         # آخر العمليات
         "recent_activities": recent_activities,
+        "can_view_sales": can_view_sales,
+        "can_view_purchases": can_view_purchases,
+        "can_view_suppliers": can_view_suppliers,
+        "can_view_products": can_view_products,
     }
 
     return render(request, "core/dashboard.html", context)
@@ -557,7 +575,7 @@ def system_settings(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
-    # التثبت من وجود أي عمليات مالية أو تجارية بالنظام للقفل المحاسبي (IAS 21)
+    # التثبت من وجود أي عمليات مالية أو تجارية بالنظام للقفل المحاسبي
     from financial.models import JournalEntry, Currency
     from sale.models.sale import Sale
     from sale.models.quotation import Quotation

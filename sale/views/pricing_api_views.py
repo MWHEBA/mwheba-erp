@@ -30,10 +30,32 @@ def evaluate_cart_api(request):
 
         items = payload.get("items", [])
         customer_id = payload.get("customer_id")
+        price_list_id = payload.get("price_list_id")
+        currency_id = payload.get("currency_id")
+        currency = payload.get("currency")
         from financial.services.exchange_rate_service import ExchangeRateService
+        from financial.models import Currency
         func_curr = ExchangeRateService.get_functional_currency()
         default_code = func_curr.code if func_curr else "EGP"
-        currency = payload.get("currency") or default_code
+
+        if currency_id and not currency:
+            try:
+                c_obj = Currency.objects.filter(pk=int(currency_id)).first()
+                if c_obj:
+                    currency = c_obj.code
+            except Exception:
+                pass
+
+        if not currency or str(currency).isdigit():
+            if str(currency).isdigit():
+                try:
+                    c_obj = Currency.objects.filter(pk=int(currency)).first()
+                    currency = c_obj.code if c_obj else default_code
+                except Exception:
+                    currency = default_code
+            else:
+                currency = default_code
+
         exchange_rate = payload.get("exchange_rate")
         header_discount = Decimal(str(payload.get("header_discount", 0) or 0))
         header_discount_type = payload.get("header_discount_type", "fixed")
@@ -45,6 +67,8 @@ def evaluate_cart_api(request):
         if exchange_rate:
             try:
                 exchange_rate = Decimal(str(exchange_rate))
+                if exchange_rate <= Decimal("0"):
+                    exchange_rate = Decimal("1.000000")
             except Exception:
                 exchange_rate = None
 

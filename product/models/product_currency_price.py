@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 نموذج أسعار المنتجات بالعملات المخصصة الاسترشادية
-ProductCurrencyPrice: Indicative List Prices per Currency (FIN-CORE & IAS 21 Compliant)
+ProductCurrencyPrice: Indicative List Prices per Currency (FIN-CORE Compliant)
 """
 from decimal import Decimal
 from django.db import models

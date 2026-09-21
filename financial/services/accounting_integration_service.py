@@ -597,7 +597,7 @@ class AccountingIntegrationService:
                 elif payment_type == "sale_payment" and hasattr(payment.sale, 'cost_center') and payment.sale.cost_center:
                     cost_center_code = payment.sale.cost_center.code if hasattr(payment.sale.cost_center, 'code') else str(payment.sale.cost_center)
 
-                # إعداد بنود القيد المحاسبي مع دعم تعدد العملات وحوكمة فروق الصرف (IAS 21)
+                # إعداد بنود القيد المحاسبي مع دعم تعدد العملات وحوكمة فروق الصرف
                 lines = []
                 from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 
@@ -605,35 +605,25 @@ class AccountingIntegrationService:
                     invoice = payment.purchase
                     inv_currency_code = invoice.currency.code if (invoice.currency and invoice.currency.code) else "EGP"
                     inv_rate = Decimal(str(getattr(invoice, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
-                    
-                    # 1. المبلغ المخصوم من أصل الفاتورة بعملة الفاتورة
-                    settled_invoice_amt = Decimal(str(getattr(payment, 'amount_settled_invoice_currency', Decimal('0.00')) or Decimal('0.00')))
-                    if settled_invoice_amt <= Decimal('0.00'):
-                        settled_invoice_amt = Decimal(str(payment.amount))
-                    
-                    # مدين حساب المورد بالمعادل الوظيفي الدفتري لأصل الفاتورة
-                    supplier_functional_debit = (settled_invoice_amt * inv_rate).quantize(Decimal('0.01'))
-                    
-                    # 2. المبلغ الفعلي المسدد من الخزينة/البنك
                     treasury_currency_code = getattr(account_credit, 'currency_code', 'EGP') or 'EGP'
                     pmt_rate = Decimal(str(getattr(payment, 'payment_exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
-                    
-                    paid_treasury_amt = Decimal(str(getattr(payment, 'amount_paid_currency', Decimal('0.00')) or Decimal('0.00')))
-                    treasury_functional_credit = Decimal(str(getattr(payment, 'amount_functional', Decimal('0.00')) or Decimal('0.00')))
-                    
-                    if treasury_functional_credit <= Decimal('0.00'):
-                        if paid_treasury_amt > Decimal('0.00'):
-                            treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
-                        else:
-                            if treasury_currency_code == inv_currency_code:
-                                paid_treasury_amt = settled_invoice_amt
-                                treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
-                            elif treasury_currency_code == 'EGP':
-                                paid_treasury_amt = (settled_invoice_amt * pmt_rate).quantize(Decimal('0.01'))
-                                treasury_functional_credit = paid_treasury_amt
-                            else:
-                                paid_treasury_amt = settled_invoice_amt
-                                treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                    raw_amount = Decimal(str(payment.amount or 0))
+
+                    # استخدام المحرك المركزي المعياري
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    settlement = ExchangeRateService.calculate_payment_settlement(
+                        invoice_amount=raw_amount,
+                        invoice_currency_code=inv_currency_code,
+                        invoice_rate=inv_rate,
+                        payment_currency_code=treasury_currency_code,
+                        settlement_rate=pmt_rate,
+                    )
+
+                    settled_invoice_amt = settlement["settled_invoice_amt"]
+                    supplier_functional_debit = settlement["invoice_book_functional"]
+                    paid_treasury_amt = settlement["amount_paid_currency"]
+                    treasury_functional_credit = settlement["amount_functional"]
+                    fx_diff = settlement["realized_fx_difference"]
 
                     # سطر 1: مدين حساب المورد (إقفال أصل المديونية)
                     lines.append(
@@ -665,8 +655,7 @@ class AccountingIntegrationService:
                         )
                     )
                     
-                    # سطر 3: أرباح أو خسائر فروق الصرف المحققة (Realized FX Gain/Loss)
-                    fx_diff = (treasury_functional_credit - supplier_functional_debit).quantize(Decimal('0.01'))
+                    # سطر 3: أرباح أو خسائر فروق الصرف المحققة
                     payment.realized_fx_difference = fx_diff
                     payment.amount_paid_currency = paid_treasury_amt
                     payment.amount_functional = treasury_functional_credit
@@ -674,7 +663,6 @@ class AccountingIntegrationService:
                     payment.save(update_fields=['realized_fx_difference', 'amount_paid_currency', 'amount_functional', 'amount_settled_invoice_currency'])
                     
                     if fx_diff > Decimal('0.00'):
-                        # خروج نقدية أكبر من المعادل الدفتري -> خسائر فروق عملة محققة (مدين 54300)
                         fx_loss_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_LOSS)
                         loss_code = fx_loss_account.code if fx_loss_account else '54300'
                         lines.append(
@@ -687,7 +675,6 @@ class AccountingIntegrationService:
                             )
                         )
                     elif fx_diff < Decimal('0.00'):
-                        # خروج نقدية أقل من المعادل الدفتري -> أرباح فروق عملة محققة (دائن 43100)
                         fx_gain_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_GAIN)
                         gain_code = fx_gain_account.code if fx_gain_account else '43100'
                         lines.append(
@@ -704,35 +691,25 @@ class AccountingIntegrationService:
                     invoice = payment.sale
                     inv_currency_code = invoice.currency.code if (invoice.currency and invoice.currency.code) else "EGP"
                     inv_rate = Decimal(str(getattr(invoice, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
-                    
-                    # 1. المبلغ المخصوم من أصل الفاتورة بعملة الفاتورة
-                    settled_invoice_amt = Decimal(str(getattr(payment, 'amount_settled_invoice_currency', Decimal('0.00')) or Decimal('0.00')))
-                    if settled_invoice_amt <= Decimal('0.00'):
-                        settled_invoice_amt = Decimal(str(payment.amount))
-                    
-                    # دائن حساب العميل بالمعادل الوظيفي الدفتري لأصل الفاتورة
-                    customer_functional_credit = (settled_invoice_amt * inv_rate).quantize(Decimal('0.01'))
-                    
-                    # 2. المبلغ الفعلي المحصل في الخزينة/البنك
                     treasury_currency_code = getattr(account_debit, 'currency_code', 'EGP') or 'EGP'
                     pmt_rate = Decimal(str(getattr(payment, 'payment_exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
-                    
-                    paid_treasury_amt = Decimal(str(getattr(payment, 'amount_paid_currency', Decimal('0.00')) or Decimal('0.00')))
-                    treasury_functional_debit = Decimal(str(getattr(payment, 'amount_functional', Decimal('0.00')) or Decimal('0.00')))
-                    
-                    if treasury_functional_debit <= Decimal('0.00'):
-                        if paid_treasury_amt > Decimal('0.00'):
-                            treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
-                        else:
-                            if treasury_currency_code == inv_currency_code:
-                                paid_treasury_amt = settled_invoice_amt
-                                treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
-                            elif treasury_currency_code == 'EGP':
-                                paid_treasury_amt = (settled_invoice_amt * pmt_rate).quantize(Decimal('0.01'))
-                                treasury_functional_debit = paid_treasury_amt
-                            else:
-                                paid_treasury_amt = settled_invoice_amt
-                                treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                    raw_amount = Decimal(str(payment.amount or 0))
+
+                    # استخدام المحرك المركزي المعياري
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    settlement = ExchangeRateService.calculate_payment_settlement(
+                        invoice_amount=raw_amount,
+                        invoice_currency_code=inv_currency_code,
+                        invoice_rate=inv_rate,
+                        payment_currency_code=treasury_currency_code,
+                        settlement_rate=pmt_rate,
+                    )
+
+                    settled_invoice_amt = settlement["settled_invoice_amt"]
+                    customer_functional_credit = settlement["invoice_book_functional"]
+                    paid_treasury_amt = settlement["amount_paid_currency"]
+                    treasury_functional_debit = settlement["amount_functional"]
+                    fx_diff = settlement["realized_fx_difference"]
 
                     # سطر 1: مدين حساب الخزينة / البنك (دخول النقدية الفعلي)
                     lines.append(
@@ -765,7 +742,6 @@ class AccountingIntegrationService:
                     )
                     
                     # سطر 3: أرباح أو خسائر فروق الصرف المحققة
-                    fx_diff = (treasury_functional_debit - customer_functional_credit).quantize(Decimal('0.01'))
                     payment.realized_fx_difference = fx_diff
                     payment.amount_paid_currency = paid_treasury_amt
                     payment.amount_functional = treasury_functional_debit
@@ -773,7 +749,6 @@ class AccountingIntegrationService:
                     payment.save(update_fields=['realized_fx_difference', 'amount_paid_currency', 'amount_functional', 'amount_settled_invoice_currency'])
                     
                     if fx_diff > Decimal('0.00'):
-                        # دخول نقدية أكبر من المعادل الدفتري -> أرباح فروق عملة محققة (دائن 43100)
                         fx_gain_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_GAIN)
                         gain_code = fx_gain_account.code if fx_gain_account else '43100'
                         lines.append(
@@ -786,7 +761,6 @@ class AccountingIntegrationService:
                             )
                         )
                     elif fx_diff < Decimal('0.00'):
-                        # دخول نقدية أقل من المعادل الدفتري -> خسائر فروق عملة محققة (مدين 54300)
                         fx_loss_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_LOSS)
                         loss_code = fx_loss_account.code if fx_loss_account else '54300'
                         lines.append(

@@ -204,6 +204,15 @@ def invoice_product_lookup(request):
         raw_results = []
         is_foreign = (currency_obj and not currency_obj.is_functional)
         curr_code = currency_obj.code if currency_obj else None
+        
+        fx_rate = 1.0
+        if is_foreign and curr_code:
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                fx_rate_dec = ExchangeRateService.get_rate(curr_code, "EGP")
+                fx_rate = float(fx_rate_dec) if fx_rate_dec and fx_rate_dec > 0 else 1.0
+            except Exception:
+                fx_rate = 1.0
 
         for p in qs.order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
@@ -212,7 +221,20 @@ def invoice_product_lookup(request):
 
             curr_prices = p.get_currency_prices_dict()
             selling_p = float(p.selling_price) if p.selling_price else 0.0
-            cost_p = float(p.cost_price) if p.cost_price else 0.0
+            cost_p_base = float(p.cost_price) if p.cost_price else 0.0
+            cost_p = cost_p_base
+            has_custom_fx_cost = False
+
+            if is_foreign and curr_code:
+                cp_data = curr_prices.get(curr_code)
+                explicit_cost = cp_data.get("cost") if cp_data else None
+                if explicit_cost is not None and float(explicit_cost) > 0:
+                    cost_p = float(explicit_cost)
+                    has_custom_fx_cost = True
+                else:
+                    cost_p = round(cost_p_base / fx_rate, 2)
+                    has_custom_fx_cost = False
+
             discount_amount = 0.0
             discount_percentage = 0.0
             rule_name = ""
@@ -231,6 +253,7 @@ def invoice_product_lookup(request):
                         context_cache=pricing_cache
                     )
                     selling_p = float(p_info["base_price"])
+                    cost_p = float(p_info["cost_price"])
                     discount_amount = float(p_info["discount_amount"])
                     discount_percentage = float(p_info["discount_percentage"])
                     rule_name = p_info["rule_name"]
@@ -254,21 +277,31 @@ def invoice_product_lookup(request):
                 if explicit_val is not None and float(explicit_val) > 0:
                     display_price = float(explicit_val)
                     price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
+                elif product_type != "purchase" and not (pricing_cache and pricing_cache.get("price_list_id")):
+                    display_price = round(selling_p / fx_rate, 2) if fx_rate > 0 else selling_p
+                    price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
                 else:
                     display_price = 0.0
                     price_source = ProductPriceSource.NEW_PRICE.value
 
+            if product_type != "purchase":
+                net_p = max(0.0, display_price - discount_amount)
+                is_below_cost = (net_p < cost_p - 0.005) and (cost_p > 0.0) and not p.is_service
+
             # تجهيز قائمة المتغيرات المرتبطة
             variants_data = []
             for v in p.variants.filter(is_active=True):
-                v_cost = float(v.cost_price) if v.cost_price else cost_p
-                v_sell = float(v.selling_price) if v.selling_price else selling_p
+                v_cost_base = float(v.cost_price) if v.cost_price else cost_p_base
+                v_cost = round(v_cost_base / fx_rate, 2) if (is_foreign and fx_rate > 0) else v_cost_base
+                v_sell_base = float(v.selling_price) if v.selling_price else selling_p
+                v_sell = round(v_sell_base / fx_rate, 2) if (is_foreign and fx_rate > 0) else v_sell_base
                 variants_data.append({
                     "id": v.id,
                     "name": v.name,
                     "sku": v.sku,
                     "barcode": v.barcode or "",
                     "cost_price": v_cost,
+                    "cost_price_base": v_cost_base,
                     "selling_price": v_sell,
                     "stock": getattr(v, "stock", 0)
                 })
@@ -285,7 +318,9 @@ def invoice_product_lookup(request):
                 "code": p.sku,
                 "barcode": p.barcode or "",
                 "selling_price": display_price if product_type != "purchase" else selling_p,
-                "cost_price": display_price if product_type == "purchase" else cost_p,
+                "cost_price": cost_p,
+                "cost_price_base": cost_p_base,
+                "has_custom_fx_cost": has_custom_fx_cost,
                 "discount_amount": discount_amount,
                 "discount_percentage": discount_percentage,
                 "rule_name": rule_name,

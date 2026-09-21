@@ -303,6 +303,14 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
+  {% if payroll.is_stale and payroll.status in 'draft,calculated' %}
+  <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+      <i class="fas fa-exclamation-triangle fs-4 me-3 text-warning"></i>
+      <div class="flex-grow-1">
+          <strong>تنبيه بتحديث بيانات الحضور:</strong> تم تسجيل تعديل يدوي أو استيراد لبصمات الحضور لهذا الشهر بعد حساب المسودة. يرجى إعادة حساب الراتب للتأكد من مطابقة الخصومات والإضافي مع أحدث البيانات.
+      </div>
+  </div>
+  {% endif %}
 
   <!-- ملخص قسيمة الراتب -->
   <div class="section-container">

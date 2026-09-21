@@ -91,8 +91,19 @@ urlpatterns = [
     path('attendance/export/', views.attendance_export_excel, name='attendance_export_excel'),
     path('attendance/check-in/', views.attendance_check_in, name='attendance_check_in'),
     path('attendance/check-out/', views.attendance_check_out, name='attendance_check_out'),
+    path('attendance/manual-save/', views.attendance_manual_save, name='attendance_manual_save'),
+    path('attendance/import/template/', views.attendance_import_template, name='attendance_import_template'),
+    path('attendance/import/excel/', views.attendance_import_excel, name='attendance_import_excel'),
+    path('attendance/<int:pk>/audit-history/', views.attendance_audit_history, name='attendance_audit_history'),
     path('attendance/summaries/', views.attendance_summary_list, name='attendance_summary_list'),
     
+    # مقرات العمل الجغرافية (Geofencing Work Locations)
+    path('work-locations/', views.work_location_list, name='work_location_list'),
+    path('work-locations/save/', views.work_location_save, name='work_location_save'),
+    path('work-locations/<int:pk>/delete/', views.work_location_delete, name='work_location_delete'),
+    path('work-locations/<int:pk>/toggle/', views.work_location_toggle, name='work_location_toggle'),
+    path('employees/<int:employee_id>/reset-device-binding/', views.reset_employee_device_binding, name='reset_employee_device_binding'),
+
     # الورديات
     path('shifts/', views.shift_list, name='shift_list'),
     path('shifts/<int:pk>/delete/', views.shift_delete, name='shift_delete'),
@@ -101,8 +112,16 @@ urlpatterns = [
     path('shifts/form/', views.shift_form, name='shift_form'),
     path('shifts/<int:pk>/form/', views.shift_form, name='shift_form_edit'),
     
+    # بصمة الموبايل الذكية وطواقم العمل (PWA Mobile Punch & Supervisor Crew)
+    path('attendance/mobile/', views.self_attendance_view, name='self_attendance'),
+    path('attendance/supervisor/', views.supervisor_attendance_view, name='supervisor_crew_punch'),
+    path('api/attendance/mobile/context/', views.api_get_punch_context, name='api_get_punch_context'),
+    path('api/attendance/mobile/punch/', views.api_submit_mobile_punch, name='api_submit_mobile_punch'),
+    path('api/attendance/mobile/sync/', views.api_sync_offline_punches, name='api_sync_offline_punches'),
+    path('api/attendance/supervisor/punch/', views.api_supervisor_crew_punch, name='api_supervisor_crew_punch'),
+
     # ماكينات البصمة
-    path('biometric/', views.biometric_device_list, name='biometric_dashboard'),
+    path('biometric/', views.biometric_device_list, name='biometric_root'),
     path('biometric-devices/', views.biometric_device_list, name='biometric_device_list'),
     path('biometric-devices/<int:pk>/', views.biometric_device_detail, name='biometric_device_detail'),
     path('biometric-devices/<int:pk>/logs/', views.biometric_device_logs_ajax, name='biometric_device_logs_ajax'),
@@ -227,6 +246,7 @@ urlpatterns = [
     path('attendance/summaries/<int:pk>/', views.attendance_summary_detail, name='attendance_summary_detail'),
     path('attendance/summaries/<int:pk>/approve/', views.approve_attendance_summary, name='approve_attendance_summary'),
     path('attendance/summaries/<int:pk>/recalculate/', views.recalculate_attendance_summary, name='recalculate_attendance_summary'),
+    path('attendance/summaries/<int:pk>/override-overtime/', views.override_attendance_summary_overtime, name='override_attendance_summary_overtime'),
     path('attendance/summaries/calculate-exempt/', views.calculate_exempt_summaries, name='calculate_exempt_summaries'),
     
     # تحديث معامل الغياب

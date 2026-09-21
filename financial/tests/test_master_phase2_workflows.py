@@ -1,6 +1,6 @@
 """
 FIN-CORE-PHASE2: Master Test Suite for Phase 2 Enterprise Multi-Currency Workflows
-مصفوفة الاختبارات التلقائية لـ Phase 2 (FX Revaluation Engine IAS 21 & Landed Cost Allocation Engine IAS 2)
+مصفوفة الاختبارات التلقائية لـ Phase 2 (FX Revaluation Engine & Landed Cost Allocation Engine)
 """
 
 import pytest
@@ -77,7 +77,7 @@ class TestMasterPhase2Workflows:
         )
 
     def test_fx_revaluation_calculation_and_posting(self):
-        """اختبار محرك حساب وإعادة التقييم الدوري لفروق أسعار الصرف غير المحققة (IAS 21)"""
+        """اختبار محرك حساب وإعادة التقييم الدوري لفروق أسعار الصرف غير المحققة"""
         # Set spot rate for USD
         ExchangeRateService.set_rate(from_code="USD", to_code="EGP", rate=Decimal("50.000000"), date=self.today, user=self.user)
 
@@ -87,7 +87,7 @@ class TestMasterPhase2Workflows:
         assert "customer_items" in res
 
     def test_landed_cost_allocation_engine(self):
-        """اختبار محرك توزيع المصاريف المضافة على طبقات المخزون (IAS 2)"""
+        """اختبار محرك توزيع المصاريف المضافة على طبقات المخزون"""
         grn = GoodsReceivedNote.objects.create(
             grn_number="GRN-2026-TEST01",
             supplier=self.supplier,

@@ -13,7 +13,7 @@ class BiometricDeviceForm(forms.ModelForm):
     class Meta:
         model = BiometricDevice
         fields = ['device_name', 'device_code', 'device_type', 'serial_number', 'ip_address', 
-                  'port', 'location', 'department', 'timezone', 'status', 'is_active']
+                  'port', 'location', 'department', 'timezone', 'timezone_offset_hours', 'status', 'is_active']
         widgets = {
             'device_name': forms.TextInput(attrs={'class': 'form-control'}),
             'device_code': forms.TextInput(attrs={'class': 'form-control'}),
@@ -24,6 +24,7 @@ class BiometricDeviceForm(forms.ModelForm):
             'location': forms.TextInput(attrs={'class': 'form-control'}),
             'department': forms.Select(attrs={'class': 'form-select'}),
             'timezone': forms.TextInput(attrs={'class': 'form-control', 'value': 'Africa/Cairo'}),
+            'timezone_offset_hours': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0', 'step': '1'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -37,8 +38,12 @@ class BiometricDeviceForm(forms.ModelForm):
             'location': 'الموقع',
             'department': 'القسم',
             'timezone': 'المنطقة الزمنية',
+            'timezone_offset_hours': 'تعويض فارق التوقيت (ساعات)',
             'status': 'الحالة',
             'is_active': 'نشط',
+        }
+        help_texts = {
+            'timezone_offset_hours': 'إضافة أو خصم ساعات لتعويض فروق التوقيت الصيفي أو خطأ ساعة الماكينة',
         }
 
 

@@ -51,7 +51,7 @@ class SalesOrder(models.Model):
     shipping_method = models.CharField(_("طريقة التوصيل"), max_length=20, choices=SHIPPING_METHOD_CHOICES, default="PICKUP")
     shipping_address = models.TextField(_("عنوان التسليم الفعلي"), blank=True, null=True)
 
-    # Multi-Currency Foundation (IAS 21)
+    # Multi-Currency Foundation
     currency = models.CharField(_("العملة"), max_length=3, default="EGP")
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
 

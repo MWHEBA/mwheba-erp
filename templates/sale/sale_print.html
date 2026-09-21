@@ -135,6 +135,16 @@
     <td>{% if is_english %}Balance Due{% else %}المبلغ المستحق{% endif %}</td>
     <td>{{ sale.amount_due|currency:currency_symbol_active }}</td>
 </tr>
+{% if sale.currency and not sale.currency.is_functional %}
+<tr style="border-top: 1px dashed #cbd5e1; font-size: 0.85em; color: var(--text-muted);">
+    <td>{% if is_english %}Exchange Rate{% else %}سعر الصرف{% endif %}</td>
+    <td>1 {{ sale.currency.code }} = {{ sale.exchange_rate|default:"1.000000" }} {{ functional_currency.code|default:"EGP" }}</td>
+</tr>
+<tr style="font-size: 0.85em; color: var(--text-muted); font-weight: 700;">
+    <td>{% if is_english %}Equivalent in Local Currency{% else %}المعادل بالعملة المحلية (ج.م){% endif %}</td>
+    <td>{{ sale.total_functional|default:sale.total|currency:"ج.م" }}</td>
+</tr>
+{% endif %}
 {% endblock %}
 
 {% block header_custom_fields %}

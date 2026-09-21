@@ -1,0 +1,170 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" id="stocks-table">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center" style="width: 120px;">{% trans "كود الصنف" %}</th>
+                <th class="text-start">{% trans "المنتج والتصنيف" %}</th>
+                <th class="text-center" style="width: 160px;">{% trans "المخزن والموقع" %}</th>
+                <th class="text-center" style="width: 140px;">{% trans "الرصيد المتاح" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "المحجوز" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "حد الطلب" %}</th>
+                <th class="text-center" style="width: 120px;">{% trans "حالة المخزون" %}</th>
+                <th class="text-center" style="width: 140px;">{% trans "آخر تحديث" %}</th>
+                <th class="text-center col-actions" style="width: 110px;">{% trans "إجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for stock in stocks %}
+            <tr class="clickable-row" data-href="{% url 'product:stock_detail' stock.pk %}" style="cursor: pointer;">
+                <!-- 1. كود الصنف -->
+                <td class="text-center">
+                    {% if stock.product.sku %}
+                    <span class="badge bg-light text-dark border px-2 py-1 font-monospace">
+                        <i class="fas fa-barcode text-muted me-1"></i>{{ stock.product.sku }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+
+                <!-- 2. اسم المنتج والتصنيف -->
+                <td class="text-start">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-light text-primary rounded-circle d-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width: 36px; height: 36px;">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div>
+                            <a href="{% url 'product:product_detail' stock.product.pk %}" class="fw-bold text-dark text-decoration-none hover-primary" onclick="event.stopPropagation();">
+                                {{ stock.product.name }}
+                            </a>
+                            <div class="small text-muted d-flex align-items-center gap-2 mt-1">
+                                {% if stock.product.category %}
+                                <span class="badge bg-light text-secondary border">
+                                    <i class="fas fa-tag me-1"></i>{{ stock.product.category.name }}
+                                </span>
+                                {% endif %}
+                                {% if stock.product.unit %}
+                                <span class="badge bg-light text-muted border">
+                                    {{ stock.product.unit.name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+
+                <!-- 3. المخزن وموقع التخزين -->
+                <td class="text-center">
+                    <div class="fw-medium text-dark">
+                        <i class="fas fa-warehouse text-secondary me-1"></i>{{ stock.warehouse.name }}
+                    </div>
+                    {% if stock.location_code %}
+                    <div class="mt-1">
+                        <span class="badge bg-light text-dark border small" title="{% trans 'كود الموقع التخزيني' %}">
+                            <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ stock.location_code }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </td>
+
+                <!-- 4. الرصيد المتاح -->
+                <td class="text-center">
+                    <div class="d-flex flex-column align-items-center">
+                        <span class="fs-6 fw-bold {% if stock.quantity <= 0 %}text-danger{% elif stock.quantity <= stock.product.min_stock %}text-warning{% else %}text-success{% endif %}">
+                            {{ stock.quantity|smart_float }}
+                        </span>
+                        
+                        <!-- شريط تقدم نسبة الرصيد من الحد الأدنى -->
+                        {% if stock.product.min_stock > 0 %}
+                            {% with percentage=stock.quantity|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                            {% with min_stock=stock.product.min_stock|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                            {% with percent=percentage|divide:min_stock|multiply:100|smart_float %}
+                            <div class="progress w-75 mt-1" style="height: 4px;" title="{% trans 'نسبة الرصيد من حد الطلب' %}: {{ percent }}%">
+                                <div class="progress-bar {% if stock.quantity <= 0 %}bg-danger{% elif stock.quantity <= stock.product.min_stock %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ percent|default:'0' }}%; max-width: 100%;">
+                                </div>
+                            </div>
+                            {% endwith %}
+                            {% endwith %}
+                            {% endwith %}
+                        {% endif %}
+                    </div>
+                </td>
+
+                <!-- 5. المحجوز -->
+                <td class="text-center">
+                    {% if stock.reserved_quantity > 0 %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning px-2 py-1">
+                        {{ stock.reserved_quantity|smart_float }}
+                    </span>
+                    {% else %}
+                    <span class="text-muted small">0</span>
+                    {% endif %}
+                </td>
+
+                <!-- 6. حد الطلب -->
+                <td class="text-center">
+                    {% if stock.product.min_stock > 0 %}
+                    <span class="text-muted fw-medium">{{ stock.product.min_stock|smart_float }}</span>
+                    {% else %}
+                    <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+
+                <!-- 7. حالة المخزون -->
+                <td class="text-center">
+                    {% if stock.quantity <= 0 %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">
+                        <i class="fas fa-times-circle me-1"></i>{% trans "نفد من المخزن" %}
+                    </span>
+                    {% elif stock.quantity <= stock.product.min_stock %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning px-2 py-1">
+                        <i class="fas fa-exclamation-triangle me-1"></i>{% trans "منخفض" %}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1">
+                        <i class="fas fa-check-circle me-1"></i>{% trans "متوفر" %}
+                    </span>
+                    {% endif %}
+                </td>
+
+                <!-- 8. آخر تحديث -->
+                <td class="text-center text-muted small">
+                    <div>{{ stock.updated_at|date:"Y-m-d" }}</div>
+                    <div class="text-muted opacity-75">{{ stock.updated_at|date:"H:i" }}</div>
+                </td>
+
+                <!-- 9. إجراءات -->
+                <td class="text-center col-actions" onclick="event.stopPropagation();">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'product:stock_detail' stock.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض كشف حركات المخزون' %}">
+                            <i class="fas fa-eye text-primary"></i>
+                        </a>
+                        {% if perms.product.approve_inventory_adjustment or perms.product.change_stock or user.is_superuser %}
+                        <a href="{% url 'product:stock_adjust' stock.pk %}" class="btn btn-outline-secondary" title="{% trans 'تسوية المخزون' %}">
+                            <i class="fas fa-balance-scale text-warning"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="fas fa-boxes fa-3x text-muted mb-3 opacity-50"></i>
+                        <h6 class="text-dark fw-bold mb-1">{% trans "لا توجد سجلات مخزون مطابقة" %}</h6>
+                        <p class="text-muted small mb-0">{% trans "جرّب تغيير معايير البحث أو اختيار مخزن آخر." %}</p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

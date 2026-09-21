@@ -1,7 +1,7 @@
 # financial/services/balance_sheet_service.py
 """
 خدمة الميزانية العمومية المعيارية - Enterprise Balance Sheet Service (v2.0)
-تطبيق كامل لمعايير المحاسبة الدولية (IAS 1 / IAS 21) مع التصنيف الخماسي المعياري،
+تطبيق كامل للمعايير المحاسبية المعتمدة مع التصنيف الخماسي المعياري،
 عزل السنوات المالية، منع ازدواجية الرصيد الافتتاحي، احتساب النسب المالية المحمية،
 التجميع الشجري O(N)، ودعم المقارنة الزمنية وتصدير Excel الرسمي المعتمد.
 """
@@ -42,7 +42,7 @@ class BalanceSheetService:
         fiscal_year_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
-        إنشاء الميزانية العمومية المعيارية الكاملة طبقاً لمعيار IAS 1
+        إنشاء الميزانية العمومية المعيارية الكاملة
         """
         try:
             # 1. تحويل وضبط التواريخ
@@ -263,7 +263,7 @@ class BalanceSheetService:
                         rolled_balances[acc.parent_id] = rolled_balances.get(acc.parent_id, Decimal('0.00')) + rolled_balances.get(acc.id, Decimal('0.00'))
                         comp_rolled_balances[acc.parent_id] = comp_rolled_balances.get(acc.parent_id, Decimal('0.00')) + comp_rolled_balances.get(acc.id, Decimal('0.00'))
 
-            # 11. تبويب بنود الميزانية وفق معيار IAS 1 الخماسي
+            # 11. تبويب بنود الميزانية وفق التبويب الخماسي
             # أ. الأصول المتداولة (11)
             current_assets_nodes = []
             total_current_assets = Decimal('0.00')
@@ -697,7 +697,7 @@ class BalanceSheetService:
             )
 
             # الترويسة الرئيسية
-            ws['A1'] = "تقرير الميزانية العمومية والمركز المالي (IAS 1 Statement of Financial Position)"
+            ws['A1'] = "تقرير الميزانية العمومية والمركز المالي"
             ws['A1'].font = font_title
             ws.merge_cells('A1:F1')
 

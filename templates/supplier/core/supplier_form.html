@@ -147,7 +147,7 @@
 
                     <!-- تكامل موديول التسعير والخدمات المعتمدة -->
                     {% is_module_enabled 'printing_pricing' as pricing_enabled %}
-                    {% if pricing_enabled %}
+                    {% if pricing_enabled and not form.is_pricing_supplier.is_hidden %}
                     <div class="col-12 mt-3">
                         <div class="card border rounded p-3 bg-light">
                             <div class="d-flex align-items-center justify-content-between mb-2">

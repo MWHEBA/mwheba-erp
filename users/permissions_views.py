@@ -34,10 +34,10 @@ def _get_arabic_permission_name(permission):
     
     # 1. Exact Custom Business Permissions Mapping (First Priority)
     exact_custom_translations = {
-        # Financial & IAS 21
+        # Financial & Multi-Currency
         'close_accounting_period': 'إغلاق الفترة المحاسبية',
         'reopen_accounting_period': 'إعادة فتح فترة محاسبية',
-        'run_fx_revaluation': 'إعادة تقييم فروق العملات IAS 21',
+        'run_fx_revaluation': 'إعادة تقييم فروق العملات',
         'post_journal_entry': 'ترحيل القيود اليومية',
         'reverse_journal_entry': 'عكس قيد محاسبي',
         'view_cost_breakdown': 'الاطلاع على تفاصيل تكلفة الخامات',

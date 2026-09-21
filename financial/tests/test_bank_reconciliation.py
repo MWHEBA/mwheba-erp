@@ -197,7 +197,7 @@ class BankReconciliationPhase1TestCase(TestCase):
         self.assertTrue(stmt_line.is_matched)
 
     def test_reconciliation_summary_ias7_equation(self):
-        """5. اختبار تقرير احتساب معادلة التسوية الرسمية IAS 7 Cash Control Equation"""
+        """5. اختبار تقرير احتساب معادلة التسوية البنكية الرسمية"""
         summary = BankReconciliationService.calculate_reconciliation_summary(self.batch.id)
         self.assertIn("ending_bank_balance", summary)
         self.assertIn("adjusted_bank_balance", summary)

@@ -116,3 +116,98 @@ class TestTreasurySecurityService:
         access.save()
 
         assert cache.get(cache_key) is None
+
+    def test_cash_and_bank_accounts_list_view_assigned_cashier(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        client.force_login(cashier)
+
+        response = client.get(reverse("financial:cash_accounts_list"))
+        assert response.status_code == 200
+        # يجب أن يرى خزنته المسندة إليه فقط (خزينة القاهرة) ولا يرى خزينة الإسكندرية أو البنك
+        accounts = list(response.context["accounts"])
+        assert len(accounts) == 1
+        assert accounts[0].id == setup_environment["cash1"].id
+
+    def test_cash_and_bank_accounts_list_view_unassigned_user_denied(self, client, setup_environment):
+        from django.urls import reverse
+        restricted = setup_environment["restricted"]
+        client.force_login(restricted)
+
+        response = client.get(reverse("financial:cash_accounts_list"))
+        assert response.status_code == 403
+
+    def test_cash_account_movements_stealth_security(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        client.force_login(cashier)
+
+        # 1. الدخول على خزنته المسندة -> 200 OK
+        resp_allowed = client.get(reverse("financial:cash_account_movements", args=[setup_environment["cash1"].id]))
+        assert resp_allowed.status_code == 200
+
+        # 2. محاولة الدخول على خزنة غير مسندة -> 404 Not Found (Stealth)
+        resp_forbidden = client.get(reverse("financial:cash_account_movements", args=[setup_environment["cash2"].id]))
+        assert resp_forbidden.status_code == 404
+
+    def test_assigned_cashier_cannot_perform_treasury_management(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        cash1 = setup_environment["cash1"]
+        client.force_login(cashier)
+
+        # 1. فحص محاولة فتح صفحة التعديل -> 403
+        resp_edit = client.get(reverse("financial:cash_account_edit", args=[cash1.id]))
+        assert resp_edit.status_code == 403
+
+        # 2. فحص محاولة التعطيل -> 403
+        resp_toggle = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
+        assert resp_toggle.status_code == 403
+
+        # 3. فحص محاولة الحذف -> 403
+        resp_delete = client.post(reverse("financial:cash_account_delete", args=[cash1.id]))
+        assert resp_delete.status_code == 403
+
+        # 4. فحص محاولة فتح مصفوفة الإسناد -> 403
+        resp_assignments = client.get(reverse("financial:treasury_assignments_list"))
+        assert resp_assignments.status_code == 403
+
+    def test_cash_account_movements_excel_export(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        cash1 = setup_environment["cash1"]
+        client.force_login(cashier)
+
+        resp = client.get(reverse("financial:cash_account_movements", args=[cash1.id]), {"export": "excel"})
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert "attachment;" in resp["Content-Disposition"]
+        assert len(resp.content) > 0
+
+    def test_cash_accounts_list_excel_export(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        client.force_login(cashier)
+
+        resp = client.get(reverse("financial:cash_accounts_list"), {"export": "excel"})
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        assert "attachment;" in resp["Content-Disposition"]
+        assert len(resp.content) > 0
+
+    def test_assigned_cashier_can_access_exchange_rate_sync_and_lookup(self, client, setup_environment):
+        from django.urls import reverse
+        cashier = setup_environment["cashier"]
+        client.force_login(cashier)
+
+        # 1. فحص endpoint مزامنة أسعار الصرف الرسمية
+        resp_sync = client.post(reverse("financial:api_sync_exchange_rates"))
+        assert resp_sync.status_code == 200
+
+        # 2. فحص endpoint الاستعلام عن سعر الصرف اللحظي
+        resp_lookup = client.get(reverse("financial:api_get_exchange_rate"), {"code": "EGP"})
+        assert resp_lookup.status_code == 200
+
+
+
+

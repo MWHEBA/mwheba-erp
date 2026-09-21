@@ -1,4 +1,4 @@
-﻿"""
+"""
 POC Test Script for HR Governance Integration
 Phase 0 - Day 1-2: Setup & Initial Testing
 
@@ -32,6 +32,7 @@ def test_user(db):
             'first_name': 'POC',
             'last_name': 'Tester',
             'is_staff': True,
+            'is_superuser': True,
             'is_active': True
         }
     )
@@ -41,6 +42,7 @@ def test_user(db):
         user.first_name = 'POC'
         user.last_name = 'Tester'
         user.is_staff = True
+        user.is_superuser = True
         user.is_active = True
         user.save()
     return user

@@ -1,0 +1,89 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+<!-- بطاقات المؤشرات الإحصائية لأرصدة المخزون -->
+<div class="row g-3 mb-4" id="stats-cards-container">
+    <!-- 1. إجمالي الأصناف المخزنة -->
+    <div class="col-12 col-sm-6 {% if can_view_valuation %}col-xl-auto flex-xl-fill{% else %}col-xl-3{% endif %}">
+        <div class="stats-card stats-card-info">
+            <div class="stats-card-body">
+                <div class="stats-card-icon">
+                    <i class="fas fa-boxes"></i>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-title">{% trans "أصناف المخزون" %}</div>
+                    <div class="stats-card-value">{{ stats.total_records|default:"0" }}</div>
+                    <small class="text-muted">{% trans "سجل صنف بمخزن" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. إجمالي الوحدات المتوفرة -->
+    <div class="col-12 col-sm-6 {% if can_view_valuation %}col-xl-auto flex-xl-fill{% else %}col-xl-3{% endif %}">
+        <div class="stats-card stats-card-success">
+            <div class="stats-card-body">
+                <div class="stats-card-icon">
+                    <i class="fas fa-cubes"></i>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-title">{% trans "إجمالي الوحدات المتاحة" %}</div>
+                    <div class="stats-card-value text-success">{{ stats.total_units|smart_float|default:"0" }}</div>
+                    <small class="text-muted">{% trans "قطعة / وحدة متوفرة" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. نواقص تحت حد الطلب -->
+    <div class="col-12 col-sm-6 {% if can_view_valuation %}col-xl-auto flex-xl-fill{% else %}col-xl-3{% endif %}">
+        <div class="stats-card stats-card-warning">
+            <div class="stats-card-body">
+                <div class="stats-card-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-title">{% trans "نواقص (تحت حد الطلب)" %}</div>
+                    <div class="stats-card-value text-warning">{{ stats.low_stock_count|default:"0" }}</div>
+                    <small class="text-muted">{% trans "تحتاج لإعادة توريد" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. أصناف نفدت من المخزن -->
+    <div class="col-12 col-sm-6 {% if can_view_valuation %}col-xl-auto flex-xl-fill{% else %}col-xl-3{% endif %}">
+        <div class="stats-card stats-card-danger">
+            <div class="stats-card-body">
+                <div class="stats-card-icon">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-title">{% trans "نفد من المخزن" %}</div>
+                    <div class="stats-card-value text-danger">{{ stats.out_of_stock_count|default:"0" }}</div>
+                    <small class="text-muted">{% trans "رصيد المخزن 0" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. القيمة التقديرية للمخزون (للمديرين والمالية فقط) -->
+    {% if can_view_valuation %}
+    <div class="col-12 col-sm-6 col-xl-auto flex-xl-fill">
+        <div class="stats-card stats-card-primary">
+            <div class="stats-card-body">
+                <div class="stats-card-icon">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="stats-card-content">
+                    <div class="stats-card-title">{% trans "القيمة التقديرية" %}</div>
+                    <div class="stats-card-value text-primary">{{ stats.total_stock_value|smart_float|default:"0.00" }} <small class="fs-6">{% trans "ج.م" %}</small></div>
+                    <small class="text-muted">{% trans "حسب سعر التكلفة" %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

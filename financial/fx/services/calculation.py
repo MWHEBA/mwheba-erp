@@ -230,7 +230,7 @@ class FXCalculationService:
             acc_type = AccountType.objects.filter(category__in=["revenue", "expense", "other_income"]).first() or AccountType.objects.first()
             acc = ChartOfAccounts.objects.create(
                 code="71020_UNREALIZED_FX_GAIN_LOSS",
-                name="حساب فروق تقييم أسعار الصرف غير المحققة (IAS 21)",
+                name="حساب فروق تقييم أسعار الصرف غير المحققة",
                 account_type=acc_type,
                 is_active=True,
                 is_leaf=True

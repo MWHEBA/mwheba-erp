@@ -1,7 +1,7 @@
 # financial/services/cash_flow_service.py
 """
 خدمة قائمة التدفقات النقدية المعيارية المتقدمة - Enterprise Cash Flow Statement Service (v2.0)
-تطبيق كامل لمعيار المحاسبة الدولي IAS 7 (الطريقة غير المباشرة المتقدمة - Advanced Indirect Method)
+تطبيق كامل لقائمة التدفقات النقدية (الطريقة غير المباشرة المتقدمة - Advanced Indirect Method)
 مع ربط إغلاق رياضي محكم (Mathematical Closed-Loop Identity) مع قائمتي الدخل والمركز المالي،
 عزل أثر فروق العملة غير المحققة، تسوية حركات الأصول الثابتة، فحص المطابقة اللحظي التام،
 ودعم المقارنات الزمنية، مراكز التكلفة، وتصدير Excel الرسمي المعتمد.
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 class CashFlowService:
     """
-    خدمة قائمة التدفقات النقدية المعيارية المؤسسية (IAS 7)
+    خدمة قائمة التدفقات النقدية المعيارية المؤسسية
     """
 
     @classmethod
@@ -146,7 +146,7 @@ class CashFlowService:
         account_level: Optional[Union[int, str]] = None,
     ) -> Dict[str, Any]:
         """
-        حساب التدفقات النقدية لفترة زمنية محددة وفق الطريقة غير المباشرة (IAS 7)
+        حساب التدفقات النقدية لفترة زمنية محددة وفق الطريقة غير المباشرة
         """
         # شرط حالة القيود
         status_list = ["posted", "draft"] if include_unposted else ["posted"]
@@ -284,7 +284,7 @@ class CashFlowService:
         )
         loss_on_disposal = loss_on_disposal_agg["d"] - loss_on_disposal_agg["c"]
 
-        # (د) فروق تقييم العملة غير المحققة الدفترية (IAS 21 FX Revaluation)
+        # (د) فروق تقييم العملة غير المحققة الدفترية (FX Revaluation)
         unrealized_fx_agg = period_lines_base.filter(
             Q(journal_entry__entry_type="fx_revaluation") |
             Q(journal_entry__source_model__in=["FXRevaluation", "FXRevaluationRun"]),
@@ -548,7 +548,7 @@ class CashFlowService:
         }
 
         # -------------------------------------------------------------
-        # 7. تسوية أثر فروق العملة على النقدية (IAS 7.28 FX on Cash) وفحص التوازن
+        # 7. تسوية أثر فروق العملة على النقدية وفحص التوازن
         # -------------------------------------------------------------
         activities_net_change = net_operating_cash_flow + net_investing_cash_flow + net_financing_cash_flow
         actual_total_cash_change = actual_ending_cash - beginning_cash
@@ -564,7 +564,7 @@ class CashFlowService:
         discrepancy = (calculated_ending_cash - actual_ending_cash).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         is_balanced = abs(discrepancy) <= Decimal("0.05")
 
-        # معاملات غير نقدية للإيضاحات (IAS 7.43)
+        # معاملات غير نقدية للإيضاحات
         non_cash_disclosures = []
         if gain_on_disposal != 0 or loss_on_disposal != 0:
             non_cash_disclosures.append({
@@ -708,7 +708,7 @@ class CashFlowService:
 
             ws.merge_cells("A2:D2")
             cell_sub = ws["A2"]
-            cell_sub.value = f"قائمة التدفقات النقدية (IAS 7) للفترة من {cf_data['date_from']} إلى {cf_data['date_to']}"
+            cell_sub.value = f"قائمة التدفقات النقدية للفترة من {cf_data['date_from']} إلى {cf_data['date_to']}"
             cell_sub.font = font_subtitle
             cell_sub.fill = fill_navy
             cell_sub.alignment = Alignment(horizontal="center", vertical="center")
@@ -781,7 +781,7 @@ class CashFlowService:
 
             # 4. الخلاصة والتسوية
             row += 1
-            write_row("FX", "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية (IAS 7.28)", "", float(cf_data["fx_effect_on_cash"]), font_row)
+            write_row("FX", "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية", "", float(cf_data["fx_effect_on_cash"]), font_row)
             write_row("NET", "صافي التغير في النقدية وما في حكمها خلال الفترة", "", float(cf_data["total_net_cash_flow"]), font_subtotal, fill_sub_header)
             write_row("BEG", "رصيد النقدية وما في حكمها أول الفترة", "", float(cf_data["beginning_cash"]), font_subtotal)
             write_row("END", "رصيد النقدية وما في حكمها آخر الفترة المحسوب", "", float(cf_data["calculated_ending_cash"]), font_grand, fill_grand, border_double)

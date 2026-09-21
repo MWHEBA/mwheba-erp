@@ -1,8 +1,14 @@
+"""
+أدوات معالجة وربط سجلات البصمة بالحضور والانصراف
+"""
 import logging
+from datetime import timedelta
+from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import BiometricLog, BiometricUserMapping, Employee
+from ..models import BiometricLog, BiometricUserMapping, Employee, Attendance
+from ..services.attendance_service import AttendanceService
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +35,22 @@ def link_single_log(log, employee_id=None):
         except Employee.DoesNotExist:
             return False, "لا يوجد موظف بهذا المعرف"
     else:
-        mapping = _get_mapping_for_log(log)
-        if mapping is None:
+        # المطابقة الثلاثية الذكية
+        user_id_str = str(log.user_id).strip()
+        emp = Employee.objects.filter(biometric_user_id=user_id_str).first()
+        if emp:
+            employee = emp
+        else:
+            mapping = _get_mapping_for_log(log)
+            if mapping and mapping.employee:
+                employee = mapping.employee
+            else:
+                emp_num = Employee.objects.filter(employee_number=user_id_str).first()
+                if emp_num:
+                    employee = emp_num
+
+        if not employee:
             return False, "لم يتم العثور على ربط مناسب لهذا السجل"
-        employee = mapping.employee
-        if employee is None:
-            return False, "الربط لا يحتوي على موظف فعّال"
 
     if log.employee_id == employee.id:
         return True, "السجل مربوط بالفعل بنفس الموظف"
@@ -98,7 +114,7 @@ def bulk_link_logs(device_id=None, unlinked_only=True, dry_run=False, limit=None
         qs = qs[: int(limit)]
 
     logs = list(qs)
-    mappings = BiometricUserMapping.objects.filter(is_active=True)
+    mappings = BiometricUserMapping.objects.filter(is_active=True).select_related('employee')
 
     device_map = {}
     global_map = {}
@@ -115,18 +131,27 @@ def bulk_link_logs(device_id=None, unlinked_only=True, dry_run=False, limit=None
     }
 
     for log in logs:
-        key = (log.device_id, str(log.user_id))
-        mapping = device_map.get(key)
-        if mapping is None:
-            mapping = global_map.get(str(log.user_id))
-        if mapping is None or mapping.employee is None:
+        user_id_str = str(log.user_id).strip()
+        # 1. Direct match on Employee.biometric_user_id
+        emp = Employee.objects.filter(biometric_user_id=user_id_str).first()
+        if not emp:
+            # 2. BiometricUserMapping
+            key = (log.device_id, user_id_str)
+            mapping = device_map.get(key) or global_map.get(user_id_str)
+            if mapping and mapping.employee:
+                emp = mapping.employee
+            else:
+                # 3. Employee number
+                emp = Employee.objects.filter(employee_number=user_id_str).first()
+
+        if not emp:
             stats["skipped_no_mapping"] += 1
             continue
 
         if not dry_run:
-            if log.employee_id == mapping.employee_id:
+            if log.employee_id == emp.id:
                 continue
-            log.employee = mapping.employee
+            log.employee = emp
             log.save(update_fields=["employee"])
         stats["linked"] += 1
 
@@ -136,35 +161,21 @@ def bulk_link_logs(device_id=None, unlinked_only=True, dry_run=False, limit=None
 def _is_valid_checkout(check_in_ts, candidate_ts, shift, log_date):
     """
     تحديد إذا كانت البصمة الأخيرة تُعتبر check_out حقيقي أم لا.
-
-    المنطق:
-    - لو الفارق بين البصمتين أقل من 30% من مدة الوردية → مش check_out
-    - مثال: وردية 6.5 ساعة (390 د) → threshold = 117 دقيقة
-    - minimum threshold = 60 دقيقة
     """
     shift_hours = shift.calculate_work_hours()
-    # threshold = 30% من مدة الوردية بالدقائق (minimum 60 دقيقة)
-    threshold_minutes = max(60, int(shift_hours * 60 * 0.3))
-
+    threshold_minutes = max(45, int(shift_hours * 60 * 0.25))
     diff_minutes = (candidate_ts - check_in_ts).total_seconds() / 60
     return diff_minutes >= threshold_minutes
 
 
 def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_run=False):
     """
-    معالجة سجلات البصمة وتحويلها لسجلات حضور.
-
-    القواعد:
+    معالجة سجلات البصمة وتحويلها لسجلات حضور مركزية موحدة:
     - أول بصمة في اليوم = check_in
-    - آخر بصمة في اليوم = check_out لو الفارق بينها وبين الدخول >= نص مدة الوردية
-    - لو الفارق صغير جداً → مفيش check_out (الموظف مابصمش خروج)
-    - موظف بلا shift → skipped، is_processed=False للمعالجة لاحقاً
-    - خطأ في معالجة موظف → skipped، is_processed=False للـ retry
-    - كل موظف في transaction منفصلة - خطأ موظف لا يأثر على الباقين
+    - آخر بصمة في اليوم (إذا كانت بعد فترة كافية) = check_out
+    - يفوض جميع الحسابات لمحرك AttendanceService المركزي الموحد
+    - كل موظف يُعالج في Transaction ذرية مستقلة محصنة
     """
-    from ..models import Attendance
-
-    # ربط السجلات غير المربوطة أولاً - في transaction منفصلة مستقلة
     if not dry_run:
         bulk_link_logs(unlinked_only=True, dry_run=False)
 
@@ -190,7 +201,6 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
     if not logs:
         return stats
 
-    # تجميع السجلات حسب الموظف واليوم
     grouped_logs = {}
     for log in logs:
         if not log.employee:
@@ -200,38 +210,16 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
             grouped_logs[key] = []
         grouped_logs[key].append(log)
 
-    from ..services import AttendanceService
-
-    # جلب الإجازات الرسمية مرة واحدة قبل الـ loop
-    if grouped_logs:
-        all_dates = [log_date for (_, log_date) in grouped_logs.keys()]
-        official_holiday_dates = AttendanceService.get_official_holiday_dates(
-            min(all_dates), max(all_dates)
-        )
-    else:
-        official_holiday_dates = set()
-
     for (emp_id, log_date), day_logs in grouped_logs.items():
-        # Skip official holidays — تجاهل البصمة في أيام الإجازات الرسمية
-        if log_date in official_holiday_dates:
-            if not dry_run:
-                for log in day_logs:
-                    log.is_processed = True
-                    log.save(update_fields=['is_processed'])
-            stats["processed"] += len(day_logs)
-            continue
-
         if dry_run:
             stats["processed"] += len(day_logs)
             continue
 
-        # كل موظف في transaction مستقلة - فشل موظف لا يأثر على الباقين
         try:
             with transaction.atomic():
                 employee = day_logs[0].employee
 
-                # جلب كل بصمات الموظف في هذا اليوم (مش بس الغير معالجة)
-                # عشان لو البصمة الأولى اتعالجت قبل كده، نضمها مع الجديدة
+                # جلب جميع بصمات الموظف لهذا اليوم (سواء معالجة أو جديدة) لضمان الدقة
                 all_day_logs = list(
                     BiometricLog.objects.filter(
                         employee=employee,
@@ -241,14 +229,9 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
                 day_logs_sorted = all_day_logs if all_day_logs else sorted(day_logs, key=lambda x: x.timestamp)
                 check_in_log = day_logs_sorted[0]
 
-                # موظف بلا shift → skip بدون تعليم is_processed
-                shift = employee.shift
-                if not shift:
-                    stats["skipped_no_shift"] += len(day_logs)
-                    continue
+                # التعرف الذكي على الوردية الأقرب
+                shift = AttendanceService.resolve_effective_shift(employee, check_in_log.timestamp)
 
-                # تحديد check_out: آخر بصمة بس بشرط إن الفارق بينها وبين الدخول >= نص مدة الوردية
-                # لو الفارق صغير → الموظف مابصمش خروج (بصمة مكررة أو خروج مؤقت)
                 if len(day_logs_sorted) > 1:
                     last_log = day_logs_sorted[-1]
                     check_out_log = last_log if _is_valid_checkout(
@@ -257,82 +240,38 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
                 else:
                     check_out_log = None
 
-                # حساب التأخير والانصراف المبكر
-                late_minutes = AttendanceService._calculate_late_minutes(
-                    check_in_log.timestamp, shift, log_date
-                )
-                early_leave_minutes = 0
-                if check_out_log:
-                    early_leave_minutes = AttendanceService._calculate_early_leave(
-                        check_out_log.timestamp, shift, log_date
-                    )
-
-                # تحديد الحالة - present أو late بناءً على late_minutes
-                status = 'late' if late_minutes > shift.grace_period_in else 'present'
-
-                # حساب work_hours و overtime_hours بدون save داخلي
-                if check_out_log:
-                    delta = check_out_log.timestamp - check_in_log.timestamp
-                    work_hours = round(delta.total_seconds() / 3600, 2)
-                    shift_hours = shift.calculate_work_hours()
-                    overtime_hours = round(max(0.0, work_hours - shift_hours), 2)
-                else:
-                    work_hours = 0
-                    overtime_hours = 0
-
-                attendance = Attendance.objects.filter(
+                # قفل السجل باستخدام select_for_update
+                attendance = Attendance.objects.select_for_update().filter(
                     employee=employee,
                     date=log_date
                 ).first()
 
-                if attendance:
-                    # لو السجل موجود، نستخدم الوردية المحفوظة فيه (مش الوردية الحالية للموظف)
-                    # عشان لو الوردية اتغيرت، الداتا القديمة تفضل محسوبة بالوردية الصح
-                    effective_shift = attendance.shift or shift
-                    if effective_shift != shift:
-                        # إعادة حساب الدقائق بالوردية المحفوظة
-                        late_minutes = AttendanceService._calculate_late_minutes(
-                            check_in_log.timestamp, effective_shift, log_date
-                        )
-                        early_leave_minutes = 0
-                        if check_out_log:
-                            early_leave_minutes = AttendanceService._calculate_early_leave(
-                                check_out_log.timestamp, effective_shift, log_date
-                            )
-                        status = 'late' if late_minutes > effective_shift.grace_period_in else 'present'
-                        if check_out_log:
-                            shift_hours = effective_shift.calculate_work_hours()
-                            overtime_hours = round(max(0.0, work_hours - shift_hours), 2)
-
-                    attendance.check_in = check_in_log.timestamp
-                    attendance.check_out = check_out_log.timestamp if check_out_log else None
-                    attendance.late_minutes = late_minutes
-                    attendance.early_leave_minutes = early_leave_minutes
-                    attendance.work_hours = work_hours
-                    attendance.overtime_hours = overtime_hours
-                    attendance.status = status
-                    attendance.save(update_fields=[
-                        'check_in', 'check_out',
-                        'late_minutes', 'early_leave_minutes',
-                        'work_hours', 'overtime_hours', 'status'
-                    ])
-                    stats["updated"] += 1
-                else:
-                    attendance = Attendance.objects.create(
+                is_new = False
+                if not attendance:
+                    attendance = Attendance(
                         employee=employee,
                         date=log_date,
                         shift=shift,
-                        check_in=check_in_log.timestamp,
-                        check_out=check_out_log.timestamp if check_out_log else None,
-                        late_minutes=late_minutes,
-                        early_leave_minutes=early_leave_minutes,
-                        work_hours=work_hours,
-                        overtime_hours=overtime_hours,
-                        status=status
+                        source=check_in_log.source or 'device'
                     )
-                    stats["created"] += 1
+                    is_new = True
 
-                # ربط السجلات بالحضور وتعليمها كـ "معالجة"
+                attendance.shift = shift
+                attendance.check_in = check_in_log.timestamp
+                attendance.check_out = check_out_log.timestamp if check_out_log else None
+                if check_in_log.location_name:
+                    attendance.location_name = check_in_log.location_name
+
+                # استدعاء المحرك الحسابي الموحد (Single Source of Truth)
+                AttendanceService.calculate_daily_attendance(attendance)
+                attendance.save()
+
+                if is_new:
+                    stats["created"] += 1
+                else:
+                    stats["updated"] += 1
+
+                # ربط السجلات بالحضور
                 for log in day_logs:
                     log.attendance = attendance
                     log.is_processed = True
@@ -342,11 +281,7 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
                 stats["processed"] += len(day_logs)
 
         except Exception as e:
-            # السجلات تفضل is_processed=False للـ retry - الموظفين التانيين مش متأثرين
-            logger.error(
-                f"Error processing employee {emp_id} on {log_date}: {e}",
-                exc_info=True
-            )
+            logger.error(f"Error processing employee {emp_id} on {log_date}: {e}", exc_info=True)
             stats["errors"] += 1
 
     return stats

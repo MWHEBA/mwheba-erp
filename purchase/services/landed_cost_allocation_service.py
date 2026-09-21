@@ -1,5 +1,5 @@
 """
-LandedCostAllocationService - محرك توزيع المصاريف المضافة وفروق أسعار الشراء (IAS 2 & IAS 21)
+LandedCostAllocationService - محرك توزيع المصاريف المضافة وفروق أسعار الشراء
 يقوم بتوزيع مصاريف الشحن، الجمارك، والتفريغ على طبقات المخزون الفعلي (Inventory Layers).
 وفي حالة بيع المخزون جزئياً أو كلياً، يتم ترحيل النصيب المباع مباشرة لحساب فروق تكلفة البضاعة المباعة (COGS Variance Account).
 """
@@ -18,7 +18,7 @@ logger = logging.getLogger("purchase.services.landed_cost_allocation")
 
 class LandedCostAllocationService:
     """
-    خدمة توزيع المصاريف المضافة والتسوية المحاسبية للمخزون وفق IAS 2
+    خدمة توزيع المصاريف المضافة والتسوية المحاسبية للمخزون
     """
 
     @classmethod

@@ -531,7 +531,7 @@ class SystemSettingsForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'النظام في وضع الصيانة المجدولة، يرجى المحاولة لاحقاً...'})
     )
 
-    # 2. المالية والعملة الأساسية (IAS 21)
+    # 2. المالية والعملة الأساسية
     default_currency = forms.ModelChoiceField(
         queryset=None,
         label=_('العملة الوظيفية الأساسية للنظام (Functional Currency)'),

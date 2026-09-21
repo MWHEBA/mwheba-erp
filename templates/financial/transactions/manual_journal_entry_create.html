@@ -71,7 +71,12 @@
               <label for="exchange_rate" class="form-label fw-semibold text-primary">
                 <i class="fas fa-exchange-alt me-1"></i>سعر الصرف مقابل {{ func_code }}
               </label>
-              <input type="number" step="0.000001" min="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+              <div class="input-group">
+                <input type="number" step="0.000001" min="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+                <button type="button" class="btn btn-outline-secondary" id="btn_sync_manual_rate" title="تحديث السعر اللحظي مع البنك المركزي">
+                  <i class="fas fa-sync-alt" id="icon_sync_manual_rate"></i>
+                </button>
+              </div>
             </div>
 
             <!-- البيان العام للقيد -->
@@ -356,13 +361,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const entryCurrencySelect = document.getElementById('entry_currency');
     const exchangeRateInput = document.getElementById('exchange_rate');
     const exchangeRateContainer = document.getElementById('exchange_rate_container');
+    const btnSyncManualRate = document.getElementById('btn_sync_manual_rate');
+    const iconSyncManualRate = document.getElementById('icon_sync_manual_rate');
 
     function updateCurrencyState() {
         if (!entryCurrencySelect || !exchangeRateInput) return;
         const selectedCurr = entryCurrencySelect.value;
-        if (selectedCurr !== funcCode) {
+        if (selectedCurr && selectedCurr !== funcCode) {
             if (exchangeRateContainer) exchangeRateContainer.classList.remove('d-none');
-            const rate = ratesMap[selectedCurr] || "1.000000";
+            const rate = ratesMap[selectedCurr] || exchangeRateInput.value || "1.000000";
             exchangeRateInput.value = rate;
         } else {
             if (exchangeRateContainer) exchangeRateContainer.classList.add('d-none');
@@ -372,10 +379,45 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (entryCurrencySelect) {
-        $(entryCurrencySelect).on('change', updateCurrencyState);
+        $(entryCurrencySelect).on('change select2:select', updateCurrencyState);
+        updateCurrencyState();
     }
     if (exchangeRateInput) {
         exchangeRateInput.addEventListener('input', calculateTotals);
+    }
+
+    if (btnSyncManualRate) {
+        btnSyncManualRate.addEventListener('click', function(e) {
+            e.preventDefault();
+            const currCode = entryCurrencySelect ? entryCurrencySelect.value : '';
+            if (!currCode || currCode === funcCode) return;
+
+            if (iconSyncManualRate) iconSyncManualRate.classList.add('fa-spin');
+            btnSyncManualRate.disabled = true;
+
+            if (typeof window.syncLiveExchangeRate === 'function') {
+                window.syncLiveExchangeRate(currCode, function(data) {
+                    if (iconSyncManualRate) iconSyncManualRate.classList.remove('fa-spin');
+                    btnSyncManualRate.disabled = false;
+
+                    if (Array.isArray(data.synced_rates)) {
+                        const matched = data.synced_rates.find(item => item.code.toUpperCase() === currCode.toUpperCase());
+                        if (matched && matched.rate && exchangeRateInput) {
+                            const newRate = parseFloat(matched.rate).toFixed(6);
+                            exchangeRateInput.value = newRate;
+                            ratesMap[currCode] = newRate;
+                            calculateTotals();
+                            if (typeof window.showNotification === 'function') {
+                                window.showNotification(`تم تحديث سعر صرف (${currCode}) إلى ${newRate} بنجاح`, 'success');
+                            }
+                        }
+                    }
+                }, function(err) {
+                    if (iconSyncManualRate) iconSyncManualRate.classList.remove('fa-spin');
+                    btnSyncManualRate.disabled = false;
+                });
+            }
+        });
     }
 
     function formatSmartFloat(val, symbol = funcCode) {

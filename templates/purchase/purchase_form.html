@@ -197,16 +197,18 @@
                                                 <div class="invalid-feedback d-block">{{ form.financial_category.errors.0 }}</div>
                                             {% endif %}
                                         </div>
+                                    </div>
+
                                     <!-- أمر الشغل المرتبط -->
                                     <div class="col-12 col-md-6">
                                         <label class="form-label" for="id_work_order">
-                                            <i class="fas fa-hammer me-1 text-secondary"></i>أمر الشغل المرتبط
+                                            <i class="fas fa-briefcase me-1 text-primary"></i>أمر الشغل المرتبط
                                         </label>
                                         <select name="work_order" id="id_work_order" class="form-select select2" dir="rtl">
                                             <option value="">-- بدون أمر شغل --</option>
                                             {% for wo in form.fields.work_order.queryset %}
-                                                <option value="{{ wo.id }}" {% if form.work_order.value == wo.id|stringformat:'s' or selected_work_order.id == wo.id or purchase.work_order_id == wo.id %}selected{% endif %}>
-                                                    {{ wo.number }} - {{ wo.customer.name }} ({{ wo.name|default:wo.get_status_display }})
+                                                <option value="{{ wo.id }}" {% if form.work_order.value == wo.id|stringformat:'s' or form.work_order.value == wo.id or selected_work_order.id == wo.id or purchase.work_order_id == wo.id %}selected{% endif %}>
+                                                    {{ wo.number }} - {{ wo.customer.name }} ({{ wo.get_status_display }})
                                                 </option>
                                             {% endfor %}
                                         </select>
@@ -296,7 +298,7 @@
                                 <span class="selected-text">{{ item.product.name }}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
-                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.cost_price }}" data-stock="{{ item.product.stock|default:0 }}" required>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.cost_price }}" data-stock="{{ item.product.stock|default:0 }}" data-cost="{{ item.product.cost_price|default:0 }}" data-cost-base="{{ item.product.cost_price|default:0 }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" required>
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">الكمية</label>
@@ -525,7 +527,11 @@
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="fas fa-save me-1"></i> حفظ الفاتورة
                 </button>
-                {% if selected_supplier %}
+                {% if selected_work_order %}
+                    <a href="{% url 'work_order:work_order_detail' pk=selected_work_order.pk %}?tab=purchases" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> إلغاء
+                    </a>
+                {% elif selected_supplier %}
                     <a href="{% url 'supplier:supplier_detail' pk=selected_supplier.pk %}" class="btn btn-secondary">
                         <i class="fas fa-times me-1"></i> إلغاء
                     </a>

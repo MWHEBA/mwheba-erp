@@ -253,7 +253,7 @@
         <div class="tab-pane fade show active" id="quotations" role="tabpanel" aria-labelledby="quotations-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0">{% trans "عروض الأسعار المرتبطة" %}</h6>
-            {% if enable_quotations and perms.sale.add_quotation %}
+            {% if not is_closed and enable_quotations and perms.sale.add_quotation %}
             <a href="{% url 'sale:quotation_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إنشاء عرض سعر" %}
             </a>
@@ -273,7 +273,7 @@
               </thead>
               <tbody>
                 {% for q in quotations %}
-                <tr>
+                <tr class="clickable-row" data-href="{% url 'sale:quotation_detail' q.id %}" style="cursor: pointer;">
                   <td class="fw-bold">{{ q.number }}</td>
                   <td>{{ q.date|date:"Y-m-d" }}</td>
                   <td>{{ q.valid_until|date:"Y-m-d"|default:"-" }}</td>
@@ -305,7 +305,7 @@
         <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0">{% trans "فواتير المبيعات المرتبطة" %}</h6>
-            {% if perms.sale.add_sale %}
+            {% if not is_closed and perms.sale.add_sale %}
             <a href="{% url 'sale:sale_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إنشاء فاتورة مبيعات" %}
             </a>
@@ -358,7 +358,7 @@
         <div class="tab-pane fade" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0">{% trans "فواتير المشتريات المرتبطة" %}</h6>
-            {% if perms.purchase.add_purchase %}
+            {% if not is_closed and perms.purchase.add_purchase %}
             <a href="{% url 'purchase:purchase_create' %}?work_order={{ work_order.id }}"
               class="btn btn-sm btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إنشاء فاتورة مشتريات" %}
@@ -413,26 +413,35 @@
         <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
           <div class="row g-3 mb-3">
             <div class="col-md-6">
-              <h6 class="fw-bold mb-3">{% trans "المصروفات المباشرة" %}</h6>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-arrow-circle-up text-danger me-2"></i>{% trans "المصروفات المباشرة" %}</h6>
+                {% if not is_closed and perms.financial.add_expensetransaction %}
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="openQuickExpenseModal('{{ work_order.id }}')">
+                  <i class="fas fa-plus me-1"></i>{% trans "إضافة مصروف" %}
+                </button>
+                {% endif %}
+              </div>
               <div class="table-responsive">
                 <table class="table align-middle text-center table-hover table-sm">
                   <thead class="table-light">
                     <tr>
-                      <th>{% trans "العنوان" %}</th>
+                      <th class="text-start">{% trans "العنوان" %}</th>
+                      <th>{% trans "التصنيف" %}</th>
                       <th>{% trans "التاريخ" %}</th>
                       <th>{% trans "المبلغ" %}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for t in expenses_direct %}
-                    <tr>
-                      <td>{{ t.title }}</td>
+                    <tr {% if t.journal_entry %}class="clickable-row" onclick="showJournalEntrySummaryModal('{{ t.journal_entry.id }}')" style="cursor: pointer;" title="{% trans 'عرض تفاصيل القيد المحاسبي' %}"{% endif %}>
+                      <td class="text-start fw-bold text-dark">{{ t.title }}</td>
+                      <td><span class="badge bg-light text-secondary border">{{ t.category.name|default:"-" }}</span></td>
                       <td>{{ t.date|date:"Y-m-d" }}</td>
-                      <td class="text-danger fw-bold">{{ t.net_amount|smart_float:2 }}</td>
+                      <td class="text-danger fw-bold">{{ t.net_amount|smart_float:2 }} {% currency_symbol %}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                      <td colspan="3" class="text-muted py-2">{% trans "لا يوجد مصروفات مباشرة." %}</td>
+                      <td colspan="4" class="text-muted py-3">{% trans "لا يوجد مصروفات مباشرة." %}</td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -440,26 +449,35 @@
               </div>
             </div>
             <div class="col-md-6">
-              <h6 class="fw-bold mb-3">{% trans "الإيرادات المباشرة" %}</h6>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold mb-0"><i class="fas fa-arrow-circle-down text-success me-2"></i>{% trans "الإيرادات المباشرة" %}</h6>
+                {% if not is_closed and perms.financial.add_incometransaction %}
+                <button type="button" class="btn btn-sm btn-outline-success" onclick="openQuickIncomeModal('{{ work_order.id }}')">
+                  <i class="fas fa-plus me-1"></i>{% trans "إضافة إيراد" %}
+                </button>
+                {% endif %}
+              </div>
               <div class="table-responsive">
                 <table class="table align-middle text-center table-hover table-sm">
                   <thead class="table-light">
                     <tr>
-                      <th>{% trans "العنوان" %}</th>
+                      <th class="text-start">{% trans "العنوان" %}</th>
+                      <th>{% trans "التصنيف" %}</th>
                       <th>{% trans "التاريخ" %}</th>
                       <th>{% trans "المبلغ" %}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for t in incomes_direct %}
-                    <tr>
-                      <td>{{ t.title }}</td>
+                    <tr {% if t.journal_entry %}class="clickable-row" onclick="showJournalEntrySummaryModal('{{ t.journal_entry.id }}')" style="cursor: pointer;" title="{% trans 'عرض تفاصيل القيد المحاسبي' %}"{% endif %}>
+                      <td class="text-start fw-bold text-dark">{{ t.title }}</td>
+                      <td><span class="badge bg-light text-secondary border">{{ t.category.name|default:"-" }}</span></td>
                       <td>{{ t.date|date:"Y-m-d" }}</td>
-                      <td class="text-success fw-bold">{{ t.net_amount|smart_float:2 }}</td>
+                      <td class="text-success fw-bold">{{ t.net_amount|smart_float:2 }} {% currency_symbol %}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                      <td colspan="3" class="text-muted py-2">{% trans "لا يوجد إيرادات مباشرة." %}</td>
+                      <td colspan="4" class="text-muted py-3">{% trans "لا يوجد إيرادات مباشرة." %}</td>
                     </tr>
                     {% endfor %}
                   </tbody>
@@ -502,7 +520,7 @@
                   class="text-danger">*</span></label>
               <select class="form-select" id="payment_method" name="payment_method" required>
                 {% for account in cash_accounts %}
-                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{ account.code }})</option>
+                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -545,36 +563,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
       </div>
       <div class="modal-body p-4">
-        <!-- قسم تغيير الحالة -->
-        {% if perms.work_order.change_workorder or user.is_superuser %}
-        <div class="mb-4 pb-3 border-bottom">
-          <label class="form-label fw-bold text-secondary small mb-2"><i class="fas fa-traffic-light me-1"></i>{% trans "تحديث حالة أمر الشغل:" %}</label>
-          <form method="post" action="{% url 'work_order:work_order_change_status' work_order.id %}" class="d-flex gap-2 flex-wrap">
-            {% csrf_token %}
-            {% if work_order.status != 'pending' %}
-            <button type="submit" name="status" value="pending" class="btn btn-outline-warning btn-sm">
-              <i class="fas fa-clock me-1"></i>{% trans "قيد الانتظار" %}
-            </button>
-            {% endif %}
-            {% if work_order.status != 'in_progress' %}
-            <button type="submit" name="status" value="in_progress" class="btn btn-outline-primary btn-sm">
-              <i class="fas fa-play me-1"></i>{% trans "قيد التشغيل" %}
-            </button>
-            {% endif %}
-            {% if work_order.status != 'completed' %}
-            <button type="submit" name="status" value="completed" class="btn btn-outline-success btn-sm">
-              <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}
-            </button>
-            {% endif %}
-            {% if work_order.status != 'cancelled' %}
-            <button type="submit" name="status" value="cancelled" class="btn btn-outline-danger btn-sm" data-confirm="{% trans 'هل أنت متأكد من إلغاء أمر الشغل؟' %}">
-              <i class="fas fa-ban me-1"></i>{% trans "إلغاء أمر الشغل" %}
-            </button>
-            {% endif %}
-          </form>
-        </div>
-        {% endif %}
-
         <div class="list-group">
           <!-- تعديل أمر الشغل -->
           {% if perms.work_order.change_workorder or user.is_superuser %}
@@ -612,20 +600,50 @@
     </div>
   </div>
 </div>
+
+<!-- نموذج تغيير الحالة التلقائي من الهيدر -->
+{% if perms.work_order.change_workorder or user.is_superuser %}
+<form id="changeStatusForm" method="post" action="{% url 'work_order:work_order_change_status' work_order.id %}" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="status" id="workOrderStatusInput" value="">
+</form>
+{% endif %}
+
+{% if can_view_financials %}
+<!-- تضمين مودال المصروف السريع والإيراد السريع وملخص القيد -->
+{% include 'financial/components/quick_expense_modal.html' %}
+{% include 'financial/components/quick_income_modal.html' %}
+{% include 'financial/components/journal_entry_summary_modal.html' %}
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script>
+  function changeWorkOrderStatus(status, isDangerous) {
+    if (isDangerous) {
+      if (!confirm('{% trans "هل أنت متأكد من إلغاء أمر الشغل؟" %}')) {
+        return;
+      }
+    }
+    const form = document.getElementById('changeStatusForm');
+    const input = document.getElementById('workOrderStatusInput');
+    if (form && input) {
+      input.value = status;
+      form.submit();
+    }
+  }
+  window.changeWorkOrderStatus = changeWorkOrderStatus;
+
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.clickable-row').forEach(function (row) {
-      row.addEventListener('click', function (e) {
-        if (e.target.closest('a, button, input, select')) return;
-        const href = this.getAttribute('data-href');
-        if (href) {
-          window.location.href = href;
-        }
-      });
+    document.addEventListener('click', function (e) {
+      const row = e.target.closest('.clickable-row[data-href]');
+      if (!row) return;
+      if (e.target.closest('a, button, input, select, label, .dropdown, [data-bs-toggle]')) return;
+      const href = row.getAttribute('data-href');
+      if (href) {
+        window.location.href = href;
+      }
     });
 
     document.querySelectorAll('[data-confirm]').forEach(function (btn) {
@@ -634,6 +652,28 @@
         if (msg && !confirm(msg)) {
           e.preventDefault();
         }
+      });
+    });
+
+    // تفعيل التاب المناسب تلقائياً من الـ URL (query param or hash)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab') || window.location.hash.replace('#', '');
+    if (tabParam) {
+      const tabTrigger = document.querySelector(`#${tabParam}-tab`) || document.querySelector(`button[data-bs-target="#${tabParam}"]`);
+      if (tabTrigger) {
+        const tab = bootstrap.Tab.getOrCreateInstance(tabTrigger);
+        tab.show();
+      }
+    }
+
+    // مزامنة حالة التاب النشط في الـ URL بدون إعادة تحميل الصفحة
+    const tabButtons = document.querySelectorAll('#workOrderTabs button[data-bs-toggle="tab"]');
+    tabButtons.forEach(function (btn) {
+      btn.addEventListener('shown.bs.tab', function (event) {
+        const targetId = event.target.getAttribute('data-bs-target').replace('#', '');
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('tab', targetId);
+        window.history.replaceState(null, '', newUrl.toString());
       });
     });
   });

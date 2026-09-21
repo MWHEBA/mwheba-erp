@@ -309,7 +309,7 @@ class NotificationServiceTest(TestCase):
         
         # تنظيف المستخدمين المؤقتين
         for user in users:
-            user.delete()
+            user.delete(force=True)
 
     def test_mark_as_read(self):
         """اختبار تعليم الإشعارات كمقروءة"""
@@ -1062,7 +1062,7 @@ class NotificationEdgeCasesTest(TestCase):
         )
         
         user_id = self.user.id
-        self.user.delete()
+        self.user.delete(force=True)
         
         count = Notification.objects.filter(id=notification.id).count()
         self.assertEqual(count, 0)

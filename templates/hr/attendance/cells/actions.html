@@ -21,6 +21,25 @@
         title="تفاصيل الإذن">
     <i class="fas fa-clock"></i>
 </button>
+
+{% if perms.hr.can_manual_attendance or user.is_superuser %}
+<button type="button" class="btn btn-sm btn-outline-secondary edit-attendance-btn"
+        data-employee-id="{{ object.employee.id }}"
+        data-employee-name="{{ object.employee.get_full_name_ar }}"
+        data-date="{{ object.date|date:'Y-m-d' }}"
+        data-status="{{ object.status }}"
+        data-check-in="{{ object.check_in|date:'H:i'|default:'' }}"
+        data-check-out="{{ object.check_out|date:'H:i'|default:'' }}"
+        title="تعديل يدوي">
+    <i class="fas fa-edit"></i>
+</button>
+<button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
+        data-attendance-id="{{ object.id }}"
+        title="سجل التدقيق">
+    <i class="fas fa-history"></i>
+</button>
+{% endif %}
+
 {% else %}
 <a href="{% url 'hr:attendance_summary_detail' object.summary_id %}" class="btn btn-sm btn-outline-primary" title="عرض الملخص الشهري">
     <i class="fas fa-file-alt"></i>
@@ -34,4 +53,23 @@
         title="عرض جميع الحركات">
     <i class="fas fa-list"></i>
 </button>
+
+{% if perms.hr.can_manual_attendance or user.is_superuser %}
+<button type="button" class="btn btn-sm btn-outline-secondary edit-attendance-btn"
+        data-employee-id="{{ object.employee.id }}"
+        data-employee-name="{{ object.employee.get_full_name_ar }}"
+        data-date="{{ object.date|date:'Y-m-d' }}"
+        data-status="{{ object.status }}"
+        data-check-in="{{ object.check_in|date:'H:i'|default:'' }}"
+        data-check-out="{{ object.check_out|date:'H:i'|default:'' }}"
+        title="تعديل يدوي">
+    <i class="fas fa-edit"></i>
+</button>
+<button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
+        data-attendance-id="{{ object.id }}"
+        title="سجل التدقيق">
+    <i class="fas fa-history"></i>
+</button>
+{% endif %}
+
 {% endif %}

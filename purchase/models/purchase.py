@@ -512,7 +512,7 @@ class Purchase(models.Model):
                     is_active=True
                 ).first()
                 if account:
-                    return f"{account.name} ({account.code})"
+                    return account.name
             except Exception:
                 pass
 

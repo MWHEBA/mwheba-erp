@@ -2,6 +2,7 @@
 Views إدارة الحضور
 """
 from .base_imports import *
+from datetime import time, timedelta, datetime, date
 from django.views.decorators.http import require_POST
 from django.db.models import Count
 from decimal import Decimal, ROUND_HALF_UP
@@ -15,10 +16,15 @@ __all__ = [
     'attendance_export_excel',
     'attendance_check_in',
     'attendance_check_out',
+    'attendance_manual_save',
+    'attendance_import_template',
+    'attendance_import_excel',
+    'attendance_audit_history',
     'attendance_summary_list',
     'attendance_summary_detail',  # Re-added with Smart Auto-recalculate
     'approve_attendance_summary',
     'recalculate_attendance_summary',
+    'override_attendance_summary_overtime',
     'calculate_attendance_summaries',  # Moved from integrated_payroll_views
     'calculate_exempt_summaries',      # Calculate summaries for attendance-exempt employees
     'ramadan_settings_list',
@@ -256,6 +262,20 @@ def attendance_list(request):
         'page_subtitle': f'متابعة حضور وانصراف الموظفين من نظام البصمة ({date_from_obj.strftime("%d/%m/%Y")} - {date_to_obj.strftime("%d/%m/%Y")})',
         'page_icon': 'fas fa-clock',
         'header_buttons': [
+            {
+                'onclick': 'openManualAttendanceModal()',
+                'icon': 'fa-plus-circle',
+                'text': 'إضافة حضور يدوي',
+                'class': 'btn-primary',
+                'id': 'btn-manual-attendance',
+            },
+            {
+                'onclick': 'openImportExcelModal()',
+                'icon': 'fa-file-excel',
+                'text': 'استيراد من Excel',
+                'class': 'btn-outline-success',
+                'id': 'btn-import-excel',
+            },
             {
                 'onclick': 'processBiometricLogs()',
                 'icon': 'fa-cogs',
@@ -541,6 +561,11 @@ def attendance_summary_list(request):
         summaries = summaries.filter(is_approved=False)
     
     summaries = summaries.order_by('-is_approved', 'employee__name')
+
+    # تصدير Excel إذا تم طلبه
+    if request.GET.get('export') == 'excel':
+        from hr.reports import export_attendance_summary_excel
+        return export_attendance_summary_excel(summaries, month_date)
     
     # Pagination SSR
     from core.utils import paginate_queryset
@@ -609,6 +634,10 @@ def attendance_summary_list(request):
             'unpaid_leave_days': summary.unpaid_leave_days,
             'total_leave_days': total_leave_days,
             'leave_details': ' | '.join(leave_summary_parts) if leave_summary_parts else '',
+            'total_overtime_hours': float(summary.total_overtime_hours or 0),
+            'approved_overtime_hours': float(summary.approved_overtime_hours) if summary.approved_overtime_hours is not None else None,
+            'overtime_amount': float(summary.overtime_amount or 0),
+            'overtime_override_reason': summary.overtime_override_reason or '',
             'is_approved': summary.is_approved,
             'approved_by': summary.approved_by,
             'approved_at': summary.approved_at,
@@ -655,6 +684,12 @@ def attendance_summary_list(request):
                 'icon': 'fa-clock',
                 'text': 'سجل الحضور اليومي',
                 'class': 'btn-info',
+            },
+            {
+                'url': f"?month={month_date.strftime('%Y-%m')}&exempt_type={exempt_type}&department={department_id or ''}&employee={employee_id or ''}&status={status or ''}&export=excel",
+                'icon': 'fa-file-excel',
+                'text': 'تصدير Excel',
+                'class': 'btn-outline-success',
             },
             {
                 'onclick': f"calcExemptSummaries('{month_date.strftime('%Y-%m')}')",
@@ -1232,6 +1267,86 @@ def recalculate_attendance_summary(request, pk):
 
 @login_required
 @require_POST
+def override_attendance_summary_overtime(request, pk):
+    """تعديل واعتماد ساعات العمل الإضافي يدوياً لملخص الحضور"""
+    import json
+    from decimal import Decimal
+    from django.http import JsonResponse
+    from ..models import AttendanceSummary, Payroll
+    
+    summary = get_object_or_404(AttendanceSummary, pk=pk)
+    
+    # التحقق من أن الراتب غير مدفوع أو معتمد نهائياً
+    has_paid_payroll = Payroll.objects.filter(
+        employee=summary.employee,
+        month=summary.month,
+        status__in=['approved', 'paid']
+    ).exists()
+    
+    if has_paid_payroll:
+        msg = 'لا يمكن تعديل ساعات الإضافي لأن راتب هذا الشهر معتمد أو مدفوع بالفعل'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        messages.error(request, msg)
+        return redirect('hr:attendance_summary_detail', pk=pk)
+    
+    try:
+        if request.content_type == 'application/json' or request.body:
+            try:
+                data = json.loads(request.body)
+            except Exception:
+                data = request.POST
+            hours_val = data.get('approved_overtime_hours')
+            reason = data.get('overtime_override_reason', '')
+        else:
+            hours_val = request.POST.get('approved_overtime_hours')
+            reason = request.POST.get('overtime_override_reason', '')
+            
+        if hours_val is not None and str(hours_val).strip() != '':
+            approved_hours = Decimal(str(hours_val))
+            if approved_hours < Decimal('0'):
+                raise ValueError('ساعات الإضافي لا يمكن أن تكون سالبة')
+            summary.approved_overtime_hours = approved_hours
+        else:
+            # إعادة التعيين للساعات المحسوبة تلقائياً
+            summary.approved_overtime_hours = None
+            
+        summary.overtime_override_reason = str(reason).strip() if reason else ''
+        
+        # إعادة الحساب المالي للملخص
+        summary._calculate_financial_amounts()
+        summary.save()
+        
+        # وسم مسودات الرواتب المفتوحة كـ is_stale
+        Payroll.objects.filter(
+            employee=summary.employee,
+            month=summary.month,
+            status__in=['draft', 'calculated']
+        ).update(is_stale=True)
+        
+        msg = 'تم تحديث واعتماد ساعات العمل الإضافي بنجاح'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+            return JsonResponse({
+                'success': True,
+                'message': msg,
+                'approved_overtime_hours': str(summary.approved_overtime_hours) if summary.approved_overtime_hours is not None else None,
+                'overtime_amount': str(summary.overtime_amount),
+                'overtime_override_reason': summary.overtime_override_reason
+            })
+            
+        messages.success(request, msg)
+        return redirect('hr:attendance_summary_detail', pk=pk)
+        
+    except Exception as e:
+        err_msg = f'حدث خطأ أثناء تعديل ساعات الإضافي: {str(e)}'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or 'application/json' in request.headers.get('Accept', ''):
+            return JsonResponse({'success': False, 'message': err_msg}, status=400)
+        messages.error(request, err_msg)
+        return redirect('hr:attendance_summary_detail', pk=pk)
+
+
+@login_required
+@require_POST
 def update_absence_multiplier(request, pk):
     """تحديث معامل الغياب ليوم معين"""
     import json
@@ -1696,3 +1811,404 @@ def penalty_toggle_active(request, pk):
     status = 'تفعيل' if penalty.is_active else 'تعطيل'
     messages.success(request, f'تم {status} نطاق الجزاء "{penalty.name}" بنجاح')
     return redirect('hr:penalty_list')
+
+
+# ==============================================================================
+# منظومة الإدخال اليدوي وسجل التدقيق واستيراد Excel (المرحلة 2)
+# ==============================================================================
+
+@login_required
+@require_POST
+def attendance_manual_save(request):
+    """حفظ أو تعديل سجل حضور يدوي مع توثيق سجل التدقيق والتحقق من الشهور المغلقة"""
+    if not (request.user.has_perm('hr.can_manual_attendance') or request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+        return JsonResponse({'success': False, 'message': 'ليس لديك الصلاحية المطلوبة لتسجيل الحضور اليدوي.'}, status=403)
+
+    try:
+        import json
+        data = request.POST if request.POST else json.loads(request.body.decode('utf-8'))
+    except Exception:
+        data = request.POST
+
+    employee_id = data.get('employee_id')
+    date_str = data.get('date')
+    status_val = data.get('status', 'present')
+    check_in_str = data.get('check_in')
+    check_out_str = data.get('check_out')
+    reason = data.get('reason', '').strip()
+    supervisor_id = data.get('supervisor_id')
+    notes = data.get('notes', '').strip()
+
+    if not employee_id or not date_str:
+        return JsonResponse({'success': False, 'message': 'يرجى تحديد الموظف والتاريخ.'}, status=400)
+    
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'يرجى كتابة سبب التعديل/الإدخال اليدوي.'}, status=400)
+
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'success': False, 'message': 'صيغة التاريخ غير صحيحة (YYYY-MM-DD).'}, status=400)
+
+    employee = get_object_or_404(Employee, pk=employee_id)
+
+    # فحص الشهر المغلق أو الراتب المعتمد
+    from hr.models.payroll import Payroll
+    from hr.utils.payroll_helpers import get_payroll_month_for_date
+    payroll_month = get_payroll_month_for_date(target_date)
+    closed_payroll = Payroll.objects.filter(
+        employee=employee,
+        month=payroll_month,
+        status__in=['approved', 'paid']
+    ).first()
+
+    if closed_payroll:
+        return JsonResponse({
+            'success': False,
+            'message': 'لا يمكن تعديل الحضور مباشرة لأن راتب هذا الشهر معتمد/مدفوع. سيتم ترحيل الفروق كتسوية تسجل في الشهر المفتوح التالي.'
+        }, status=400)
+
+    supervisor_witness = Employee.objects.filter(pk=supervisor_id).first() if supervisor_id else None
+
+    # تحويل وقت الحضور والانصراف إلى datetime
+    check_in_dt = None
+    check_out_dt = None
+    if check_in_str:
+        try:
+            t = datetime.strptime(check_in_str.strip(), '%H:%M').time()
+            check_in_dt = datetime.combine(target_date, t)
+        except ValueError:
+            pass
+
+    if check_out_str:
+        try:
+            t = datetime.strptime(check_out_str.strip(), '%H:%M').time()
+            check_out_dt = datetime.combine(target_date, t)
+            # معالجة الوردية الليلية إذا كان الخروج قبل الدخول
+            if check_in_dt and check_out_dt < check_in_dt:
+                check_out_dt += timedelta(days=1)
+        except ValueError:
+            pass
+
+    emp_shift = employee.shift or Shift.objects.first()
+    from django.db import transaction
+    with transaction.atomic():
+        attendance, created = Attendance.objects.select_for_update().get_or_create(
+            employee=employee,
+            date=target_date,
+            defaults={
+                'shift': emp_shift,
+                'status': status_val,
+                'check_in': check_in_dt,
+                'check_out': check_out_dt,
+                'is_manual': True,
+                'manual_reason': reason,
+                'manual_created_by': request.user,
+                'source': 'manual',
+                'notes': notes,
+            }
+        )
+
+        old_status = attendance.status
+        old_check_in = attendance.check_in
+        old_check_out = attendance.check_out
+
+        if not created:
+            attendance.status = status_val
+            attendance.check_in = check_in_dt
+            attendance.check_out = check_out_dt
+            attendance.is_manual = True
+            attendance.manual_reason = reason
+            attendance.manual_created_by = request.user
+            attendance.source = 'manual'
+            if notes:
+                attendance.notes = notes
+            attendance.save()
+
+        # حساب الساعات والتأخير عبر المحرك المركزي
+        AttendanceService.calculate_daily_attendance(attendance)
+        attendance.save()
+
+        # تسجيل سجل التدقيق
+        from ..models.attendance_audit import AttendanceAuditLog
+        if created:
+            AttendanceAuditLog.objects.create(
+                attendance=attendance,
+                field_name='إنشاء يدوي',
+                old_value=None,
+                new_value=f"حالة: {attendance.get_status_display()}, حضور: {check_in_str or '-'}, انصراف: {check_out_str or '-'}",
+                changed_by=request.user,
+                reason=reason,
+                supervisor_witness=supervisor_witness,
+            )
+        else:
+            if old_status != attendance.status:
+                AttendanceAuditLog.objects.create(
+                    attendance=attendance,
+                    field_name='الحالة',
+                    old_value=str(old_status),
+                    new_value=str(attendance.status),
+                    changed_by=request.user,
+                    reason=reason,
+                    supervisor_witness=supervisor_witness,
+                )
+            if old_check_in != attendance.check_in:
+                AttendanceAuditLog.objects.create(
+                    attendance=attendance,
+                    field_name='وقت الحضور',
+                    old_value=str(old_check_in) if old_check_in else 'فارغ',
+                    new_value=str(attendance.check_in) if attendance.check_in else 'فارغ',
+                    changed_by=request.user,
+                    reason=reason,
+                    supervisor_witness=supervisor_witness,
+                )
+            if old_check_out != attendance.check_out:
+                AttendanceAuditLog.objects.create(
+                    attendance=attendance,
+                    field_name='وقت الانصراف',
+                    old_value=str(old_check_out) if old_check_out else 'فارغ',
+                    new_value=str(attendance.check_out) if attendance.check_out else 'فارغ',
+                    changed_by=request.user,
+                    reason=reason,
+                    supervisor_witness=supervisor_witness,
+                )
+
+        # وسم مسودات الرواتب الحالية كـ stale
+        Payroll.objects.filter(
+            employee=employee,
+            month=payroll_month,
+            status__in=['draft', 'calculated']
+        ).update(is_stale=True)
+
+    return JsonResponse({
+        'success': True,
+        'message': 'تم حفظ وتوثيق سجل الحضور بنجاح.',
+        'data': {
+            'id': attendance.id,
+            'employee_name': employee.get_full_name_ar(),
+            'date': attendance.date.strftime('%Y-%m-%d'),
+            'status': attendance.status,
+            'status_display': attendance.get_status_display(),
+            'check_in': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else '-',
+            'check_out': attendance.check_out.strftime('%I:%M %p') if attendance.check_out else '-',
+            'work_hours': float(attendance.work_hours or 0),
+            'late_minutes': float(attendance.late_minutes or 0),
+        }
+    })
+
+
+@login_required
+def attendance_import_template(request):
+    """تحميل قالب إكسيل استيراد الحضور"""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from django.http import HttpResponse
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "قالب استيراد الحضور"
+    ws.views.sheetView[0].rightToLeft = True
+
+    # العناوين
+    headers = ["كود الموظف", "اسم الموظف (اختياري)", "التاريخ (YYYY-MM-DD)", "وقت الحضور (HH:MM)", "وقت الانصراف (HH:MM)", "ملاحظات"]
+    ws.append(headers)
+
+    header_font = Font(name="Arial", size=11, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1A365D", end_color="1A365D", fill_type="solid")
+    center_align = Alignment(horizontal="center", vertical="center")
+
+    for col_num, cell in enumerate(ws[1], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = center_align
+
+    # صفوف إرشادية توضيحية
+    sample_rows = [
+        ["EMP001", "أحمد علي", "2026-05-01", "09:00", "17:00", "دوام كامل"],
+        ["EMP002", "محمود حسن", "2026-05-01", "09:15", "17:30", "تأخير 15 دقيقة مع إضافي"],
+    ]
+    for row in sample_rows:
+        ws.append(row)
+
+    ws.column_dimensions['A'].width = 16
+    ws.column_dimensions['B'].width = 22
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 18
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 25
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="attendance_import_template.xlsx"'
+    wb.save(response)
+    return response
+
+
+@login_required
+@require_POST
+def attendance_import_excel(request):
+    """استيراد ملف إكسيل للحضور بنظام التقرير التفصيلي"""
+    if not (request.user.has_perm('hr.can_import_attendance') or request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+        return JsonResponse({'success': False, 'message': 'ليس لديك الصلاحية المطلوبة لاستيراد الحضور.'}, status=403)
+
+    excel_file = request.FILES.get('excel_file')
+    if not excel_file:
+        return JsonResponse({'success': False, 'message': 'يرجى اختيار ملف Excel.'}, status=400)
+
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(excel_file, data_only=True)
+        ws = wb.active
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'فشل قراءة الملف: {str(e)}'}, status=400)
+
+    rows = list(ws.iter_rows(values_only=True))
+    if len(rows) <= 1:
+        return JsonResponse({'success': False, 'message': 'الملف فارغ أو لا يحتوي على بيانات.'}, status=400)
+
+    success_count = 0
+    errors_list = []
+
+    # تجهيز خريطة الموظفين بالكود ورقم الموظف
+    employees_by_code = {}
+    for emp in Employee.objects.filter(status='active'):
+        if emp.employee_number:
+            employees_by_code[str(emp.employee_number).strip().lower()] = emp
+        if getattr(emp, 'biometric_user_id', None):
+            employees_by_code[str(emp.biometric_user_id).strip().lower()] = emp
+
+    from django.db import transaction
+
+    for row_idx, row in enumerate(rows[1:], start=2):
+        if not row or not any(row):
+            continue
+
+        emp_code = str(row[0]).strip() if row[0] is not None else ''
+        emp_name = str(row[1]).strip() if len(row) > 1 and row[1] is not None else ''
+        date_raw = row[2] if len(row) > 2 else None
+        check_in_raw = row[3] if len(row) > 3 else None
+        check_out_raw = row[4] if len(row) > 4 else None
+        notes = str(row[5]).strip() if len(row) > 5 and row[5] is not None else 'استيراد إكسيل'
+
+        if not emp_code:
+            errors_list.append({'row': row_idx, 'code': emp_code, 'reason': 'كود الموظف مفقود'})
+            continue
+
+        employee = employees_by_code.get(emp_code.lower())
+        if not employee:
+            errors_list.append({'row': row_idx, 'code': emp_code, 'reason': f'لم يتم العثور على موظف نشط بالكود "{emp_code}"'})
+            continue
+
+        # فحص التاريخ
+        target_date = None
+        if isinstance(date_raw, (datetime, date)):
+            target_date = date_raw.date() if isinstance(date_raw, datetime) else date_raw
+        elif isinstance(date_raw, str):
+            try:
+                target_date = datetime.strptime(date_raw.strip(), '%Y-%m-%d').date()
+            except ValueError:
+                errors_list.append({'row': row_idx, 'code': emp_code, 'reason': f'صيغة التاريخ غير صحيحة ({date_raw}) يجب أن تكون YYYY-MM-DD'})
+                continue
+        else:
+            errors_list.append({'row': row_idx, 'code': emp_code, 'reason': 'التاريخ مفقود'})
+            continue
+
+        # فحص أوقات الدخول والخروج
+        check_in_dt = None
+        check_out_dt = None
+
+        if isinstance(check_in_raw, (datetime, time)):
+            t = check_in_raw.time() if isinstance(check_in_raw, datetime) else check_in_raw
+            check_in_dt = datetime.combine(target_date, t)
+        elif isinstance(check_in_raw, str) and check_in_raw.strip():
+            try:
+                t = datetime.strptime(check_in_raw.strip(), '%H:%M').time()
+                check_in_dt = datetime.combine(target_date, t)
+            except ValueError:
+                pass
+
+        if isinstance(check_out_raw, (datetime, time)):
+            t = check_out_raw.time() if isinstance(check_out_raw, datetime) else check_out_raw
+            check_out_dt = datetime.combine(target_date, t)
+            if check_in_dt and check_out_dt < check_in_dt:
+                check_out_dt += timedelta(days=1)
+        elif isinstance(check_out_raw, str) and check_out_raw.strip():
+            try:
+                t = datetime.strptime(check_out_raw.strip(), '%H:%M').time()
+                check_out_dt = datetime.combine(target_date, t)
+                if check_in_dt and check_out_dt < check_in_dt:
+                    check_out_dt += timedelta(days=1)
+            except ValueError:
+                pass
+
+        status_val = 'present' if check_in_dt else 'absent'
+
+        try:
+            emp_shift = employee.shift or Shift.objects.first()
+            with transaction.atomic():
+                att, created = Attendance.objects.select_for_update().get_or_create(
+                    employee=employee,
+                    date=target_date,
+                    defaults={
+                        'shift': emp_shift,
+                        'status': status_val,
+                        'check_in': check_in_dt,
+                        'check_out': check_out_dt,
+                        'is_manual': True,
+                        'source': 'excel',
+                        'manual_reason': 'استيراد من ملف Excel مجمع',
+                        'manual_created_by': request.user,
+                        'notes': notes,
+                    }
+                )
+                if not created:
+                    att.status = status_val
+                    att.check_in = check_in_dt
+                    att.check_out = check_out_dt
+                    att.is_manual = True
+                    att.source = 'excel'
+                    att.manual_reason = 'استيراد من ملف Excel مجمع'
+                    att.manual_created_by = request.user
+                    att.notes = notes
+                    att.save()
+
+                AttendanceService.calculate_daily_attendance(att)
+                att.save()
+                success_count += 1
+        except Exception as err:
+            errors_list.append({'row': row_idx, 'code': emp_code, 'reason': f'خطأ أثناء الحفظ: {str(err)}'})
+
+    return JsonResponse({
+        'success': True,
+        'total_rows': len(rows) - 1,
+        'success_count': success_count,
+        'error_count': len(errors_list),
+        'errors': errors_list,
+        'message': f'تم استيراد {success_count} سجل بنجاح من إجمالي {len(rows)-1}.'
+    })
+
+
+@login_required
+def attendance_audit_history(request, pk):
+    """عرض سجل تدقيق التعديلات لسجل حضور محدد"""
+    attendance = get_object_or_404(Attendance, pk=pk)
+    logs = attendance.audit_logs.select_related('changed_by', 'supervisor_witness').order_by('-created_at')
+
+    logs_data = []
+    for log in logs:
+        logs_data.append({
+            'field_name': log.field_name,
+            'old_value': log.old_value or '-',
+            'new_value': log.new_value or '-',
+            'changed_by': log.changed_by.get_full_name() or log.changed_by.username,
+            'reason': log.reason,
+            'supervisor_witness': log.supervisor_witness.get_full_name_ar() if log.supervisor_witness else '-',
+            'created_at': log.created_at.strftime('%Y-%m-%d %I:%M %p'),
+        })
+
+    return JsonResponse({
+        'success': True,
+        'employee_name': attendance.employee.get_full_name_ar(),
+        'date': attendance.date.strftime('%Y-%m-%d'),
+        'logs': logs_data,
+    })
+

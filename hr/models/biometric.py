@@ -1,5 +1,5 @@
 """
-نماذج ماكينة البصمة
+نماذج ماكينة البصمة وسجلات الحركات الخام
 """
 from django.db import models
 from django.contrib.auth import get_user_model
@@ -53,11 +53,16 @@ class BiometricDevice(models.Model):
         verbose_name='القسم'
     )
     
-    # الإعدادات
+    # الإعدادات وفارق التوقيت (DST / Timezone Offset)
     timezone = models.CharField(
         max_length=50,
         default='Africa/Cairo',
         verbose_name='المنطقة الزمنية'
+    )
+    timezone_offset_hours = models.IntegerField(
+        default=0,
+        verbose_name='تعويض فارق التوقيت (ساعات)',
+        help_text='إضافة أو خصم ساعات لتعويض فروق التوقيت الصيفي أو خطأ ساعة الماكينة الداخلية'
     )
     auto_sync = models.BooleanField(
         default=True,
@@ -139,17 +144,14 @@ class BiometricDevice(models.Model):
         if self.last_connection:
             now = timezone.now()
             last_conn = self.last_connection
-            
-            # التأكد من أن التاريخ timezone-aware
             if timezone.is_naive(last_conn):
                 last_conn = timezone.make_aware(last_conn)
-            
             return now - last_conn < timedelta(minutes=5)
         return False
 
 
 class BiometricLog(models.Model):
-    """سجل البصمات الخام من الماكينة"""
+    """سجل البصمات والحركات الخام من الماكينات والموبايل والزيارات الميدانية"""
     
     LOG_TYPE_CHOICES = [
         ('check_in', 'حضور'),
@@ -157,10 +159,21 @@ class BiometricLog(models.Model):
         ('break_start', 'بداية استراحة'),
         ('break_end', 'نهاية استراحة'),
     ]
+
+    SOURCE_CHOICES = [
+        ('device', 'ماكينة'),
+        ('mobile', 'موبايل'),
+        ('field_visit', 'زيارة ميدانية'),
+        ('supervisor', 'مشرف'),
+        ('manual', 'يدوي'),
+        ('excel', 'استيراد إكسيل'),
+    ]
     
     device = models.ForeignKey(
         BiometricDevice,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='logs',
         verbose_name='الجهاز'
     )
@@ -173,6 +186,12 @@ class BiometricLog(models.Model):
         choices=LOG_TYPE_CHOICES,
         default='check_in',
         verbose_name='نوع السجل'
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='device',
+        verbose_name='المصدر'
     )
     
     # ربط بالموظف
@@ -193,6 +212,48 @@ class BiometricLog(models.Model):
         blank=True,
         related_name='biometric_logs',
         verbose_name='سجل الحضور'
+    )
+
+    # بيانات الجيوفينسنج والموبايل ومكافحة التحايل
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, verbose_name='خط العرض')
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True, verbose_name='خط الطول')
+    location_accuracy = models.FloatField(null=True, blank=True, verbose_name='دقة الموقع (متر)')
+    matched_location = models.ForeignKey(
+        'hr.WorkLocation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='biometric_logs',
+        verbose_name='المقر المطابق'
+    )
+    selfie_image = models.ImageField(
+        upload_to='attendance_selfies/%Y/%m/',
+        null=True,
+        blank=True,
+        verbose_name='صورة السيلفي'
+    )
+    device_uuid = models.CharField(max_length=255, blank=True, null=True, verbose_name='معرف عتاد الجهاز')
+    is_device_unverified = models.BooleanField(default=False, verbose_name='جهاز غير موثق (طوارئ)')
+    device_info = models.JSONField(null=True, blank=True, verbose_name='معلومات المتصفح/الجهاز')
+    is_offline_synced = models.BooleanField(default=False, verbose_name='تمت المزامنة أوفلاين')
+    sync_received_at = models.DateTimeField(null=True, blank=True, verbose_name='توقيت وصول المزامنة')
+
+    # الربط الاختياري بالعملاء وأوامر الشغل للزيارات الميدانية
+    customer = models.ForeignKey(
+        'customer.Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='biometric_logs',
+        verbose_name='العميل المرتبط'
+    )
+    work_order = models.ForeignKey(
+        'work_order.WorkOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='biometric_logs',
+        verbose_name='أمر الشغل المرتبط'
     )
     
     # حالة المعالجة
@@ -219,11 +280,13 @@ class BiometricLog(models.Model):
         indexes = [
             models.Index(fields=['device', 'timestamp']),
             models.Index(fields=['employee', 'timestamp']),
+            models.Index(fields=['device', 'is_processed']),
             models.Index(fields=['is_processed']),
+            models.Index(fields=['source']),
         ]
     
     def __str__(self):
-        return f"{self.user_id} - {self.timestamp}"
+        return f"{self.user_id} - {self.timestamp} ({self.source})"
 
 
 class BiometricSyncLog(models.Model):
@@ -275,34 +338,24 @@ class BiometricSyncLog(models.Model):
     
     @classmethod
     def cleanup_old_logs(cls, days=30):
-        """
-        حذف سجلات المزامنة القديمة
-        الافتراضي: يحذف السجلات الأقدم من 30 يوم
-        """
+        """حذف سجلات المزامنة القديمة"""
         from django.utils import timezone
         from datetime import timedelta
-        
         cutoff_date = timezone.now() - timedelta(days=days)
         deleted_count = cls.objects.filter(started_at__lt=cutoff_date).delete()[0]
         return deleted_count
     
     @property
     def duration(self):
-        """مدة المزامنة (بحد أقصى منزلتين عشريتين)"""
+        """مدة المزامنة"""
         if self.completed_at and self.started_at:
             from django.utils import timezone
-            # التأكد من أن كلا التاريخين timezone-aware
             started = self.started_at
             completed = self.completed_at
-            
-            # تحويل التواريخ naive إلى aware إذا لزم الأمر
             if timezone.is_naive(started):
                 started = timezone.make_aware(started)
             if timezone.is_naive(completed):
                 completed = timezone.make_aware(completed)
-            
             delta = completed - started
-            seconds = delta.total_seconds()
-            # تقريب لمنزلتين عشريتين
-            return round(seconds, 2)
+            return round(delta.total_seconds(), 2)
         return None

@@ -376,7 +376,7 @@
               </thead>
               <tbody>
                 {% for movement in movements %}
-                <tr class="movement-row clickable-row" data-journal-entry-id="{{ movement.journal_entry.id }}">
+                <tr class="movement-row {% if can_view_journal_entry %}clickable-row{% endif %}" {% if can_view_journal_entry %}data-journal-entry-id="{{ movement.journal_entry.id }}" style="cursor: pointer;" title="{% trans 'اضغط لعرض تفاصيل القيد المحاسبي' %}"{% else %}style="cursor: default;"{% endif %}>
                   <td class="text-center">{{ movement.journal_entry.date|date:"Y-m-d" }}</td>
                   <td class="text-center">
                     <span class="badge" style="background-color: var(--gray-600); color: var(--white);">{{ movement.journal_entry.reference|default:movement.journal_entry.number }}</span>
@@ -484,6 +484,7 @@
   </div>
 </div>
 
+{% if can_income or can_deposit %}
 <!-- مودال إضافة إيراد -->
 <div class="modal fade" id="incomeModal" tabindex="-1" aria-labelledby="incomeModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -554,7 +555,9 @@
     </div>
   </div>
 </div>
+{% endif %}
 
+{% if can_expense or can_disburse %}
 <!-- مودال إضافة مصروف -->
 <div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -625,7 +628,9 @@
     </div>
   </div>
 </div>
+{% endif %}
 
+{% if can_transfer %}
 <!-- مودال تحويل المبالغ -->
 <div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -688,7 +693,9 @@
     </div>
   </div>
 </div>
+{% endif %}
 
+{% if can_view_journal_entry %}
 <!-- مودال ملخص القيد -->
 <div class="modal fade journal-entry-modal" id="journalEntryModal" tabindex="-1" aria-labelledby="journalEntryModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -732,6 +739,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {% endblock %}
 
@@ -856,7 +864,7 @@
               var type = account.is_cash ? 'نقدي' : 'بنكي';
               toAccountSelect.append(
                 `<option value="${account.id}">
-                  ${account.code} - ${account.name} (${type})
+                  ${account.name} (${type})
                 </option>`
               );
             }
@@ -1102,18 +1110,23 @@
       
       const journalEntryId = $(this).data('journal-entry-id');
       if (journalEntryId) {
-        showJournalEntryModal(journalEntryId);
+        showJournalEntryModal(journalEntryId, e);
       }
     });
   });
 
   // دالة عرض مودال القيد المحاسبي
-  function showJournalEntryModal(journalEntryId) {
+  function showJournalEntryModal(journalEntryId, e) {
     // منع انتشار الحدث للروابط الأخرى
-    event.stopPropagation();
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    
+    const modalEl = document.getElementById('journalEntryModal');
+    if (!modalEl) return;
     
     // إظهار المودال
-    const modal = new bootstrap.Modal(document.getElementById('journalEntryModal'));
+    const modal = new bootstrap.Modal(modalEl);
     modal.show();
     
     // تحديث رابط العرض الكامل

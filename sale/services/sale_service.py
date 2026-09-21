@@ -909,20 +909,29 @@ class SaleService:
             
             raw_rate = payment_data.get('payment_exchange_rate')
             if raw_rate:
-                pmt_rate = Decimal(str(raw_rate))
+                try:
+                    pmt_rate = Decimal(str(raw_rate))
+                except Exception:
+                    pmt_rate = Decimal('1.000000')
             elif pmt_curr and not getattr(pmt_curr, 'is_functional', True):
                 pmt_rate = Decimal(str(ExchangeRateService.get_rate(pmt_curr) or 1.0))
             else:
                 pmt_rate = Decimal('1.000000')
 
-            raw_paid_amt = payment_data.get('amount_paid_currency')
-            paid_curr_amt = Decimal(str(raw_paid_amt)) if raw_paid_amt else amount
-            
             treasury_code = fin_acc.currency_code if fin_acc else 'EGP'
-            if treasury_code == 'EGP':
-                func_amt = paid_curr_amt
-            else:
-                func_amt = (paid_curr_amt * pmt_rate).quantize(Decimal('0.01'))
+            inv_code = sale.currency.code if (sale.currency and sale.currency.code) else 'EGP'
+            inv_rate = getattr(sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+
+            settlement = ExchangeRateService.calculate_payment_settlement(
+                invoice_amount=amount,
+                invoice_currency_code=inv_code,
+                invoice_rate=inv_rate,
+                payment_currency_code=treasury_code,
+                settlement_rate=pmt_rate,
+            )
+
+            paid_curr_amt = settlement['amount_paid_currency']
+            func_amt = settlement['amount_functional']
 
             idem_key = payment_data.get('idempotency_key')
             if idem_key:
@@ -941,7 +950,8 @@ class SaleService:
                 payment_exchange_rate=pmt_rate,
                 amount_paid_currency=paid_curr_amt,
                 amount_functional=func_amt,
-                amount_settled_invoice_currency=amount,
+                amount_settled_invoice_currency=settlement['settled_invoice_amt'],
+                realized_fx_difference=settlement['realized_fx_difference'],
                 idempotency_key=idem_key,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
@@ -951,15 +961,25 @@ class SaleService:
             
             logger.info(f"✅ تم إنشاء دفعة: {payment.id} للفاتورة: {sale.number}")
             
+            # فحص حوكمة الإيداع في الخزينة (Zero-Trust Treasury RBAC)
+            can_post_deposit = True
+            if fin_acc and (getattr(fin_acc, 'is_cash_account', False) or getattr(fin_acc, 'is_bank_account', False)):
+                from financial.services.treasury_security_service import TreasurySecurityService
+                if not TreasurySecurityService.can_user_deposit(user, fin_acc.id):
+                    can_post_deposit = False
+                    logger.warning(f"⚠️ تعذر الترحيل التلقائي لدفعة المبيعات {sale.number} لعدم توفر صلاحية الإيداع في الحساب {fin_acc.code}")
+
             # 2. إنشاء القيد المحاسبي للدفعة عبر AccountingIntegrationService
-            journal_entry = SaleService._create_payment_journal_entry(payment, user)
-            if journal_entry:
-                payment.financial_transaction = journal_entry
-                payment.status = 'posted'
-                payment.posted_at = timezone.now()
-                payment.posted_by = user
-                payment.save(update_fields=['financial_transaction', 'status', 'posted_at', 'posted_by'])
-                logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
+            if can_post_deposit:
+                journal_entry = SaleService._create_payment_journal_entry(payment, user)
+                if journal_entry:
+                    payment.financial_transaction = journal_entry
+                    payment.financial_status = "synced"
+                    payment.status = 'posted'
+                    payment.posted_at = timezone.now()
+                    payment.posted_by = user
+                    payment.save(update_fields=['financial_transaction', 'financial_status', 'status', 'posted_at', 'posted_by'])
+                    logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
 
                 # 3. تسجيل في الأستاذ المساعد
                 from financial.services.partner_subledger_service import PartnerSubledgerService

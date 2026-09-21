@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentAccountId = parseInt(financialAccountSelect.dataset.currentId || '0');
                 data.accounts.forEach(account => {
                     const selected = account.id == currentAccountId ? 'selected' : '';
-                    options += `<option value="${account.id}" ${selected}>${account.code} - ${account.name}</option>`;
+                    options += `<option value="${account.id}" ${selected}>${account.name}</option>`;
                 });
                 financialAccountSelect.innerHTML = options;
             })

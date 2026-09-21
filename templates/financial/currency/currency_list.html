@@ -342,15 +342,8 @@
   }
 
   function executeExchangeRateSync() {
-    fetch("{% url 'financial:api_sync_exchange_rates' %}", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": "{{ csrf_token }}",
-        "Content-Type": "application/json"
-      }
-    })
-      .then(res => res.json())
-      .then(data => {
+    if (typeof window.syncLiveExchangeRate === 'function') {
+      window.syncLiveExchangeRate('ALL', function(data) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'success',
@@ -362,8 +355,7 @@
           alert(data.message || "{% trans 'تم تحديث الأسعار بنجاح' %}");
           location.reload();
         }
-      })
-      .catch(err => {
+      }, function(err) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'error',
@@ -375,6 +367,7 @@
           alert("{% trans 'تعذر جلب أسعار الصرف التلقائية. يرجى التأكد من الاتصال بالشبكة.' %}");
         }
       });
+    }
   }
 
   function openEditCurrencyModal(btn) {

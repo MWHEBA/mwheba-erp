@@ -7,6 +7,9 @@ from django.utils import timezone
 
 from customer.models import Customer, CustomerTransaction, CustomerAllocationAudit
 from customer.services.allocation_result import AllocationResult
+from governance.services import AccountingGateway, JournalEntryLineData
+from financial.services.fx_settlement_strategy import CustomerFXStrategy
+from financial.services.partner_currency_snapshot_updater import PartnerCurrencySnapshotUpdater
 
 logger = logging.getLogger("customer.services.customer_allocation_audit_service")
 
@@ -238,7 +241,7 @@ class CustomerAllocationAuditService:
     ) -> CustomerAllocationAudit:
         """
         خصم وتخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للعميل على فاتورة مبيعات
-        مع محرك الحوكمة والـ IAS 21 والـ CQRS Read Model Event Trigger
+        مع محرك الحوكمة وإعادة التقييم والـ CQRS Read Model Event Trigger
         """
         from customer.models import CustomerPayment
         from sale.models import SalePayment
@@ -576,7 +579,7 @@ class CustomerAllocationAuditService:
                         )
                     ]
 
-                    # عكس فروق العملة المحققة IAS 21 بالكامل بنفس القيمة التاريخية
+                    # عكس فروق العملة المحققة بالكامل بنفس القيمة التاريخية
                     if audit.realized_fx_difference and audit.realized_fx_difference != Decimal("0.00"):
                         fx_strategy = CustomerFXStrategy()
                         fx_rev_lines = fx_strategy.generate_entries(

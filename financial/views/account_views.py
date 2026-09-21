@@ -506,21 +506,34 @@ def quick_add_cash_bank_account(request):
 # ============== قائمة الخزن والحسابات النقدية ==============
 
 @login_required
-@require_permission('financial.view_chartofaccounts')
 def cash_and_bank_accounts_list(request):
-    """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن) متوافقة 100% مع العملات المتعددة"""
+    """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن) متوافقة 100% مع العملات المتعددة والحوكمة"""
     from decimal import Decimal
+    from django.core.exceptions import PermissionDenied
     from django.db.models import Sum, Max, Q
     from financial.models.currency import Currency
     from financial.models.cost_center import CostCenter
     from financial.services.exchange_rate_service import ExchangeRateService
     from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+    from financial.services.treasury_security_service import TreasurySecurityService
+
+    # فحص الصلاحية: سوبر أدمن أو يملك صلاحية عرض الحسابات أو مسند إليه خزينة نشطة
+    has_perm_access = (
+        request.user.is_superuser
+        or getattr(request.user, "is_admin", False)
+        or request.user.has_perm("financial.view_chartofaccounts")
+        or request.user.has_perm("financial.view_cashaccount")
+        or request.user.has_perm("financial.view_journalentry")
+    )
+    if not has_perm_access:
+        has_treasury = TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").exists()
+        if not has_treasury:
+            raise PermissionDenied("غير مصرح لك بالوصول إلى الخزن والحسابات النقدية.")
 
     func_currency = ExchangeRateService.get_functional_currency()
     base_currency_code = func_currency.code if func_currency else "EGP"
     base_currency_symbol = (func_currency.symbol or func_currency.code) if func_currency else "ج.م"
 
-    from financial.services.treasury_security_service import TreasurySecurityService
     accounts = TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").select_related("account_type", "currency").order_by("code")
 
     try:
@@ -638,6 +651,27 @@ def cash_and_bank_accounts_list(request):
         account.user_access = user_access_map.get(account.id)
         account.assigned_users_count = assigned_users_count_map.get(account.id, 0)
 
+    # التصدير الموحد لقائمة الخزن والحسابات النقدية إلى ملف Excel
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+
+        return export_queryset_to_excel(
+            accounts_list,
+            filename="treasury_accounts_export.xlsx",
+            fields=["code", "name", "type", "currency", "balance", "base_balance", "status", "last_movement"],
+            headers=["كود الحساب", "اسم الحساب", "النوع", "العملة", "الرصيد", f"المعادل ({base_currency_symbol})", "الحالة", "تاريخ آخر حركة"],
+            annotations={
+                "code": lambda acc: acc.code,
+                "name": lambda acc: acc.name,
+                "type": lambda acc: "خزينة نقدية" if acc.is_cash_account else ("حساب بنكي" if acc.is_bank_account else "حساب آخر"),
+                "currency": lambda acc: acc.currency_code or base_currency_code,
+                "balance": lambda acc: float(acc.current_balance or 0),
+                "base_balance": lambda acc: float(acc.calculated_base_balance or 0),
+                "status": lambda acc: "نشطة" if acc.is_active else "معطلة",
+                "last_movement": lambda acc: acc.last_movement_date.strftime('%Y-%m-%d') if acc.last_movement_date else "-",
+            }
+        )
+
     currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
     cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 
@@ -672,18 +706,22 @@ def cash_and_bank_accounts_list(request):
                     "class": "btn-outline-primary me-2",
                 }] if (request.user.has_perm("financial.change_chartofaccounts") or request.user.is_superuser) else []
             ),
-            {
-                "onclick": "openTransferModal()",
-                "icon": "fas fa-exchange-alt",
-                "text": "تحويل بين الخزائن",
-                "class": "btn-primary me-2",
-            },
-            {
-                "onclick": "openQuickAddModal()",
-                "icon": "fas fa-plus",
-                "text": "إضافة خزنة جديدة",
-                "class": "btn-success",
-            }
+            *(
+                [{
+                    "onclick": "openTransferModal()",
+                    "icon": "fas fa-exchange-alt",
+                    "text": "تحويل بين الخزائن",
+                    "class": "btn-primary me-2",
+                }] if (request.user.has_perm("financial.change_chartofaccounts") or request.user.has_perm("financial.add_journalentry") or request.user.is_superuser) else []
+            ),
+            *(
+                [{
+                    "onclick": "openQuickAddModal()",
+                    "icon": "fas fa-plus",
+                    "text": "إضافة خزنة جديدة",
+                    "class": "btn-success",
+                }] if (request.user.has_perm("financial.add_chartofaccounts") or request.user.is_superuser) else []
+            ),
         ],
     }
     return render(
@@ -2315,7 +2353,7 @@ def bank_reconciliation_detail(request, pk):
                     messages.warning(request, _("لم يتم استخراج بنود جديدة من الملف المرفوع. تأكد من احتواء الملف على معاملات بنكية."))
             return redirect("financial:bank_reconciliation_detail", pk=batch.id)
 
-    # حساب ملخص معادلة التسوية البنكية الرسمية IAS 7
+    # حساب ملخص معادلة التسوية البنكية الرسمية
     reconcil_summary = BankReconciliationService.calculate_reconciliation_summary(batch.id)
 
     # جلب سطور البنك المرفوعة
@@ -2494,7 +2532,6 @@ def enhanced_balances_audit(request):
 
 
 @login_required
-@require_permission('financial.view_chartofaccounts')
 def cash_account_movements(request, pk):
     """
     عرض حركات حساب خزن معين من القيود المحاسبية
@@ -2502,9 +2539,13 @@ def cash_account_movements(request, pk):
     account = get_object_or_404(ChartOfAccounts, pk=pk)
 
     # فحص السرية التامة والحجب (Stealth 404)
-    if not request.user.is_superuser:
+    if not request.user.is_superuser and not getattr(request.user, "is_admin", False):
         from financial.services.treasury_security_service import TreasurySecurityService
-        if not TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists():
+        has_access = (
+            request.user.has_perm("financial.view_chartofaccounts")
+            or TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any").filter(id=account.id).exists()
+        )
+        if not has_access:
             from django.http import Http404
             raise Http404("الحساب غير موجود أو غير مصرح لك بالوصول إليه.")
 
@@ -2610,6 +2651,33 @@ def cash_account_movements(request, pk):
     
     movements_with_balance.reverse()
 
+    # التصدير الموحد لحركات الخزينة/الحساب البنكي إلى ملف Excel
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        from core.utils import get_default_currency
+
+        curr_symbol = account.currency_symbol if account.is_foreign_currency else get_default_currency()
+
+        return export_queryset_to_excel(
+            movements_with_balance,
+            filename="treasury_movements_export.xlsx",
+            fields=["date", "reference", "description", "category", "debit", "credit", "balance", "status"],
+            headers=["التاريخ", "المرجع", "الوصف", "التصنيف", f"مدين ({curr_symbol})", f"دائن ({curr_symbol})", f"الرصيد ({curr_symbol})", "الحالة"],
+            annotations={
+                "date": lambda obj: obj.journal_entry.date if obj.journal_entry else "",
+                "reference": lambda obj: (obj.journal_entry.reference or obj.journal_entry.number) if obj.journal_entry else "",
+                "description": lambda obj: obj.journal_entry.description if obj.journal_entry else "",
+                "category": lambda obj: (
+                    obj.journal_entry.financial_subcategory.name if obj.journal_entry.financial_subcategory
+                    else (obj.journal_entry.financial_category.name if obj.journal_entry.financial_category else "-")
+                ) if obj.journal_entry else "-",
+                "debit": lambda obj: float(obj.foreign_debit or obj.transaction_debit or 0) if account.is_foreign_currency else float(obj.debit or 0),
+                "credit": lambda obj: float(obj.foreign_credit or obj.transaction_credit or 0) if account.is_foreign_currency else float(obj.credit or 0),
+                "balance": lambda obj: float(getattr(obj, 'running_foreign_balance', 0) or 0) if account.is_foreign_currency else float(getattr(obj, 'running_balance', 0) or 0),
+                "status": lambda obj: "مرحل" if (obj.journal_entry and obj.journal_entry.status == 'posted') else ("مسودة" if (obj.journal_entry and obj.journal_entry.status == 'draft') else (obj.journal_entry.get_status_display() if obj.journal_entry else "مرحل")),
+            }
+        )
+
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(movements_with_balance, request, default_per_page=25)
     page_obj = pagination_context["page_obj"]
@@ -2696,9 +2764,25 @@ def cash_account_movements(request, pk):
 
     header_buttons = []
 
-    # إذا كانت الخزينة نشطة: تظهر كافة أزرار الإجراءات والمعاملات المالية
+    can_manage_treasury = request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm('financial.change_chartofaccounts')
+    can_delete_treasury = request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm('financial.delete_chartofaccounts')
+    can_transfer = can_manage_treasury or request.user.has_perm('financial.add_journalentry')
+
+    from financial.services.treasury_security_service import TreasurySecurityService
+    can_deposit = (
+        request.user.is_superuser
+        or request.user.has_perm('financial.add_income')
+        or TreasurySecurityService.can_user_deposit(request.user, account.id)
+    )
+    can_disburse = (
+        request.user.is_superuser
+        or request.user.has_perm('financial.add_expense')
+        or TreasurySecurityService.can_user_disburse(request.user, account.id)[0]
+    )
+
+    # إذا كانت الخزينة نشطة: تظهر كافة أزرار الإجراءات والمعاملات المالية المصرح بها
     if account.is_active:
-        if account.is_bank_account:
+        if account.is_bank_account and (request.user.is_superuser or request.user.has_perm('financial.view_bankreconciliation')):
             if latest_reconciliation:
                 header_buttons.append({
                     "url": reverse("financial:bank_reconciliation_detail", args=[latest_reconciliation.id]),
@@ -2713,44 +2797,50 @@ def cash_account_movements(request, pk):
                 "class": "btn-outline-primary me-2"
             })
 
-        header_buttons.extend([
-            {
+        if can_deposit:
+            header_buttons.append({
                 "onclick": "openIncomeModal()",
                 "icon": "fa-plus-circle",
                 "text": "إيراد",
                 "class": "btn-success me-2"
-            },
-            {
+            })
+
+        if can_disburse:
+            header_buttons.append({
                 "onclick": "openExpenseModal()",
                 "icon": "fa-minus-circle",
                 "text": "مصروف",
                 "class": "btn-danger me-2"
-            },
-            {
+            })
+
+        if can_transfer:
+            header_buttons.append({
                 "onclick": "openTransferModal()",
                 "icon": "fa-exchange-alt",
                 "text": "تحويل مبلغ",
                 "class": "btn-info me-2"
-            },
-            {
+            })
+
+        if can_manage_treasury:
+            header_buttons.append({
                 "url": reverse("financial:cash_account_edit", args=[account.pk]),
                 "icon": "fa-edit",
                 "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
                 "class": "btn-outline-primary me-2"
-            },
-            {
+            })
+            header_buttons.append({
                 "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
                 "icon": "fa-user-shield",
                 "text": "إسناد الخزينة",
                 "class": "btn-outline-info me-2"
-            },
-            {
+            })
+            header_buttons.append({
                 "onclick": f"confirmToggleCashAccount('{account.id}', false)",
                 "icon": "fa-ban",
                 "text": "تعطيل الخزينة",
                 "class": "btn-outline-warning"
-            }
-        ])
+            })
+
         header_badges = [
             {
                 "icon": "fa-check-circle",
@@ -2762,27 +2852,34 @@ def cash_account_movements(request, pk):
         current_bal_val = current_foreign_balance if account.is_foreign_currency else current_base_balance
         is_zero_balance = abs(current_bal_val) <= Decimal("0.005")
 
-        # زر تعديل الخزينة متاح دائماً
-        header_buttons.append({
-            "url": reverse("financial:cash_account_edit", args=[account.pk]),
-            "icon": "fa-edit",
-            "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
-            "class": "btn-outline-secondary me-2"
-        })
-        header_buttons.append({
-            "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
-            "icon": "fa-user-shield",
-            "text": "إسناد الخزينة",
-            "class": "btn-outline-info me-2"
-        })
+        if can_manage_treasury:
+            header_buttons.append({
+                "url": reverse("financial:cash_account_edit", args=[account.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
+                "class": "btn-outline-secondary me-2"
+            })
+            header_buttons.append({
+                "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
+                "icon": "fa-user-shield",
+                "text": "إسناد الخزينة",
+                "class": "btn-outline-info me-2"
+            })
+            header_buttons.append({
+                "onclick": f"confirmToggleCashAccount('{account.id}', true)",
+                "icon": "fa-check-circle",
+                "text": "تفعيل الخزينة",
+                "class": "btn-success fw-bold" + (" me-2" if is_zero_balance and can_delete_treasury else "")
+            })
 
-        # إذا كانت الخزينة معطلة: يظهر زر إعادة التفعيل
-        header_buttons.append({
-            "onclick": f"confirmToggleCashAccount('{account.id}', true)",
-            "icon": "fa-check-circle",
-            "text": "تفعيل الخزينة",
-            "class": "btn-success fw-bold" + (" me-2" if is_zero_balance else "")
-        })
+        if is_zero_balance and can_delete_treasury:
+            header_buttons.append({
+                "onclick": f"confirmDeleteCashAccount('{account.id}')",
+                "icon": "fa-trash-alt",
+                "text": "حذف الخزينة",
+                "class": "btn-outline-danger"
+            })
+
         header_badges = [
             {
                 "icon": "fa-ban",
@@ -2790,15 +2887,6 @@ def cash_account_movements(request, pk):
                 "class": "bg-danger text-white px-3 py-2 fw-bold"
             }
         ]
-
-        # زر الحذف يظهر فقط وحصرياً إذا كانت الخزينة معطلة ورصيدها مصفراً تماماً (0)
-        if is_zero_balance:
-            header_buttons.append({
-                "onclick": f"confirmDeleteCashAccount('{account.id}')",
-                "icon": "fa-trash-alt",
-                "text": "حذف الخزينة",
-                "class": "btn-outline-danger"
-            })
 
     is_filtered = bool(date_from or date_to or search or category_filter)
 
@@ -2822,6 +2910,11 @@ def cash_account_movements(request, pk):
         "card_fy_name": card_fy_name,
         "categories": categories,
         "currency_symbol": currency_symbol,
+        "can_deposit": can_deposit,
+        "can_disburse": can_disburse,
+        "can_transfer": can_transfer,
+        "can_manage_treasury": can_manage_treasury,
+        "can_view_journal_entry": (request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm('financial.view_journalentry')),
         "title": f"حركات {account.name}",
         "subtitle": f"{account_type} - {'نشطة' if account.is_active else 'معطلة'}",
         "icon": account_icon,
@@ -4468,7 +4561,7 @@ def get_cash_bank_accounts_api(request):
 @require_permission('financial.add_journalentry')
 def transfer_between_accounts(request):
     """
-    API endpoint لتحويل مالي بين الخزائن والحسابات البنكية لدعم العملات المتعددة وفروق العملة (IAS 21)
+    API endpoint لتحويل مالي بين الخزائن والحسابات البنكية لدعم العملات المتعددة وفروق العملة
     """
     try:
         from datetime import datetime
@@ -4506,6 +4599,14 @@ def transfer_between_accounts(request):
 
         from_account = ChartOfAccounts.objects.get(pk=from_account_id)
         to_account = ChartOfAccounts.objects.get(pk=to_account_id)
+
+        from financial.services.treasury_security_service import TreasurySecurityService
+        if not request.user.is_superuser and not getattr(request.user, "is_admin", False) and not request.user.has_perm("financial.change_chartofaccounts"):
+            can_disb, err = TreasurySecurityService.can_user_disburse(request.user, from_account.id, amount=source_amount)
+            if not can_disb:
+                return JsonResponse({"success": False, "error": f"غير مصرح لك بالتحويل من هذا الحساب: {err}"}, status=403)
+            if not TreasurySecurityService.can_user_deposit(request.user, to_account.id):
+                return JsonResponse({"success": False, "error": "غير مصرح لك بالإيداع أو التحويل إلى الحساب المستهدف"}, status=403)
 
         current_balance = from_account.get_balance() or Decimal("0")
         if source_amount > current_balance:
@@ -4691,7 +4792,7 @@ def transfer_between_accounts(request):
 # ==========================================
 
 @login_required
-@require_permission('financial.view_chartofaccounts')
+@require_permission('financial.change_chartofaccounts')
 def treasury_assignments_list(request):
     """
     شاشة مصفوفة إسناد الخزن والحسابات البنكية للمستخدمين مع الرقابة والسرية التامة

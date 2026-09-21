@@ -199,7 +199,7 @@ def accounting_periods_close(request, pk):
         from financial.services.period_control_service import PeriodControlService
         try:
             PeriodControlService.close_period(period.id, user=request.user)
-            messages.success(request, f'تم إغلاق الفترة "{period.name}" بنجاح مع أتمتة ترحيل فروق تقييم العملة (IAS 21).')
+            messages.success(request, f'تم إغلاق الفترة "{period.name}" بنجاح مع أتمتة ترحيل فروق تقييم العملة.')
         except Exception as e:
             messages.error(request, f'تعذر إغلاق الفترة: {str(e)}')
         return redirect("financial:accounting_periods_list")

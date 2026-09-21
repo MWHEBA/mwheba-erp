@@ -10,7 +10,7 @@
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3%20RTL-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Modular%20Dual--Layer-blue?style=for-the-badge)
 ![Security](https://img.shields.io/badge/RBAC-NIST%20Enterprise%20Level%202-success?style=for-the-badge)
-![Accounting](https://img.shields.io/badge/Accounting-IAS%2021%20Compliant-orange?style=for-the-badge)
+![Accounting](https://img.shields.io/badge/Accounting-Multi%20Currency%20Engine-orange?style=for-the-badge)
 
 **A high-performance, modular, multi-tenant enterprise resource planning (ERP) platform built on Django 5.2 LTS. Designed to power complex industrial and commercial operations — from high-volume commercial printing and packaging plants to advertising agencies, wholesale trading conglomerates, and contracting firms.**
 
@@ -27,7 +27,7 @@
 ### Core Value Propositions
 * **Multi-Business Operational Agility**: Tailors functionality per company profile (e.g., toggling off industrial manufacturing modules for advertising agencies or trading houses, while providing full offset sheet and machine calculators for packaging plants).
 * **Zero-Technical-Debt Pure Django Authorization**: NIST Enterprise RBAC Level 2 implementation using a standard Django `ModelBackend` derivative (`RolePermissionBackend`) providing $O(1)$ in-memory request-level permission caching.
-* **Strict Double-Entry Financial Core (IAS 21)**: Full multi-currency general ledger, automated currency revaluation (`FXRevaluationService`), treasury and banking controls, automated partner advance allocations, and reconciliation engines.
+* **Strict Double-Entry Financial Core**: Full multi-currency general ledger, automated currency revaluation (`FXRevaluationService`), treasury and banking controls, automated partner advance allocations, and reconciliation engines.
 * **Segregated Production & Margin Privacy**: Complete decoupling of floor job tickets from commercial pricing margins. Machine operators receive technical production instructions without exposure to raw material costs, customer sale prices, or company profits.
 * **High-Concurrency Scalability**: Built with `ATOMIC_REQUESTS = True`, connection pooling, Redis distributed caching, Celery task workers, and bulk SQL optimization eliminating N+1 query bottlenecks.
 
@@ -106,7 +106,7 @@ To balance enterprise multi-business flexibility with zero-trust internal securi
 mwheba-erp/
 ├── core/                  # Engine Core: Feature Toggles, DMS, Central Settings, Audit
 ├── users/                 # RBAC Engine: 10 Enterprise Roles, RolePermissionBackend
-├── financial/             # Accounting: General Ledger, IAS 21 Multi-Currency, Treasury
+├── financial/             # Accounting: General Ledger, Multi-Currency, Treasury
 ├── sale/                  # Sales Pipeline: Invoices, Quotations, Orders, PriceLists
 ├── purchase/              # Procurement: POs, GRN, Landed Costs, Vendor Invoices
 ├── customer/              # CRM: Customer Ledger, Aging Reports, Advance Balances
@@ -161,7 +161,7 @@ A strictly audited double-entry accounting engine fully compliant with internati
 #### Key Capabilities & Models
 * **`ChartOfAccounts`**: 5-level hierarchical chart of accounts (Assets, Liabilities, Equity, Revenues, Expenses) supporting multi-currency denominations.
 * **`JournalEntry` & `JournalEntryLine`**: Strict double-entry integrity where $\sum \text{Debit} = \sum \text{Credit}$ enforced via model validation and database transactions.
-* **Multi-Currency & IAS 21 Standard**:
+* **Multi-Currency Standards**:
   - Functional currency vs. foreign transaction currencies.
   - `FXRevaluationService`: Automated period-end revaluation of open monetary items with auto-posting of unrealized exchange gains/losses.
   - `ExchangeRateService`: Daily rate tracking with strict rate-age guards (>7 days requires executive CFO approval).
@@ -260,7 +260,7 @@ MWHEBA ERP strictly implements **NIST Enterprise RBAC Level 2** standard:
 │ Role Identifier      │ Arabic Role Title      │ Primary Operational Responsibilities   │
 ├──────────────────────┼────────────────────────┼────────────────────────────────────────┤
 │ admin                │ مدير النظام             │ Unrestricted access across all modules │
-│ financial_manager    │ مدير مالي              │ General ledger, period close, IAS 21,  │
+│ financial_manager    │ مدير مالي              │ General ledger, period close, currency │
 │                      │                        │ profit margin audits, cash oversight   │
 │ accountant           │ محاسب                  │ Journal entries, receipts, payments,   │
 │                      │                        │ bank reconciliations, invoice audits   │

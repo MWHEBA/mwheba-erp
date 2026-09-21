@@ -134,7 +134,7 @@
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="ias7-tab" data-bs-toggle="pill" data-bs-target="#tab-ias7-report" type="button" role="tab" aria-controls="tab-ias7-report" aria-selected="false">
-                <i class="fas fa-file-contract me-2"></i>{% trans "تقرير معادلة التسوية المعياري (IAS 7)" %}
+                <i class="fas fa-file-contract me-2"></i>{% trans "تقرير معادلة التسوية المعياري" %}
             </button>
         </li>
     </ul>
@@ -411,12 +411,12 @@
             </div>
         </div>
 
-        <!-- TAB 3: IAS 7 Formal Cash Control Report -->
+        <!-- TAB 3: Formal Cash Control Report -->
         <div class="tab-pane fade" id="tab-ias7-report" role="tabpanel" aria-labelledby="ias7-tab">
             <div class="section-container">
                 <div class="mb-3">
                     <h5 class="section-title mb-0">
-                        <i class="fas fa-receipt me-2 text-primary"></i>{% trans "تقرير معادلة التسوية البنكية الرسمية (IAS 7 Cash Control Framework)" %}
+                        <i class="fas fa-receipt me-2 text-primary"></i>{% trans "تقرير معادلة التسوية البنكية الرسمية" %}
                     </h5>
                 </div>
 
@@ -483,7 +483,7 @@
                             </div>
                             <p class="small text-muted mt-2 mb-0">
                                 {% if summary.is_balanced %}
-                                    <i class="fas fa-check-circle text-success me-1"></i>{% trans "رصيد الدفتر العام متوافق تماماً مع الرصيد البنكي المعدل وفق معيار IAS 7." %}
+                                    <i class="fas fa-check-circle text-success me-1"></i>{% trans "رصيد الدفتر العام متوافق تماماً مع الرصيد البنكي المعدل." %}
                                 {% else %}
                                     <i class="fas fa-info-circle text-warning me-1"></i>{% trans "قم بمطابقة البنود المعلقة أو إنشاء قيود المصاريف المباشرة لتصفير الفارق." %}
                                 {% endif %}

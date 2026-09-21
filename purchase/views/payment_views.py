@@ -168,7 +168,7 @@ def add_payment(request, pk):
                             payment.payment_currency = Currency.objects.filter(code=curr_code).first()
                     
                     # قراءة سعر صرف السداد والمبلغ المدفوع بعملة الخزينة
-                    raw_pmt_rate = request.POST.get('payment_exchange_rate')
+                    raw_pmt_rate = form.cleaned_data.get('payment_exchange_rate') or request.POST.get('payment_exchange_rate')
                     if raw_pmt_rate:
                         try:
                             payment.payment_exchange_rate = Decimal(str(raw_pmt_rate))
@@ -180,29 +180,24 @@ def add_payment(request, pk):
                     else:
                         payment.payment_exchange_rate = Decimal('1.000000')
 
-                    raw_paid_amt = request.POST.get('amount_paid_currency')
-                    if raw_paid_amt:
-                        try:
-                            payment.amount_paid_currency = Decimal(str(raw_paid_amt))
-                        except Exception:
-                            payment.amount_paid_currency = payment.amount
-                    else:
-                        payment.amount_paid_currency = payment.amount
-
-                    payment.amount_settled_invoice_currency = payment.amount
-                    payment.idempotency_key = request.POST.get('idempotency_token') or None
-                    
-                    # حساب القيمة الوظيفية EGP
                     treasury_code = acc.currency_code if acc else 'EGP'
-                    if treasury_code == 'EGP':
-                        payment.amount_functional = payment.amount_paid_currency
-                    else:
-                        payment.amount_functional = (payment.amount_paid_currency * payment.payment_exchange_rate).quantize(Decimal('0.01'))
-
-                    # حساب أرباح/خسائر فروق العملة المحققة (IAS 21)
+                    inv_code = purchase.currency.code if (purchase.currency and purchase.currency.code) else 'EGP'
                     inv_rate = purchase.exchange_rate if hasattr(purchase, 'exchange_rate') and purchase.exchange_rate else Decimal('1.000000')
-                    inv_functional = (payment.amount * inv_rate).quantize(Decimal('0.01'))
-                    payment.realized_fx_difference = (payment.amount_functional - inv_functional).quantize(Decimal('0.01'))
+
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    settlement = ExchangeRateService.calculate_payment_settlement(
+                        invoice_amount=payment.amount,
+                        invoice_currency_code=inv_code,
+                        invoice_rate=inv_rate,
+                        payment_currency_code=treasury_code,
+                        settlement_rate=payment.payment_exchange_rate,
+                    )
+
+                    payment.amount_paid_currency = settlement['amount_paid_currency']
+                    payment.amount_functional = settlement['amount_functional']
+                    payment.amount_settled_invoice_currency = settlement['settled_invoice_amt']
+                    payment.realized_fx_difference = settlement['realized_fx_difference']
+                    payment.idempotency_key = request.POST.get('idempotency_token') or None
 
                     # حفظ الدفعة
                     payment.status = "draft"
@@ -260,9 +255,17 @@ def add_payment(request, pk):
                 for error in errors:
                     messages.error(request, f"خطأ في الحقل {field}: {error}")
     else:
+        from financial.services.exchange_rate_service import ExchangeRateService
+        latest_rate = Decimal('1.000000')
+        if purchase.currency and not purchase.currency.is_functional:
+            latest_rate = ExchangeRateService.get_exchange_rate(purchase.currency)
+        elif hasattr(purchase, 'exchange_rate') and purchase.exchange_rate:
+            latest_rate = purchase.exchange_rate
+
         initial_data = {
             "amount": purchase.amount_due,
             "payment_date": timezone.now().date(),
+            "payment_exchange_rate": latest_rate,
         }
         form = PurchasePaymentForm(initial=initial_data, purchase=purchase)
 
@@ -383,62 +386,22 @@ def post_payment(request, payment_id):
 @require_permission("financial.change_journalentry")
 def unpost_payment(request, payment_id):
     """
-    إلغاء ترحيل دفعة مشتريات - إنشاء قيد عكسي وحذف حركة الخزن
+    إلغاء ترحيل دفعة مشتريات
     """
     payment = get_object_or_404(PurchasePayment, pk=payment_id)
 
-    # التحقق من أن الدفعة مرحّلة
-    if payment.status != "posted":
-        messages.error(request, "لا يمكن إلغاء ترحيل دفعة غير مرحّلة")
-        return redirect("purchase:purchase_detail", pk=payment.purchase.pk)
-
-    try:
-        with transaction.atomic():
-            # إنشاء قيد عكسي للقيد المحاسبي
-            if payment.financial_transaction:
-                try:
-                    reversal_entry = payment.financial_transaction.reverse(
-                        user=request.user,
-                        reason=f"إلغاء ترحيل دفعة مشتريات رقم {payment.id}",
-                    )
-                    logger.info(f"تم إنشاء قيد عكسي: {reversal_entry.number}")
-                except Exception as e:
-                    logger.warning(f"فشل إنشاء القيد العكسي: {str(e)}")
-                    # في حالة فشل القيد العكسي، نحاول الحذف المباشر
-                    payment.financial_transaction.status = "draft"
-                    payment.financial_transaction.save()
-                    payment.financial_transaction.delete()
-
-            # حذف حركة الخزن (إذا وجدت)
-            # البحث عن حركة الخزن المرتبطة بهذه الدفعة
-            try:
-                from financial.models.cash_movement import CashMovement
-
-                cash_movements = CashMovement.objects.filter(
-                    notes__icontains=f"PURCH_PAY_{payment.id}"
-                ).filter(status__in=["approved", "executed"])
-
-                for movement in cash_movements:
-                    movement.status = "draft"
-                    movement.save()
-                    movement.delete()
-                    logger.info(f"تم حذف حركة الخزن: {movement.id}")
-            except Exception as e:
-                logger.warning(f"فشل في حذف حركة الخزن: {str(e)}")
-
-            # تحديث حالة الدفعة
-            payment.status = "draft"
-            payment.posted_at = None
-            payment.posted_by = None
-            payment.financial_transaction = None
-            payment.financial_status = "pending"
-            payment.save()
-
-            messages.success(request, "تم إلغاء ترحيل الدفعة بنجاح")
-
-    except Exception as e:
-        logger.error(f"خطأ في إلغاء ترحيل الدفعة {payment_id}: {str(e)}")
-        messages.error(request, f"حدث خطأ أثناء إلغاء الترحيل: {str(e)}")
+    if not payment.is_posted:
+        messages.warning(request, "هذه الدفعة غير مرحلة")
+    else:
+        try:
+            result = payment.unpost(user=request.user, reason=f"إلغاء ترحيل دفعة مشتريات رقم {payment.id}")
+            if result.get("success"):
+                messages.success(request, "تم إلغاء ترحيل الدفعة بنجاح")
+            else:
+                messages.error(request, result.get("message", "فشل إلغاء الترحيل"))
+        except Exception as e:
+            logger.error(f"خطأ في إلغاء ترحيل الدفعة {payment_id}: {str(e)}")
+            messages.error(request, f"حدث خطأ أثناء إلغاء الترحيل: {str(e)}")
 
     return redirect("purchase:purchase_detail", pk=payment.purchase.pk)
 

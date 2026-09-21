@@ -666,7 +666,7 @@ class BankReconciliationService:
 
     @classmethod
     def calculate_reconciliation_summary(cls, batch_id: int) -> Dict[str, Any]:
-        """احتساب معادلة التسوية البنكية الرسمية المعيارية (IAS 7 Cash Control Equation)"""
+        """احتساب معادلة التسوية البنكية الرسمية المعيارية"""
         batch = BankStatementBatch.objects.select_related('bank_account').get(pk=batch_id)
         bank_account = batch.bank_account
 

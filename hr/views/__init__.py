@@ -32,10 +32,15 @@ from .attendance_views import (
     attendance_export_excel,
     attendance_check_in,
     attendance_check_out,
+    attendance_manual_save,
+    attendance_import_template,
+    attendance_import_excel,
+    attendance_audit_history,
     attendance_summary_list,
     attendance_summary_detail,
     approve_attendance_summary,
     recalculate_attendance_summary,
+    override_attendance_summary_overtime,
     update_absence_multiplier,
     calculate_attendance_summaries,
     calculate_exempt_summaries,
@@ -97,6 +102,21 @@ from .official_holiday_views import (
     official_holiday_update,
     official_holiday_delete,
     official_holiday_toggle,
+)
+from .work_location_views import (
+    work_location_list,
+    work_location_save,
+    work_location_delete,
+    work_location_toggle,
+    reset_employee_device_binding,
+)
+from .mobile_attendance_views import (
+    self_attendance_view,
+    supervisor_attendance_view,
+    api_get_punch_context,
+    api_submit_mobile_punch,
+    api_sync_offline_punches,
+    api_supervisor_crew_punch,
 )
 from .permission_views import (
     permission_list,
@@ -300,6 +320,7 @@ __all__ = [
     'attendance_summary_detail',
     'approve_attendance_summary',
     'recalculate_attendance_summary',
+    'override_attendance_summary_overtime',
     'update_absence_multiplier',
     'calculate_attendance_summaries',
     'calculate_exempt_summaries',
@@ -476,6 +497,19 @@ __all__ = [
     'official_holiday_update',
     'official_holiday_delete',
     'official_holiday_toggle',
+    # مقرات العمل وبصمة الأجهزة
+    'work_location_list',
+    'work_location_save',
+    'work_location_delete',
+    'work_location_toggle',
+    'reset_employee_device_binding',
+    # بصمة الموبايل الذكية وطواقم العمل
+    'self_attendance_view',
+    'supervisor_attendance_view',
+    'api_get_punch_context',
+    'api_submit_mobile_punch',
+    'api_sync_offline_punches',
+    'api_supervisor_crew_punch',
     # دفعات التأمين
     'employee_add_insurance_component',
     'insurance_payment_list',

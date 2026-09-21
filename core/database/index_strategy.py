@@ -14,7 +14,7 @@ INDEX_REGISTRY: Dict[str, Dict[str, Any]] = {
         "expected_scale_rows": 10000000,
     },
     "RevenueRecognitionSchedule": {
-        "purpose": "IFRS 15 schedule line recognition sweep by period and status",
+        "purpose": "Revenue recognition schedule line sweep by period and status",
         "index_name": "idx_rev_schedule_status_date",
         "fields": ["status", "recognition_date"],
         "partial_condition": "Q(status='SCHEDULED')",

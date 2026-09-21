@@ -1,0 +1,240 @@
+{% load i18n %}
+{% load static %}
+
+<!-- تصميم متطابق تماماً مع مودال ملخص قيد الخزينة -->
+<style>
+  .journal-entry-modal .modal-header {
+    background-color: var(--bg-card, #fff);
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    padding: 1rem 1.25rem;
+  }
+
+  .journal-entry-modal .modal-title {
+    color: var(--text-dark, #1f2937);
+    font-weight: 700;
+    margin-bottom: 0;
+  }
+
+  .journal-entry-details {
+    background-color: var(--gray-50, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: var(--border-radius, 0.375rem);
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .journal-entry-line {
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    padding: 0.75rem 0;
+  }
+
+  .journal-entry-line:last-child {
+    border-bottom: none;
+  }
+
+  .account-name {
+    font-weight: 600;
+    color: var(--text-dark, #1f2937);
+  }
+
+  .amount-debit {
+    color: var(--success-color, #10b981) !important;
+    font-weight: 600;
+  }
+
+  .amount-credit {
+    color: var(--danger-color, #ef4444) !important;
+    font-weight: 600;
+  }
+
+  .journal-entry-modal .modal-footer {
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    padding: 0.75rem 1.25rem;
+  }
+</style>
+
+<!-- مودال ملخص القيد المحاسبي الموحد -->
+<div class="modal fade journal-entry-modal" id="journalEntrySummaryModal" tabindex="-1" aria-labelledby="journalEntrySummaryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="journalEntrySummaryModalLabel">
+          <i class="fas fa-file-invoice me-2"></i>{% trans "ملخص القيد المحاسبي" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+      </div>
+      <div class="modal-body p-4" id="journalEntrySummaryModalBody">
+        <div class="text-center py-4" id="journalEntrySummaryLoading">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+          </div>
+          <p class="mt-2 text-muted mb-0">{% trans "جاري تحميل تفاصيل القيد..." %}</p>
+        </div>
+        <div id="journalEntrySummaryContent" style="display: none;"></div>
+      </div>
+      <div class="modal-footer d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>{% trans "إغلاق" %}
+        </button>
+        <a href="#" id="viewFullJournalEntryBtn" class="btn btn-primary" target="_blank">
+          <i class="fas fa-external-link-alt me-1"></i>{% trans "عرض كامل" %}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  function formatNumber(num) {
+    if (num === null || num === undefined || num === '') return '-';
+    const n = parseFloat(num);
+    if (isNaN(n)) return '-';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function getStatusBadgeClass(status) {
+    switch(status) {
+      case 'posted': return 'badge text-success border border-success bg-transparent';
+      case 'draft': return 'badge text-warning border border-warning bg-transparent';
+      case 'cancelled': return 'badge text-danger border border-danger bg-transparent';
+      default: return 'badge text-secondary border border-secondary bg-transparent';
+    }
+  }
+
+  function getStatusDisplayName(status) {
+    switch(status) {
+      case 'posted': return '{% trans "مرحل" %}';
+      case 'draft': return '{% trans "مسودة" %}';
+      case 'cancelled': return '{% trans "ملغي" %}';
+      default: return status || '{% trans "غير محدد" %}';
+    }
+  }
+
+  function showJournalEntrySummaryModal(journalEntryId) {
+    if (!journalEntryId) return;
+
+    const modalEl = document.getElementById('journalEntrySummaryModal');
+    if (!modalEl) return;
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
+    const loadingEl = document.getElementById('journalEntrySummaryLoading');
+    const contentEl = document.getElementById('journalEntrySummaryContent');
+    const fullBtn = document.getElementById('viewFullJournalEntryBtn');
+
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (contentEl) {
+      contentEl.style.display = 'none';
+      contentEl.innerHTML = '';
+    }
+    if (fullBtn) {
+      fullBtn.href = `/financial/journal-entries/${journalEntryId}/`;
+    }
+
+    fetch(`/financial/api/journal-entry/${journalEntryId}/summary/`)
+      .then(res => {
+        if (!res.ok) throw new Error('{% trans "تعذر جلب تفاصيل القيد" %}');
+        return res.json();
+      })
+      .then(data => {
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (!contentEl) return;
+
+        let totalDebit = 0;
+        let totalCredit = 0;
+
+        let rowsHtml = '';
+        (data.lines || []).forEach(line => {
+          const debit = parseFloat(line.debit || 0);
+          const credit = parseFloat(line.credit || 0);
+          totalDebit += debit;
+          totalCredit += credit;
+
+          rowsHtml += `
+            <tr class="journal-entry-line">
+              <td>
+                <div class="account-name">${line.account_name || ''}</div>
+                <small class="text-muted">${line.account_code || ''}</small>
+                ${line.description ? `<div class="small text-secondary mt-1">${line.description}</div>` : ''}
+              </td>
+              <td class="text-center">
+                ${debit ? `<span class="amount-debit">${formatNumber(debit)}</span>` : '-'}
+              </td>
+              <td class="text-center">
+                ${credit ? `<span class="amount-credit">${formatNumber(credit)}</span>` : '-'}
+              </td>
+            </tr>
+          `;
+        });
+
+        contentEl.innerHTML = `
+          <div class="journal-entry-details">
+            <div class="row">
+              <div class="col-md-6">
+                <strong>{% trans "رقم القيد:" %}</strong> ${data.number || data.reference || '-'}
+              </div>
+              <div class="col-md-6">
+                <strong>{% trans "التاريخ:" %}</strong> ${data.date || '-'}
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-12">
+                <strong>{% trans "الوصف:" %}</strong> ${data.description || '-'}
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-md-6">
+                <strong>{% trans "الحالة:" %}</strong> 
+                <span class="${getStatusBadgeClass(data.status)}">
+                  ${getStatusDisplayName(data.status)}
+                </span>
+              </div>
+              <div class="col-md-6">
+                <strong>{% trans "المستخدم:" %}</strong> ${data.created_by || '{% trans "غير محدد" %}'}
+              </div>
+            </div>
+          </div>
+
+          <h6 class="mb-3 fw-bold"><i class="fas fa-list me-2"></i>{% trans "بنود القيد:" %}</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "الحساب" %}</th>
+                  <th class="text-center" style="width: 25%;">{% trans "مدين" %}</th>
+                  <th class="text-center" style="width: 25%;">{% trans "دائن" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              <tfoot>
+                <tr class="border-top">
+                  <th class="fw-bold">{% trans "الإجمالي" %}</th>
+                  <th class="text-center amount-debit">${formatNumber(totalDebit)}</th>
+                  <th class="text-center amount-credit">${formatNumber(totalCredit)}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+        contentEl.style.display = 'block';
+      })
+      .catch(err => {
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (contentEl) {
+          contentEl.innerHTML = `
+            <div class="alert alert-danger text-center mb-0">
+              <i class="fas fa-exclamation-triangle me-2"></i>${err.message || '{% trans "حدث خطأ أثناء تحميل تفاصيل القيد" %}'}
+            </div>
+          `;
+          contentEl.style.display = 'block';
+        }
+      });
+  }
+
+  window.showJournalEntrySummaryModal = showJournalEntrySummaryModal;
+})();
+</script>

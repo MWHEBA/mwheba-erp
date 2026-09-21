@@ -1,7 +1,7 @@
 """
 Django Management Command: setup_accounting_system
 يقوم بإنشاء وتهيئة الهيكل المحاسبي والمالي والضريبي المعياري المتكامل (Master Enterprise Accounting Engine)
-للأنظمة الجديدة بالكامل وبأعلى معايير الحوكمة المالية الدولية IAS / IFRS.
+للأنظمة الجديدة بالكامل وبأعلى معايير الحوكمة المالية الدقيقة.
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -82,8 +82,8 @@ class Command(BaseCommand):
             raise
 
     def setup_currencies(self):
-        """إنشاء العملات الافتراضية وتسجيل أسعار الصرف الاسترشادية وفق معيار IAS 21"""
-        self.stdout.write("[*] Setting up currencies & exchange rates (IAS 21)...")
+        """إنشاء العملات الافتراضية وتسجيل أسعار الصرف الاسترشادية"""
+        self.stdout.write("[*] Setting up currencies & exchange rates...")
         egp, _ = Currency.objects.get_or_create(
             code="EGP",
             defaults={"name": "جنيه مصري", "symbol": "ج.م", "is_functional": True}

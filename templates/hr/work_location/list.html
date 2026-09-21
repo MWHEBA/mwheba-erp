@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- Unified Components CSS -->
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- البطاقات الإحصائية القياسية -->
+  <div class="row g-3 mb-4">
+      <div class="col-md-3">
+          <div class="stats-card stats-card-info h-100">
+              <div class="stats-card-body d-flex align-items-center">
+                  <div class="stats-card-icon me-3">
+                      <i class="fas fa-building fa-2x"></i>
+                  </div>
+                  <div>
+                      <div class="stats-card-title">إجمالي المقرات</div>
+                      <div class="stats-card-value">{{ stats.total }}</div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3">
+          <div class="stats-card stats-card-success h-100">
+              <div class="stats-card-body d-flex align-items-center">
+                  <div class="stats-card-icon me-3">
+                      <i class="fas fa-check-circle fa-2x"></i>
+                  </div>
+                  <div>
+                      <div class="stats-card-title">المقرات النشطة</div>
+                      <div class="stats-card-value">{{ stats.active }}</div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3">
+          <div class="stats-card stats-card-warning h-100">
+              <div class="stats-card-body d-flex align-items-center">
+                  <div class="stats-card-icon me-3">
+                      <i class="fas fa-star fa-2x"></i>
+                  </div>
+                  <div>
+                      <div class="stats-card-title">المقر الرئيسي</div>
+                      <div class="stats-card-value" style="font-size: 1.1rem;">
+                          {{ stats.default.name_ar|default:"غير محدد" }}
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3">
+          <div class="stats-card stats-card-primary h-100">
+              <div class="stats-card-body d-flex align-items-center">
+                  <div class="stats-card-icon me-3">
+                      <i class="fas fa-users fa-2x"></i>
+                  </div>
+                  <div>
+                      <div class="stats-card-title">الموظفون المخصصون</div>
+                      <div class="stats-card-value">{{ stats.total_assigned_employees }}</div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
+  <!-- قسم جدول المقرات -->
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-map-marked-alt me-2"></i>مقرات العمل الجغرافية ونطاق البصمة</h5>
+
+      <div class="table-responsive">
+          <table class="table table-hover table-bordered align-middle text-center mb-0">
+              <thead class="table-light">
+                  <tr>
+                      <th style="width: 5%;">#</th>
+                      <th style="width: 20%;">اسم المقر</th>
+                      <th style="width: 20%;">العنوان</th>
+                      <th style="width: 15%;">الإحداثيات الجغرافية</th>
+                      <th style="width: 12%;">نطاق البصمة</th>
+                      <th style="width: 10%;">الموظفون</th>
+                      <th style="width: 8%;">الحالة</th>
+                      <th style="width: 10%;">الإجراءات</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {% for loc in locations %}
+                  <tr>
+                      <td>{{ forloop.counter }}</td>
+                      <td class="text-start ps-3">
+                          <strong class="text-dark">{{ loc.name_ar }}</strong>
+                          {% if loc.name_en %}
+                              <br><small class="text-muted">{{ loc.name_en }}</small>
+                          {% endif %}
+                          {% if loc.is_default %}
+                              <span class="badge bg-warning text-dark ms-1" style="font-size: 0.7em;">
+                                  <i class="fas fa-star me-1"></i>رئيسي
+                              </span>
+                          {% endif %}
+                      </td>
+                      <td class="text-start ps-2">
+                          <span class="text-muted">{{ loc.address|default:"—" }}</span>
+                      </td>
+                      <td>
+                          <code class="text-primary">{{ loc.latitude|floatformat:5 }}, {{ loc.longitude|floatformat:5 }}</code>
+                          <a href="https://maps.google.com/?q={{ loc.latitude }},{{ loc.longitude }}" target="_blank" class="btn btn-sm btn-link p-0 ms-1" title="فتح على خرائط Google">
+                              <i class="fas fa-external-link-alt text-muted"></i>
+                          </a>
+                      </td>
+                      <td>
+                          <span class="badge bg-info text-dark font-monospace">{{ loc.radius_meters }} متر</span>
+                      </td>
+                      <td>
+                          <span class="badge bg-secondary rounded-pill px-2">{{ loc.employees_count }} موظف</span>
+                      </td>
+                      <td>
+                          {% if loc.is_active %}
+                              <span class="badge bg-success">نشط</span>
+                          {% else %}
+                              <span class="badge bg-danger">معطل</span>
+                          {% endif %}
+                      </td>
+                      <td>
+                          <div class="btn-group btn-group-sm">
+                              <button type="button" class="btn btn-outline-secondary edit-location-btn"
+                                      data-id="{{ loc.id }}"
+                                      data-name-ar="{{ loc.name_ar }}"
+                                      data-name-en="{{ loc.name_en }}"
+                                      data-address="{{ loc.address }}"
+                                      data-lat="{{ loc.latitude }}"
+                                      data-lng="{{ loc.longitude }}"
+                                      data-radius="{{ loc.radius_meters }}"
+                                      data-active="{{ loc.is_active|yesno:'true,false' }}"
+                                      data-default="{{ loc.is_default|yesno:'true,false' }}"
+                                      title="تعديل المقر">
+                                  <i class="fas fa-edit"></i>
+                              </button>
+                              <button type="button" class="btn btn-outline-warning toggle-location-btn"
+                                      data-id="{{ loc.id }}"
+                                      data-name="{{ loc.name_ar }}"
+                                      title="{% if loc.is_active %}تعطيل المقر{% else %}تفعيل المقر{% endif %}">
+                                  <i class="fas fa-power-off"></i>
+                              </button>
+                              {% if not loc.is_default %}
+                              <button type="button" class="btn btn-outline-danger delete-location-btn"
+                                      data-id="{{ loc.id }}"
+                                      data-name="{{ loc.name_ar }}"
+                                      title="حذف المقر">
+                                  <i class="fas fa-trash-alt"></i>
+                              </button>
+                              {% endif %}
+                          </div>
+                      </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                      <td colspan="8" class="text-center py-4 text-muted">
+                          <i class="fas fa-map-marker-alt fa-3x mb-3 text-secondary d-block"></i>
+                          لا توجد مقرات عمل مسجلة حتى الآن. اضغط على «إضافة مقر عمل» لإنشاء أول مقر.
+                      </td>
+                  </tr>
+                  {% endfor %}
+              </tbody>
+          </table>
+      </div>
+  </div>
+</div>
+
+<!-- Modal إضافة وتعديل مقر العمل (ERP Standard Modal) -->
+<div class="modal fade" id="workLocationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="workLocationModalTitle">
+                    <i class="fas fa-map-marker-alt text-primary me-2"></i>إضافة مقر عمل جغرافي جديد
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="workLocationForm">
+                {% csrf_token %}
+                <input type="hidden" name="location_id" id="loc_id" value="">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">اسم المقر بالعربية <span class="text-danger">*</span></label>
+                            <input type="text" name="name_ar" id="loc_name_ar" class="form-control" required placeholder="مثال: المقر الرئيسي - التجمع الخامس">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">اسم المقر بالإنجليزية</label>
+                            <input type="text" name="name_en" id="loc_name_en" class="form-control" placeholder="e.g. Headquarters">
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label fw-bold">العنوان التفصيلي</label>
+                            <input type="text" name="address" id="loc_address" class="form-control" placeholder="مثال: شارع التسعين الشمالي، مبنى رقم 123">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">خط العرض (Latitude) <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="latitude" id="loc_latitude" class="form-control" required placeholder="مثال: 30.0123456">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">خط الطول (Longitude) <span class="text-danger">*</span></label>
+                            <input type="number" step="any" name="longitude" id="loc_longitude" class="form-control" required placeholder="مثال: 31.2345678">
+                        </div>
+
+                        <div class="col-12">
+                            <button type="button" class="btn btn-sm btn-outline-info" id="btnGetCurrentLocation">
+                                <i class="fas fa-crosshairs me-1"></i>جلب الإحداثيات الحالية من موقع جهازي الآن
+                            </button>
+                            <span id="geoStatusText" class="small text-muted ms-2"></span>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">نصف قطر البصمة المسموح (متر) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="radius_meters" id="loc_radius" class="form-control" required value="100" min="10" max="50000">
+                                <span class="input-group-text">متر</span>
+                            </div>
+                            <small class="text-muted">المسافة القصوى التي يُسمح للموظف بالبصم داخلها عن مركز المقر.</small>
+                        </div>
+
+                        <div class="col-md-6 d-flex align-items-center pt-3">
+                            <div class="form-check form-switch me-4">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="loc_is_active" checked>
+                                <label class="form-check-label fw-bold" for="loc_is_active">مقر نشط</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_default" id="loc_is_default">
+                                <label class="form-check-label fw-bold" for="loc_is_default">المقر الرئيسي الافتراضي</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSaveLocation">
+                        <i class="fas fa-save me-1"></i>حفظ المقر
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // فتح المودال لإضافة مقر جديد
+    window.openWorkLocationModal = function() {
+        $('#workLocationForm')[0].reset();
+        $('#loc_id').val('');
+        $('#loc_is_active').prop('checked', true);
+        $('#loc_is_default').prop('checked', false);
+        $('#geoStatusText').text('');
+        $('#workLocationModalTitle').html('<i class="fas fa-map-marker-alt text-primary me-2"></i>إضافة مقر عمل جغرافي جديد');
+        const modal = new bootstrap.Modal(document.getElementById('workLocationModal'));
+        modal.show();
+    };
+
+    // جلب الإحداثيات الحالية للمستخدم
+    $('#btnGetCurrentLocation').on('click', function() {
+        const btn = $(this);
+        const statusSpan = $('#geoStatusText');
+        if (!navigator.geolocation) {
+            statusSpan.html('<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>المتصفح لا يدعم تحديد الموقع</span>');
+            return;
+        }
+
+        btn.prop('disabled', true);
+        statusSpan.html('<span class="text-primary"><i class="fas fa-spinner fa-spin me-1"></i>جاري تحديد الموقع بدقة...</span>');
+
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                $('#loc_latitude').val(pos.coords.latitude.toFixed(7));
+                $('#loc_longitude').val(pos.coords.longitude.toFixed(7));
+                statusSpan.html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>تم جلب الموقع بدقة ±${Math.round(pos.coords.accuracy)}م</span>`);
+                btn.prop('disabled', false);
+            },
+            function(err) {
+                statusSpan.html(`<span class="text-danger"><i class="fas fa-times-circle me-1"></i>تعذر جلب الموقع: ${err.message}</span>`);
+                btn.prop('disabled', false);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    });
+
+    // تعديل مقر
+    $(document).on('click', '.edit-location-btn', function() {
+        const id = $(this).data('id');
+        const nameAr = $(this).data('name-ar');
+        const nameEn = $(this).data('name-en');
+        const address = $(this).data('address');
+        const lat = $(this).data('lat');
+        const lng = $(this).data('lng');
+        const radius = $(this).data('radius');
+        const active = $(this).data('active') === true || $(this).data('active') === 'true';
+        const isDefault = $(this).data('default') === true || $(this).data('default') === 'true';
+
+        $('#loc_id').val(id);
+        $('#loc_name_ar').val(nameAr);
+        $('#loc_name_en').val(nameEn);
+        $('#loc_address').val(address);
+        $('#loc_latitude').val(lat);
+        $('#loc_longitude').val(lng);
+        $('#loc_radius').val(radius);
+        $('#loc_is_active').prop('checked', active);
+        $('#loc_is_default').prop('checked', isDefault);
+        $('#geoStatusText').text('');
+
+        $('#workLocationModalTitle').html('<i class="fas fa-edit text-warning me-2"></i>تعديل مقر العمل الجغرافي');
+        const modal = new bootstrap.Modal(document.getElementById('workLocationModal'));
+        modal.show();
+    });
+
+    // حفظ المقر
+    $('#workLocationForm').on('submit', function(e) {
+        e.preventDefault();
+        const btn = $('#btnSaveLocation');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+
+        $.ajax({
+            url: '{% url "hr:work_location_save" %}',
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(res) {
+                if (res.success) {
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(res.message);
+                    }
+                    bootstrap.Modal.getInstance(document.getElementById('workLocationModal')).hide();
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'error');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(res.message);
+                    }
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في الخادم';
+                if (window.showToastr) {
+                    window.showToastr(msg, 'error');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.error(msg);
+                }
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ المقر');
+            }
+        });
+    });
+
+    // تبديل الحالة
+    $(document).on('click', '.toggle-location-btn', function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        if (!confirm(`هل أنت متأكد من تغيير حالة تفعيل المقر "${name}"؟`)) return;
+
+        $.post(`/hr/work-locations/${id}/toggle/`, {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        }, function(res) {
+            if (res.success) {
+                if (window.showToastr) {
+                    window.showToastr(res.message, 'success');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success(res.message);
+                }
+                setTimeout(function() {
+                    window.location.reload();
+                }, 3100);
+            }
+        }).fail(function(xhr) {
+            const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ أثناء تغيير الحالة';
+            if (window.showToastr) window.showToastr(msg, 'error');
+        });
+    });
+
+    // حذف المقر
+    $(document).on('click', '.delete-location-btn', function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        if (!confirm(`هل أنت متأكد من حذف مقر العمل "${name}" نهائياً؟`)) return;
+
+        $.post(`/hr/work-locations/${id}/delete/`, {
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        }, function(res) {
+            if (res.success) {
+                if (window.showToastr) {
+                    window.showToastr(res.message, 'success');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success(res.message);
+                }
+                setTimeout(function() {
+                    window.location.reload();
+                }, 3100);
+            }
+        }).fail(function(xhr) {
+            const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ أثناء الحذف';
+            if (window.showToastr) window.showToastr(msg, 'error');
+        });
+    });
+});
+</script>
+{% endblock %}

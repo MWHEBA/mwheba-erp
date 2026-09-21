@@ -4,7 +4,7 @@ Anatomy-Driven Order Persistence & Procurement Breakdown Service
 """
 from decimal import Decimal, ROUND_HALF_UP
 import math
-from django.db import transaction
+from django.db import models, transaction
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
     PriceUnit, ProductType, ProductSize, PaperSpecification, CoatingType,
@@ -1891,7 +1891,7 @@ class OrderAnatomyPersistenceService:
             order.profit_margin = profit_margin_pct
             order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin', 'design_service_type', 'design_fee', 'sales_commission_amount'])
 
-            # تحويل أتعاب التصميم للعملة الوظيفية (EGP) بحسب معيار IAS 21
+            # تحويل أتعاب التصميم للعملة الوظيفية (EGP)
             rate = order.exchange_rate or Decimal('1.000000')
             design_fee_functional = (design_fee * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 

@@ -146,6 +146,10 @@
                 ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
                 : '';
 
+            var costPriceBase = itemData.cost_price_base !== undefined ? itemData.cost_price_base : (itemData.cost_price !== undefined ? itemData.cost_price : (itemData.cost !== undefined ? itemData.cost : ''));
+            var costPrice = itemData.cost_price !== undefined ? itemData.cost_price : (itemData.cost !== undefined ? itemData.cost : '');
+            var uomFactor = itemData.uom_factor !== undefined ? itemData.uom_factor : (itemData.conversion_factor || 1.0);
+
             var $row;
             if (isBatchVoucher) {
                 $row = $('<div class="item-row row g-2 align-items-center">' +
@@ -162,7 +166,7 @@
                             '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
-                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" data-cost-base="' + costPriceBase + '" data-cost="' + costPrice + '" data-uom-factor="' + uomFactor + '" required>' +
                         '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
                         '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
                     '</div>' +
@@ -186,7 +190,7 @@
                             '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
-                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" data-cost-base="' + costPriceBase + '" data-cost="' + costPrice + '" data-uom-factor="' + uomFactor + '" required>' +
                         '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
                         '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
                     '</div>' +
@@ -458,6 +462,9 @@
                     code: $card.data('code') || '',
                     price: $card.data('price'),
                     selling_price: $card.data('price'),
+                    cost_price: parseFloat($card.data('cost') || 0),
+                    cost_price_base: parseFloat($card.data('cost-base') !== undefined ? $card.data('cost-base') : ($card.data('cost') || 0)),
+                    uom_factor: parseFloat($card.data('uom-factor') || 1.0),
                     discount_amount: parseFloat($card.data('discount-amount') || 0),
                     discount_percentage: parseFloat($card.data('discount-percentage') || 0),
                     rule_name: $card.data('rule-name') || '',
@@ -518,6 +525,9 @@
                         name: $card.data('name'),
                         code: $card.data('code') || '',
                         price: $card.data('price'),
+                        cost_price: parseFloat($card.data('cost') || 0),
+                        cost_price_base: parseFloat($card.data('cost-base') !== undefined ? $card.data('cost-base') : ($card.data('cost') || 0)),
+                        uom_factor: parseFloat($card.data('uom-factor') || 1.0),
                         stock: parseFloat($card.data('stock') || 0),
                         is_service: $card.data('is-service') === true || $card.data('is-service') === "true",
                         variant_id: $card.data('variant-id') || '',
@@ -832,6 +842,12 @@
                             name: targetProduct.name,
                             code: targetProduct.code || targetProduct.sku || query,
                             price: price,
+                            cost_price: parseFloat(targetProduct.cost_price || 0),
+                            cost_price_base: parseFloat(targetProduct.cost_price_base !== undefined ? targetProduct.cost_price_base : (targetProduct.cost_price || 0)),
+                            uom_factor: parseFloat(targetProduct.uom_factor || 1.0),
+                            discount_amount: parseFloat(targetProduct.discount_amount || 0),
+                            rule_name: targetProduct.rule_name || '',
+                            is_below_cost: targetProduct.is_below_cost === true || targetProduct.is_below_cost === "true",
                             stock: targetProduct.stock,
                             is_service: targetProduct.is_service === true || targetProduct.is_service === "true",
                             variant_id: targetProduct.variant_id || '',
@@ -860,11 +876,24 @@
                         var price = self.resolveProductPrice(p);
                         var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
                         var activeClass = (idx === 0) ? ' active' : '';
+                        var costBase = p.cost_price_base !== undefined ? p.cost_price_base : (p.cost_price || 0);
+                        var costVal = p.cost_price || 0;
+                        var uomFact = p.uom_factor || 1.0;
+                        var isBelowCost = p.is_below_cost ? 'true' : 'false';
+                        var discAmt = p.discount_amount || 0;
+                        var ruleNm = p.rule_name || '';
+
                         var $item = $('<li class="code-lookup-item' + activeClass + '" ' +
                             'data-id="' + p.id + '" ' +
                             'data-name="' + p.name + '" ' +
                             'data-code="' + (p.code || p.sku || '') + '" ' +
                             'data-price="' + price + '" ' +
+                            'data-cost="' + costVal + '" ' +
+                            'data-cost-base="' + costBase + '" ' +
+                            'data-uom-factor="' + uomFact + '" ' +
+                            'data-is-below-cost="' + isBelowCost + '" ' +
+                            'data-discount-amount="' + discAmt + '" ' +
+                            'data-rule-name="' + ruleNm + '" ' +
                             'data-stock="' + p.stock + '" ' +
                             'data-is-service="' + p.is_service + '" ' +
                             'data-variant-id="' + (p.variant_id || '') + '" ' +
@@ -893,6 +922,12 @@
                             name: $item.data('name'),
                             code: $item.data('code'),
                             price: $item.data('price'),
+                            cost_price: parseFloat($item.data('cost') || 0),
+                            cost_price_base: parseFloat($item.data('cost-base') !== undefined ? $item.data('cost-base') : ($item.data('cost') || 0)),
+                            uom_factor: parseFloat($item.data('uom-factor') || 1.0),
+                            discount_amount: parseFloat($item.data('discount-amount') || 0),
+                            rule_name: $item.data('rule-name') || '',
+                            is_below_cost: $item.data('is-below-cost') === true || $item.data('is-below-cost') === "true",
                             stock: parseFloat($item.data('stock') || 0),
                             is_service: $item.data('is-service') === true || $item.data('is-service') === "true",
                             variant_id: $item.data('variant-id') || '',
@@ -931,7 +966,10 @@
             $idInput.val(product.id)
                 .attr('data-price', effectivePrice)
                 .attr('data-stock', product.stock)
-                .attr('data-is-service', product.is_service);
+                .attr('data-is-service', product.is_service)
+                .attr('data-cost-base', (product.cost_price_base !== undefined ? product.cost_price_base : (product.cost_price || 0)))
+                .attr('data-cost', (product.cost_price !== undefined ? product.cost_price : 0))
+                .attr('data-uom-factor', (product.uom_factor !== undefined ? product.uom_factor : 1.0));
 
             if (product.variant_id) {
                 $row.find('.variant-id-input').val(product.variant_id);
@@ -958,7 +996,8 @@
                 $discInput.val('0');
                 self.renderDiscountRuleState($row, null);
             }
-            if (product.is_below_cost) {
+            var isPurchase = (self.options && self.options.type === 'purchase');
+            if (product.is_below_cost && !isPurchase) {
                 $row.find('.unit-price').after('<small class="cost-warning-badge text-danger d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-triangle me-1"></i>أقل من التكلفة</small>');
             }
 
@@ -1125,7 +1164,8 @@
                                 ? '<div class="picker-checkbox-wrapper position-absolute top-0 start-0 m-2"><input type="checkbox" class="form-check-input picker-card-checkbox" data-product-id="' + p.id + '"></div>'
                                 : '';
 
-                            var discAttr = ' data-discount-amount="' + (p.discount_amount || 0) + '" data-discount-percentage="' + (p.discount_percentage || 0) + '" data-rule-name="' + (p.rule_name || '') + '" data-is-below-cost="' + (p.is_below_cost ? 'true' : 'false') + '"';
+                            var discAttr = ' data-discount-amount="' + (p.discount_amount || 0) + '" data-discount-percentage="' + (p.discount_percentage || 0) + '" data-rule-name="' + (p.rule_name || '') + '" data-is-below-cost="' + (p.is_below_cost ? 'true' : 'false') + '"' +
+                                ' data-cost="' + (p.cost_price || 0) + '" data-cost-base="' + (p.cost_price_base !== undefined ? p.cost_price_base : (p.cost_price || 0)) + '" data-uom-factor="' + (p.uom_factor || 1.0) + '"';
 
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
                                 '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '"' + discAttr + '>' +

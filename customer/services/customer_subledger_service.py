@@ -50,7 +50,7 @@ class CustomerSubledgerService:
     @classmethod
     def get_customer_balances_by_currency(cls, customer_id: int) -> List[Dict[str, Any]]:
         """
-        جلب مديونية العميل مفصلة بكل عملة (IAS 21 Multi-Currency Subledger)
+        جلب مديونية العميل مفصلة بكل عملة (Multi-Currency Subledger)
         """
         from customer.models import CustomerTransaction
         from django.db.models import Sum

@@ -248,8 +248,74 @@
 
         <hr class="my-4">
 
-        <!-- إعدادات الحضور -->
-        <h5 class="mb-3">إعدادات الحضور</h5>
+        <!-- إعدادات الحضور ومقر العمل -->
+        <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2 text-primary"></i>إعدادات الحضور ومقر العمل الجغرافي</h5>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="id_work_location" class="form-label fw-semibold">مقر العمل الجغرافي (الفرع)</label>
+                <select name="work_location" id="id_work_location" class="form-select">
+                    <option value="">-- اختر مقر العمل (افتراضي) --</option>
+                    {% for loc in work_locations %}
+                    <option value="{{ loc.id }}" {% if employee and employee.work_location_id == loc.id %}selected{% endif %}>
+                        {{ loc.name }} {% if loc.is_active %}(نشط - نطاق {{ loc.radius_meters }}م){% else %}(معطل){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">الفرع الرئيسي المخصص لتسجيل بصمة الموبايل الجغرافية (Geofence).</div>
+            </div>
+            <div class="col-md-6">
+                <label for="id_registered_device_uuid" class="form-label fw-semibold">معرّف الهاتف المقترن (Device UUID)</label>
+                <div class="input-group">
+                    <input type="text" name="registered_device_uuid" id="id_registered_device_uuid" 
+                           class="form-control" value="{{ employee.registered_device_uuid|default:'' }}" 
+                           placeholder="يتم تسجيله تلقائياً عند أول بصمة للموظف" readonly>
+                    {% if employee.registered_device_uuid %}
+                    <button class="btn btn-outline-danger" type="button" onclick="$('#id_registered_device_uuid').val(''); toastr.info('تم إلغاء ربط الجهاز، اضغط حفظ لتأكيد التغيير');">
+                        <i class="fas fa-unlink me-1"></i>فك الربط
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="form-text">قفل الهاتف لمنع تسجيل البصمة من هواتف الزملاء.</div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="form-check form-switch p-2 border rounded bg-light">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" name="allow_mobile_attendance"
+                           id="id_allow_mobile_attendance" role="switch"
+                           {% if employee and employee.allow_mobile_attendance %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="id_allow_mobile_attendance">
+                        تفعيل بصمة الموبايل GPS
+                    </label>
+                    <div class="small text-muted mt-1">السماح بتسجيل الحضور عبر تطبيق الجوال</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch p-2 border rounded bg-light">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" name="allowed_all_locations"
+                           id="id_allowed_all_locations" role="switch"
+                           {% if employee and employee.allowed_all_locations %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="id_allowed_all_locations">
+                        السماح بكافة الفروع
+                    </label>
+                    <div class="small text-muted mt-1">للمشرفين وموظفي الدعم المتنقلين</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch p-2 border rounded bg-light">
+                    <input class="form-check-input ms-0 me-2" type="checkbox" name="allow_field_visits"
+                           id="id_allow_field_visits" role="switch"
+                           {% if employee and employee.allow_field_visits %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="id_allow_field_visits">
+                        السماح بالزيارات الميدانية
+                    </label>
+                    <div class="small text-muted mt-1">لمندوبي المبيعات والمهندسين الميدانيين</div>
+                </div>
+            </div>
+        </div>
+
         <div class="row mb-3">
             <div class="col-md-6 d-flex align-items-center">
                 <div class="form-check form-switch">

@@ -405,7 +405,7 @@ class SalesService:
         user
     ) -> SalesInvoice:
         """
-        إصدار فاتورة المبيعات وتوليد قيد الإيراد (IFRS 15 Revenue Trigger)
+        إصدار فاتورة المبيعات وتوليد قيد الإيراد (Revenue Recognition Trigger)
         القيد المحاسبي: Dr. 11010 Customer AR / Cr. 40100 Sales Revenue
         تسجيل المعاملة المفتوحة في CustomerSubledgerService
         """
@@ -461,7 +461,7 @@ class SalesService:
             inv.total_amount = total_inv_val
             inv.functional_amount = func_val
 
-            # Accounting Entry via AccountingGateway: Compound Multi-Currency IAS 21 Entry
+            # Accounting Entry via AccountingGateway: Compound Multi-Currency Entry
             from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
             from financial.services.role_registry import AccountRoleRegistry
             from financial.models import ChartOfAccounts
@@ -565,7 +565,7 @@ class SalesService:
             inv.journal_entry = journal_entry
             inv.save(update_fields=["journal_entry"])
 
-            # Create IFRS 15 Revenue Recognition Schedules (FIN-AR-002)
+            # Create Revenue Recognition Schedules (FIN-AR-002)
             from financial.services.revenue_recognition_service import RevenueRecognitionService
             for inv_item in inv.items.all():
                 RevenueRecognitionService.create_schedule_for_invoice_item(inv_item.id, user=user)

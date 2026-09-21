@@ -295,12 +295,15 @@ def purchase_create(request, supplier_id=None):
     if work_order_id:
         from work_order.models import WorkOrder
         try:
-            selected_work_order = WorkOrder.objects.get(id=work_order_id)
-            if selected_work_order.status == 'cancelled':
+            if str(work_order_id).isdigit():
+                selected_work_order = WorkOrder.objects.filter(id=int(work_order_id)).first()
+            else:
+                selected_work_order = WorkOrder.objects.filter(number=work_order_id).first()
+            if selected_work_order and selected_work_order.status == 'cancelled':
                 messages.warning(request, _("أمر الشغل المحدد ملغي ولا يمكن ربطه بفاتورة مشتريات."))
                 selected_work_order = None
-        except WorkOrder.DoesNotExist:
-            pass
+        except Exception:
+            selected_work_order = None
     
     # قراءة أمر الشراء إذا تم تمريره للتحويل
     from_po_id = request.GET.get('from_po')
@@ -562,52 +565,61 @@ def purchase_create(request, supplier_id=None):
                         logger.error(f"❌ خطأ في إنشاء القيد المحاسبي لفاتورة المشتريات {purchase.number}: {str(e)}")
                         raise
 
-                    # إنشاء دفعة تلقائية للفواتير النقدية فقط (غير مرحلة)
+                    # إنشاء دفعة تلقائية للفواتير النقدية وترحيلها مباشرة
                     if invoice_type == "cash" and purchase.payment_method not in ["credit", ""]:
-                        # payment_method هو account code (مثل 10100)
+                        # payment_method هو account code (مثل 10100) أو PREPAID_BALANCE
                         payment_account_code = purchase.payment_method
                         if payment_account_code:
                             try:
                                 from purchase.services.purchase_service import PurchaseService
                                 
-                                # استخدام PurchaseService.process_payment للتوحيد
-                                # الدفعة تُنشأ غير مرحلة (draft) عشان المستخدم يراجعها ويرحلها
                                 payment_data = {
                                     'amount': purchase.total,
                                     'payment_date': purchase.date,
                                     'payment_method': payment_account_code,
-                                    'notes': 'دفعة تلقائية - فاتورة نقدية'
+                                    'notes': 'دفعة تلقائية كاملة - فاتورة نقدية'
                                 }
                                 
                                 payment = PurchaseService.process_payment(
                                     purchase=purchase,
                                     payment_data=payment_data,
                                     user=request.user,
-                                    auto_post=False  # الدفعة غير مرحلة
+                                    auto_post=True  # الترحيل التلقائي الذكي
                                 )
                                 
-                                logger.info(
-                                    f"✅ تم إنشاء دفعة غير مرحلة للفاتورة النقدية: {purchase.number}"
-                                )
-                                messages.info(
-                                    request,
-                                    "تم إنشاء دفعة غير مرحلة - يرجى مراجعتها وترحيلها من صفحة تفاصيل الفاتورة"
-                                )
+                                if payment and payment.status == 'posted':
+                                    logger.info(
+                                        f"✅ تم إنشاء وترحيل الدفعة النقدية بنجاح للفاتورة: {purchase.number}"
+                                    )
+                                    messages.success(
+                                        request,
+                                        "تم إنشاء الفاتورة وترحيل الدفعة النقدية وسدادها بالكامل."
+                                    )
+                                else:
+                                    logger.info(
+                                        f"ℹ️ تم إنشاء الفاتورة وظلت الدفعة كمسودة للفاتورة: {purchase.number}"
+                                    )
+                                    messages.info(
+                                        request,
+                                        "تم إنشاء الفاتورة بنجاح، وظلت الدفعة كمسودة بانتظار ترحيلها من المسؤول المالي."
+                                    )
 
                             except Exception as e:
                                 logger.error(
-                                    f"❌ خطأ في إنشاء الدفعة التلقائية: {str(e)}"
+                                    f"❌ خطأ في معالجة الدفعة التلقائية: {str(e)}"
                                 )
                                 messages.warning(
                                     request,
-                                    f"تم إنشاء الفاتورة لكن فشل إنشاء الدفعة التلقائية: {str(e)}",
+                                    f"تم إنشاء الفاتورة لكن حدث خطأ أثناء معالجة الدفعة: {str(e)}",
                                 )
                         else:
                             messages.warning(
                                 request, "تحذير: لم يتم اختيار خزينة للفاتورة النقدية"
                             )
-
-                    messages.success(request, "تم إنشاء فاتورة المشتريات بنجاح")
+                    else:
+                        messages.success(request, "تم إنشاء فاتورة المشتريات بنجاح")
+                    if purchase.work_order:
+                        return redirect(reverse("work_order:work_order_detail", kwargs={"pk": purchase.work_order.pk}) + "?tab=purchases")
                     return redirect("purchase:purchase_list")
 
             except Exception as e:
@@ -672,16 +684,34 @@ def purchase_create(request, supplier_id=None):
     last_purchase = Purchase.objects.order_by("-id").first()
     next_purchase_number = f"PUR{(last_purchase.id + 1 if last_purchase else 1):04d}"
 
-    from financial.models import Currency
+    from financial.models import Currency, CostCenter
+    from financial.services.exchange_rate_service import ExchangeRateService
+    
+    functional_currency = ExchangeRateService.get_functional_currency() or Currency.objects.filter(is_functional=True).first()
+    selected_curr_id = (
+        selected_po.currency_id if selected_po and selected_po.currency_id else (
+            selected_supplier.default_currency_id if selected_supplier and getattr(selected_supplier, 'default_currency_id', None) else (
+                functional_currency.id if functional_currency else None
+            )
+        )
+    )
+    selected_curr_is_foreign = bool(selected_curr_id and functional_currency and selected_curr_id != functional_currency.id)
+
     context = {
         "form": form,
         "products": products,
         "product_categories": product_categories,
         "suppliers": suppliers,
         "warehouses": warehouses,
+        "cost_centers": CostCenter.objects.filter(is_active=True).order_by("code"),
         "currencies": Currency.objects.filter(is_active=True).order_by("code"),
+        "active_currencies": Currency.objects.filter(is_active=True).order_by("code"),
+        "functional_currency": functional_currency,
+        "selected_currency_id": selected_curr_id,
+        "selected_currency_is_foreign": selected_curr_is_foreign,
         "next_purchase_number": next_purchase_number,
         "selected_supplier": selected_supplier,
+        "selected_work_order": selected_work_order,
         "is_service_invoice": is_service_invoice,
         "supplier_type_code": selected_supplier.get_primary_type_code() if selected_supplier else None,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
@@ -698,12 +728,19 @@ def purchase_create(request, supplier_id=None):
         "page_icon": "fas fa-plus-circle",
         "header_buttons": ([
             {
+                "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}) + "?tab=purchases",
+                "icon": "fa-arrow-right",
+                "text": f"العودة لتفاصيل أمر الشغل ({selected_work_order.number})",
+                "class": "btn-secondary",
+            },
+        ] if selected_work_order else ([
+            {
                 "url": reverse("supplier:supplier_detail", kwargs={"pk": selected_supplier.pk}),
                 "icon": "fa-arrow-right",
                 "text": "العودة لتفاصيل المورد",
                 "class": "btn-secondary",
             },
-        ] if selected_supplier else []),
+        ] if selected_supplier else [])),
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
             *([
@@ -1171,17 +1208,27 @@ def purchase_update(request, pk):
     warehouses = DataScopingService.get_transaction_warehouses(request.user)
     products = Product.objects.filter(is_active=True).order_by("name")
 
-    from financial.models import Currency
+    from financial.models import Currency, CostCenter
+    from financial.services.exchange_rate_service import ExchangeRateService
     currencies_qs = Currency.objects.filter(is_active=True).order_by("code")
+    functional_currency = ExchangeRateService.get_functional_currency() or Currency.objects.filter(is_functional=True).first()
+    selected_curr_id = purchase.currency_id if purchase.currency_id else (functional_currency.id if functional_currency else None)
+    selected_curr_is_foreign = bool(purchase.currency and not purchase.currency.is_functional)
 
     context = {
         "form": form,
         "purchase": purchase,
+        "selected_work_order": purchase.work_order,
         "products": products,
         "suppliers": suppliers,
         "warehouses": warehouses,
+        "cost_centers": CostCenter.objects.filter(is_active=True).order_by("code"),
         "currencies": currencies_qs,
         "active_currencies": currencies_qs,
+        "functional_currency": functional_currency,
+        "selected_currency_id": selected_curr_id,
+        "selected_currency_is_foreign": selected_curr_is_foreign,
+        "current_exchange_rate": purchase.exchange_rate or "1.000000",
         "title": "تعديل فاتورة مشتريات",
         "page_title": f"تعديل فاتورة مشتريات - {purchase.number}",
         "page_icon": "fas fa-edit",

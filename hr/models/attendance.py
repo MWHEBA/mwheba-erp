@@ -52,6 +52,14 @@ class Shift(models.Model):
         default=15,
         verbose_name='فترة السماح للانصراف (دقائق)'
     )
+
+    # الإجازة الأسبوعية المخصصة للوردية (قائمة بأرقام الأيام: 0=الاثنين, 4=الجمعة, 5=السبت)
+    weekly_off_days = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name='الإجازة الأسبوعية للوردية',
+        help_text='قائمة بأيام الإجازة الأسبوعية المخصصة لهذه الوردية (مثلاً [4, 5] للجمعة والسبت)'
+    )
     
     is_active = models.BooleanField(default=True, verbose_name='نشط')
     
@@ -65,20 +73,16 @@ class Shift(models.Model):
     def calculate_work_hours(self):
         """حساب ساعات العمل من وقت البداية والنهاية"""
         if self.start_time and self.end_time:
-            # تحويل الأوقات إلى datetime للحساب
             start = datetime.combine(datetime.today(), self.start_time)
             end = datetime.combine(datetime.today(), self.end_time)
             
-            # إذا كان وقت النهاية أقل من البداية، معناها الوردية تمتد لليوم التالي
             if end < start:
                 end += timedelta(days=1)
             
-            # حساب الفرق بالساعات
             delta = end - start
             hours = delta.total_seconds() / 3600
-            
             return round(hours, 2)
-        return 8
+        return 8.0
 
     def calculate_ramadan_work_hours(self):
         """حساب ساعات العمل في رمضان من وقت البداية والنهاية الرمضانيين"""
@@ -92,10 +96,22 @@ class Shift(models.Model):
             delta = end - start
             hours = delta.total_seconds() / 3600
             return round(hours, 2)
-        return 6
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+        return 6.0
+
+    def get_weekly_off_days_display(self):
+        """عرض أسماء أيام العطلة الأسبوعية بالعربية"""
+        names_map = {
+            0: 'الاثنين', 1: 'الثلاثاء', 2: 'الأربعاء',
+            3: 'الخميس', 4: 'الجمعة', 5: 'السبت', 6: 'الأحد'
+        }
+        days = self.weekly_off_days or [4]
+        if isinstance(days, str):
+            import json
+            try:
+                days = json.loads(days)
+            except Exception:
+                days = [4]
+        return [names_map.get(int(d), str(d)) for d in days]
 
 
 class Attendance(models.Model):
@@ -108,6 +124,15 @@ class Attendance(models.Model):
         ('half_day', 'نصف يوم'),
         ('on_leave', 'في إجازة'),
         ('permission', 'في إذن'),
+    ]
+
+    SOURCE_CHOICES = [
+        ('device', 'ماكينة'),
+        ('mobile', 'موبايل'),
+        ('field_visit', 'زيارة ميدانية'),
+        ('supervisor', 'مشرف'),
+        ('manual', 'يدوي'),
+        ('excel', 'استيراد إكسيل'),
     ]
     
     employee = models.ForeignKey(
@@ -173,6 +198,63 @@ class Attendance(models.Model):
         verbose_name='معامل الغياب',
         help_text='يؤثر على حساب خصم هذا اليوم فقط'
     )
+
+    # حقول التدقيق والمصدر
+    is_manual = models.BooleanField(
+        default=False,
+        verbose_name='إدخال يدوي'
+    )
+    manual_reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='سبب الإدخال اليدوي'
+    )
+    manual_created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='manual_attendances_created',
+        verbose_name='تم الإنشاء يدوياً بواسطة'
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default='device',
+        verbose_name='مصدر البصمة'
+    )
+    location_name = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='اسم المقر / الموقع'
+    )
+    is_field_visit = models.BooleanField(
+        default=False,
+        verbose_name='زيارة ميدانية'
+    )
+    is_missing_checkout = models.BooleanField(
+        default=False,
+        verbose_name='نسيان بصمة الانصراف'
+    )
+
+    # الربط الاختياري بالموديولات التشغيلية
+    customer = models.ForeignKey(
+        'customer.Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attendances',
+        verbose_name='العميل المرتبط'
+    )
+    work_order = models.ForeignKey(
+        'work_order.WorkOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='attendances',
+        verbose_name='أمر الشغل المرتبط'
+    )
     
     notes = models.TextField(blank=True, verbose_name='ملاحظات')
     
@@ -202,53 +284,36 @@ class Attendance(models.Model):
         indexes = [
             models.Index(fields=['employee', 'date']),
             models.Index(fields=['date']),
+            models.Index(fields=['date', 'status']),
+        ]
+        permissions = [
+            ('can_manual_attendance', 'يمكنه إضافة وتعديل الحضور يدوياً'),
+            ('can_import_attendance', 'يمكنه استيراد الحضور من Excel'),
+            ('can_reset_device_binding', 'يمكنه فك قفل هاتف الموظف المقترن'),
         ]
     
     def __str__(self):
         return f"{self.employee.get_full_name_ar()} - {self.date}"
     
     def calculate_work_hours(self):
-        """حساب ساعات العمل الفعلية - بدون save، الـ caller هو المسؤول عن الحفظ"""
-        if self.check_in and self.check_out:
-            from django.utils import timezone
-            
-            check_in = self.check_in
-            check_out = self.check_out
-            
-            # التأكد من أن التواريخ timezone-aware
-            if check_in.tzinfo is None or check_in.tzinfo.utcoffset(check_in) is None:
-                check_in = timezone.make_aware(check_in)
-            if check_out.tzinfo is None or check_out.tzinfo.utcoffset(check_out) is None:
-                check_out = timezone.make_aware(check_out)
-            
-            delta = check_out - check_in
-            hours = delta.total_seconds() / 3600
-            self.work_hours = round(hours, 2)
-            
-            # حساب العمل الإضافي
-            shift_hours = self.shift.calculate_work_hours()
-            if self.work_hours > shift_hours:
-                self.overtime_hours = self.work_hours - shift_hours
+        """
+        حساب ساعات العمل الفعلية والإضافي بدقة متناهية.
+        يفوض الحساب لمحرك AttendanceService المركزي لتوحيد منطق الحسابات ومنع أي تعارض.
+        """
+        from hr.services.attendance_service import AttendanceService
+        AttendanceService.calculate_daily_attendance(self)
 
     def get_adjusted_late_minutes(self):
-        """
-        حساب دقائق التأخير مع مراعاة رمضان
-        يستخدم AttendanceService للحساب لضمان consistency
-        """
+        """حساب دقائق التأخير مع مراعاة رمضان وأذونات العمل"""
         if not self.check_in:
             return 0
-        
         from hr.services.attendance_service import AttendanceService
         return AttendanceService._calculate_late_minutes(self.check_in, self.shift, self.date)
 
     def get_adjusted_early_leave_minutes(self):
-        """
-        حساب دقائق الانصراف المبكر مع مراعاة رمضان
-        يستخدم AttendanceService للحساب لضمان consistency
-        """
+        """حساب دقائق الانصراف المبكر مع مراعاة رمضان وأذونات العمل"""
         if not self.check_out:
             return 0
-        
         from hr.services.attendance_service import AttendanceService
         return AttendanceService._calculate_early_leave(self.check_out, self.shift, self.date)
 

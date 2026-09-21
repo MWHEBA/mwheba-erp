@@ -44,6 +44,19 @@ class TreasurySecurityService:
             logger.debug(f"Invalidated treasury cache for user {user_id}")
 
     @classmethod
+    def invalidate_all_users_cache(cls) -> None:
+        """إبطال كاش حسابات الخزن لجميع المستخدمين عند تحديث أسعار الصرف أو التغييرات العامة"""
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user_ids = list(User.objects.values_list("id", flat=True))
+            for uid in user_ids:
+                cache.delete(cls.get_cache_key(uid))
+            logger.info(f"Invalidated treasury cache for {len(user_ids)} users.")
+        except Exception as e:
+            logger.warning(f"Error invalidating all users treasury cache: {e}")
+
+    @classmethod
     def get_user_accessible_treasuries(
         cls,
         user,

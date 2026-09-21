@@ -33,22 +33,16 @@
     </div>
     {% endif %}
     
-    <!-- JS data for SweetAlert2 notifications -->
-    <script>
-        window._pageNotifications = {
-            isApproved: {% if summary.is_approved %}true{% else %}false{% endif %},
-            approvedBy: "{% if summary.is_approved %}{{ summary.approved_by.get_full_name }}{% endif %}",
-            approvedAt: "{% if summary.is_approved %}{{ summary.approved_at|date:"Y-m-d H:i" }}{% endif %}",
-            hasPayroll: {% if month_payroll %}true{% else %}false{% endif %},
-            payrollUrl: "{% if month_payroll %}{% url 'hr:payroll_detail' month_payroll.id %}{% endif %}",
-            attendanceExempt: {% if summary.employee.attendance_exempt %}true{% else %}false{% endif %}
-        };
-    </script>
-
-    <!-- No active contract — passed to JS -->
-    {% if not daily_salary and not summary.employee.attendance_exempt %}
-    <script>window._noActiveContract = true;</script>
-    {% endif %}
+    <!-- Data attributes for SweetAlert2 notifications -->
+    <div id="page-notifications-meta"
+         data-is-approved="{{ summary.is_approved|yesno:'true,false' }}"
+         data-approved-by="{{ summary.approved_by.get_full_name|default:'' }}"
+         data-approved-at="{{ summary.approved_at|date:'Y-m-d H:i'|default:'' }}"
+         data-has-payroll="{% if month_payroll %}true{% else %}false{% endif %}"
+         data-payroll-url="{% if month_payroll %}{% url 'hr:payroll_detail' month_payroll.id %}{% endif %}"
+         data-attendance-exempt="{{ summary.employee.attendance_exempt|yesno:'true,false' }}"
+         data-no-active-contract="{% if not daily_salary and not summary.employee.attendance_exempt %}true{% else %}false{% endif %}"
+         style="display:none;"></div>
 
     <!-- البطاقات الإحصائية -->
     <div class="section-container mb-4">
@@ -68,6 +62,9 @@
             {% endif %}
             {% if not summary.employee.attendance_exempt %}
             {% include 'shared/stats_card.html' with title='دقائق التأخير' value=stats.net_penalizable_minutes|default:0 unit='دقيقة' subtitle=stats.late_minutes_description icon='fa-history' color='warning' %}
+            {% endif %}
+            {% if summary.approved_overtime_hours or summary.total_overtime_hours %}
+            {% include 'shared/stats_card.html' with title='ساعات الإضافي' value=summary.approved_overtime_hours|default:summary.total_overtime_hours|default:0 unit='ساعة' subtitle='مستحق عمل إضافي' icon='fa-business-time' color='success' %}
             {% endif %}
             {% include 'shared/stats_card.html' with title='الأذونات المستخدمة' value=stats.permissions_count|default:0 unit='إذن' subtitle=stats.extra_permissions_subtitle icon='fa-file-signature' color='info' %}
         </div>
@@ -90,6 +87,47 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- مستحق العمل الإضافي -->
+                        {% if summary.overtime_amount > 0 or summary.approved_overtime_hours > 0 or summary.total_overtime_hours > 0 %}
+                        <tr class="text-center">
+                            <td><span class="badge bg-success">مستحق</span></td>
+                            <td>
+                                بدل عمل إضافي ({{ summary.approved_overtime_hours|default:summary.total_overtime_hours|smart_float }} ساعة)
+                                {% if not summary.is_approved and not month_payroll %}
+                                <button type="button" class="btn btn-xs btn-outline-primary ms-1 py-0 px-2" onclick="openOverrideOvertimeModal()" title="تعديل واعتماد ساعات الإضافي">
+                                    <i class="fas fa-edit me-1"></i>تعديل
+                                </button>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if summary.approved_overtime_hours is not None %}
+                                        <span class="badge bg-primary me-1">معدل يدوياً</span> (المحسوب: {{ summary.total_overtime_hours|smart_float }} س)
+                                    {% elif summary.overtime_amount > 0 %}
+                                        ساعات إضافية معتمدة
+                                    {% else %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            سيتم الحساب المالي عند معالجة الراتب
+                                        </span>
+                                    {% endif %}
+                                    {% if summary.overtime_override_reason %}
+                                        <br><span class="badge bg-light text-dark">ملاحظة: {{ summary.overtime_override_reason }}</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if summary.overtime_amount > 0 %}text-success fw-bold{% else %}text-muted{% endif %}">
+                                {% if summary.overtime_amount > 0 %}
+                                    {{ summary.overtime_amount|smart_float }} {{ currency_symbol }}
+                                {% else %}
+                                    <span class="text-warning" title="سيتم الحساب عند معالجة الراتب">
+                                        <i class="fas fa-clock"></i> قيد الانتظار
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+
                         <!-- ملاحظة للمعفيين من البصمة -->
                         {% if summary.employee.attendance_exempt %}
                         <tr>
@@ -503,16 +541,16 @@
                     </div>
                     
                     <div class="row mb-3">
-                        <div class="col-4">
+                        <div class="col-{% if summary.approved_overtime_hours or summary.total_overtime_hours %}3{% else %}4{% endif %}">
                             <small class="text-muted">أيام الحضور</small>
                             <div class="fw-bold text-success">{{ summary.present_days }} يوم</div>
                         </div>
                         {% if not summary.employee.attendance_exempt %}
-                        <div class="col-4">
+                        <div class="col-{% if summary.approved_overtime_hours or summary.total_overtime_hours %}3{% else %}4{% endif %}">
                             <small class="text-muted">أيام الغياب</small>
                             <div class="fw-bold text-danger">{{ summary.absent_days }} يوم</div>
                         </div>
-                        <div class="col-4">
+                        <div class="col-{% if summary.approved_overtime_hours or summary.total_overtime_hours %}3{% else %}4{% endif %}">
                             <small class="text-muted">دقائق التأخير</small>
                             <div class="fw-bold text-warning">{{ summary.net_penalizable_minutes }} دقيقة</div>
                         </div>
@@ -526,10 +564,16 @@
                             <div class="fw-bold text-danger">{{ summary.unpaid_leave_days }} يوم</div>
                         </div>
                         {% endif %}
+                        {% if summary.approved_overtime_hours or summary.total_overtime_hours %}
+                        <div class="col-3">
+                            <small class="text-muted">ساعات الإضافي</small>
+                            <div class="fw-bold text-success">{{ summary.approved_overtime_hours|default:summary.total_overtime_hours }} س</div>
+                        </div>
+                        {% endif %}
                     </div>
                     
                     <!-- الأسطر المؤثرة على الراتب -->
-                    {% if total_deductions_full > 0 or leave_summary.deduction_amount or live_extra_permissions_hours > 0 or not summary.employee.attendance_exempt and summary.absent_days > 0 or not summary.employee.attendance_exempt and summary.net_penalizable_minutes > 0 %}
+                    {% if total_deductions_full > 0 or leave_summary.deduction_amount or live_extra_permissions_hours > 0 or summary.overtime_amount > 0 or not summary.employee.attendance_exempt and summary.absent_days > 0 or not summary.employee.attendance_exempt and summary.net_penalizable_minutes > 0 %}
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered mb-0">
                             <thead class="table-light">
@@ -540,6 +584,21 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <!-- بدل العمل الإضافي -->
+                                {% if summary.overtime_amount > 0 or summary.approved_overtime_hours > 0 or summary.total_overtime_hours > 0 %}
+                                <tr class="text-center">
+                                    <td><span class="badge bg-success">مستحق</span></td>
+                                    <td class="text-start">بدل عمل إضافي ({{ summary.approved_overtime_hours|default:summary.total_overtime_hours|smart_float }} ساعة)</td>
+                                    <td class="{% if summary.overtime_amount > 0 %}text-success fw-bold{% else %}text-muted{% endif %}">
+                                        {% if summary.overtime_amount > 0 %}
+                                            {{ summary.overtime_amount|smart_float }} {{ currency_symbol }}
+                                        {% else %}
+                                            <small class="text-warning">قيد الانتظار</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+
                                 <!-- خصم الغياب — للموظفين غير المعفيين فقط -->
                                 {% if summary.absent_days > 0 and not summary.employee.attendance_exempt %}
                                 <tr class="text-center">
@@ -631,6 +690,41 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal تعديل واعتماد ساعات العمل الإضافي -->
+    <div class="modal fade" id="overrideOvertimeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-business-time text-primary me-2"></i>تعديل واعتماد ساعات العمل الإضافي
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="fas fa-info-circle me-1"></i>
+                        الساعات المحسوبة آلياً من سجلات الحضور: <strong>{{ summary.total_overtime_hours|smart_float }} ساعة</strong>.
+                        <br>يمكنك تعديل الساعات المستحقة للصرف أو ترك الحقل فارغاً للاعتماد على الساعات المحسوبة تلقائياً.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ساعات الإضافي المعتمدة للصرف</label>
+                        <input type="number" step="0.5" min="0" id="overrideOvertimeHoursInput" class="form-control" value="{% if summary.approved_overtime_hours is not None %}{{ summary.approved_overtime_hours|smart_float }}{% else %}{{ summary.total_overtime_hours|smart_float }}{% endif %}" placeholder="أدخل عدد الساعات">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">سبب / ملاحظة التعديل</label>
+                        <textarea id="overrideOvertimeReasonInput" class="form-control" rows="2" placeholder="أدخل سبب التعديل">{{ summary.overtime_override_reason|default:'' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary px-4 fw-bold" id="confirmOverrideOvertimeBtn">
+                        <i class="fas fa-save me-1"></i>حفظ الساعات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
@@ -639,7 +733,16 @@
 <script>
 $(document).ready(function() {
     // عرض إشعار واحد فقط حسب الأولوية
-    const notif = window._pageNotifications || {};
+    const metaEl = document.getElementById('page-notifications-meta');
+    const notif = metaEl ? {
+        isApproved: metaEl.dataset.isApproved === 'true',
+        approvedBy: metaEl.dataset.approvedBy || '',
+        approvedAt: metaEl.dataset.approvedAt || '',
+        hasPayroll: metaEl.dataset.hasPayroll === 'true',
+        payrollUrl: metaEl.dataset.payrollUrl || '',
+        attendanceExempt: metaEl.dataset.attendanceExempt === 'true',
+        noActiveContract: metaEl.dataset.noActiveContract === 'true'
+    } : {};
 
     if (notif.hasPayroll) {
         // الأعلى أولوية — يغني عن كل حاجة
@@ -665,7 +768,7 @@ $(document).ready(function() {
             text: 'يتم اعتماد الملخص يدوياً، والخصومات تُدخل مباشرة على قسيمة الراتب.',
             confirmButtonText: 'حسناً'
         });
-    } else if (window._noActiveContract) {
+    } else if (notif.noActiveContract) {
         Swal.fire({
             icon: 'warning',
             title: 'لا يوجد عقد نشط',
@@ -736,7 +839,6 @@ $(document).ready(function() {
         const btn = this;
         const originalHtml = btn.innerHTML;
         
-        // تعطيل الزر وإظهار loader
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاعتماد...';
         
@@ -745,6 +847,7 @@ $(document).ready(function() {
         fetch('{% url "hr:approve_attendance_summary" summary.pk %}', {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken,
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -752,14 +855,9 @@ $(document).ready(function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // إخفاء المودال
                 const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
                 if (modal) modal.hide();
-                
-                // إظهار رسالة نجاح
                 toastr.success(data.message || 'تم اعتماد ملخص الحضور بنجاح');
-                
-                // إعادة تحميل الصفحة بعد ثانية
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
@@ -771,7 +869,63 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            toastr.error('حدث خطأ أثناء الاعتماد');
+            toastr.error('حدث خطأ أثناء الاتصال بالخادم');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+    });
+
+    // دالة فتح مودال تعديل ساعات الإضافي
+    window.openOverrideOvertimeModal = function() {
+        const modalEl = document.getElementById('overrideOvertimeModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    };
+
+    // معالجة حفظ ساعات العمل الإضافي المعدلة
+    document.getElementById('confirmOverrideOvertimeBtn')?.addEventListener('click', function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        const hoursInput = document.getElementById('overrideOvertimeHoursInput');
+        const reasonInput = document.getElementById('overrideOvertimeReasonInput');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch('{% url "hr:override_attendance_summary_overtime" summary.pk %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                approved_overtime_hours: hoursInput.value.trim() !== '' ? parseFloat(hoursInput.value) : null,
+                overtime_override_reason: reasonInput.value.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('overrideOvertimeModal'));
+                if (modal) modal.hide();
+                toastr.success(data.message || 'تم تحديث ساعات العمل الإضافي بنجاح');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                toastr.error(data.message || 'حدث خطأ أثناء تحديث ساعات الإضافي');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            toastr.error('حدث خطأ أثناء الاتصال بالخادم');
             btn.disabled = false;
             btn.innerHTML = originalHtml;
         });

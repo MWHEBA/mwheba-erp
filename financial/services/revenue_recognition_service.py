@@ -28,8 +28,8 @@ logger = logging.getLogger("financial.services.revenue_recognition_service")
 
 class RevenueRecognitionService:
     """
-    FIN-AR-002: IFRS 15 Revenue Recognition Policy Engine Service (Locked Master Final)
-    محرك حوكمة الاعتراف بالإيراد وفق معيار IFRS 15 بمطابقة أسقف المبالغ وقفل التزامن ونظام الإثبات المشفر
+    FIN-AR-002: Revenue Recognition Policy Engine Service (Locked Master Final)
+    محرك حوكمة الاعتراف بالإيراد وتوزيع الإيرادات المؤجلة بمطابقة أسقف المبالغ وقفل التزامن ونظام الإثبات المشفر
     """
 
     @classmethod
@@ -63,7 +63,7 @@ class RevenueRecognitionService:
     @classmethod
     def find_matching_policy(cls, product=None) -> RevenueRecognitionPolicy:
         """
-        IFRS 15 Policy Hierarchy Resolution: PRODUCT -> CATEGORY -> GLOBAL
+        Revenue Recognition Policy Hierarchy Resolution: PRODUCT -> CATEGORY -> GLOBAL
         """
         if product:
             # 1. Product Scope Match
@@ -104,7 +104,7 @@ class RevenueRecognitionService:
         trigger_event: str = "DELIVERY_CONFIRMED"
     ) -> RevenueRecognitionDecision:
         """
-        تقييم قرار الاعتراف بالإيراد وفق شجرة قواعد IFRS 15 (DELIVERY_CONFIRMED vs INVOICE_ISSUANCE vs TIME_MILESTONE)
+        تقييم قرار الاعتراف بالإيراد وفق شجرة قواعد التوزيع (DELIVERY_CONFIRMED vs INVOICE_ISSUANCE vs TIME_MILESTONE)
         """
         inv_item = SalesInvoiceItem.objects.select_related("so_item__product", "sales_invoice").get(pk=invoice_item_id)
         product = inv_item.so_item.product if inv_item.so_item else None

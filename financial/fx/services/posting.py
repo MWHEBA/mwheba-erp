@@ -36,7 +36,7 @@ class FXPostingService:
 
         # 1. تجهيز بيانات أسطر القيد المحاسبي
         lines_data = []
-        entry_description = f"قيد إعادة تقييم أسعار الصرف غير المحققة (IAS 21) للفترة: {run.period.name}"
+        entry_description = f"قيد إعادة تقييم أسعار الصرف غير المحققة للفترة: {run.period.name}"
 
         for line in lines:
             diff = line.unrealized_difference

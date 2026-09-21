@@ -659,7 +659,7 @@ class SupplierAllocationService:
                         )
                     ]
 
-                    # عكس فروق العملة المحققة IAS 21 بالكامل بنفس القيمة التاريخية
+                    # عكس فروق العملة المحققة بالكامل بنفس القيمة التاريخية
                     if audit.realized_fx_difference and audit.realized_fx_difference != Decimal("0.00"):
                         fx_strategy = SupplierFXStrategy()
                         fx_rev_lines = fx_strategy.generate_entries(

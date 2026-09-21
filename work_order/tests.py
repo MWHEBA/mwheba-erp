@@ -262,7 +262,7 @@ class WorkOrderTests(TestCase):
 
     def test_work_order_multicurrency_ias21_profit_breakdown(self):
         """
-        اختبار احتساب أرباح التشغيل الحقيقية متعددة العملات IAS 21 وحسابات الحصالة
+        اختبار احتساب أرباح التشغيل الحقيقية متعددة العملات وحسابات الحصالة
         """
         from product.models import Warehouse, Product, Unit, Category
         from financial.models import Currency, FinancialCategory, FinancialTransaction, JournalEntry, ChartOfAccounts, AccountType
@@ -370,3 +370,147 @@ class WorkOrderTests(TestCase):
         self.assertEqual(response.context["net_profit"], Decimal("3500.00"))
         # الدفعات المقدمة المسددة (الحصالة): 5,000 EGP
         self.assertEqual(response.context["total_deposits"], Decimal("5000.00"))
+
+    def test_work_order_detail_header_status_buttons(self):
+        """
+        اختبار وجود قائمة تحديث الحالة في أزرار الهيدر
+        """
+        wo = WorkOrder.objects.create(
+            customer=self.customer,
+            status="pending",
+            created_by=self.user
+        )
+        response = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo.pk}))
+        self.assertEqual(response.status_code, 200)
+
+        header_buttons = response.context["header_buttons"]
+        status_dropdown = next((b for b in header_buttons if b.get("text") == "تحديث الحالة"), None)
+        self.assertIsNotNone(status_dropdown)
+        self.assertTrue(status_dropdown.get("dropdown"))
+
+        # التأكد من احتواء القائمة على خيارات الحالات المتاحة (قيد التشغيل، مكتمل، إلغاء)
+        item_texts = [item.get("text") for item in status_dropdown.get("items", []) if "text" in item]
+        self.assertIn("قيد التشغيل", item_texts)
+        self.assertIn("مكتمل", item_texts)
+        self.assertIn("إلغاء أمر الشغل", item_texts)
+        self.assertNotIn("قيد الانتظار", item_texts)  # لأن الحالة الحالية هي pending
+
+    def test_completed_and_cancelled_work_order_hides_action_buttons(self):
+        """
+        اختبار إخفاء زر الإضافة والنقاط الثلاث عند اكتمال أو إلغاء أمر الشغل
+        """
+        # 1. حالة مكتمل
+        wo_completed = WorkOrder.objects.create(
+            customer=self.customer,
+            status="completed",
+            created_by=self.user
+        )
+        response = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo_completed.pk}))
+        header_buttons = response.context["header_buttons"]
+        add_btn = next((b for b in header_buttons if b.get("text") == "إضافة"), None)
+        dots_btn = next((b for b in header_buttons if b.get("id") == "actions-menu-btn"), None)
+        self.assertIsNone(add_btn)
+        self.assertIsNone(dots_btn)
+
+        # 2. حالة ملغي
+        wo_cancelled = WorkOrder.objects.create(
+            customer=self.customer,
+            status="cancelled",
+            created_by=self.user
+        )
+        response_cancelled = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo_cancelled.pk}))
+        header_buttons_c = response_cancelled.context["header_buttons"]
+        add_btn_c = next((b for b in header_buttons_c if b.get("text") == "إضافة"), None)
+        dots_btn_c = next((b for b in header_buttons_c if b.get("id") == "actions-menu-btn"), None)
+        self.assertIsNone(add_btn_c)
+        self.assertIsNone(dots_btn_c)
+
+    def test_work_order_dropdown_includes_expense_and_income(self):
+        """
+        اختبار احتواء قائمة الإضافة على خياري المصروف المباشر والإيراد المباشر
+        """
+        wo = WorkOrder.objects.create(
+            customer=self.customer,
+            status="in_progress",
+            created_by=self.user
+        )
+        response = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo.pk}))
+        self.assertEqual(response.status_code, 200)
+
+        header_buttons = response.context["header_buttons"]
+        add_btn = next((b for b in header_buttons if b.get("text") == "إضافة"), None)
+        self.assertIsNotNone(add_btn)
+
+        item_texts = [item.get("text") for item in add_btn.get("items", []) if "text" in item]
+        self.assertIn("مصروف مباشر", item_texts)
+        self.assertIn("إيراد مباشر", item_texts)
+
+    def test_create_income_and_expense_linked_to_work_order(self):
+        """
+        اختبار إنشاء إيراد ومصروف مباشر مرتبطين بأمر الشغل دون تعارض مع حصانة القيد
+        """
+        from financial.models import AccountingPeriod, FinancialCategory, ChartOfAccounts, AccountType
+        from financial.views.shared_helpers import create_journal_entry_for_expense, create_journal_entry_for_income
+
+        period, _ = AccountingPeriod.objects.get_or_create(
+            name="2026-09",
+            start_date=timezone.now().date() - timedelta(days=5),
+            end_date=timezone.now().date() + timedelta(days=25),
+            status="open"
+        )
+        acc_type_rev, _ = AccountType.objects.get_or_create(code="REV_OP", defaults={"name": "إيرادات", "nature": "CREDIT", "category": "REVENUE"})
+        acc_type_exp, _ = AccountType.objects.get_or_create(code="EXP_OP2", defaults={"name": "مصروفات", "nature": "DEBIT", "category": "EXPENSE"})
+        acc_type_asset, _ = AccountType.objects.get_or_create(code="ASSET_CASH", defaults={"name": "نقدية", "nature": "DEBIT", "category": "ASSET"})
+
+        rev_acc, _ = ChartOfAccounts.objects.get_or_create(code="410001", defaults={"name": "إيراد تشغيل", "account_type": acc_type_rev})
+        exp_acc, _ = ChartOfAccounts.objects.get_or_create(code="510001", defaults={"name": "مصروف تشغيل", "account_type": acc_type_exp})
+        cash_acc, _ = ChartOfAccounts.objects.get_or_create(code="101001", defaults={"name": "خزينة رئيسية", "account_type": acc_type_asset})
+
+        cat_income = FinancialCategory.objects.create(name="إيرادات خدمات", code="CAT_INC_01", default_revenue_account=rev_acc)
+        cat_expense = FinancialCategory.objects.create(name="مصروفات خدمات", code="CAT_EXP_01", default_expense_account=exp_acc)
+
+        wo = WorkOrder.objects.create(
+            customer=self.customer,
+            status="in_progress",
+            created_by=self.user
+        )
+
+        # 1. اختبار إنشاء إيراد مباشر
+        cleaned_income = {
+            'description': 'إيراد تشغيل مباشر',
+            'amount': Decimal('550.00'),
+            'date': timezone.now().date(),
+            'category_id': cat_income.id,
+            'payment_account_value': str(cash_acc.id),
+            'notes': 'ملاحظات تجريبية',
+            'work_order_id': wo.id,
+        }
+        je_inc = create_journal_entry_for_income(cleaned_income, self.user)
+        self.assertIsNotNone(je_inc)
+        self.assertEqual(je_inc.work_order_id, wo.id)
+        self.assertEqual(je_inc.status, 'posted')
+
+        # 2. اختبار إنشاء مصروف مباشر
+        cleaned_expense = {
+            'description': 'مصروف تشغيل مباشر',
+            'amount': Decimal('200.00'),
+            'date': timezone.now().date(),
+            'category_id': cat_expense.id,
+            'payment_account_value': str(cash_acc.id),
+            'notes': 'ملاحظات مصروف',
+            'work_order_id': wo.id,
+        }
+        je_exp = create_journal_entry_for_expense(cleaned_expense, self.user)
+        self.assertIsNotNone(je_exp)
+        self.assertEqual(je_exp.work_order_id, wo.id)
+        # 3. اختبار ظهور المصروفات والإيرادات المباشرة في صفحة تفاصيل أمر الشغل
+        resp = self.client.get(reverse("work_order:work_order_detail", kwargs={"pk": wo.pk}))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["incomes_direct_total"], Decimal("550.00"))
+        self.assertEqual(resp.context["expenses_direct_total"], Decimal("200.00"))
+        self.assertEqual(resp.context["incomes_direct"].count(), 1)
+        self.assertEqual(resp.context["expenses_direct"].count(), 1)
+
+
+
+

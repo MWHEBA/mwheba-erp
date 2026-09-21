@@ -175,14 +175,18 @@ def sale_create(request, customer_id=None):
             pass
 
     # قراءة أمر الشغل إذا تم تمريره
-    work_order_id = request.GET.get('work_order')
+    work_order_id = request.GET.get('work_order') or request.POST.get('work_order')
     selected_work_order = None
     if work_order_id:
         from work_order.models import WorkOrder
         try:
-            selected_work_order = WorkOrder.objects.get(id=work_order_id)
-            selected_customer = selected_work_order.customer
-        except WorkOrder.DoesNotExist:
+            if str(work_order_id).isdigit():
+                selected_work_order = WorkOrder.objects.filter(id=int(work_order_id)).first()
+            else:
+                selected_work_order = WorkOrder.objects.filter(number=work_order_id).first()
+            if selected_work_order:
+                selected_customer = selected_work_order.customer
+        except Exception:
             pass
     elif selected_so and getattr(selected_so, 'quotation_reference', None) and getattr(selected_so.quotation_reference, 'work_order', None):
         selected_work_order = selected_so.quotation_reference.work_order
@@ -242,7 +246,7 @@ def sale_create(request, customer_id=None):
                     'currency_id': request.POST.get("currency"),
                     'exchange_rate': request.POST.get("exchange_rate", "1.0"),
                     'exchange_rate_override_reason': request.POST.get("exchange_rate_override_reason", ""),
-                    'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
+                    'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else (selected_work_order.id if selected_work_order else None),
                     'sales_order_id': selected_so.id if selected_so else (request.POST.get('sales_order') or None),
                     'custom_fields': SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]')),
                     'items': []
@@ -360,6 +364,8 @@ def sale_create(request, customer_id=None):
                                 logger.warning(f"تنبيه تسوية العربون: {alloc_err}")
                 
                 messages.success(request, "تم إنشاء فاتورة المبيعات بنجاح")
+                if sale and sale.work_order:
+                    return redirect(reverse("work_order:work_order_detail", kwargs={"pk": sale.work_order.pk}) + "?tab=sales")
                 return redirect("sale:sale_detail", pk=sale.pk)
 
             except Exception as e:
@@ -471,6 +477,7 @@ def sale_create(request, customer_id=None):
         "currencies": Currency.objects.filter(is_active=True).order_by("code"),
         "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "selected_customer": selected_customer,
+        "selected_work_order": selected_work_order,
         "customer_prepaid_balance": customer_prepaid_balance,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "posted_items_json": json.dumps(posted_items, cls=DjangoJSONEncoder) if posted_items else "null",
@@ -482,12 +489,19 @@ def sale_create(request, customer_id=None):
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": ([
             {
+                "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}) + "?tab=sales",
+                "icon": "fa-arrow-right",
+                "text": f"العودة لتفاصيل أمر الشغل ({selected_work_order.number})",
+                "class": "btn-secondary",
+            },
+        ] if selected_work_order else ([
+            {
                 "url": reverse("customer:customer_detail", kwargs={"pk": selected_customer.pk}),
                 "icon": "fa-arrow-right",
                 "text": f"العودة لتفاصيل {selected_customer.name}",
                 "class": "btn-secondary",
-            }
-        ] if selected_customer else []),
+            },
+        ] if selected_customer else [])),
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
             *([
@@ -612,9 +626,17 @@ def add_payment(request, pk):
         else:
             messages.error(request, "يرجى تصحيح الأخطاء في النموذج")
     else:
+        from financial.services.exchange_rate_service import ExchangeRateService
+        latest_rate = Decimal('1.000000')
+        if sale.currency and not sale.currency.is_functional:
+            latest_rate = ExchangeRateService.get_exchange_rate(sale.currency)
+        elif hasattr(sale, 'exchange_rate') and sale.exchange_rate:
+            latest_rate = sale.exchange_rate
+
         initial_data = {
             'amount': sale.amount_due,
             'payment_date': timezone.now().date(),
+            'payment_exchange_rate': latest_rate,
         }
         form = SalePaymentForm(initial=initial_data, sale=sale)
 

@@ -1,0 +1,518 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .punch-card-container {
+        max-width: 580px;
+        margin: 0 auto;
+    }
+    .camera-container {
+        position: relative;
+        width: 100%;
+        max-width: 320px;
+        height: 240px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+        background-color: var(--bg-secondary, #f8f9fa);
+        border: 2px solid var(--border-color, #dee2e6);
+    }
+    .camera-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); /* مرآة للسيلفي */
+    }
+    .camera-canvas {
+        display: none;
+    }
+    .camera-overlay {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background-color: var(--dark-bg, #212529);
+        color: var(--text-white, #ffffff);
+        opacity: 0.85;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+    }
+    .geo-status-indicator {
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border: 1px solid var(--border-color, #dee2e6);
+    }
+    .btn-punch {
+        padding: 14px 20px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        border-radius: 10px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-punch:active {
+        transform: scale(0.98);
+    }
+    .offline-banner {
+        display: none;
+        background-color: var(--warning-bg, #fff3cd);
+        color: var(--warning-text, #856404);
+        border: 1px solid var(--warning-border, #ffeeba);
+        border-radius: 8px;
+        padding: 10px 15px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid pb-5">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <div class="punch-card-container">
+        <!-- شريط تنبيه الأوفلاين -->
+        <div id="offlineBanner" class="offline-banner align-items-center justify-content-between">
+            <div>
+                <i class="fas fa-wifi-slash me-2"></i>
+                <span>أنت غير متصل بالإنترنت حالياً. سيتم حفظ البصمة محلياً ومزامنتها تلقائياً عند عودة الاتصال.</span>
+            </div>
+            <span id="offlineQueueBadge" class="badge bg-warning text-dark ms-2">0 معلقة</span>
+        </div>
+
+        <!-- بطاقة معلومات الموظف والوردية -->
+        <div class="section-container mb-3 p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; font-size: 1.3rem;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-1 text-dark" id="empNameDisplay">{{ employee.get_full_name_ar }}</h6>
+                        <span class="text-muted small">كود: {{ employee.employee_number }}</span>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="badge bg-light text-dark border" id="shiftInfoBadge">
+                        <i class="far fa-clock me-1 text-primary"></i><span id="shiftTimeDisplay">جاري التحميل...</span>
+                    </div>
+                    <div class="small text-muted mt-1" id="serverClock">00:00:00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- بطاقة الكاميرا والموقع الجغرافي -->
+        <div class="section-container mb-3 text-center p-4">
+            <!-- كاميرا السيلفي -->
+            <div class="camera-container mb-3">
+                <video id="cameraVideo" class="camera-video" autoplay playsinline muted></video>
+                <canvas id="cameraCanvas" class="camera-canvas"></canvas>
+                <div class="camera-overlay">
+                    <i class="fas fa-camera me-1"></i>سيلفي مباشر
+                </div>
+            </div>
+
+            <!-- مؤشر الموقع الجغرافي Geofencing -->
+            <div id="geoIndicator" class="geo-status-indicator bg-light text-start">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <strong class="text-dark" id="geoLocTitle">
+                        <i class="fas fa-map-marker-alt text-primary me-2"></i>جاري تحديد موقعك الجغرافي...
+                    </strong>
+                    <span id="geoAccuracyBadge" class="badge bg-secondary">دقة GPS: —</span>
+                </div>
+                <div class="small text-muted" id="geoDistanceText">يرجى السماح بصلاحية الموقع الجغرافي من المتصفح.</div>
+            </div>
+
+            <!-- أزرار البصمة الرئيسية -->
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <button type="button" class="btn btn-success btn-punch w-100" id="btnCheckIn">
+                        <i class="fas fa-sign-in-alt me-2"></i>تسجيل حضور
+                    </button>
+                </div>
+                <div class="col-6">
+                    <button type="button" class="btn btn-danger btn-punch w-100" id="btnCheckOut">
+                        <i class="fas fa-sign-out-alt me-2"></i>تسجيل انصراف
+                    </button>
+                </div>
+            </div>
+
+            <!-- زر مأمورية ميدانية للمصرح لهم -->
+            {% if employee.allow_field_visits %}
+            <div class="mb-2">
+                <button type="button" class="btn btn-sm btn-outline-primary w-100 py-2" id="btnOpenFieldVisitModal">
+                    <i class="fas fa-route me-1"></i>تسجيل بصمة مأمورية / زيارة ميدانية
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- زر المزامنة اليدوية للبصمات الأوفلاين -->
+            <div id="syncSection" class="mt-3 pt-3 border-top" style="display: none;">
+                <button type="button" class="btn btn-sm btn-outline-warning w-100" id="btnSyncOffline">
+                    <i class="fas fa-sync-alt me-1"></i>مزامنة البصمات المعلقة (<span id="offlineCount">0</span>)
+                </button>
+            </div>
+        </div>
+
+        <!-- بطاقة سجل حضور اليوم -->
+        <div class="section-container p-3">
+            <h6 class="fw-bold mb-3"><i class="fas fa-calendar-day me-2 text-primary"></i>سجل بصمات اليوم</h6>
+            <div class="row g-2 text-center">
+                <div class="col-6">
+                    <div class="p-2 border rounded bg-light">
+                        <small class="text-muted d-block">وقت الحضور</small>
+                        <strong class="text-success" id="todayCheckInVal">—</strong>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 border rounded bg-light">
+                        <small class="text-muted d-block">وقت الانصراف</small>
+                        <strong class="text-danger" id="todayCheckOutVal">—</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal مأمورية ميدانية -->
+<div class="modal fade" id="fieldVisitModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-route text-primary me-2"></i>تسجيل مأمورية ميدانية
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="fieldVisitForm">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">نوع البصمة <span class="text-danger">*</span></label>
+                        <select name="field_punch_type" id="field_punch_type" class="form-select" required>
+                            <option value="check_in">حضور مأمورية (Check-In)</option>
+                            <option value="check_out">انصراف مأمورية (Check-Out)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">سبب / وجهة المأمورية <span class="text-danger">*</span></label>
+                        <textarea name="field_visit_reason" id="field_visit_reason" class="form-control" rows="3" required placeholder="مثال: زيارة موقع العميل لمعاينة الأعمال"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSubmitFieldVisit">
+                        <i class="fas fa-check-circle me-1"></i>تأكيد وبصم
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let punchContext = null;
+    let currentPosition = null;
+    let cameraStream = null;
+    const OFFLINE_STORAGE_KEY = 'mwheba_offline_punches_{{ employee.id }}';
+
+    // 1. تشغيل ساعة السيرفر المحلية
+    setInterval(function() {
+        const now = new Date();
+        $('#serverClock').text(now.toLocaleTimeString('ar-EG'));
+    }, 1000);
+
+    // 2. إدارة وتوليد معرف الجهاز (Device UUID)
+    function getOrCreateDeviceUUID() {
+        let uuid = localStorage.getItem('mwheba_device_uuid');
+        if (!uuid) {
+            uuid = 'DEV-' + ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            ).toUpperCase();
+            localStorage.setItem('mwheba_device_uuid', uuid);
+        }
+        return uuid;
+    }
+    const deviceUUID = getOrCreateDeviceUUID();
+
+    // 3. جلب سياق البصمة من السيرفر
+    function loadPunchContext() {
+        $.getJSON('{% url "hr:api_get_punch_context" %}', function(res) {
+            if (res.success) {
+                punchContext = res.data;
+                $('#shiftTimeDisplay').text(`${punchContext.shift.name} (${punchContext.shift.start_time} - ${punchContext.shift.end_time})`);
+                
+                if (punchContext.attendance_today.has_checked_in) {
+                    $('#todayCheckInVal').text(punchContext.attendance_today.check_in_time);
+                }
+                if (punchContext.attendance_today.has_checked_out) {
+                    $('#todayCheckOutVal').text(punchContext.attendance_today.check_out_time);
+                }
+            }
+        }).fail(function() {
+            console.warn('تعذر جلب سياق البصمة (ربما الجهاز أوفلاين).');
+        });
+    }
+    loadPunchContext();
+
+    // 4. تشغيل كاميرا السيلفي
+    async function startCamera() {
+        try {
+            const video = document.getElementById('cameraVideo');
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            });
+            video.srcObject = cameraStream;
+        } catch (err) {
+            console.warn('تعذر تشغيل الكاميرا:', err.message);
+        }
+    }
+    startCamera();
+
+    // التقاط صورة سيلفي مضغوطة من الكانفاس
+    function captureSelfie() {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        if (!video || !cameraStream) return null;
+
+        canvas.width = 480;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        // تطبيق تأثير المرآة لتطابق ما يراه المستخدم
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL('image/jpeg', 0.7); // ضغط 70% للحجم الخفيف (حوالي 40-60KB)
+    }
+
+    // 5. تتبع الموقع الجغرافي GPS
+    function updateGeoStatus(position) {
+        currentPosition = position;
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const acc = Math.round(position.coords.accuracy);
+
+        $('#geoAccuracyBadge').text(`دقة GPS: ±${acc}م`).removeClass('bg-secondary bg-danger').addClass(acc <= 50 ? 'bg-success' : 'bg-warning text-dark');
+
+        if (punchContext && punchContext.locations && punchContext.locations.length > 0) {
+            // حساب المسافة لأقرب مقر
+            let nearestLoc = null;
+            let minDistance = Infinity;
+
+            punchContext.locations.forEach(loc => {
+                const dist = calculateHaversine(lat, lng, loc.latitude, loc.longitude);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestLoc = loc;
+                }
+            });
+
+            if (nearestLoc) {
+                const isInside = minDistance <= nearestLoc.radius_meters;
+                if (isInside) {
+                    $('#geoLocTitle').html(`<i class="fas fa-check-circle text-success me-2"></i>داخل نطاق (${nearestLoc.name})`);
+                    $('#geoDistanceText').html(`<span class="text-success">المسافة عن المركز: ${Math.round(minDistance)}م (المسموح: ${nearestLoc.radius_meters}م)</span>`);
+                    $('#geoIndicator').removeClass('border-danger border-warning').addClass('border-success bg-light');
+                } else {
+                    $('#geoLocTitle').html(`<i class="fas fa-exclamation-triangle text-danger me-2"></i>خارج نطاق (${nearestLoc.name})`);
+                    $('#geoDistanceText').html(`<span class="text-danger">المسافة: ${Math.round(minDistance)}م (تتجاوز المسموح بـ ${Math.round(minDistance - nearestLoc.radius_meters)}م)</span>`);
+                    $('#geoIndicator').removeClass('border-success').addClass('border-danger bg-light');
+                }
+            }
+        } else {
+            $('#geoLocTitle').html(`<i class="fas fa-map-marker-alt text-primary me-2"></i>تم تحديد الموقع الجغرافي`);
+            $('#geoDistanceText').text(`الإحداثيات: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        }
+    }
+
+    function calculateHaversine(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            updateGeoStatus,
+            function(err) {
+                $('#geoLocTitle').html(`<i class="fas fa-times-circle text-danger me-2"></i>تعذر قراءة الموقع: ${err.message}`);
+                $('#geoAccuracyBadge').text('GPS معطل').addClass('bg-danger');
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+        );
+    }
+
+    // 6. معالجة حالة الاتصال بالإنترنت والأوفلاين
+    function updateOnlineStatus() {
+        const isOnline = navigator.onLine;
+        if (isOnline) {
+            $('#offlineBanner').hide();
+            syncOfflinePunches();
+        } else {
+            $('#offlineBanner').css('display', 'flex');
+        }
+        updateOfflineBadge();
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    function getOfflinePunches() {
+        try {
+            return JSON.parse(localStorage.getItem(OFFLINE_STORAGE_KEY) || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    function saveOfflinePunch(punchData) {
+        const punches = getOfflinePunches();
+        punches.push(punchData);
+        localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(punches));
+        updateOfflineBadge();
+        if (window.showToastr) {
+            window.showToastr('تم حفظ البصمة في الذاكرة المحلية (أوفلاين)، وسيتم إرسالها تلقائياً عند عودة الإنترنت.', 'warning');
+        }
+    }
+
+    function updateOfflineBadge() {
+        const count = getOfflinePunches().length;
+        $('#offlineQueueBadge, #offlineCount').text(`${count} معلقة`);
+        if (count > 0) {
+            $('#syncSection').show();
+        } else {
+            $('#syncSection').hide();
+        }
+    }
+
+    function syncOfflinePunches() {
+        const punches = getOfflinePunches();
+        if (punches.length === 0) return;
+
+        const btn = $('#btnSyncOffline');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري المزامنة...');
+
+        $.ajax({
+            url: '{% url "hr:api_sync_offline_punches" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            data: JSON.stringify({ punches: punches }),
+            success: function(res) {
+                if (res.success) {
+                    localStorage.removeItem(OFFLINE_STORAGE_KEY);
+                    updateOfflineBadge();
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    }
+                    setTimeout(function() { window.location.reload(); }, 3100);
+                }
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-sync-alt me-1"></i>مزامنة البصمات المعلقة');
+            }
+        });
+    }
+    $('#btnSyncOffline').on('click', syncOfflinePunches);
+
+    // 7. إرسال البصمة (Submit Punch)
+    function executePunch(punchType, isFieldVisit = false, fieldReason = '') {
+        if (!currentPosition) {
+            if (window.showToastr) window.showToastr('يرجى الانتظار حتى يتم تحديد موقعك الجغرافي GPS.', 'warning');
+            return;
+        }
+
+        const selfieBase64 = captureSelfie();
+        const payload = {
+            punch_type: punchType,
+            latitude: currentPosition.coords.latitude,
+            longitude: currentPosition.coords.longitude,
+            accuracy: currentPosition.coords.accuracy,
+            device_uuid: deviceUUID,
+            punch_token: punchContext ? punchContext.punch_token : null,
+            selfie_image: selfieBase64,
+            is_field_visit: isFieldVisit,
+            field_visit_reason: fieldReason,
+            client_timestamp: new Date().toISOString()
+        };
+
+        const targetBtn = punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut');
+        const origText = targetBtn.html();
+        targetBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التوثيق...');
+
+        if (!navigator.onLine) {
+            saveOfflinePunch(payload);
+            targetBtn.prop('disabled', false).html(origText);
+            return;
+        }
+
+        $.ajax({
+            url: '{% url "hr:api_submit_mobile_punch" %}',
+            type: 'POST',
+            contentType: 'application/json',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+            data: JSON.stringify(payload),
+            success: function(res) {
+                if (res.success) {
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    }
+                    if (punchType === 'check_in') {
+                        $('#todayCheckInVal').text(res.punch_time.slice(0, 5));
+                    } else {
+                        $('#todayCheckOutVal').text(res.punch_time.slice(0, 5));
+                    }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'error');
+                    }
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في معالجة البصمة';
+                if (window.showToastr) {
+                    window.showToastr(msg, 'error');
+                }
+            },
+            complete: function() {
+                targetBtn.prop('disabled', false).html(origText);
+            }
+        });
+    }
+
+    $('#btnCheckIn').on('click', function() { executePunch('check_in'); });
+    $('#btnCheckOut').on('click', function() { executePunch('check_out'); });
+
+    // 8. المأمورية الميدانية
+    $('#btnOpenFieldVisitModal').on('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('fieldVisitModal'));
+        modal.show();
+    });
+
+    $('#fieldVisitForm').on('submit', function(e) {
+        e.preventDefault();
+        const pType = $('#field_punch_type').val();
+        const reason = $('#field_visit_reason').val();
+        bootstrap.Modal.getInstance(document.getElementById('fieldVisitModal')).hide();
+        executePunch(pType, true, reason);
+    });
+});
+</script>
+{% endblock %}

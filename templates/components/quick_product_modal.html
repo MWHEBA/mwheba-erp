@@ -426,12 +426,24 @@
                     e.preventDefault();
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
+                            target: document.getElementById('quickProductModal') || 'body',
                             title: 'إضافة تصنيف جديد',
                             html: '<input id="swal-cat-name" class="swal2-input" placeholder="اسم التصنيف (عربي)">' +
                                   '<input id="swal-cat-code" class="swal2-input" placeholder="رمز التصنيف بالإنجليزية (مثال: SUP)">',
                             showCancelButton: true,
                             confirmButtonText: 'حفظ التصنيف',
                             cancelButtonText: 'إلغاء',
+                            customClass: {
+                                confirmButton: 'btn btn-primary px-4 fw-bold mx-1',
+                                cancelButton: 'btn btn-secondary px-3 mx-1'
+                            },
+                            buttonsStyling: false,
+                            didOpen: () => {
+                                setTimeout(function() {
+                                    var input = document.getElementById('swal-cat-name');
+                                    if (input) input.focus();
+                                }, 100);
+                            },
                             preConfirm: () => {
                                 const name = document.getElementById('swal-cat-name').value.trim();
                                 const code = document.getElementById('swal-cat-code').value.trim();
@@ -446,6 +458,9 @@
                                 $.ajax({
                                     url: '{% url "product:category_create" %}',
                                     method: 'POST',
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
                                     data: {
                                         name: result.value.name,
                                         code: result.value.code,
@@ -471,12 +486,24 @@
                     e.preventDefault();
                     if (typeof Swal !== 'undefined') {
                         Swal.fire({
+                            target: document.getElementById('quickProductModal') || 'body',
                             title: 'إضافة وحدة قياس جديدة',
                             html: '<input id="swal-unit-name" class="swal2-input" placeholder="اسم الوحدة (مثال: كرتونة)">' +
                                   '<input id="swal-unit-symbol" class="swal2-input" placeholder="رمز الوحدة (مثال: كرتون)">',
                             showCancelButton: true,
                             confirmButtonText: 'حفظ الوحدة',
                             cancelButtonText: 'إلغاء',
+                            customClass: {
+                                confirmButton: 'btn btn-primary px-4 fw-bold mx-1',
+                                cancelButton: 'btn btn-secondary px-3 mx-1'
+                            },
+                            buttonsStyling: false,
+                            didOpen: () => {
+                                setTimeout(function() {
+                                    var input = document.getElementById('swal-unit-name');
+                                    if (input) input.focus();
+                                }, 100);
+                            },
                             preConfirm: () => {
                                 const name = document.getElementById('swal-unit-name').value.trim();
                                 const symbol = document.getElementById('swal-unit-symbol').value.trim();
@@ -491,6 +518,9 @@
                                 $.ajax({
                                     url: '{% url "product:unit_create" %}',
                                     method: 'POST',
+                                    headers: {
+                                        'X-Requested-With': 'XMLHttpRequest'
+                                    },
                                     data: {
                                         name: result.value.name,
                                         symbol: result.value.symbol,

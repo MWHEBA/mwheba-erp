@@ -517,7 +517,7 @@ urlpatterns = [
     path("approvals/<int:pk>/approve/", views.approval_approve, name="approval_approve"),
     path("approvals/<int:pk>/reject/", views.approval_reject, name="approval_reject"),
 
-    # دليل العملات وأسعار الصرف وإعادة التقييم الدوري (IAS 21)
+    # دليل العملات وأسعار الصرف وإعادة التقييم الدوري
     path("currencies/", views.currency_list, name="currency_list"),
     path("currencies/create/", views.currency_create, name="currency_create"),
     path("currencies/<str:code>/update/", views.currency_update, name="currency_update"),
@@ -528,7 +528,7 @@ urlpatterns = [
     path("api/exchange-rate/get/", views.api_get_exchange_rate, name="api_get_exchange_rate"),
     path("fx-revaluation/", views.fx_revaluation_view, name="fx_revaluation"),
     
-    # إقرار وتوزيع الإيرادات المؤجلة (IFRS 15)
+    # إقرار وتوزيع الإيرادات المؤجلة
     path("revenue-recognition/", views.revenue_recognition_dashboard_view, name="revenue_recognition_dashboard"),
     path("revenue-recognition/process-due/", views.process_due_revenues_action_view, name="process_due_revenues_action"),
 ]

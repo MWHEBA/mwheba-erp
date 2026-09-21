@@ -266,7 +266,7 @@ class ProcurementBridgeService:
         is_cash_workshop = bool(getattr(supplier, 'requires_cash_advance', False) or getattr(order, 'is_rush', False))
         payment_method = "cash" if is_cash_workshop else "credit"
 
-        # حساب سعر الصرف والمجاميع الوظيفية والأجنبية وفق معيار IAS 21
+        # حساب سعر الصرف والمجاميع الوظيفية والأجنبية
         func_code = func_curr.code if func_curr else 'EGP'
         po_code = po_currency.code if po_currency else func_code
         po_sym = po_currency.symbol if po_currency and po_currency.symbol else (func_curr.symbol if func_curr else '')

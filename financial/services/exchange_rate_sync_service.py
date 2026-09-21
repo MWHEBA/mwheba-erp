@@ -83,6 +83,13 @@ class ExchangeRateSyncService:
         logger.info(f"Synced {len(synced)} active exchange rates for base currency {base_code}")
 
         if synced:
+            # إبطال كاش حسابات الخزن لجميع المستخدمين لضمان ظهور الأسعار المحدثة فوراً في القوائم المنسدلة
+            try:
+                from financial.services.treasury_security_service import TreasurySecurityService
+                TreasurySecurityService.invalidate_all_users_cache()
+            except Exception as exc:
+                logger.warning(f"Could not invalidate treasury cache: {exc}")
+
             return {
                 "status": "SUCCESS",
                 "base_currency": base_code,

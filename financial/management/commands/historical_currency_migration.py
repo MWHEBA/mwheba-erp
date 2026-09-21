@@ -10,7 +10,7 @@ from financial.models.journal_entry import JournalEntry, JournalEntryLine
 
 
 class Command(BaseCommand):
-    help = "أمر استثنائي لإعادة ترجمة القيود المحاسبية التاريخية عند تغيير العملة الوظيفية الأساسية للمؤسسة (IAS 21)"
+    help = "أمر استثنائي لإعادة ترجمة القيود المحاسبية التاريخية عند تغيير العملة الوظيفية الأساسية للمؤسسة"
 
     def add_arguments(self, parser):
         parser.add_argument("--new-currency", type=str, required=True, help="رمز العملة الأساسية الجديدة (مثال: USD, SAR, EGP)")

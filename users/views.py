@@ -123,6 +123,8 @@ def profile(request):
         {"title": _("الملف الشخصي"), "active": True},
     ]
 
+    can_manage = user.is_superuser or (hasattr(user, 'can_manage_users') and user.can_manage_users()) or user.has_perm('users.view_user')
+
     context = {
         "user": user,
         "form": form,
@@ -133,6 +135,7 @@ def profile(request):
         "header_buttons": header_buttons,
         "header_badges": header_badges,
         "breadcrumb_items": breadcrumb_items,
+        "active_menu": "users" if can_manage else "profile",
     }
 
     return render(request, "users/profile.html", context)

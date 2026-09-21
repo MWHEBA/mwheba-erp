@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class PartnerSubledgerService:
     """
     خدمة الأستاذ المساعد المركزي الموحد (Unified Partner Subledger Service)
-    FIN-AR-003 & FIN-AP-003: إدارة حركات الأستاذ المساعد المفتوحة للعملاء والموردين بدعم العملات المتعددة وIAS 21
+    FIN-AR-003 & FIN-AP-003: إدارة حركات الأستاذ المساعد المفتوحة للعملاء والموردين بدعم العملات المتعددة
     """
 
     @classmethod

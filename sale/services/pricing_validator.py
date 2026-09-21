@@ -7,7 +7,7 @@ Pricing Security Validator - محرك التدقيق السعري وحماية �
 3. إلزام المطبوعات المخصصة برقم أمر تسعير معتمد، والخدمات المفتوحة بصلاحية صريحة.
 4. فرض سقف الخصم الإجمالي للمندوب (sale.override_max_discount).
 5. التحقق من السقف الائتماني للعميل عند البيع الآجل (sale.override_credit_limit).
-6. قفل سعر الصرف للعملات الأجنبية وفق IAS 21 (financial.override_exchange_rate).
+6. قفل سعر الصرف للعملات الأجنبية (financial.override_exchange_rate).
 """
 import logging
 from decimal import Decimal
@@ -99,7 +99,7 @@ class PricingSecurityValidator:
                 is_admin=is_admin_or_super,
             )
 
-        # 4. قفل سعر الصرف للعملات الأجنبية وفق IAS 21
+        # 4. قفل سعر الصرف للعملات الأجنبية
         if currency and not getattr(currency, "is_functional", True) and exchange_rate is not None:
             cls._validate_exchange_rate(
                 user=user,
@@ -284,7 +284,7 @@ class PricingSecurityValidator:
     @classmethod
     def _validate_exchange_rate(cls, user, currency, provided_rate, is_admin):
         """
-        حوكمة وتثبيت سعر الصرف للعملات الأجنبية وفق معيار IAS 21
+        حوكمة وتثبيت سعر الصرف للعملات الأجنبية
         """
         if is_admin or user.has_perm("financial.override_exchange_rate") or user.has_perm("sale.override_exchange_rate"):
             return

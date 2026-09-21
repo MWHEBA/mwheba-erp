@@ -71,7 +71,7 @@ from purchase.models.procurement_models import GoodsReceivedNote
 @login_required
 @require_permission(["product.add_landedcostdocument", "purchase.change_purchase"])
 def landed_cost_create(request):
-    """إنشاء وتوزيع مستند تكاليف إضافية (شحن / جمارك / خدمات تشغيل) وفق IAS 2"""
+    """إنشاء وتوزيع مستند تكاليف إضافية (شحن / جمارك / خدمات تشغيل)"""
     if request.method == "POST":
         grn_id = request.POST.get("grn_id")
         freight_amount = Decimal(request.POST.get("freight_amount", "0.00") or "0.00")

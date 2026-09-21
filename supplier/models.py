@@ -1543,7 +1543,7 @@ class SupplierService(models.Model):
 
     @property
     def is_fx_rate_stale(self) -> bool:
-        """فحص عمر سعر الصرف للعملات الأجنبية وفق معيار IAS 21 (قاعدة 7 أيام)"""
+        """فحص عمر سعر الصرف للعملات الأجنبية (قاعدة 7 أيام)"""
         if not self.is_foreign_currency:
             return False
         curr = self.effective_currency

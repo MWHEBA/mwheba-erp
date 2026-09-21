@@ -1,1 +1,1 @@
-# Financial FX Module (IAS 21 Enterprise Package)
+# Financial FX Module (Multi-Currency Enterprise Package)

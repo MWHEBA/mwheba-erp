@@ -96,7 +96,7 @@ def handle_progressive_ledger_load(request, account_id, date_from, date_to, page
 def get_account_transactions_optimized(account, date_from=None, date_to=None, cost_center=None, currency=None, include_unposted=False):
     """
     جلب معاملات كشف الحساب بدقة محاسبية 100% عبر LedgerQueryService
-    مع الدعم الكامل للعملات الأجنبية ومعيار IAS 21
+    مع الدعم الكامل للعملات الأجنبية
     """
     from ..services.ledger_query_service import LedgerQueryService
     statement_data = LedgerQueryService.get_account_statement(
@@ -1017,7 +1017,7 @@ def ledger_report(request):
 @require_permission('financial.view_chartofaccounts')
 def balance_sheet(request):
     """
-    تقرير الميزانية العمومية والمركز المالي (IAS 1 Statement of Financial Position)
+    تقرير الميزانية العمومية والمركز المالي
     مرتبط بالكامل بـ BalanceSheetService المعياري مع دعم التخزين المؤقت، المقارنة الزمنية، وتصدير Excel الرسمي.
     """
     from django.http import HttpResponse
@@ -1175,7 +1175,7 @@ def balance_sheet(request):
 @require_permission('financial.view_chartofaccounts')
 def income_statement(request):
     """
-    تقرير قائمة الدخل والأرباح والخسائر (IAS 1 Statement of Profit or Loss)
+    تقرير قائمة الدخل والأرباح والخسائر
     مرتبط بالكامل بـ IncomeStatementService المعياري مع دعم المقارنة الزمنية، مراكز التكلفة، وتصدير Excel الرسمي.
     """
     from django.http import HttpResponse
@@ -1417,7 +1417,7 @@ def income_statement(request):
 @require_permission('financial.view_chartofaccounts')
 def cash_flow_statement(request):
     """
-    تقرير قائمة التدفقات النقدية (IAS 7 Statement of Cash Flows)
+    تقرير قائمة التدفقات النقدية
     مرتبط بالكامل بـ CashFlowService المعياري مع دعم الطريقة غير المباشرة المتقدمة،
     المقارنة الزمنية، مراكز التكلفة، وتصدير Excel الرسمي.
     """
@@ -1531,7 +1531,7 @@ def cash_flow_statement(request):
                 excel_data,
                 content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-            response["Content-Disposition"] = f'attachment; filename="Cash_Flow_IAS7_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}.xlsx"'
+            response["Content-Disposition"] = f'attachment; filename="Cash_Flow_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}.xlsx"'
             return response
         except Exception as e:
             logger.error(f"Error exporting Cash Flow to Excel: {e}", exc_info=True)
@@ -1624,7 +1624,7 @@ def cash_flow_statement(request):
     cost_centers_list = CostCenter.objects.filter(is_active=True).order_by('code')
 
     context = {
-        "page_title": "قائمة التدفقات النقدية (IAS 7)",
+        "page_title": "قائمة التدفقات النقدية",
         "page_subtitle": f"تقرير التدفقات النقدية للفترة من {date_from.strftime('%d/%m/%Y')} إلى {date_to.strftime('%d/%m/%Y')}",
         "page_icon": "fas fa-money-bill-wave",
         "breadcrumb_items": [
@@ -3337,7 +3337,6 @@ def journal_entry_summary_api(request, journal_entry_id):
 
 
 @login_required
-@require_permission('financial.view_currency')
 def api_get_exchange_rate(request):
     """
     API لاستعلام سعر الصرف اللحظي والعملة الوظيفية الأساسية

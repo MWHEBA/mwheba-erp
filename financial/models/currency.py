@@ -10,7 +10,7 @@ User = get_user_model()
 class Currency(models.Model):
     """
     FIN-CORE-016: Currency Master
-    جدول العملات المحوكم وفق المعيار الدولي IAS 21
+    جدول العملات المحوكم
     """
     code = models.CharField(_("رمز العملة"), max_length=3, unique=True)  # EGP, USD, EUR, etc.
     name = models.CharField(_("اسم العملة"), max_length=50)
@@ -22,8 +22,15 @@ class Currency(models.Model):
 
     @property
     def is_base(self):
-
         return self.is_functional
+
+    @property
+    def current_rate(self) -> Decimal:
+        """سعر الصرف الحالي للعملة مقابل العملة الأساسية"""
+        if self.is_functional:
+            return Decimal("1.000000")
+        from financial.services.exchange_rate_service import ExchangeRateService
+        return ExchangeRateService.get_exchange_rate(self)
 
     class Meta:
         verbose_name = _("عملة")
@@ -54,7 +61,7 @@ class Currency(models.Model):
 class ExchangeRate(models.Model):
     """
     FIN-CORE-016: Exchange Rate Master & Historical Snapshots
-    سجل أسعار الصرف التاريخية وفق المعيار الدولي IAS 21
+    سجل أسعار الصرف التاريخية
     """
     from_currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="from_rates", verbose_name=_("من عملة"))
     to_currency = models.ForeignKey(Currency, on_delete=models.CASCADE, related_name="to_rates", verbose_name=_("إلى عملة"))

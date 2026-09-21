@@ -11,8 +11,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.utils import timezone
-from django.core.cache import cache
-from django.db.models import Prefetch
+from django.db.models import Prefetch, QuerySet, Q, Count
 from typing import List, Dict, Any, Optional, Union, Tuple
 import logging
 from functools import lru_cache
@@ -78,7 +77,7 @@ class PermissionService:
         
         # Include specific important permissions for key business areas
         specific_permissions = [
-            # Financial & IAS 21
+            # Financial & Multi-Currency
             'close_accounting_period', 'reopen_accounting_period', 'run_fx_revaluation',
             'post_journal_entry', 'reverse_journal_entry',
             'add_journalentry', 'change_journalentry', 'view_journalentry',

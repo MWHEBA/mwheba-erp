@@ -575,7 +575,7 @@ class LedgerReportIntegrationTestCase(TestCase):
 
 class MultiCurrencyLedgerTestCase(TestCase):
     """
-    اختبارات معيار IAS 21 والعملات المتعددة والحسابات المجمعة لكشف الحسابات
+    اختبارات العملات المتعددة والحسابات المجمعة لكشف الحسابات
     """
 
     def setUp(self):

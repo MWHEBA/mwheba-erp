@@ -55,7 +55,7 @@ class BusinessPartnerExposureDTO(PartnerExposureDTO):
 class BusinessPartnerExposureService:
     """
     الخدمة المعتمدة لحساب وتجميع الانكشافات المالية لشركاء الأعمال التجاريين (الموردين والعملاء) لكل عملة
-    Enterprise Multi-Currency Business Partner Subledger & Exposure Engine (IAS 21 Compliant)
+    Enterprise Multi-Currency Business Partner Subledger & Exposure Engine
     """
 
     @classmethod

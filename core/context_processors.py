@@ -196,7 +196,7 @@ def payment_accounts(request):
                     curr = acc.currency
                     curr_code = curr.code or "EGP"
                     curr_symbol = getattr(curr, "symbol", None) or curr_code
-                    curr_rate = str(getattr(curr, "rate", getattr(curr, "current_rate", "1.000000")) or "1.000000")
+                    curr_rate = str(getattr(curr, "current_rate", "1.000000") or "1.000000")
                     is_func = "1" if getattr(curr, "is_functional", False) else "0"
                 return {
                     "id": acc.id,

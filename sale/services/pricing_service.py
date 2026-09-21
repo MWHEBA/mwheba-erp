@@ -122,11 +122,12 @@ class PricingService:
         """
         الحصول على لقطة تسعير المبيعات الحاكمة للمنتج متضمنة السعر المرجعي والخصم التجاري المستحق
         """
-        product = Product.objects.select_related("unit", "category").get(pk=product_id)
+        product = Product.objects.select_related("unit", "category").prefetch_related("currency_prices__currency").get(pk=product_id)
         as_of_date = cls._normalize_date(as_of_date)
         base_price = product.selling_price or Decimal("0.00")
         cost_price = product.cost_price or Decimal("0.00")
         target_currency = currency
+        price_source = "CATALOG_BASE"
 
         # 1. معامل تحويل وحدة القياس (UoM Conversion)
         uom_factor = Decimal("1.0000")
@@ -182,7 +183,7 @@ class PricingService:
         base_price = (base_price * uom_factor).quantize(Decimal("0.01"))
         cost_price = (cost_price * uom_factor).quantize(Decimal("0.01"))
 
-        # 3. تحويل العملة IAS 21 بسعر صرف الفاتورة
+        # 3. تحويل العملة بسعر صرف الفاتورة
         func_curr = ExchangeRateService.get_functional_currency()
         func_code = func_curr.code if func_curr else "EGP"
 
@@ -192,9 +193,27 @@ class PricingService:
                 rate = ExchangeRateService.get_rate(target_currency, func_code, as_of_date)
             else:
                 rate = Decimal("1.000000")
+        if not rate or rate <= Decimal("0"):
+            rate = Decimal("1.000000")
+
+        # فحص وجود سعر وتكلفة مخصصة بالعملة الأجنبية ProductCurrencyPrice
+        custom_fx_price = None
+        custom_fx_cost = None
+        if target_currency != func_code:
+            try:
+                for cp in product.currency_prices.all():
+                    if cp.currency and cp.currency.code == target_currency:
+                        if cp.indicative_selling_price is not None and cp.indicative_selling_price > Decimal("0"):
+                            custom_fx_price = cp.indicative_selling_price
+                        if cp.indicative_cost_price is not None and cp.indicative_cost_price > Decimal("0"):
+                            custom_fx_cost = cp.indicative_cost_price
+                        break
+            except Exception:
+                pass
 
         # تحويل السعر لعملة الفاتورة إن كانت قائمة الأسعار أو الكتالوج بعملة مختلفة
         if matched_pl_item:
+            price_source = "PRICE_LIST"
             if pl_currency != target_currency and rate > Decimal("0"):
                 # إذا كانت قائمة الأسعار بالجنيه والفاتورة بالدولار: السعر بالدولار = السعر بالجنيه / سعر الصرف
                 if pl_currency == func_code and target_currency != func_code:
@@ -202,8 +221,19 @@ class PricingService:
                 elif pl_currency != func_code and target_currency == func_code:
                     base_price = (base_price * rate).quantize(Decimal("0.01"))
         else:
-            if target_currency != func_code and rate > Decimal("0"):
-                base_price = (base_price / rate).quantize(Decimal("0.01"))
+            if target_currency != func_code:
+                if custom_fx_price is not None:
+                    base_price = (custom_fx_price * uom_factor).quantize(Decimal("0.01"))
+                    price_source = "PRODUCT_CURRENCY_PRICE"
+                elif rate > Decimal("0"):
+                    base_price = (base_price / rate).quantize(Decimal("0.01"))
+                    price_source = "AUTO_FX_CONVERSION"
+
+        # تحويل التكلفة لعملة الفاتورة
+        if target_currency != func_code:
+            if custom_fx_cost is not None:
+                cost_price = (custom_fx_cost * uom_factor).quantize(Decimal("0.01"))
+            elif rate > Decimal("0"):
                 cost_price = (cost_price / rate).quantize(Decimal("0.01"))
 
         # 4. مطابقة قواعد الخصم (Discount Rule Matching & Tie-Breaking)
@@ -252,7 +282,10 @@ class PricingService:
             if rule.rule_type in ("PERCENTAGE", "TIERED_QUANTITY"):
                 calculated_discount_val = (base_price * (rule.discount_percentage / Decimal("100.00"))).quantize(Decimal("0.01"))
             elif rule.rule_type == "FIXED_AMOUNT":
-                calculated_discount_val = rule.value
+                r_val = rule.value
+                if target_currency != func_code and rate > Decimal("0"):
+                    r_val = (r_val / rate).quantize(Decimal("0.01"))
+                calculated_discount_val = r_val
 
             matched_rules.append({
                 "rule": rule,
@@ -283,13 +316,21 @@ class PricingService:
                 disc_pct = r.discount_percentage
                 disc_amount = (base_price * (disc_pct / Decimal("100.00"))).quantize(Decimal("0.01"))
             elif r.rule_type == "FIXED_AMOUNT":
-                disc_amount = min(base_price, r.value.quantize(Decimal("0.01")))
+                r_val = r.value
+                if target_currency != func_code and rate > Decimal("0"):
+                    r_val = (r_val / rate).quantize(Decimal("0.01"))
+                disc_amount = min(base_price, r_val.quantize(Decimal("0.01")))
                 if base_price > Decimal("0"):
                     disc_pct = ((disc_amount / base_price) * Decimal("100.00")).quantize(Decimal("0.01"))
 
         final_price = max(Decimal("0.00"), base_price - disc_amount).quantize(Decimal("0.01"))
         func_price = (final_price * rate).quantize(Decimal("0.01"))
+        
+        # فحص أقل من التكلفة مع استبعاد الخدمات ذات التكلفة الصفرية
+        is_service = getattr(product, "is_service", False)
         is_below_cost = (final_price < cost_price) and (cost_price > Decimal("0"))
+        if is_service and cost_price <= Decimal("0"):
+            is_below_cost = False
 
         return {
             "product_id": product_id,
@@ -306,17 +347,55 @@ class PricingService:
             "exchange_rate": rate,
             "functional_price": func_price,
             "is_below_cost": is_below_cost,
+            "price_source": price_source,
             "price_snapshot": {
                 "base_price": str(base_price),
+                "cost_price": str(cost_price),
+                "currency": target_currency,
+                "exchange_rate": str(rate),
                 "discount_amount": str(disc_amount),
                 "discount_percentage": str(disc_pct),
                 "rule_id": rule_id,
                 "rule_name": rule_name,
                 "price_list_id": price_list_id,
+                "price_source": price_source,
                 "uom_factor": str(uom_factor),
+                "is_below_cost": is_below_cost,
                 "calculated_at": str(timezone.now())
             }
         }
+
+    @classmethod
+    def get_effective_price(
+        cls,
+        product=None,
+        product_id: Optional[int] = None,
+        customer_id: Optional[int] = None,
+        quantity: Decimal = Decimal("1.0000"),
+        price_list_id: Optional[int] = None,
+        unit_id: Optional[int] = None,
+        as_of_date=None,
+        currency: str = "EGP",
+        exchange_rate: Optional[Decimal] = None,
+        context_cache: Optional[Dict[str, Any]] = None,
+        category_quantity_map: Optional[Dict[int, Decimal]] = None
+    ) -> Dict[str, Any]:
+        """
+        واجهة موحدة لحساب السعر الفعلي والتكلفة وقواعد الخصم (FIN-SAL-004)
+        """
+        pid = product.id if hasattr(product, 'id') else (product_id or product)
+        return cls.get_sales_price(
+            product_id=pid,
+            customer_id=customer_id,
+            quantity=quantity,
+            price_list_id=price_list_id,
+            unit_id=unit_id,
+            as_of_date=as_of_date,
+            currency=currency,
+            exchange_rate=exchange_rate,
+            context_cache=context_cache,
+            category_quantity_map=category_quantity_map
+        )
 
     @classmethod
     def evaluate_cart_pricing(
@@ -343,7 +422,7 @@ class PricingService:
 
         # 1. تجميع كميات الفئات المشتركة
         product_ids = [int(it.get("product_id") or it.get("product")) for it in items if (it.get("product_id") or it.get("product"))]
-        products_dict = {p.id: p for p in Product.objects.filter(id__in=product_ids).select_related("category")}
+        products_dict = {p.id: p for p in Product.objects.filter(id__in=product_ids).prefetch_related("currency_prices__currency").select_related("category", "unit")}
 
         category_qty_map = {}
         for it in items:

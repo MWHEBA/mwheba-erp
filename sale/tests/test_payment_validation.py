@@ -22,7 +22,8 @@ class SalePaymentValidationTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username='testuser',
-            password='password123'
+            password='password123',
+            is_superuser=True
         )
         from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
         AccountingPeriod.objects.get_or_create(

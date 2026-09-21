@@ -1140,7 +1140,7 @@
                   <option value="">{% trans "-- اختر الخزينة أو البنك --" %}</option>
                   {% for acc in financial_accounts %}
                   <option value="{{ acc.id }}" data-currency-id="{{ acc.currency_id|default:'' }}" data-currency-code="{% if acc.currency %}{{ acc.currency.code }}{% else %}EGP{% endif %}">
-                    {{ acc.code }} - {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
+                    {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
                   </option>
                   {% endfor %}
                 </select>

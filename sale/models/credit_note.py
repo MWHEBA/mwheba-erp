@@ -50,7 +50,7 @@ class CreditNote(models.Model):
     total_amount = models.DecimalField(_("إجمالي مبلغ الإشعار الدائن (شامل الضريبة)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
     currency = models.CharField(_("العملة"), max_length=10, default="EGP")
-    exchange_rate = models.DecimalField(_("سعر الصرف IAS 21"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
+    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
 
     reason = models.TextField(_("سبب إصدار الإشعار الدائن"), blank=True, null=True)
     posting_command_id = models.UUIDField(_("معرف أمر الترحيل الفريد Idempotency UUID"), default=uuid.uuid4, unique=True)

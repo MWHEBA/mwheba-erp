@@ -54,7 +54,7 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         blank=True,
     )
 
-    # حقول السداد متعدد العملات وحوكمة فروق الصرف (IAS 21)
+    # حقول السداد متعدد العملات وحوكمة فروق الصرف
     payment_currency = models.ForeignKey(
         "financial.Currency",
         on_delete=models.PROTECT,

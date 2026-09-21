@@ -242,7 +242,7 @@
                                         <input type="date" name="delivery_due_date" id="id_delivery_due_date" class="form-control" value="{{ form.delivery_due_date.value|date:'Y-m-d'|default:form.delivery_due_date.value|default:'' }}">
                                     </div>
 
-                                    <!-- العملة وسعر الصرف الموحد IAS 21 -->
+                                    <!-- العملة وسعر الصرف الموحد -->
                                     {% include "components/currency_header.html" %}
                                 </div>
                             </div>
@@ -283,7 +283,7 @@
                                 <span class="selected-text">{{ item.product.name }}{% if item.variant %} - {{ item.variant.name }}{% endif %}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
-                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.unit_price }}" data-cost="{{ item.product.cost_price }}" required>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.unit_price }}" data-cost="{{ item.product.cost_price|default:0 }}" data-cost-base="{{ item.product.cost_price|default:0 }}" data-stock="{{ item.product.stock|default:0 }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" required>
                             <input type="hidden" name="variant[]" class="variant-id-input" value="{{ item.variant_id|default:'' }}">
                             <input type="hidden" name="unit[]" class="unit-id-input" value="{{ item.unit_id|default:'' }}">
                         </div>
@@ -743,7 +743,7 @@ $(document).ready(function() {
             $('#min-order-alert').remove();
         }
 
-        // المعادل بالعملة المحلية IAS 21
+        // المعادل بالعملة المحلية
         let exchangeRate = parseFloat($('#id_exchange_rate').val()) || 1.0;
         let isForeign = parseFloat($('#id_currency').find(':selected').data('is-foreign') || 0) === 1;
         if (isForeign && exchangeRate !== 1.0) {

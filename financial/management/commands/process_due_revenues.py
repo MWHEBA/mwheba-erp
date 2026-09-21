@@ -1,6 +1,6 @@
 """
 Command: process_due_revenues
-الأمر الإداري المعماري لتوليد وترحيل قيود الاستحقاق الدورية للإيرادات المؤجلة (IFRS 15)
+الأمر الإداري لتوليد وترحيل قيود الاستحقاق الدورية للإيرادات المؤجلة
 يعمل يومياً أو شهرياً عبر Cron / Celery Beat
 """
 
@@ -12,7 +12,7 @@ from financial.services.revenue_recognition_service import RevenueRecognitionSer
 
 
 class Command(BaseCommand):
-    help = "معالجة وترحيل أقساط الإيرادات المؤجلة المستحقة آلياً وفق معيار IFRS 15"
+    help = "معالجة وترحيل أقساط الإيرادات المؤجلة المستحقة آلياً"
 
     def add_arguments(self, parser):
         parser.add_argument(

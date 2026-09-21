@@ -10,7 +10,7 @@ logger = logging.getLogger("financial.services.fx_settlement_strategy")
 
 class FXSettlementStrategy(ABC):
     """
-    Abstract Strategy Interface for IAS 21 Realized FX Difference Calculations
+    Abstract Strategy Interface for Realized FX Difference Calculations
     واجهة مجردة لاحتساب وتجهيز قيود أرباح وخسائر فروق العملة المحققة
     """
 
@@ -45,7 +45,7 @@ class FXSettlementStrategy(ABC):
 
 class CustomerAdvanceLiabilityStrategy(FXSettlementStrategy):
     """
-    IAS 21 Strategy for Customer Prepaid Allocations (AR / Customer Advance Liability)
+    Strategy for Customer Prepaid Allocations (AR / Customer Advance Liability)
     استراتيجية تسوية فروق العملة المحققة لدفعات العملاء المقدمة (التزامات دفعات مقدمة عملاء 20200 vs ذمم عملاء 10200)
     """
 
@@ -115,7 +115,7 @@ CustomerFXStrategy = CustomerAdvanceLiabilityStrategy
 
 class SupplierAdvanceAssetStrategy(FXSettlementStrategy):
     """
-    IAS 21 Strategy for Supplier Advance Allocations (AP / Supplier Advance Asset)
+    Strategy for Supplier Advance Allocations (AP / Supplier Advance Asset)
     استراتيجية تسوية فروق العملة المحققة لدفعات الموردين المقدمة (أصول دفعات مقدمة موردين 10500 vs دائنية موردين 20100)
     """
 

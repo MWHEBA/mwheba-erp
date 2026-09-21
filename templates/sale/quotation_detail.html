@@ -700,14 +700,14 @@
 {% if not is_accepted_or_converted and quotation.status != 'rejected' %}
 <div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="actionsModalLabel">
-          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="actionsModalLabel">
+          <i class="fas fa-sliders-h text-primary me-2"></i>{% trans "خيارات وإجراءات إضافية" %}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body p-4">
         <div class="list-group">
           <!-- تعديل عرض السعر -->
           {% if perms.sale.change_quotation or user.is_superuser %}
@@ -721,7 +721,7 @@
             </div>
           </a>
           {% endif %}
-          
+
           <!-- تحويل إلى أمر بيع -->
           {% if enable_sales_orders and perms.sale.add_salesorder or enable_sales_orders and perms.sale.convert_to_order or enable_sales_orders and user.is_superuser %}
           <a href="{% url 'sale:sales_order_create_for_quotation' quotation.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
@@ -808,7 +808,7 @@
 {% if messages %}
 <div id="django-messages-container" class="d-none">
   {% for message in messages %}
-  <div class="django-msg" data-tags="{{ message.tags }}" data-html="{{ message|escapejs }}"></div>
+  <div class="django-msg" data-tags="{{ message.tags }}">{{ message|safe }}</div>
   {% endfor %}
 </div>
 {% endif %}
@@ -829,10 +829,13 @@
                     text: "{% trans 'هل أنت متأكد من حذف عرض السعر هذا نهائياً؟' %}",
                     icon: 'warning',
                     showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#6c757d',
                     confirmButtonText: "{% trans 'نعم، احذف' %}",
-                    cancelButtonText: "{% trans 'إلغاء' %}"
+                    cancelButtonText: "{% trans 'إلغاء' %}",
+                    customClass: {
+                        confirmButton: 'btn btn-danger px-4 fw-bold mx-1',
+                        cancelButton: 'btn btn-secondary px-3 mx-1'
+                    },
+                    buttonsStyling: false
                 }).then((result) => {
                     if (result.isConfirmed) {
                         window.location.href = targetUrl;
@@ -841,11 +844,11 @@
             });
         }
 
-        // عرض رسائل النظام عبر SweetAlert2 مع دعم تعدد الأسطر للغة العربية
+        // عرض رسائل النظام عبر SweetAlert2 مع دعم تعدد الأسطر وتنسيق HTML للغة العربية
         const msgElems = document.querySelectorAll('#django-messages-container .django-msg');
         msgElems.forEach(function(el) {
             const tags = el.getAttribute('data-tags') || 'info';
-            const htmlContent = el.getAttribute('data-html');
+            const htmlContent = el.innerHTML;
             const iconType = tags.includes('error') ? 'error' : (tags.includes('success') ? 'success' : 'info');
             const titleText = tags.includes('error') ? '{% trans "تعذر إجراء العملية" %}' : '{% trans "إشعار" %}';
 
@@ -854,10 +857,10 @@
                 html: `<div style="text-align: right; direction: rtl; line-height: 1.6;">${htmlContent}</div>`,
                 icon: iconType,
                 confirmButtonText: '{% trans "حسناً" %}',
-                confirmButtonColor: '#3085d6',
                 customClass: {
-                    popup: 'text-end'
-                }
+                    confirmButton: 'btn btn-primary px-4 fw-bold'
+                },
+                buttonsStyling: false
             });
         });
     });

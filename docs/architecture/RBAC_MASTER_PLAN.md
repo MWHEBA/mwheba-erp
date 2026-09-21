@@ -93,11 +93,11 @@
 ---
 
 ### الركيزة الخامسة: الحوكمة المالية والتداول النقدي (Financial Governance & Cash Authority Pillar)
-* **الهدف الجوهري**: حماية الخزائن والحسابات والامتثال لمعايير المحاسبة الدولية (IAS 21) ومنع أي تلاعب نقدي أو محاسبي.
+* **الهدف الجوهري**: حماية الخزائن والحسابات والامتثال للمعايير المالية والمحاسبية ومنع أي تلاعب نقدي أو محاسبي.
 * **المكونات والآليات الهندسية للركيزة**:
   1. **سلطة طبقة الخدمات المؤتمتة (Service-Layer Authority)**:
      - تمكين مندوب المبيعات من تسجيل المقبوضات النقدية والعربون المصاحب للفاتورة مباشرة من شاشة البيع دون منحه صلاحية الاطلاع المباشر على الخزن أو شجرة الحسابات، بحيث تنفذ القيود عبر طبقة الخدمات المصرح لها فقط تلقائياً.
-  2. **حوكمة معيار المحاسبة الدولي IAS 21 لإعادة تقييم العملات**:
+  2. **حوكمة محرك إعادة تقييم العملات**:
      - قصر تشغيل وإلغاء عمليات إعادة تقييم العملات الأجنبية (`financial.run_fx_revaluation`) واعتماد أسعار الصرف التاريخية المنتهية على المدير المالي حصراً (`financial.approve_fx_override`).
      - التطابق الحرفي للـ Codenames بالـ Underscores لمنع الـ 403 الصامت (`close_accounting_period`, `reopen_accounting_period`, `run_fx_revaluation`, `post_journal_entry`, `reverse_journal_entry`).
   3. **تأمين شاشات الخزن وحسابات النقدية**:
@@ -256,7 +256,7 @@
   - `AccountingPeriod`:
     - `close_accounting_period`: إغلاق الفترة المحاسبية.
     - `reopen_accounting_period`: إعادة فتح فترة محاسبية مغلقة.
-    - `run_fx_revaluation`: تشغيل إعادة تقييم فروق العملات IAS 21 (خاص بالمدير المالي).
+    - `run_fx_revaluation`: تشغيل إعادة تقييم فروق العملات (خاص بالمدير المالي).
 * [product/models.py](file:///c:/Users/UTD/Desktop/MWHEBA%20ERP/product/models.py):
   - `InventoryAdjustment` (في [product/models/inventory_movement.py](file:///c:/Users/UTD/Desktop/MWHEBA%20ERP/product/models/inventory_movement.py)):
     - إضافة الصلاحية في `Meta.permissions`:
@@ -450,7 +450,7 @@
 
 ---
 
-### الحزمة 8: الحوكمة المالية والتداول النقدي وحوكمة IAS 21
+### الحزمة 8: الحوكمة المالية والتداول النقدي وحوكمة العملات
 
 #### 1. البيع النقدي وسلطة الخدمات الخلفية (Service-Layer Authority):
 * التفرقة التامة بين:
@@ -465,7 +465,7 @@
   ```
   مع استغلال كاش `O(1)` لضمان عدم تنفيذ أي كويري متكرر مع كل صفحة للمستخدم.
 
-#### 3. حوكمة فروق العملات وإعادة التقييم (IAS 21 & FX Governance):
+#### 3. حوكمة فروق العملات وإعادة التقييم (FX Governance):
 * الالتزام الصارم بتوجيهات المشروع في `.agents/AGENTS.md`:
   - قصر تشغيل `FXRevaluationService` وإعادة تقييم الفترات المحاسبية على صلاحية المدير المالي: `financial.run_fx_revaluation`.
   - في حال تجاوز عمر سعر الصرف 7 أيام، تفعيل إجراء الموافقة الإلزامية للمدير المالي (`RATE_OVERRIDE_APPROVAL`).
@@ -557,7 +557,7 @@
 تثبيت وبذر الأدوار المؤسسية النظيفة العشرة عبر [users/management/commands/seed_clean_roles.py](file:///c:/Users/UTD/Desktop/MWHEBA%20ERP/users/management/commands/seed_clean_roles.py) بعد تطهير الأدوار الشبحية:
 
 1. **مدير النظام (System Administrator - `admin`)**: صلاحيات كاملة وشاملة لكافة وظائف النظام.
-2. **مدير مالي (Finance Manager - `financial_manager`)**: شجرة الحسابات، اعتماد القيود، إغلاق الفترات، إعادة تقييم العملات IAS 21، ومراجعة هوامش الربح.
+2. **مدير مالي (Finance Manager - `financial_manager`)**: شجرة الحسابات، اعتماد القيود، إغلاق الفترات، إعادة تقييم العملات، ومراجعة هوامش الربح.
 3. **محاسب (Accountant - `accountant`)**: إنشاء وتعديل القيود، أذونات الصرف والقبض، الاطلاع على الحسابات والفواتير والتقارير المالية.
 4. **مسؤول مشتريات وموردين (Procurement Officer - `procurement_officer`)**: أوامر الشراء، فواتير الشراء، اعتماد المشتريات، وإدارة بيانات الموردين.
 5. **أمين مخازن ومنتجات (Inventory Manager - `inventory_manager`)**: أذونات استلام وصرف الورق والخامات، التحويلات بين المخازن، تسويات الجرد، وأذونات الاستلام المخزني (GRN الأعمى مالياً).
@@ -693,7 +693,7 @@
 11. `test_user_model_delegates_permissions_to_backend`: التحقق من توحيد مصدر الصلاحيات وتفويض الموديل للباك إند.
 12. `test_period_close_blocked_at_service_layer_without_permission`: التحقق من حظر إغلاق الفترة في طبقة الخدمات لمن لا يملك الصلاحية.
 13. `test_period_close_blocked_if_unposted_drafts_exist`: التحقق من رفض إغلاق الفترة في حال وجود مسودات غير معتمدة.
-14. `test_fx_revaluation_and_manual_rate_lock`: التحقق من قصر إعادة التقييم IAS 21 وقفل سعر الصرف اليدوي على الصلاحيات المخصصة.
+14. `test_fx_revaluation_and_manual_rate_lock`: التحقق من قصر إعادة تقييم العملات وقفل سعر الصرف اليدوي على الصلاحيات المخصصة.
 15. `test_purchase_endpoints_require_permissions`: التحقق من حماية فواتير وأوامر الشراء بالصلاحيات المعيارية.
 16. `test_grn_blind_receiving_masks_prices_for_warehouse_officer`: التحقق من حجب أسعار الشراء عن أمين المخزن في الـ GRN.
 17. `test_credit_limit_exceeded_creates_pending_approval_sale`: التحقق من مسار حفظ الفاتورة كـ "مسودة معلقة للاعتماد" عند تجاوز الائتمان.

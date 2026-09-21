@@ -137,7 +137,7 @@
                 </div>
 
                 {% is_module_enabled 'printing_pricing' as pricing_enabled %}
-                {% if pricing_enabled %}
+                {% if pricing_enabled and not form.is_pricing_supplier.is_hidden %}
                 <div class="form-check form-switch">
                     {{ form.is_pricing_supplier }}
                     <label class="form-check-label fw-semibold ms-2 text-primary" for="{{ form.is_pricing_supplier.id_for_label }}">
@@ -147,7 +147,7 @@
                 {% endif %}
             </div>
 
-            {% if pricing_enabled %}
+            {% if pricing_enabled and not form.is_pricing_supplier.is_hidden %}
             <!-- حاوية الخدمات المعتمدة في المودال -->
             <div class="col-12 {% if not form.is_pricing_supplier.value and not form.instance.is_pricing_supplier %}d-none{% endif %}" id="modal-provided-services-container">
                 <div class="p-3 border rounded bg-light">

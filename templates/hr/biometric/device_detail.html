@@ -91,6 +91,17 @@
                             <td>{{ device.department.name_ar|default:"-" }}</td>
                         </tr>
                         <tr>
+                            <th>المنطقة وفارق التوقيت</th>
+                            <td>
+                                <code>{{ device.timezone|default:"Africa/Cairo" }}</code>
+                                {% if device.timezone_offset_hours %}
+                                    <span class="badge bg-warning text-dark ms-2">{{ device.timezone_offset_hours|stringformat:"+d" }} ساعة</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark ms-2">0 س (بدون إزاحة)</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
                             <th>الحالة</th>
                             <td>
                                 {% if device.status == 'active' %}
@@ -368,7 +379,7 @@ function refreshData() {
 
 // ربط dropdown عدد السجلات بالـ backend
 document.addEventListener('DOMContentLoaded', function() {
-    const deviceId = {{ device.pk }};
+    const deviceId = '{{ device.pk }}';
     const container = document.getElementById('logsTableContainer');
     const titleElement = document.getElementById('logsTitle');
     

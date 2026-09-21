@@ -845,8 +845,10 @@
                                             {% endif %}
                                         <td class="fw-bold text-center">
                                             <div>{{ payment.amount|smart_float }} {{ purchase|get_currency_symbol:currency_symbol }}</div>
-                                            {% if payment.payment_currency and payment.payment_currency != purchase.currency %}
-                                            <small class="text-muted fw-normal d-block">({{ payment.amount_paid_currency|smart_float }} {{ payment.payment_currency.symbol }})</small>
+                                            {% if payment.payment_currency and payment.payment_currency.code != purchase.currency.code %}
+                                            <small class="text-primary fw-normal d-block">
+                                                ({% if payment.amount_paid_currency and payment.amount_paid_currency > 0 %}{{ payment.amount_paid_currency|smart_float }}{% else %}{{ payment.amount|smart_float }}{% endif %} {{ payment.payment_currency.symbol|default:payment.payment_currency.code }})
+                                            </small>
                                             {% endif %}
                                         </td>
                                         <td class="text-center">

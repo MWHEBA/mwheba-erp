@@ -136,3 +136,105 @@ class TestFINSAL004SalesPricingEngine:
         # Base: 600, 50% disc -> 300 < cost_price (400)
         assert p["final_price"] == Decimal("300.00")
         assert p["is_below_cost"] is True
+
+    def test_multi_currency_usd_below_cost_calculation(self, setup_pricing_data):
+        user, product, customer, price_list = setup_pricing_data
+        from financial.models import Currency
+
+        # Currency: USD, Exchange Rate = 50.0
+        # Product EGP cost = 400.00, selling = 600.00
+        # Converted USD cost = 400 / 50 = 8.00 USD
+        # Converted USD base price = 600 / 50 = 12.00 USD
+        p_usd = PricingService.get_effective_price(
+            product=product,
+            currency="USD",
+            exchange_rate=Decimal("50.000000"),
+            quantity=Decimal("1.0000")
+        )
+
+        assert p_usd["base_price"] == Decimal("12.00")
+        assert p_usd["cost_price"] == Decimal("8.00")
+        assert p_usd["final_price"] == Decimal("12.00")
+        # 12.00 USD > 8.00 USD cost -> is_below_cost MUST BE False (previously buggy True)
+        assert p_usd["is_below_cost"] is False
+
+    def test_multi_currency_usd_with_discount_below_converted_cost(self, setup_pricing_data):
+        user, product, customer, price_list = setup_pricing_data
+
+        # Discount rule: 50% discount on product
+        DiscountRule.objects.create(
+            rule_name="Huge 50% Discount",
+            product=product,
+            discount_percentage=Decimal("50.00"),
+            priority=50
+        )
+
+        p_usd = PricingService.get_effective_price(
+            product=product,
+            currency="USD",
+            exchange_rate=Decimal("50.000000"),
+            quantity=Decimal("1.0000")
+        )
+
+        # Base: 12.00 USD, 50% disc -> 6.00 USD < Converted Cost 8.00 USD -> is_below_cost is True
+        assert p_usd["final_price"] == Decimal("6.00")
+        assert p_usd["cost_price"] == Decimal("8.00")
+        assert p_usd["is_below_cost"] is True
+
+    def test_multi_currency_product_currency_price_priority(self, setup_pricing_data):
+        user, product, customer, price_list = setup_pricing_data
+        from financial.models import Currency
+        from product.models.product_currency_price import ProductCurrencyPrice
+
+        usd_curr, _ = Currency.objects.get_or_create(
+            code="USD",
+            defaults={"name": "US Dollar", "symbol": "$"}
+        )
+
+        # Priority #2: Explicit USD prices on product master
+        ProductCurrencyPrice.objects.create(
+            product=product,
+            currency=usd_curr,
+            indicative_selling_price=Decimal("15.0000"),
+            indicative_cost_price=Decimal("9.0000")
+        )
+
+        p = PricingService.get_effective_price(
+            product=product,
+            currency="USD",
+            exchange_rate=Decimal("50.000000"),
+            quantity=Decimal("1.0000")
+        )
+
+        assert p["base_price"] == Decimal("15.0000")
+        assert p["cost_price"] == Decimal("9.0000")
+        assert p["final_price"] == Decimal("15.0000")
+        assert p["price_source"] == "PRODUCT_CURRENCY_PRICE"
+        assert p["is_below_cost"] is False
+
+    def test_multi_currency_fixed_discount_conversion(self, setup_pricing_data):
+        user, product, customer, price_list = setup_pricing_data
+
+        # Fixed discount rule: 100 EGP
+        # In USD at rate 50.0 -> discount is 100 / 50 = 2.00 USD
+        DiscountRule.objects.create(
+            rule_name="100 EGP Coupon",
+            product=product,
+            rule_type="FIXED_AMOUNT",
+            value=Decimal("100.00"),
+            priority=30
+        )
+
+        p_usd = PricingService.get_effective_price(
+            product=product,
+            currency="USD",
+            exchange_rate=Decimal("50.000000"),
+            quantity=Decimal("1.0000")
+        )
+
+        # Base: 12.00 USD, Discount: 2.00 USD -> Final: 10.00 USD
+        assert p_usd["discount_amount"] == Decimal("2.00")
+        assert p_usd["final_price"] == Decimal("10.00")
+        assert p_usd["cost_price"] == Decimal("8.00")
+        assert p_usd["is_below_cost"] is False
+

@@ -1,5 +1,5 @@
 """
-RevenueRecognitionViews - مناظر إدارة ومتابعة الإيرادات المؤجلة وتوزيع العقود (IFRS 15)
+RevenueRecognitionViews - مناظر إدارة ومتابعة الإيرادات المؤجلة وتوزيع العقود
 """
 
 from decimal import Decimal
@@ -40,13 +40,13 @@ def revenue_recognition_dashboard_view(request):
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
         {"title": _("الإدارة المالية"), "url": reverse("financial:chart_of_accounts_list"), "icon": "fa-calculator"},
-        {"title": _("إقرار وتوزيع الإيرادات (IFRS 15)"), "active": True},
+        {"title": _("إقرار وتوزيع الإيرادات المؤجلة"), "active": True},
     ]
 
     context = {
-        "page_title": _("لوحة إقرار وتوزيع الإيرادات المؤجلة (IFRS 15)"),
-        "page_icon": "fa-hand-holding-usd",
         "breadcrumb_items": breadcrumb_items,
+        "page_title": _("لوحة إقرار وتوزيع الإيرادات المؤجلة"),
+        "page_icon": "fa-hand-holding-usd",
         "schedules": schedules,
         "total_deferred_amount": total_deferred,
         "total_recognized_amount": total_recognized,

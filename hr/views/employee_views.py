@@ -2,7 +2,8 @@
 Views إدارة الموظفين
 """
 from .base_imports import *
-from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricLog, BiometricUserMapping
+from django.utils.translation import gettext as _
+from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricLog, BiometricUserMapping, WorkLocation
 from ..forms.employee_forms import EmployeeForm
 from ..decorators import hr_manager_required, _is_hr_manager, require_hr
 from users.decorators import require_permission
@@ -511,6 +512,7 @@ def employee_form(request, pk=None):
     departments = Department.objects.filter(is_active=True)
     job_titles = JobTitle.objects.filter(is_active=True)
     shifts = Shift.objects.filter(is_active=True)
+    work_locations = WorkLocation.objects.filter(is_active=True)
     
     # توليد رقم الموظف المقترح (للإضافة فقط)
     next_employee_number = EmployeeForm.generate_employee_number() if not pk else None
@@ -521,6 +523,7 @@ def employee_form(request, pk=None):
         'departments': departments,
         'job_titles': job_titles,
         'shifts': shifts,
+        'work_locations': work_locations,
         'next_employee_number': next_employee_number,
         
         # بيانات الهيدر

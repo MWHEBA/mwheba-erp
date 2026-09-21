@@ -13,8 +13,8 @@ from financial.models.journal_entry import AccountingPeriod, JournalEntry
 
 class RevenueRecognitionPolicy(models.Model):
     """
-    FIN-AR-002: IFRS 15 Revenue Recognition Policy Model
-    نموذج سياسات الاعتراف بالإيراد المحوكمة وفق معيار IFRS 15
+    FIN-AR-002: Revenue Recognition Policy Model
+    نموذج سياسات الاعتراف بالإيراد وتوزيع الإيرادات المؤجلة
     """
     SCOPE_CHOICES = (
         ("GLOBAL", _("شامل عام")),
@@ -55,7 +55,7 @@ class RevenueRecognitionPolicy(models.Model):
 
     trigger_event = models.CharField(_("حدث الاعتراف المحفز"), max_length=30, choices=TRIGGER_CHOICES, default="DELIVERY_CONFIRMED")
     allocation_method = models.CharField(_("طريقة تخصيص سعر المعاملة"), max_length=30, choices=ALLOCATION_CHOICES, default="DIRECT_LINE_VALUE")
-    fx_treatment_type = models.CharField(_("معالجة أسعار الصرف IAS 21"), max_length=30, choices=FX_TREATMENT_CHOICES, default="INVOICE_RATE")
+    fx_treatment_type = models.CharField(_("معالجة أسعار الصرف"), max_length=30, choices=FX_TREATMENT_CHOICES, default="INVOICE_RATE")
 
     is_active = models.BooleanField(_("نشط"), default=True)
 

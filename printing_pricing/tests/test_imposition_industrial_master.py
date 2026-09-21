@@ -25,7 +25,7 @@ class TestImpositionIndustrialMaster:
 
     @pytest.fixture(autouse=True)
     def setup_data(self):
-        self.user = User.objects.create_user(username='press_master', password='password123', is_staff=True)
+        self.user = User.objects.create_user(username='press_master', password='password123', is_staff=True, is_superuser=True)
         self.factory = RequestFactory()
 
         self.pt_flyer = ProductType.objects.create(name='فلاير', base_archetype='flyer')

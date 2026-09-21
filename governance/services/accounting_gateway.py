@@ -846,7 +846,7 @@ class AccountingGateway:
                 }
             )
 
-        # الحظر الحوكمي الصارم: حظر القيود المباشرة بين حسابين خزينة/بنك بعملات مختلفة (IAS 21 Guard)
+        # الحظر الحوكمي الصارم: حظر القيود المباشرة بين حسابين خزينة/بنك بعملات مختلفة
         treasury_lines = [
             l for l in validated_lines
             if (getattr(l['account'], 'is_cash_account', False) or 
@@ -862,7 +862,7 @@ class AccountingGateway:
             
             if len(currencies) > 1:
                 raise GovValidationError(
-                    message="[INVALID_CROSS_CURRENCY_TREASURY_ENTRY] محظور محاسبياً إجراء قيد مباشر بين حسابين خزينة/بنك بعملات مختلفة. يرجى استخدام خدمة تحويلات الخزينة (CashTransferService) لمعالجة فروق أرباح/خسائر العملة المحققة (IAS 21).",
+                    message="[INVALID_CROSS_CURRENCY_TREASURY_ENTRY] محظور محاسبياً إجراء قيد مباشر بين حسابين خزينة/بنك بعملات مختلفة. يرجى استخدام خدمة تحويلات الخزينة (CashTransferService) لمعالجة فروق أرباح/خسائر العملة المحققة.",
                     context={
                         'treasury_currencies': list(currencies),
                         'treasury_accounts': [t['account'].name for t in treasury_lines]

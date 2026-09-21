@@ -2,7 +2,8 @@
 Signals الإجازات الرسمية
 
 عند إضافة/تعديل إجازة رسمية:
-  - حذف سجلات absent و present/late في أيام الإجازة
+  - حذف سجلات absent فقط في أيام الإجازة
+  - عدم حذف سجلات الحضور الفعلي (present/late/half_day) بل إعادة حسابها كإضافي عطلات رسمية
   - إلغاء اعتماد الملخصات المتأثرة
 
 عند حذف/تعطيل إجازة رسمية:
@@ -13,6 +14,7 @@ import logging
 from datetime import date, timedelta
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from .utils.payroll_helpers import get_weekly_off_days
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ def _sync_holiday_attendance(holiday):
     يُستدعى عند الإضافة أو التعديل.
     """
     from .models import Attendance, AttendanceSummary
+    from .services.attendance_service import AttendanceService
 
     if not holiday.is_active:
         _restore_attendance_for_deleted_holiday(holiday)
@@ -41,22 +44,24 @@ def _sync_holiday_attendance(holiday):
     holiday_dates = _get_date_range(holiday.start_date, holiday.end_date)
 
     try:
-        # 1. حذف سجلات absent في أيام الإجازة
+        # 1. حذف سجلات absent (الغياب التلقائي) في أيام الإجازة فقط
         absent_deleted, _ = Attendance.objects.filter(
             date__in=holiday_dates,
             status='absent'
         ).delete()
 
-        # 2. حذف سجلات present/late (تجاهل البصمة — القرار المحسوم)
-        #    لا نحذف on_leave — الموظف اللي عنده إجازة شخصية يفضل سجله
-        present_deleted, _ = Attendance.objects.filter(
+        # 2. الحفاظ على الحضور الفعلي وإعادة حسابه كإضافي عطلة
+        actual_attendances = Attendance.objects.filter(
             date__in=holiday_dates,
             status__in=['present', 'late', 'half_day']
-        ).delete()
+        )
+        for att in actual_attendances:
+            AttendanceService.calculate_daily_attendance(att)
+            att.save()
 
         logger.info(
             f"OfficialHoliday '{holiday.name}': "
-            f"حذف {absent_deleted} غياب + {present_deleted} حضور"
+            f"حذف {absent_deleted} غياب تلقائي + تحديث {actual_attendances.count()} حضور فعلي كعمل عطلة"
         )
 
         # 3. إلغاء اعتماد الملخصات المتأثرة
@@ -80,24 +85,16 @@ def _restore_attendance_for_deleted_holiday(holiday):
     """
     إعادة إنشاء سجلات الغياب عند حذف أو تعطيل إجازة رسمية.
     """
-    from .models import AttendanceSummary
+    from .models import AttendanceSummary, OfficialHoliday
     from .services.attendance_service import AttendanceService
-    from core.models import SystemSetting
-    import json
 
     try:
         holiday_dates = _get_date_range(holiday.start_date, holiday.end_date)
 
-        # استثناء الإجازات الأسبوعية
-        weekly_off = SystemSetting.get_setting('hr_weekly_off_days', [4])
-        if isinstance(weekly_off, str):
-            try:
-                weekly_off = json.loads(weekly_off)
-            except Exception:
-                weekly_off = [4]
+        # استثناء الإجازات الأسبوعية العامة
+        weekly_off = get_weekly_off_days()
 
         # استثناء إجازات رسمية أخرى نشطة تغطي نفس الأيام
-        from .models import OfficialHoliday
         other_holidays = OfficialHoliday.objects.filter(
             is_active=True,
             start_date__lte=holiday.end_date,

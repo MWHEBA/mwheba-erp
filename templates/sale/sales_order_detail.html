@@ -822,23 +822,23 @@
               <i class="fas fa-wallet me-1 text-primary"></i>{% trans "الخزينة النقدية المستلمة" %} <span class="text-danger">*</span>
             </label>
             <select name="financial_account" id="collect_financial_account" class="form-select" required>
-              <optgroup label="{% trans 'الخزن النقدية المعتمدة للإيداع' %}" id="collect_optgroup_cash">
+              <optgroup label="{% trans 'الخزن النقدية' %}" id="collect_optgroup_cash">
                 {% for acc in cash_deposit_accounts|default:cash_payment_accounts %}
                   <option value="{{ acc.id }}" data-type="cash" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}">
-                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
+                    {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>
                 {% endfor %}
               </optgroup>
-              <optgroup label="{% trans 'الحسابات البنكية المعتمدة للإيداع' %}" id="collect_optgroup_bank" style="display: none;">
+              <optgroup label="{% trans 'الحسابات البنكية' %}" id="collect_optgroup_bank" style="display: none;">
                 {% for acc in bank_deposit_accounts|default:bank_payment_accounts %}
                   <option value="{{ acc.id }}" data-type="bank" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}" disabled>
-                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
+                    {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>
                 {% endfor %}
               </optgroup>
               {% if not cash_payment_accounts and not bank_payment_accounts %}
                 {% for acc in treasury_accounts %}
-                  <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                  <option value="{{ acc.id }}">{{ acc.name }}</option>
                 {% endfor %}
               {% endif %}
             </select>

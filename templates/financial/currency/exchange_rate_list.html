@@ -173,36 +173,23 @@
           allowOutsideClick: false,
           didOpen: () => { Swal.showLoading(); }
         });
-        $.ajax({
-          url: '{% url "financial:api_sync_exchange_rates" %}',
-          method: 'POST',
-          headers: { 'X-CSRFToken': '{{ csrf_token }}' },
-          success: function(response) {
-            if (response.status === 'SUCCESS') {
-              Swal.fire({
-                icon: 'success',
-                title: '{% trans "تمت المزامنة بنجاح" %}',
-                text: response.message,
-                confirmButtonText: '{% trans "حسناً" %}'
-              }).then(() => { location.reload(); });
-            } else {
-              Swal.fire({
-                icon: 'error',
-                title: '{% trans "خطأ" %}',
-                text: response.message || '{% trans "حدث خطأ أثناء المزامنة" %}',
-                confirmButtonText: '{% trans "حسناً" %}'
-              });
-            }
-          },
-          error: function(xhr) {
+        if (typeof window.syncLiveExchangeRate === 'function') {
+          window.syncLiveExchangeRate('ALL', function(response) {
+            Swal.fire({
+              icon: 'success',
+              title: '{% trans "تمت المزامنة بنجاح" %}',
+              text: response.message || '{% trans "تم تحديث الأسعار بنجاح" %}',
+              confirmButtonText: '{% trans "حسناً" %}'
+            }).then(() => { location.reload(); });
+          }, function(xhr) {
             Swal.fire({
               icon: 'error',
               title: '{% trans "خطأ في الاتصال" %}',
               text: '{% trans "تعذر الاتصال بخدمة المزامنة الرسمية." %}',
               confirmButtonText: '{% trans "حسناً" %}'
             });
-          }
-        });
+          });
+        }
       }
     });
   }

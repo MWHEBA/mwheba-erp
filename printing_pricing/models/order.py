@@ -477,7 +477,7 @@ class PrintingOrder(BaseModel):
         if not self.order_number:
             self.order_number = self.generate_order_number()
 
-        # تثبيت وتجميد سعر الصرف وفق معيار IAS 21
+        # تثبيت وتجميد سعر الصرف
         try:
             from financial.services.exchange_rate_service import ExchangeRateService
             func_curr = ExchangeRateService.get_functional_currency()
@@ -647,14 +647,14 @@ class PrintingOrder(BaseModel):
 
     @property
     def estimated_cost_functional(self):
-        """التكلفة المقدرة معبر عنها بالعملة المحلية للنظام وفق IAS 21"""
+        """التكلفة المقدرة معبر عنها بالعملة المحلية للنظام"""
         cost = self.estimated_cost or Decimal('0.00')
         rate = self.exchange_rate or Decimal('1.000000')
         return (cost * rate).quantize(Decimal('0.01'))
 
     @property
     def final_price_functional(self):
-        """السعر النهائي معبر عنه بالعملة المحلية للنظام وفق IAS 21"""
+        """السعر النهائي معبر عنه بالعملة المحلية للنظام"""
         price = self.final_price or Decimal('0.00')
         rate = self.exchange_rate or Decimal('1.000000')
         return (price * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -680,7 +680,7 @@ class PrintingOrder(BaseModel):
 
     @property
     def profit_amount_functional(self):
-        """صافي الربح بالعملة المحلية وفق IAS 21"""
+        """صافي الربح بالعملة المحلية"""
         return (self.final_price_functional - self.estimated_cost_functional).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 

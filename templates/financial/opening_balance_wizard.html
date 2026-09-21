@@ -108,7 +108,7 @@
                                 <option value="">{% trans "اختر حساب الخزينة/البنك..." %}</option>
                                 {% for acc in treasury_accounts %}
                                 <option value="{{ acc.id }}">
-                                    {% if acc.is_cash_account %}[{% trans "خزينة" %}]{% else %}[{% trans "بنك" %}]{% endif %} {{ acc.code }} - {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
+                                    {% if acc.is_cash_account %}[{% trans "خزينة" %}]{% else %}[{% trans "بنك" %}]{% endif %} {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -131,7 +131,12 @@
 
                                 <div class="col-md-6 d-none" id="group-exchange-rate">
                                     <label class="form-label fw-bold">{% trans "سعر الصرف الاسترشادي" %} ({{ functional_currency.symbol|default:functional_currency.code }}) <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+                                    <div class="input-group">
+                                        <input type="number" step="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+                                        <button type="button" class="btn btn-outline-secondary" id="btn_sync_ob_rate" title="{% trans 'تحديث السعر اللحظي مع البنك المركزي' %}">
+                                            <i class="fas fa-sync-alt" id="icon_sync_ob_rate"></i>
+                                        </button>
+                                    </div>
                                     <small class="text-muted fs-8 d-block mt-1">{% trans "سعر صرف استرشادي يمكنك تعديله إن لزم الأمر" %}</small>
                                 </div>
                             </div>
@@ -557,6 +562,43 @@ document.addEventListener('DOMContentLoaded', function() {
             if (hintLocalDebit) hintLocalDebit.classList.add('d-none');
             if (hintLocalCredit) hintLocalCredit.classList.add('d-none');
         }
+    }
+
+    const btnSyncObRate = document.getElementById('btn_sync_ob_rate');
+    const iconSyncObRate = document.getElementById('icon_sync_ob_rate');
+    if (btnSyncObRate) {
+        btnSyncObRate.addEventListener('click', function(e) {
+            e.preventDefault();
+            const currId = currencySelect.val();
+            const currData = currencyRates[currId];
+            if (!currData || currData.is_functional) return;
+
+            if (iconSyncObRate) iconSyncObRate.classList.add('fa-spin');
+            btnSyncObRate.disabled = true;
+
+            if (typeof window.syncLiveExchangeRate === 'function') {
+                window.syncLiveExchangeRate(currData.code, function(data) {
+                    if (iconSyncObRate) iconSyncObRate.classList.remove('fa-spin');
+                    btnSyncObRate.disabled = false;
+
+                    if (Array.isArray(data.synced_rates)) {
+                        const matched = data.synced_rates.find(item => item.code.toUpperCase() === currData.code.toUpperCase());
+                        if (matched && matched.rate && exchangeRateInput) {
+                            const newRate = parseFloat(matched.rate).toFixed(6);
+                            exchangeRateInput.value = newRate;
+                            currData.rate = newRate;
+                            updateEquivalentHints();
+                            if (typeof window.showNotification === 'function') {
+                                window.showNotification(`تم تحديث سعر صرف (${currData.code}) إلى ${newRate} بنجاح`, 'success');
+                            }
+                        }
+                    }
+                }, function(err) {
+                    if (iconSyncObRate) iconSyncObRate.classList.remove('fa-spin');
+                    btnSyncObRate.disabled = false;
+                });
+            }
+        });
     }
 
     currencySelect.on('change', updateCurrencyUI);

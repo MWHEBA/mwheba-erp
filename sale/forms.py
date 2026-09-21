@@ -193,7 +193,7 @@ class SaleForm(forms.ModelForm):
             from financial.services.account_helper import AccountHelperService
             payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             for account in payment_accounts:
-                payment_choices.append((account.code, f"{account.name} ({account.code})"))
+                payment_choices.append((account.code, account.name))
         except Exception:
             pass
 
@@ -203,7 +203,7 @@ class SaleForm(forms.ModelForm):
                 from financial.models import ChartOfAccounts
                 acc = ChartOfAccounts.objects.filter(code=current_method).first()
                 if acc:
-                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                    payment_choices.append((acc.code, acc.name))
                 else:
                     payment_choices.append((current_method, current_method))
             except Exception:
@@ -430,6 +430,18 @@ class SalePaymentForm(forms.ModelForm):
         label='طريقة الدفع (الخزينة/البنك)',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    # حقول السداد متعدد العملات
+    payment_exchange_rate = forms.DecimalField(
+        label="سعر صرف السداد",
+        required=False,
+        initial=Decimal("1.000000"),
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.000001", "id": "payment_exchange_rate"}),
+    )
+    amount_paid_currency = forms.DecimalField(
+        label="المبلغ المسدد بعملة الخزينة",
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "id": "amount_paid_currency"}),
+    )
 
     class Meta:
         model = SalePayment
@@ -439,6 +451,8 @@ class SalePaymentForm(forms.ModelForm):
             "payment_method",
             "reference_number",
             "notes",
+            "payment_exchange_rate",
+            "amount_paid_currency",
         ]
         widgets = {
             "payment_date": forms.TextInput(attrs={
@@ -460,6 +474,12 @@ class SalePaymentForm(forms.ModelForm):
                     "placeholder": "ملاحظات (اختياري)",
                 }
             ),
+            "payment_exchange_rate": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.000001"}
+            ),
+            "amount_paid_currency": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -473,7 +493,7 @@ class SalePaymentForm(forms.ModelForm):
             
             choices = [('', 'اختر حساب الدفع')]
             for account in payment_accounts:
-                choices.append((account.code, f"{account.name} ({account.code})"))
+                choices.append((account.code, account.name))
             
             current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
             if current_method and current_method not in [c[0] for c in choices]:
@@ -481,7 +501,7 @@ class SalePaymentForm(forms.ModelForm):
                     from financial.models import ChartOfAccounts
                     acc = ChartOfAccounts.objects.filter(code=current_method).first()
                     if acc:
-                        choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                        choices.append((acc.code, acc.name))
                     else:
                         choices.append((current_method, current_method))
                 except Exception:
@@ -505,7 +525,6 @@ class SalePaymentForm(forms.ModelForm):
                 else:
                     self.initial['payment_method'] = old_value
         except Exception:
-            # Fallback to default choices on any error
             choices = [
                 ('', 'اختر طريقة الدفع'),
                 ('cash', 'نقداً'),
@@ -518,7 +537,8 @@ class SalePaymentForm(forms.ModelForm):
         
         # تعيين التاريخ الحالي كافتراضي
         if not self.initial.get("payment_date"):
-            self.initial["payment_date"] = timezone.now().date()
+            from utils.helpers import get_system_today
+            self.initial["payment_date"] = get_system_today()
 
         # إضافة CSS classes للحقول
         for field_name, field in self.fields.items():
@@ -528,8 +548,10 @@ class SalePaymentForm(forms.ModelForm):
     def clean_payment_date(self):
         """التحقق من أن تاريخ الدفعة ليس في المستقبل"""
         payment_date = self.cleaned_data.get("payment_date")
-        if payment_date and payment_date > timezone.now().date():
-            raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
+        if payment_date:
+            from utils.helpers import get_system_today
+            if payment_date > get_system_today():
+                raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
         return payment_date
 
     def clean_amount(self):
@@ -537,13 +559,53 @@ class SalePaymentForm(forms.ModelForm):
         if amount is None or amount <= 0:
             raise ValidationError("المبلغ يجب أن يكون أكبر من صفر")
 
-        if self.sale:
-            # التحقق من أن المبلغ لا يتجاوز المبلغ المتبقي
-            remaining = self.sale.amount_due
-            if amount > remaining:
+        sale_obj = self.sale or (self.instance.sale if self.instance else None)
+        if sale_obj:
+            remaining = sale_obj.amount_due
+            if self.instance and self.instance.pk:
+                remaining += self.instance.amount
+            if amount > remaining + Decimal("0.005"):
                 raise ValidationError(f"المبلغ يتجاوز المبلغ المتبقي ({remaining:.2f})")
 
         return amount
+
+    def clean(self):
+        cleaned_data = super().clean()
+        amount = cleaned_data.get("amount")
+        payment_method = cleaned_data.get("payment_method")
+        payment_exchange_rate = cleaned_data.get("payment_exchange_rate") or Decimal("1.000000")
+        amount_paid_currency = cleaned_data.get("amount_paid_currency")
+        
+        sale_obj = self.sale or (self.instance.sale if self.instance else None)
+        if amount and payment_method and sale_obj:
+            from financial.models import ChartOfAccounts
+            from financial.services.exchange_rate_service import ExchangeRateService
+            
+            acc = ChartOfAccounts.objects.filter(code=payment_method).first()
+            treasury_code = acc.currency_code if acc else "EGP"
+            inv_code = sale_obj.currency.code if getattr(sale_obj, 'currency', None) else "EGP"
+            inv_rate = getattr(sale_obj, 'exchange_rate', Decimal("1.000000")) or Decimal("1.000000")
+            
+            settlement = ExchangeRateService.calculate_payment_settlement(
+                invoice_amount=amount,
+                invoice_currency_code=inv_code,
+                invoice_rate=inv_rate,
+                payment_currency_code=treasury_code,
+                settlement_rate=payment_exchange_rate,
+            )
+            
+            if amount_paid_currency and amount_paid_currency > Decimal("0.00"):
+                diff = abs(amount_paid_currency - settlement["amount_paid_currency"])
+                if diff > Decimal("0.05"):
+                    cleaned_data["amount_paid_currency"] = settlement["amount_paid_currency"]
+            else:
+                cleaned_data["amount_paid_currency"] = settlement["amount_paid_currency"]
+                
+            cleaned_data["amount_functional"] = settlement["amount_functional"]
+            cleaned_data["amount_settled_invoice_currency"] = settlement["settled_invoice_amt"]
+            cleaned_data["realized_fx_difference"] = settlement["realized_fx_difference"]
+            
+        return cleaned_data
 
 
 class SalePaymentEditForm(forms.ModelForm):
@@ -560,6 +622,18 @@ class SalePaymentEditForm(forms.ModelForm):
             attrs={"class": "form-control select2"}
         ),
     )
+    # حقول السداد متعدد العملات
+    payment_exchange_rate = forms.DecimalField(
+        label="سعر صرف السداد",
+        required=False,
+        initial=Decimal("1.000000"),
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.000001", "id": "payment_exchange_rate"}),
+    )
+    amount_paid_currency = forms.DecimalField(
+        label="المبلغ المسدد بعملة الخزينة",
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "id": "amount_paid_currency"}),
+    )
 
     class Meta:
         model = SalePayment
@@ -569,6 +643,8 @@ class SalePaymentEditForm(forms.ModelForm):
             "payment_method",
             "reference_number",
             "notes",
+            "payment_exchange_rate",
+            "amount_paid_currency",
         ]
         widgets = {
             "payment_date": forms.TextInput(attrs={
@@ -590,86 +666,52 @@ class SalePaymentEditForm(forms.ModelForm):
                     "placeholder": "ملاحظات (اختياري)",
                 }
             ),
+            "payment_exchange_rate": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.000001"}
+            ),
+            "amount_paid_currency": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01"}
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         self.sale = kwargs.pop("sale", None)
         super().__init__(*args, **kwargs)
 
-        # إعداد خيارات طريقة الدفع
-        payment_choices = [('', 'اختر حساب الدفع')]
-        
         try:
             from financial.services.account_helper import AccountHelperService
             payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
+            
+            choices = [('', 'اختر حساب الدفع')]
             for account in payment_accounts:
-                payment_choices.append((account.code, f"{account.name} ({account.code})"))
+                choices.append((account.code, account.name))
                 
-        except Exception:
-            payment_choices = [
-                ('', 'اختر طريقة الدفع'),
-                ('cash', 'نقداً'),
-                ('bank_transfer', 'تحويل بنكي'),
-            ]
-        
-        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
-        if current_method and current_method not in [c[0] for c in payment_choices]:
-            try:
-                from financial.models import ChartOfAccounts
-                acc = ChartOfAccounts.objects.filter(code=current_method).first()
-                if acc:
-                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
-                else:
-                    payment_choices.append((current_method, current_method))
-            except Exception:
-                payment_choices.append((current_method, current_method))
-
-        self.fields['payment_method'].choices = payment_choices
-        
-        # Handle old values when editing
-        if self.instance and self.instance.pk and self.instance.payment_method:
-            old_value = self.instance.payment_method
-            # تحويل القيم القديمة
-            if old_value == 'cash':
-                try:
-                    from financial.services.role_registry import AccountRoleRegistry
-                    default_cash = AccountRoleRegistry.get_account_by_role("CASH_CONTROL_ACCOUNT")
-                    if default_cash:
-                        self.initial['payment_method'] = default_cash.code
-                except:
-                    self.initial['payment_method'] = 'cash'
-            elif old_value == 'bank_transfer':
-                try:
-                    from financial.services.role_registry import AccountRoleRegistry
-                    default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
-                    if default_bank:
-                        self.initial['payment_method'] = default_bank.code
-                except:
-                    self.initial['payment_method'] = 'bank_transfer'
-            else:
-                # Already an account code - verify it exists
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in choices]:
                 try:
                     from financial.models import ChartOfAccounts
-                    if ChartOfAccounts.objects.filter(code=old_value, is_active=True).exists():
-                        self.initial['payment_method'] = old_value
-                except:
-                    pass
+                    acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                    if acc:
+                        choices.append((acc.code, acc.name))
+                    else:
+                        choices.append((current_method, current_method))
+                except Exception:
+                    choices.append((current_method, current_method))
 
-        # إضافة CSS classes للحقول
+            self.fields['payment_method'].choices = choices
+        except Exception:
+            pass
+
         for field_name, field in self.fields.items():
             if "class" not in field.widget.attrs:
                 field.widget.attrs["class"] = "form-control"
 
-        # إضافة تحذير للدفعات المرحّلة
-        if self.instance and self.instance.pk and self.instance.is_posted:
-            for field in self.fields.values():
-                field.help_text = "تحذير: تعديل هذه الدفعة سيؤثر على الأرصدة المحاسبية"
-
     def clean_payment_date(self):
-        """التحقق من أن تاريخ الدفعة ليس في المستقبل"""
         payment_date = self.cleaned_data.get("payment_date")
-        if payment_date and payment_date > timezone.now().date():
-            raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
+        if payment_date:
+            from utils.helpers import get_system_today
+            if payment_date > get_system_today():
+                raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
         return payment_date
 
     def clean_amount(self):
@@ -677,27 +719,50 @@ class SalePaymentEditForm(forms.ModelForm):
         if amount is None or amount <= 0:
             raise ValidationError("المبلغ يجب أن يكون أكبر من صفر")
 
-        from decimal import Decimal
-
-        sale = getattr(self, 'sale', None)
-        if not sale and self.instance and hasattr(self.instance, 'sale') and self.instance.sale_id:
-            sale = self.instance.sale
-
-        if sale:
+        sale_obj = self.sale or (self.instance.sale if self.instance else None)
+        if sale_obj:
+            remaining = sale_obj.amount_due
             if self.instance and self.instance.pk:
-                remaining = sale.amount_due + (self.instance.amount or Decimal('0'))
-            else:
-                remaining = sale.amount_due
-
-            if remaining < Decimal('0'):
-                remaining = Decimal('0.00')
-
-            if amount > remaining:
-                raise ValidationError(
-                    f"المبلغ المدخل ({amount}) يتجاوز المبلغ المتبقي على الفاتورة ({remaining:.2f} ج.م)"
-                )
+                remaining += self.instance.amount
+            if amount > remaining + Decimal("0.005"):
+                raise ValidationError(f"المبلغ يتجاوز المبلغ المتبقي ({remaining:.2f})")
 
         return amount
+
+    def clean(self):
+        cleaned_data = super().clean()
+        amount = cleaned_data.get("amount")
+        payment_method = cleaned_data.get("payment_method")
+        payment_exchange_rate = cleaned_data.get("payment_exchange_rate") or Decimal("1.000000")
+        amount_paid_currency = cleaned_data.get("amount_paid_currency")
+        
+        sale_obj = self.sale or (self.instance.sale if self.instance else None)
+        if amount and payment_method and sale_obj:
+            from financial.models import ChartOfAccounts
+            from financial.services.exchange_rate_service import ExchangeRateService
+            
+            acc = ChartOfAccounts.objects.filter(code=payment_method).first()
+            treasury_code = acc.currency_code if acc else "EGP"
+            inv_code = sale_obj.currency.code if getattr(sale_obj, 'currency', None) else "EGP"
+            inv_rate = getattr(sale_obj, 'exchange_rate', Decimal("1.000000")) or Decimal("1.000000")
+            
+            settlement = ExchangeRateService.calculate_payment_settlement(
+                invoice_amount=amount,
+                invoice_currency_code=inv_code,
+                invoice_rate=inv_rate,
+                payment_currency_code=treasury_code,
+                settlement_rate=payment_exchange_rate,
+            )
+            
+            if amount_paid_currency and amount_paid_currency > Decimal("0.00"):
+                diff = abs(amount_paid_currency - settlement["amount_paid_currency"])
+                if diff > Decimal("0.05"):
+                    cleaned_data["amount_paid_currency"] = settlement["amount_paid_currency"]
+            else:
+                cleaned_data["amount_paid_currency"] = settlement["amount_paid_currency"]
+                
+            cleaned_data["amount_functional"] = settlement["amount_functional"]
+        return cleaned_data
 
 
 class SaleReturnForm(forms.ModelForm):

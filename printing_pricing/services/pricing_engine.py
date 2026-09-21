@@ -50,7 +50,7 @@ class PrintingCalculationEngine:
             elif isinstance(params, dict):
                 params = {k: (v[0] if isinstance(v, (list, tuple)) and len(v) == 1 else v) for k, v in params.items()}
 
-            # 1. تحديد العملة المستهدفة لحسابات التسعير وتاريخ سعر الصرف وفق IAS 21
+            # 1. تحديد العملة المستهدفة لحسابات التسعير وتاريخ سعر الصرف
             target_curr = params.get('currency')
             if not target_curr:
                 curr_code = params.get('currency_code')
@@ -541,7 +541,7 @@ class PrintingCalculationEngine:
         cls, amount: Decimal, from_curr=None, to_curr=None, date=None
     ) -> Decimal:
         """
-        تحويل المبلغ بين أي عملتين طبقاً لمعيار IAS 21 والخدمة المركزية ExchangeRateService.
+        تحويل المبلغ بين أي عملتين طبقاً للخدمة المركزية ExchangeRateService.
         إذا لم يتم تمرير to_curr أو from_curr يتم استخدام العملة الوظيفية للنظام.
         """
         if not amount or amount <= Decimal('0.00'):

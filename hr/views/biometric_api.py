@@ -1,8 +1,9 @@
 """
-Bridge Agent API - استقبال البيانات من أجهزة البصمة
+Bridge Agent API - استقبال ومعالجة البيانات اللحظية من أجهزة وماكينات البصمة
 """
 from .base_imports import *
-from ..models import BiometricDevice, BiometricLog, BiometricSyncLog, Employee
+from ..models import BiometricDevice, BiometricLog, BiometricSyncLog, Employee, BiometricUserMapping
+from ..utils.biometric_utils import bulk_process_logs
 from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -12,6 +13,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
 from django.utils import timezone
 from dateutil import parser
+from datetime import timedelta
 import hmac
 import random
 import logging
@@ -27,18 +29,17 @@ __all__ = [
 
 class BridgeSyncThrottle(AnonRateThrottle):
     """Rate limiting for Bridge Agent API - Enhanced security"""
-    rate = '10/min'  # ✅ SECURITY: Reduced to 10 requests per minute for auth security
+    rate = '30/min'
+
 
 class BridgeAgentAuthentication(BaseAuthentication):
     """
-    ✅ SECURITY: Custom authentication for Bridge Agent API
-    Replaces @csrf_exempt with proper token-based authentication
+    Custom authentication for Bridge Agent API
     """
     def authenticate(self, request):
         auth_header = request.headers.get('Authorization', '') or request.META.get('HTTP_AUTHORIZATION', '')
         agent_code = request.data.get('agent_code')
 
-        # Support secret in body as fallback (when proxy strips Authorization header)
         body_secret = request.data.get('agent_secret', '')
 
         if not auth_header.startswith('Bearer ') and not body_secret:
@@ -49,7 +50,6 @@ class BridgeAgentAuthentication(BaseAuthentication):
 
         agent_secret = auth_header[7:] if auth_header.startswith('Bearer ') else body_secret
         
-        # Validate agent credentials
         valid_agents = getattr(settings, 'BRIDGE_AGENTS', {})
         
         if agent_code not in valid_agents:
@@ -58,12 +58,10 @@ class BridgeAgentAuthentication(BaseAuthentication):
         
         expected_secret = valid_agents[agent_code]
         
-        # Use hmac.compare_digest to prevent timing attacks
         if not hmac.compare_digest(expected_secret, agent_secret):
             logger.warning(f"Invalid secret for agent: {agent_code}")
             raise AuthenticationFailed('Invalid agent credentials')
         
-        # Return a simple user object for logging purposes
         class AgentUser:
             def __init__(self, agent_code):
                 self.username = f"bridge_agent_{agent_code}"
@@ -71,52 +69,82 @@ class BridgeAgentAuthentication(BaseAuthentication):
                 
         return (AgentUser(agent_code), agent_code)
 
-# ✅ SECURITY: Removed @csrf_exempt, using proper authentication instead
+
+def _match_employee_3tier(user_id, device):
+    """
+    خوارزمية المطابقة الذكية الثلاثية:
+    Tier 1: المطابقة عبر كود البصمة المباشر في بطاقة الموظف Employee.biometric_user_id
+    Tier 2: المطابقة عبر جدول الربط المخصص BiometricUserMapping
+    Tier 3: المطابقة عبر الرقم الوظيفي Employee.employee_number
+    """
+    user_id_str = str(user_id).strip()
+
+    # Tier 1
+    emp = Employee.objects.filter(biometric_user_id=user_id_str).first()
+    if emp:
+        return emp
+
+    # Tier 2
+    mapping = BiometricUserMapping.objects.filter(
+        device=device,
+        biometric_user_id=user_id_str,
+        is_active=True
+    ).select_related('employee').first()
+    if mapping and mapping.employee:
+        return mapping.employee
+
+    global_mapping = BiometricUserMapping.objects.filter(
+        device__isnull=True,
+        biometric_user_id=user_id_str,
+        is_active=True
+    ).select_related('employee').first()
+    if global_mapping and global_mapping.employee:
+        return global_mapping.employee
+
+    # Tier 3
+    emp = Employee.objects.filter(employee_number=user_id_str).first()
+    if emp:
+        return emp
+
+    return None
+
+
 @api_view(['POST'])
 @authentication_classes([BridgeAgentAuthentication])
 @permission_classes([AllowAny])
 @throttle_classes([BridgeSyncThrottle])
 def biometric_bridge_sync(request):
     """
-    API لاستقبال البيانات من Bridge Agent
-    ✅ SECURITY: Now uses token-based authentication instead of @csrf_exempt
+    API لاستقبال ومعالجة البيانات لحظياً من Bridge Agent وماكينات البصمة
     """
-    # Logging بدلاً من print
-    
-    # Authentication is already handled by BridgeAgentAuthentication
-    agent_code = request.auth  # This is set by our custom authentication
-    
-    # جلب السجلات
+    agent_code = request.auth
     records = request.data.get('records', [])
     
-    # البحث عن الماكينة المرتبطة بالـ Agent
+    device_identifier = request.data.get('device_code') or agent_code
     try:
-        device = BiometricDevice.objects.get(device_code=agent_code)
+        device = BiometricDevice.objects.get(device_code=device_identifier)
     except BiometricDevice.DoesNotExist:
-        return Response({'error': 'Device not found for this agent'}, status=404)
+        try:
+            device = BiometricDevice.objects.get(id=int(device_identifier))
+        except (ValueError, BiometricDevice.DoesNotExist):
+            return Response({'error': 'Device not found for this agent'}, status=404)
     
-    # تحديث last_connection حتى لو مافيش سجلات (heartbeat)
     device.last_connection = timezone.now()
     device.status = 'active'
     
-    # تنظيف السجلات القديمة (أقدم من 30 يوم) - مرة واحدة كل 100 مزامنة
     if random.randint(1, 100) == 1:
         try:
-            deleted = BiometricSyncLog.cleanup_old_logs(days=30)
-            if deleted > 0:
-                pass
+            BiometricSyncLog.cleanup_old_logs(days=30)
         except Exception as e:
             logger.warning(f"Failed to cleanup old logs: {e}")
     
-    # إنشاء سجل المزامنة
     sync_log = BiometricSyncLog.objects.create(
         device=device,
         started_at=timezone.now(),
-        status='success',  # سيتم تحديثه لاحقاً
+        status='success',
         records_fetched=len(records)
     )
     
-    # لو مافيش سجلات، نرجع heartbeat response
     if not records:
         device.save()
         sync_log.completed_at = timezone.now()
@@ -130,57 +158,59 @@ def biometric_bridge_sync(request):
             'total': 0
         })
     
-    # معالجة السجلات
     processed = 0
     skipped = 0
     failed = 0
+    affected_dates = set()
     
     for record in records:
         try:
             user_id = record.get('user_id')
             timestamp_str = record.get('timestamp')
             
-            # تحويل التاريخ
             timestamp = parser.parse(timestamp_str)
+
+            # تطبيق تعويض فارق التوقيت للماكينة (DST / Timezone Drift)
+            if device.timezone_offset_hours:
+                timestamp = timestamp + timedelta(hours=device.timezone_offset_hours)
             
-            # تحديد نوع البصمة من بيانات الجهاز
             punch = record.get('punch')
             status_val = record.get('status')
             
-            # تحديد log_type بناءً على punch أو status
-            log_type = 'check_in'  # افتراضي
+            log_type = 'check_in'
             if punch is not None:
-                punch_map = {
-                    0: 'check_in',
-                    1: 'check_out',
-                    2: 'break_start',
-                    3: 'break_end'
-                }
+                punch_map = {0: 'check_in', 1: 'check_out', 2: 'break_start', 3: 'break_end'}
                 log_type = punch_map.get(punch, 'check_in')
             elif status_val is not None:
-                status_map = {
-                    0: 'check_in',
-                    1: 'check_out',
-                    2: 'break_start',
-                    3: 'break_end'
-                }
+                status_map = {0: 'check_in', 1: 'check_out', 2: 'break_start', 3: 'break_end'}
                 log_type = status_map.get(status_val, 'check_in')
             
-            # محاولة ربط بالموظف
-            employee = None
-            try:
-                employee = Employee.objects.get(employee_number=user_id)
-            except Employee.DoesNotExist:
-                pass
+            # المطابقة الثلاثية الذكية
+            employee = _match_employee_3tier(user_id, device)
+
+            # نافذة الـ Sliding Debounce (30 ثانية) لتجاهل التكرار السريع
+            debounce_start = timestamp - timedelta(seconds=30)
+            debounce_end = timestamp + timedelta(seconds=30)
             
-            # استخدام get_or_create لمنع race condition
+            duplicate_exists = BiometricLog.objects.filter(
+                device=device,
+                user_id=str(user_id),
+                timestamp__range=(debounce_start, debounce_end),
+                log_type=log_type
+            ).exists()
+
+            if duplicate_exists:
+                skipped += 1
+                continue
+            
             log, created = BiometricLog.objects.get_or_create(
                 device=device,
-                user_id=user_id,
+                user_id=str(user_id),
                 timestamp=timestamp,
                 defaults={
                     'employee': employee,
-                    'log_type': log_type,  # ✅ استخدام النوع المحدد من الجهاز
+                    'log_type': log_type,
+                    'source': 'device',
                     'is_processed': False,
                     'raw_data': record
                 }
@@ -188,25 +218,31 @@ def biometric_bridge_sync(request):
             
             if created:
                 processed += 1
+                affected_dates.add(timestamp.date())
             else:
                 skipped += 1
                 
         except Exception as e:
-            logger.error(f"Error processing record: {e}")
+            logger.error(f"Error processing biometric record: {e}", exc_info=True)
             failed += 1
             continue
     
-    # تحديث إحصائيات الماكينة
     device.total_records = BiometricLog.objects.filter(device=device).count()
     device.last_sync = timezone.now()
     device.save()
     
-    # تحديث سجل المزامنة
+    # المعالجة اللحظية المباشرة لتواريخ البصمات المستلمة
+    if affected_dates:
+        for dt in affected_dates:
+            try:
+                bulk_process_logs(date=dt, unprocessed_only=True)
+            except Exception as e:
+                logger.error(f"Instant auto-processing error for date {dt}: {e}", exc_info=True)
+
     sync_log.completed_at = timezone.now()
     sync_log.records_processed = processed
     sync_log.records_failed = failed
     
-    # تحديد حالة المزامنة
     if failed > 0 and processed > 0:
         sync_log.status = 'partial'
     elif failed > 0 and processed == 0:
@@ -219,7 +255,7 @@ def biometric_bridge_sync(request):
     
     return Response({
         'success': True,
-        'message': f'Processed {processed} records',
+        'message': f'Processed {processed} records, skipped {skipped}',
         'processed': processed,
         'skipped': skipped,
         'total': len(records)

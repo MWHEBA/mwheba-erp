@@ -488,7 +488,7 @@
                     </div>
                 </div>
 
-                <!-- 3. في حالة التعديل: أسعار العملات الأجنبية (IAS 21) وأسعار الموردين -->
+                <!-- 3. في حالة التعديل: أسعار العملات الأجنبية وأسعار الموردين -->
                 {% if form.instance.pk %}
                 <div class="form-section-card">
                     <div class="form-section-header d-flex justify-content-between align-items-center">
@@ -507,8 +507,15 @@
                                     <ul class="list-group list-group-flush border rounded">
                                         {% for cp in form.instance.currency_prices.all %}
                                         <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                                            <span>{{ cp.currency.name }} ({{ cp.currency.code }})</span>
-                                            <span class="badge bg-light text-dark">{{ cp.price }} {{ cp.currency.symbol }}</span>
+                                            <span class="fw-medium">{{ cp.currency.name }} ({{ cp.currency.code }})</span>
+                                            <div>
+                                                {% if cp.indicative_selling_price %}
+                                                <span class="badge bg-success-subtle text-success border me-1">بيع: {{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</span>
+                                                {% endif %}
+                                                {% if cp.indicative_cost_price %}
+                                                <span class="badge bg-light text-dark border">تكلفة: {{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</span>
+                                                {% endif %}
+                                            </div>
                                         </li>
                                         {% endfor %}
                                     </ul>

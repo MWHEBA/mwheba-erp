@@ -133,7 +133,7 @@ class ServicePriceGovernanceModelTest(TestCase):
         self.assertIn('pricing_formula', history.new_snapshot)
 
     def test_fx_rate_stale_under_ias21(self):
-        """فحص عمر سعر الصرف للعملات الأجنبية وفق قاعدة 7 أيام في معيار IAS 21"""
+        """فحص عمر سعر الصرف للعملات الأجنبية وفق قاعدة 7 أيام"""
         from financial.models.currency import ExchangeRate
         egp, _ = Currency.objects.get_or_create(
             code='EGP',

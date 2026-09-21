@@ -42,7 +42,7 @@ class ServiceSpecAdapter:
 
 
 def _get_rates_map(functional_currency) -> Dict[Any, Decimal]:
-    """تحميل أحدث أسعار صرف مقابل العملة الوظيفية في الذاكرة لتفادي N+1 Queries (IAS 21)"""
+    """تحميل أحدث أسعار صرف مقابل العملة الوظيفية في الذاكرة لتفادي N+1 Queries"""
     rates = {}
     if functional_currency and getattr(functional_currency, 'id', None):
         rates[functional_currency.id] = Decimal('1.0')
@@ -319,7 +319,7 @@ def service_pricing_matrix_view(request):
     else:
         tab_qs = tab_qs.order_by('name', 'base_price')
 
-    # 3. محرك العملات IAS 21 والـ Pre-pass ضد كامل حوض السوق
+    # 3. محرك العملات والـ Pre-pass ضد كامل حوض السوق
     functional_curr = ExchangeRateService.get_functional_currency()
     rates_map = _get_rates_map(functional_curr)
 

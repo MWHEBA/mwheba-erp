@@ -218,6 +218,13 @@
                     <p class="mb-2"><strong>وقت البداية:</strong> <span class="badge bg-success">{{ employee.shift.start_time|date:"g:i A" }}</span></p>
                     <p class="mb-2"><strong>وقت النهاية:</strong> <span class="badge bg-info">{{ employee.shift.end_time|date:"g:i A" }}</span></p>
                     <p class="mb-2"><strong>ساعات العمل:</strong> {{ employee.shift.work_hours }} ساعة</p>
+                    {% if employee.shift.weekly_off_days %}
+                    <p class="mb-2"><strong>العطلة الأسبوعية:</strong> 
+                        {% for badge in employee.shift.get_weekly_off_days_display %}
+                            <span class="badge bg-secondary">{{ badge }}</span>
+                        {% endfor %}
+                    </p>
+                    {% endif %}
                     {% if employee.status != 'terminated' %}
                     <hr>
                     <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-sm btn-warning w-100">
@@ -235,6 +242,68 @@
                         <i class="fas fa-clock me-2"></i>تعيين وردية
                     </a>
                     {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- مقر العمل وبصمة الجوال (GPS) -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>مقر العمل وبصمة الجوال</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">مقر العمل المخصص</small>
+                    {% if employee.work_location %}
+                        <strong>{{ employee.work_location.name }}</strong>
+                        <span class="badge bg-info ms-1">نطاق {{ employee.work_location.radius_meters }}م</span>
+                    {% elif employee.allowed_all_locations %}
+                        <strong class="text-success"><i class="fas fa-globe me-1"></i>كافة الفروع مسموحة</strong>
+                    {% else %}
+                        <span class="text-muted">الفرع الافتراضي</span>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">بصمة الجوال (GPS)</small>
+                    {% if employee.allow_mobile_attendance %}
+                        <span class="badge bg-success"><i class="fas fa-mobile-alt me-1"></i>مفعلة</span>
+                        {% if employee.allow_field_visits %}
+                            <span class="badge bg-primary ms-1"><i class="fas fa-route me-1"></i>مأموريات ميدانية</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">معطلة (أجهزة البصمة فقط)</span>
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted d-block">حالة ربط الهاتف (Device Binding)</small>
+                    {% if employee.registered_device_uuid %}
+                        <div class="d-flex align-items-center justify-content-between mt-1 p-2 bg-light rounded border">
+                            <div>
+                                <code class="small text-truncate d-block" style="max-width: 170px;" title="{{ employee.registered_device_uuid }}">
+                                    <i class="fas fa-mobile-alt text-success me-1"></i>{{ employee.registered_device_uuid }}
+                                </code>
+                                {% if employee.device_bound_at %}
+                                <span class="text-muted" style="font-size: 0.75rem;">
+                                    <i class="far fa-clock me-1"></i>{{ employee.device_bound_at|date:"Y-m-d H:i" }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            {% if perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#resetDeviceModal" title="فك ارتباط هاتف الموظف">
+                                <i class="fas fa-unlink"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <span class="text-muted small"><i class="fas fa-info-circle me-1 text-info"></i>غير مقترن (سيتم الربط تلقائياً بأول هاتف يبصم منه)</span>
+                    {% endif %}
+                </div>
+                {% if employee.allow_mobile_attendance %}
+                <div class="mt-3 pt-2 border-top">
+                    <a href="{% url 'hr:self_attendance' %}" class="btn btn-sm btn-outline-success w-100">
+                        <i class="fas fa-mobile-alt me-1"></i>فتح واجهة بصمة الجوال الذكية
+                    </a>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -1009,6 +1078,44 @@
         </div>
     </div>
 </div>
+{% if employee.registered_device_uuid and perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
+<!-- Modal فك ارتباط هاتف الموظف (Corporate Centered Modal) -->
+<div class="modal fade" id="resetDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-unlink text-danger me-2"></i>فك ارتباط هاتف الموظف
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="resetDeviceForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        هل أنت متأكد من فك ارتباط هاتف الموظف (<strong>{{ employee.get_full_name_ar }}</strong>)؟
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">معرف الجهاز المقترن حالياً:</label>
+                        <code class="d-block p-2 bg-light rounded border">{{ employee.registered_device_uuid }}</code>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">سبب فك الارتباط <span class="text-danger">*</span></label>
+                        <input type="text" name="reason" id="reset_device_reason" class="form-control" required placeholder="مثال: قام الموظف بتغيير هاتفه التالف">
+                        <div class="form-text">سيتمكن الموظف من ربط هاتفه الجديد تلقائياً عند أول عملية تسجيل دخول وبصم لاحقة.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold" id="btnConfirmResetDevice">
+                        <i class="fas fa-unlink me-1"></i>تأكيد فك الارتباط
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 {% endblock %}
@@ -1033,6 +1140,59 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!document.getElementById('generatedPassword').value) {
                 generatePassword();
             }
+        });
+    }
+
+    // معالجة فك ارتباط هاتف الموظف
+    const resetDeviceForm = document.getElementById('resetDeviceForm');
+    if (resetDeviceForm) {
+        resetDeviceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnConfirmResetDevice');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التنفيذ...';
+
+            const formData = new FormData(resetDeviceForm);
+
+            fetch('{% url "hr:reset_employee_device_binding" employee.id %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.showToastr) {
+                        window.showToastr(data.message, 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message);
+                    }
+                    const modalEl = document.getElementById('resetDeviceModal');
+                    if (modalEl) {
+                        bootstrap.Modal.getInstance(modalEl).hide();
+                    }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showToastr) {
+                        window.showToastr(data.message || 'حدث خطأ', 'error');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(data.message || 'حدث خطأ');
+                    }
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-unlink me-1"></i>تأكيد فك الارتباط';
+                }
+            })
+            .catch(err => {
+                if (window.showToastr) {
+                    window.showToastr('حدث خطأ في الاتصال بالخادم', 'error');
+                }
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-unlink me-1"></i>تأكيد فك الارتباط';
+            });
         });
     }
 });

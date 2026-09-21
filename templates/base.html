@@ -349,6 +349,80 @@
             return $el;
         };
 
+        // المحرك المركزي الموحد لمزامنة وتحديث أسعار الصرف الحية
+        window._isSyncingExchangeRates = false;
+        window.syncLiveExchangeRate = function(targetCurrencyCode, onSuccess, onError) {
+            if (window._isSyncingExchangeRates) {
+                return;
+            }
+            window._isSyncingExchangeRates = true;
+
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
+                            document.querySelector('[name=csrfmiddlewaretoken]').value : 
+                            (document.cookie.split('; ').find(function(row) { return row.startsWith('csrftoken='); }) || '').split('=')[1];
+
+            fetch("/financial/api/exchange-rates/sync/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken || "",
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(function(res) {
+                if (!res.ok) throw new Error("فشل الاتصال بخدمة أسعار الصرف");
+                return res.json();
+            })
+            .then(function(data) {
+                window._isSyncingExchangeRates = false;
+                if (data.status === 'SUCCESS' && Array.isArray(data.synced_rates)) {
+                    // تحديث كافة عناصر select و data-rate للعملات في الصفحة الحالية
+                    data.synced_rates.forEach(function(item) {
+                        $('select option').filter(function() {
+                            var code = ($(this).data('code') || $(this).text().trim().split(' ')[0] || '').toUpperCase();
+                            return code === item.code.toUpperCase();
+                        }).attr('data-rate', parseFloat(item.rate).toFixed(6))
+                          .data('rate', parseFloat(item.rate).toFixed(6));
+                    });
+
+                    if (typeof onSuccess === 'function') {
+                        onSuccess(data);
+                    } else {
+                        var msg = data.message || 'تم تحديث أسعار الصرف بنجاح';
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(msg, 'success');
+                        } else if (typeof toastr !== 'undefined') {
+                            toastr.success(msg);
+                        }
+                    }
+                } else {
+                    if (typeof onError === 'function') {
+                        onError(data);
+                    } else {
+                        var warnMsg = data.message || 'تعذر تحديث سعر الصرف';
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(warnMsg, 'warning');
+                        } else if (typeof toastr !== 'undefined') {
+                            toastr.warning(warnMsg);
+                        }
+                    }
+                }
+            })
+            .catch(function(err) {
+                window._isSyncingExchangeRates = false;
+                console.error("Exchange rate sync error:", err);
+                if (typeof onError === 'function') {
+                    onError(err);
+                } else {
+                    var errMsg = 'تعذر الاتصال بمزود أسعار الصرف، يرجى المحاولة لاحقاً';
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(errMsg, 'error');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(errMsg);
+                    }
+                }
+            });
+        };
+
         $(document).ready(function() {
             window.initAppSelect2();
             

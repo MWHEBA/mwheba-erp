@@ -3,6 +3,7 @@
 """
 from django import forms
 from datetime import datetime, timedelta
+import json
 from ..models import Attendance, Shift, RamadanSettings, AttendancePenalty
 
 
@@ -42,6 +43,24 @@ class AttendanceForm(forms.ModelForm):
 
 class ShiftForm(forms.ModelForm):
     """نموذج الورديات"""
+
+    WEEKDAY_CHOICES = [
+        ('4', 'الجمعة'),
+        ('5', 'السبت'),
+        ('6', 'الأحد'),
+        ('0', 'الاثنين'),
+        ('1', 'الثلاثاء'),
+        ('2', 'الأربعاء'),
+        ('3', 'الخميس'),
+    ]
+
+    weekly_off_days_select = forms.MultipleChoiceField(
+        choices=WEEKDAY_CHOICES,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        required=False,
+        label='أيام العطلة الأسبوعية للوردية',
+        help_text='حدد أيام الإجازة الأسبوعية المنتظمة المخصصة لهذه الوردية'
+    )
     
     class Meta:
         model = Shift
@@ -81,6 +100,17 @@ class ShiftForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.weekly_off_days:
+            val = self.instance.weekly_off_days
+            if isinstance(val, list):
+                self.fields['weekly_off_days_select'].initial = [str(x) for x in val]
+            elif isinstance(val, str):
+                try:
+                    self.fields['weekly_off_days_select'].initial = [str(x) for x in json.loads(val)]
+                except Exception:
+                    self.fields['weekly_off_days_select'].initial = ['4']
+        else:
+            self.fields['weekly_off_days_select'].initial = ['4']
 
     def clean(self):
         """التحقق من صحة البيانات"""
@@ -95,6 +125,14 @@ class ShiftForm(forms.ModelForm):
                 end += timedelta(days=1)
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        selected_days = self.cleaned_data.get('weekly_off_days_select', [])
+        instance.weekly_off_days = [int(d) for d in selected_days]
+        if commit:
+            instance.save()
+        return instance
 
 
 class RamadanSettingsForm(forms.ModelForm):

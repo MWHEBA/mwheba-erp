@@ -12,7 +12,7 @@
 - **UI Components Consistency**: Standardize section containers, card filters, badges, and server-side pagination (SSR Pagination) across all list and detail views.
 
 ## 3. Financial & Business Logic Integrity
-- **Multi-Currency & IAS 21 Standard**: Preserve precision rounding (`decimal_places=2` for amounts, `decimal_places=6` for rates). Accounts must support dual opening balances (`opening_balance_foreign` & `opening_balance_rate`). Open monetary items must be subject to periodic IAS 21 revaluation via `FXRevaluationService`.
+- **Multi-Currency Standards**: Preserve precision rounding (`decimal_places=2` for amounts, `decimal_places=6` for rates). Accounts must support dual opening balances (`opening_balance_foreign` & `opening_balance_rate`). Open monetary items must be subject to periodic currency revaluation via `FXRevaluationService`.
 - **Double-Entry & Treasury Balance Rules**: Ensure payment vouchers, prepaid allocations, cross-currency cash transfers (`CashTransferService`), and treasury balance updates mirror correctly across ledger entries without duplication. Realized FX gains/losses must be automatically posted for cross-currency transfers.
 - **Penny Difference Handling**: Small precision rounding discrepancies (<= 0.05) during multi-currency conversions must automatically route to `Rounding Differences Account` to maintain strict entry balance.
 - **Document Conventions**: Respect established document numbering patterns (Invoices, Quotations, Vouchers, etc.) via `SequenceService`.
@@ -78,7 +78,7 @@
 - **Select2 Dropdown Integration Inside Modals**:
   - Select2 dropdowns placed inside Bootstrap modals MUST be initialized with `dropdownParent: $('#modal_id')` to prevent the dropdown menu from opening behind the modal backdrop overlay.
 
-## 9. Enterprise IAS 21 Multi-Currency Governance Architecture
+## 9. Enterprise Multi-Currency Governance Architecture
 - **FX Revaluation Engine**: Revaluation must use modular DDD services in `financial/fx/services/` (`FXCalculationService`, `FXValidationService`, `FXPostingService`, `FXReversalService`) and domain models in `financial/fx/models/` (`FXRevaluationRun`, `FXRevaluationLine`, `FXRateSnapshot`, `FXApprovalWorkflow`).
 - **Period Close Automation**: Automated revaluation and posting MUST be integrated inside `PeriodControlService.close_period` and dated strictly at `period.end_date`.
 - **Period Re-open Audit Trail**: Reopening a closed period MUST trigger an audit-compliant reversal entry (`FXReversalService.reverse_run`) to preserve audit trail without hard-deleting posted entries.

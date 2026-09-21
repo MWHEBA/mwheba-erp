@@ -154,7 +154,7 @@ __all__ = [
     "IncomeTransaction",
     "TransactionAttachment",
     "PartnerCurrencyBalanceSnapshot",
-    # نماذج تقييم العملات المحوكمة (IAS 21)
+    # نماذج تقييم العملات المحوكمة
     "FXRevaluationRun",
     "FXRevaluationLine",
     "FXRateSnapshot",

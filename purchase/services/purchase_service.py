@@ -182,6 +182,8 @@ class PurchaseService:
             movement_service = MovementService()
             
             for item in purchase.items.all():
+                if getattr(item.product, 'is_service', False):
+                    continue
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
                 movement = movement_service.process_movement(
                     product_id=item.product.id,
@@ -219,7 +221,7 @@ class PurchaseService:
             PurchasePayment: الدفعة المنشأة
         """
         try:
-            amount = Decimal(payment_data['amount'])
+            amount = Decimal(str(payment_data['amount']))
             pm = payment_data.get('payment_method', 'cash')
 
             # معالجة خاصة للخصم المباشر من الرصيد المسبق للمورد
@@ -235,6 +237,60 @@ class PurchaseService:
                 if prepaid_payment:
                     return prepaid_payment
 
+            # البحث عن الحساب المالي كـ ForeignKey
+            fin_acc = None
+            if pm and str(pm).isdigit():
+                from financial.models import ChartOfAccounts
+                fin_acc = ChartOfAccounts.objects.filter(code=str(pm), is_active=True).first()
+                if not fin_acc:
+                    fin_acc = ChartOfAccounts.objects.filter(id=int(pm), is_active=True).first()
+
+            if not fin_acc:
+                from financial.services.account_helper import AccountHelperService
+                fin_acc = AccountHelperService.get_default_cash_account()
+
+            # العملات المتعددة وفروق أسعار الصرف
+            from financial.models import Currency
+            from financial.services.exchange_rate_service import ExchangeRateService
+
+            pmt_curr = fin_acc.currency if (fin_acc and fin_acc.currency) else (purchase.currency or None)
+            if not pmt_curr:
+                func_curr_obj = ExchangeRateService.get_functional_currency()
+                if isinstance(func_curr_obj, Currency):
+                    pmt_curr = func_curr_obj
+                else:
+                    curr_code = getattr(func_curr_obj, 'code', 'EGP')
+                    pmt_curr = Currency.objects.filter(code=curr_code).first()
+            elif not isinstance(pmt_curr, Currency):
+                curr_code = getattr(pmt_curr, 'code', 'EGP')
+                pmt_curr = Currency.objects.filter(code=curr_code).first()
+
+            raw_rate = payment_data.get('payment_exchange_rate')
+            if raw_rate:
+                try:
+                    pmt_rate = Decimal(str(raw_rate))
+                except Exception:
+                    pmt_rate = Decimal('1.000000')
+            elif pmt_curr and not getattr(pmt_curr, 'is_functional', True):
+                pmt_rate = Decimal(str(ExchangeRateService.get_rate(pmt_curr) or 1.0))
+            else:
+                pmt_rate = Decimal('1.000000')
+
+            treasury_code = fin_acc.currency_code if fin_acc else 'EGP'
+            inv_code = purchase.currency.code if (purchase.currency and purchase.currency.code) else 'EGP'
+            inv_rate = getattr(purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+
+            settlement = ExchangeRateService.calculate_payment_settlement(
+                invoice_amount=amount,
+                invoice_currency_code=inv_code,
+                invoice_rate=inv_rate,
+                payment_currency_code=treasury_code,
+                settlement_rate=pmt_rate,
+            )
+
+            paid_curr_amt = settlement['amount_paid_currency']
+            func_amt = settlement['amount_functional']
+
             idem_key = payment_data.get('idempotency_key')
             if idem_key:
                 existing = PurchasePayment.objects.filter(idempotency_key=idem_key).first()
@@ -246,7 +302,14 @@ class PurchaseService:
             payment = PurchasePayment.objects.create(
                 purchase=purchase,
                 amount=amount,
-                payment_method=pm,
+                payment_method=pm if pm else (fin_acc.code if fin_acc else 'cash'),
+                financial_account=fin_acc,
+                payment_currency=pmt_curr,
+                payment_exchange_rate=pmt_rate,
+                amount_paid_currency=paid_curr_amt,
+                amount_functional=func_amt,
+                amount_settled_invoice_currency=settlement['settled_invoice_amt'],
+                realized_fx_difference=settlement['realized_fx_difference'],
                 idempotency_key=idem_key,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
@@ -256,15 +319,25 @@ class PurchaseService:
             
             logger.info(f"✅ تم إنشاء دفعة: {payment.id} للفاتورة: {purchase.number}")
             
-            # 2. إنشاء القيد المحاسبي وترحيل الدفعة (إذا كان auto_post=True)
-            if auto_post:
+            # فحص حوكمة وسقف الصرف للخزينة (Zero-Trust Treasury RBAC)
+            can_post_now = auto_post
+            if can_post_now and fin_acc and (getattr(fin_acc, 'is_cash_account', False) or getattr(fin_acc, 'is_bank_account', False)):
+                from financial.services.treasury_security_service import TreasurySecurityService
+                can_disb, disb_err = TreasurySecurityService.can_user_disburse(user, fin_acc.id, amount=amount)
+                if not can_disb:
+                    can_post_now = False
+                    logger.warning(f"⚠️ تعذر الترحيل التلقائي لدفعة المشتريات {purchase.number} بسبب حوكمة الصرف: {disb_err}")
+
+            # 2. إنشاء القيد المحاسبي وترحيل الدفعة (إذا كان مصرحاً به)
+            if can_post_now:
                 journal_entry = PurchaseService._create_payment_journal_entry(payment, user)
                 if journal_entry:
                     payment.financial_transaction = journal_entry
+                    payment.financial_status = "synced"
                     payment.status = 'posted'
                     payment.posted_at = timezone.now()
                     payment.posted_by = user
-                    payment.save(update_fields=['financial_transaction', 'status', 'posted_at', 'posted_by'])
+                    payment.save(update_fields=['financial_transaction', 'financial_status', 'status', 'posted_at', 'posted_by'])
                     logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
 
                     # 3. تسجيل في الأستاذ المساعد
@@ -281,11 +354,11 @@ class PurchaseService:
                             invoice_rate=getattr(purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"),
                             is_addition=False
                         )
-                
-                # 5. تحديث حالة الدفع للفاتورة
-                purchase.update_payment_status()
             else:
                 logger.info(f"ℹ️ الدفعة {payment.id} في حالة مسودة - تحتاج للترحيل اليدوي")
+            
+            # 5. تحديث حالة الدفع للفاتورة دائماً
+            purchase.update_payment_status()
             
             return payment
             

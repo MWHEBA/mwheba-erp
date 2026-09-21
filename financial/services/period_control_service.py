@@ -192,14 +192,14 @@ class PeriodControlService:
         except Exception as sync_err:
             logger.warning(f"ملاحظة أثناء مزامنة أسعار الصرف عند إغلاق الفترة {period.name}: {sync_err}")
 
-        # 4. تشغيل واعتماد وترحيل تقييم أسعار الصرف غير المحققة (IAS 21) تلقائياً بالمسار المحوكم
+        # 4. تشغيل واعتماد وترحيل تقييم أسعار الصرف غير المحققة تلقائياً بالمسار المحوكم
         try:
             from financial.fx.services import FXCalculationService, FXValidationService, FXPostingService
             fx_run = FXCalculationService.calculate_and_create_run(period=period, user=user)
             FXValidationService.validate_run(fx_run, user=user)
             FXPostingService.post_run(fx_run, user=user)
         except Exception as fx_err:
-            logger.warning(f"ملاحظة أثناء أتمتة تقييم العملات IAS 21 عند إغلاق الفترة {period.name}: {fx_err}")
+            logger.warning(f"ملاحظة أثناء أتمتة تقييم العملات عند إغلاق الفترة {period.name}: {fx_err}")
 
         period.status = 'closed'
         period.closed_at = timezone.now()

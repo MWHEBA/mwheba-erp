@@ -76,7 +76,20 @@ class AttendanceSummary(models.Model):
         max_digits=10,
         decimal_places=2,
         default=0,
-        verbose_name='إجمالي ساعات العمل الإضافي'
+        verbose_name='إجمالي ساعات العمل الإضافي المحسوبة'
+    )
+    approved_overtime_hours = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='ساعات الإضافي المعتمدة يدوياً',
+        help_text='تعديل ساعات الإضافي يدوياً للاعتماد في كشف المرتبات'
+    )
+    overtime_override_reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='سبب تعديل ساعات الإضافي'
     )
     
     # الدقائق الصافية القابلة للجزاء (بعد خصم السماح)
@@ -435,8 +448,22 @@ class AttendanceSummary(models.Model):
             logger.debug(f"لا يوجد عقد نشط للموظف {self.employee.get_full_name_ar()} - تم تخطي حساب المبالغ المالية")
             return
 
-        # حساب الراتب اليومي
-        daily_salary = (Decimal(str(contract.basic_salary)) / Decimal('30')).quantize(
+        from hr.utils.payroll_helpers import get_daily_wage_divisor, get_penalty_cap_settings, get_overtime_settings
+
+        # حساب الراتب اليومي بالقسمة على القاسم المحدد في الإعدادات (30 أو التقويمي)
+        divisor = Decimal(str(get_daily_wage_divisor(reference_date=self.month)))
+        daily_salary = (Decimal(str(contract.basic_salary)) / divisor).quantize(
+            Decimal('0.01'),
+            rounding=ROUND_HALF_UP
+        )
+
+        # حساب وعاء أجر ساعة الإضافي (الأساسي + البدلات المؤثرة في العقد)
+        allowances_overtime = Decimal('0')
+        if hasattr(contract, 'salary_components'):
+            for comp in contract.salary_components.filter(affects_overtime=True, component_type='earning'):
+                allowances_overtime += Decimal(str(comp.amount or 0))
+        overtime_base_salary = Decimal(str(contract.basic_salary)) + allowances_overtime
+        daily_salary_for_overtime = (overtime_base_salary / divisor).quantize(
             Decimal('0.01'),
             rounding=ROUND_HALF_UP
         )
@@ -458,10 +485,8 @@ class AttendanceSummary(models.Model):
             
             # استثناء أيام الإجازة الأسبوعية والرسمية
             from hr.services.attendance_service import AttendanceService as _AS
-            _off_days_fin = SystemSetting.get_setting('hr_weekly_off_days', [4])
-            if isinstance(_off_days_fin, str):
-                import json as _json
-                _off_days_fin = _json.loads(_off_days_fin)
+            from hr.utils.payroll_helpers import get_weekly_off_days
+            _off_days_fin = get_weekly_off_days()
             _holidays_fin = _AS.get_official_holiday_dates(start_date, end_date)
             _excl_fin = set()
             _c = start_date
@@ -486,7 +511,7 @@ class AttendanceSummary(models.Model):
                     _cur += timedelta(days=1)
             if _approved_leave_dates:
                 absent_records = absent_records.exclude(date__in=_approved_leave_dates)
-            # حساب خصم كل يوم بمعامله الخاص + حفظ snapshot
+            
             absence_details = []
             for record in absent_records:
                 day_deduction = daily_salary * record.absence_multiplier
@@ -502,7 +527,6 @@ class AttendanceSummary(models.Model):
                 rounding=ROUND_HALF_UP
             )
             
-            # حفظ snapshot في calculation_details
             if not self.calculation_details:
                 self.calculation_details = {}
             self.calculation_details['absence_snapshot'] = {
@@ -514,18 +538,13 @@ class AttendanceSummary(models.Model):
         else:
             self.absence_deduction_amount = Decimal('0')
 
-        # ❌ تم إزالة خصم الإجازات غير المدفوعة من هنا
-        # الخصم يتم من LeaveSummary.deduction_amount مع دعم deduction_multiplier
-
-        # حساب خصم التأخير من جدول AttendancePenalty
+        # حساب خصم التأخير من جدول AttendancePenalty مع تطبيق السقف القانوني
         if self.net_penalizable_minutes > 0:
-            # أصغر نطاق max_minutes >= net_penalizable_minutes
             penalty = AttendancePenalty.objects.filter(
                 is_active=True,
                 max_minutes__gte=self.net_penalizable_minutes
             ).order_by('max_minutes').first()
 
-            # fallback: النطاق المفتوح (max_minutes=0) لو تجاوز كل النطاقات
             if not penalty:
                 penalty = AttendancePenalty.objects.filter(
                     is_active=True,
@@ -533,11 +552,18 @@ class AttendanceSummary(models.Model):
                 ).first()
 
             if penalty:
-                self.late_deduction_amount = (
+                raw_late_deduction = (
                     penalty.penalty_days * daily_salary
                 ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                # تطبيق السقف القانوني للخصم الشهري (Penalty Cap)
+                cap_days = get_penalty_cap_settings()
+                if cap_days is not None and penalty.penalty_days > Decimal(str(cap_days)):
+                    max_cap_amount = (Decimal(str(cap_days)) * daily_salary).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    self.late_deduction_amount = min(raw_late_deduction, max_cap_amount)
+                else:
+                    self.late_deduction_amount = raw_late_deduction
                 
-                # حفظ snapshot لخصم التأخير
                 if not self.calculation_details:
                     self.calculation_details = {}
                 self.calculation_details['late_deduction_snapshot'] = {
@@ -556,17 +582,8 @@ class AttendanceSummary(models.Model):
 
         # حساب خصم الأذونات الإضافية
         if self.extra_permissions_hours and self.extra_permissions_hours > 0:
-            # استخدام ساعات العمل الفعلية من الوردية
             shift = getattr(self.employee, 'shift', None)
-            
-            if shift:
-                # محاولة استخدام الساعات المحسوبة ديناميكياً
-                shift_hours = Decimal(str(shift.calculate_work_hours()))
-                if shift_hours <= Decimal('0'):
-                    shift_hours = Decimal('8')
-            else:
-                shift_hours = Decimal('8')
-
+            shift_hours = Decimal(str(shift.calculate_work_hours())) if shift and shift.calculate_work_hours() > 0 else Decimal('8')
             hourly_salary = daily_salary / shift_hours
             self.extra_permissions_deduction_amount = (
                 Decimal(str(self.extra_permissions_hours)) * hourly_salary
@@ -574,27 +591,48 @@ class AttendanceSummary(models.Model):
         else:
             self.extra_permissions_deduction_amount = Decimal('0')
 
-        # حساب العمل الإضافي (مشروط بـ hr_overtime_enabled)
-        overtime_enabled = SystemSetting.get_setting('hr_overtime_enabled', False)
-        if overtime_enabled and self.total_overtime_hours > 0:
-            # استخدام ساعات العمل الفعلية من الوردية
-            shift = getattr(self.employee, 'shift', None)
-            
-            if shift:
-                # محاولة استخدام الساعات المحسوبة ديناميكياً
-                shift_hours = Decimal(str(shift.calculate_work_hours()))
-                if shift_hours <= Decimal('0'):
-                    shift_hours = Decimal('8')
-            else:
-                shift_hours = Decimal('8')
+        # حساب العمل الإضافي (بمحرك الإضافي الديناميكي وشامل البدلات + دعم تعديل الاعتماد اليدوي)
+        overtime_enabled = SystemSetting.get_setting('hr_overtime_enabled', True)
+        # اعتماد ساعات الإضافي المعدلة يدوياً إن وجدت
+        effective_ot_hours = self.approved_overtime_hours if (self.approved_overtime_hours is not None) else self.total_overtime_hours
 
-            hourly_salary = daily_salary / shift_hours
-            overtime_rate = hourly_salary * Decimal('1.5')
+        if overtime_enabled and effective_ot_hours and effective_ot_hours > Decimal('0'):
+            shift = getattr(self.employee, 'shift', None)
+            shift_hours = Decimal(str(shift.calculate_work_hours())) if shift and shift.calculate_work_hours() > 0 else Decimal('8')
+            hourly_overtime_wage = daily_salary_for_overtime / shift_hours
+            
+            ot_settings = get_overtime_settings()
+            rate_multiplier = ot_settings['rate_regular']
+            
+            overtime_rate = hourly_overtime_wage * rate_multiplier
             self.overtime_amount = (
-                Decimal(str(self.total_overtime_hours)) * overtime_rate
+                effective_ot_hours * overtime_rate
             ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         else:
             self.overtime_amount = Decimal('0')
+
+    def calculate_hourly_rate(self):
+        """حساب أجر الساعة الأساسي للخضوع للإضافي"""
+        from hr.utils.payroll_helpers import get_daily_wage_divisor, get_payroll_period
+        _start, _end, _ = get_payroll_period(self.month)
+        contract = self.employee.contracts.filter(status='active', start_date__lte=_end).order_by('-start_date').first()
+        if not contract:
+            return Decimal('0.00')
+        divisor = Decimal(str(get_daily_wage_divisor(reference_date=self.month)))
+        allowances_overtime = Decimal('0')
+        if hasattr(contract, 'salary_components'):
+            for comp in contract.salary_components.filter(affects_overtime=True, component_type='earning'):
+                allowances_overtime += Decimal(str(comp.amount or 0))
+        overtime_base_salary = Decimal(str(contract.basic_salary)) + allowances_overtime
+        daily_salary = (overtime_base_salary / divisor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        shift = getattr(self.employee, 'shift', None)
+        shift_hours = Decimal(str(shift.calculate_work_hours())) if shift and shift.calculate_work_hours() > 0 else Decimal('8')
+        return (daily_salary / shift_hours).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    def calculate_overtime_amount(self):
+        """حساب إجمالي قيمة الإضافي للشهر"""
+        self._calculate_financial_amounts()
+        return self.overtime_amount
     
     def approve(self, approved_by):
         """اعتماد ملخص الحضور"""

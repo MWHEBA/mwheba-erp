@@ -10,7 +10,7 @@ from printing_pricing.services import PrintingCalculationEngine, ProcurementBrid
 @pytest.mark.django_db
 class TestDynamicCurrencyIAS21:
     """
-    اختبارات معمارية ديناميكية العملات المتوافقة مع IAS 21:
+    اختبارات معمارية ديناميكية العملات المتعددة:
     - انعدام أي عملة هاردكود بنسبة 100%
     - دقة التوريث (الخدمة -> المورد -> العملة الوظيفية)
     - دقة التحويل في محرك التسعير وجسر المشتريات

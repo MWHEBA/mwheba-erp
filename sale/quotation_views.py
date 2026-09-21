@@ -134,14 +134,18 @@ def quotation_create(request, customer_id=None):
         selected_customer = get_object_or_404(Customer, id=customer_id, is_active=True)
 
     # قراءة أمر الشغل إذا تم تمريره
-    work_order_id = request.GET.get('work_order')
+    work_order_id = request.GET.get('work_order') or request.POST.get('work_order')
     selected_work_order = None
     if work_order_id:
         from work_order.models import WorkOrder
         try:
-            selected_work_order = WorkOrder.objects.get(id=work_order_id)
-            selected_customer = selected_work_order.customer
-        except WorkOrder.DoesNotExist:
+            if str(work_order_id).isdigit():
+                selected_work_order = WorkOrder.objects.filter(id=int(work_order_id)).first()
+            else:
+                selected_work_order = WorkOrder.objects.filter(number=work_order_id).first()
+            if selected_work_order:
+                selected_customer = selected_work_order.customer
+        except Exception:
             pass
 
     if request.method == "POST":
@@ -153,6 +157,8 @@ def quotation_create(request, customer_id=None):
                     quotation.created_by = request.user
                     if not quotation.salesman_id:
                         quotation.salesman = request.user
+                    if not quotation.work_order_id and selected_work_order:
+                        quotation.work_order = selected_work_order
                     quotation.custom_fields = SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]'))
                     quotation.save()
 
@@ -288,6 +294,8 @@ def quotation_create(request, customer_id=None):
                     quotation.save()
 
                 messages.success(request, _("تم إنشاء عرض السعر بنجاح"))
+                if quotation.work_order:
+                    return redirect(reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk}) + "?tab=quotations")
                 return redirect("sale:quotation_detail", pk=quotation.pk)
 
             except Exception as e:
@@ -344,6 +352,7 @@ def quotation_create(request, customer_id=None):
         "currencies": currencies,
         "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "selected_customer": selected_customer,
+        "selected_work_order": selected_work_order,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "next_quotation_number": next_quotation_number,
         "custom_fields_json": json.dumps(custom_fields_merged),
@@ -355,6 +364,21 @@ def quotation_create(request, customer_id=None):
         "page_subtitle": _("إضافة عرض سعر جديد لعميل محدد مع تفاصيل البنود والكميات"),
         "page_icon": "fas fa-file-signature",
         "active_menu": "sales",
+        "header_buttons": ([
+            {
+                "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}) + "?tab=quotations",
+                "icon": "fa-arrow-right",
+                "text": f"العودة لتفاصيل أمر الشغل ({selected_work_order.number})",
+                "class": "btn-secondary",
+            },
+        ] if selected_work_order else ([
+            {
+                "url": reverse("customer:customer_detail", kwargs={"pk": selected_customer.pk}),
+                "icon": "fa-arrow-right",
+                "text": f"العودة لتفاصيل {selected_customer.name}",
+                "class": "btn-secondary",
+            },
+        ] if selected_customer else [])),
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
             *([
@@ -644,8 +668,10 @@ def quotation_detail(request, pk):
         raise Http404(_("عرض السعر غير موجود أو غير مصرح لك بالاطلاع عليه."))
     items = quotation.items.all().select_related('product', 'product__tax_code', 'product__unit', 'product__category')
 
-    active_linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
-    cancelled_linked_so = quotation.sales_orders.filter(status='CANCELLED').order_by('-id').first() if hasattr(quotation, 'sales_orders') else None
+    enable_sales_orders = SystemSetting.get_bool('enable_sales_orders', False)
+
+    active_linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if (enable_sales_orders and hasattr(quotation, 'sales_orders')) else None
+    cancelled_linked_so = quotation.sales_orders.filter(status='CANCELLED').order_by('-id').first() if (enable_sales_orders and hasattr(quotation, 'sales_orders')) else None
     linked_so = active_linked_so or cancelled_linked_so
     linked_sale = quotation.converted_to_sale
     is_active_converted = bool(linked_sale or active_linked_so)
@@ -685,60 +711,69 @@ def quotation_detail(request, pk):
             "url": reverse("sale:sale_detail", kwargs={"pk": linked_sale.pk})
         })
 
-    # أزرار الهيدر
+    # أزرار الهيدر المنظمة هرمياً
     header_buttons = []
-    if hasattr(quotation, 'work_order') and quotation.work_order:
-        header_buttons.append({
-            "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk}),
-            "icon": "fa-tasks",
-            "text": _("عرض أمر الشغل"),
-            "class": "btn-outline-info",
-        })
 
-    if active_linked_so:
-        header_buttons.append({
-            "url": reverse("sale:sales_order_detail", kwargs={"pk": active_linked_so.pk}),
-            "icon": "fa-clipboard-list",
-            "text": _("عرض أمر البيع"),
-            "class": "btn-primary",
-        })
-    elif cancelled_linked_so:
-        header_buttons.append({
-            "url": reverse("sale:sales_order_detail", kwargs={"pk": cancelled_linked_so.pk}),
-            "icon": "fa-clipboard-list",
-            "text": _("عرض أمر البيع الملغى"),
-            "class": "btn-outline-secondary",
-        })
+    # 1. أزرار التحويل وسير العمل الأساسية (Workflow Actions)
+    if not is_active_converted and quotation.status != 'rejected':
+        can_convert_sale = (request.user.has_perm('sale.convert_quotation') or request.user.has_perm('sale.add_sale') or request.user.is_superuser)
+        if can_convert_sale:
+            header_buttons.append({
+                "url": "#",
+                "icon": "fa-file-invoice-dollar",
+                "text": _("تحويل إلى فاتورة"),
+                "class": "btn-success",
+                "toggle": "modal",
+                "target": "#convertInvoiceModal",
+            })
 
-    if linked_sale:
-        header_buttons.append({
-            "url": reverse("sale:sale_detail", kwargs={"pk": linked_sale.pk}),
-            "icon": "fa-file-invoice-dollar",
-            "text": _("عرض الفاتورة"),
-            "class": "btn-success",
-        })
+        can_convert_order = (request.user.has_perm('sale.convert_to_order') or request.user.has_perm('sale.add_salesorder') or request.user.is_superuser)
+        if enable_sales_orders and can_convert_order:
+            header_buttons.append({
+                "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
+                "icon": "fa-clipboard-list",
+                "text": _("تحويل إلى أمر بيع"),
+                "class": "btn-primary",
+            })
+    else:
+        if linked_sale:
+            header_buttons.append({
+                "url": reverse("sale:sale_detail", kwargs={"pk": linked_sale.pk}),
+                "icon": "fa-file-invoice-dollar",
+                "text": _("عرض الفاتورة"),
+                "class": "btn-success",
+            })
+        if active_linked_so:
+            header_buttons.append({
+                "url": reverse("sale:sales_order_detail", kwargs={"pk": active_linked_so.pk}),
+                "icon": "fa-clipboard-list",
+                "text": _("عرض أمر البيع"),
+                "class": "btn-primary",
+            })
+        elif cancelled_linked_so:
+            header_buttons.append({
+                "url": reverse("sale:sales_order_detail", kwargs={"pk": cancelled_linked_so.pk}),
+                "icon": "fa-clipboard-list",
+                "text": _("عرض أمر البيع الملغى"),
+                "class": "btn-outline-secondary",
+            })
 
-    if not is_active_converted and (request.user.has_perm('sale.change_quotation') or request.user.is_superuser):
-        header_buttons.append({
-            "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
-            "icon": "fa-edit",
-            "text": _("تعديل"),
-            "class": "btn-outline-secondary",
-        })
 
+
+    # 3. أزرار الطباعة والمشاركة (Output & Export Actions)
     header_buttons.extend([
         {
             "url": reverse("sale:quotation_print", kwargs={"pk": quotation.pk}),
             "icon": "fa-print",
             "text": _("طباعة"),
-            "class": "btn-info",
+            "class": "btn-outline-secondary",
             "target": "_blank",
         },
         {
             "dropdown": True,
-            "icon": "fa-file-pdf",
+            "icon": "fa-share-alt",
             "text": _("مشاركة"),
-            "class": "btn-success",
+            "class": "btn-outline-success",
             "items": [
                 {
                     "onclick": f"downloadDocumentPDF('{reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk})}', '{reverse('sale:quotation_print', kwargs={'pk': quotation.pk})}', '{quotation.number}')",
@@ -759,25 +794,8 @@ def quotation_detail(request, pk):
         }
     ])
 
+    # 4. قائمة الخيارات الإضافية (More Options)
     if not is_active_converted and quotation.status != 'rejected':
-        can_convert_order = (request.user.has_perm('sale.convert_to_order') or request.user.has_perm('sale.add_salesorder') or request.user.is_superuser)
-        if can_convert_order:
-            header_buttons.append({
-                "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
-                "icon": "fa-clipboard-list",
-                "text": _("تحويل إلى أمر بيع"),
-                "class": "btn-primary",
-            })
-        can_convert_sale = (request.user.has_perm('sale.convert_quotation') or request.user.has_perm('sale.add_sale') or request.user.is_superuser)
-        if can_convert_sale:
-            header_buttons.append({
-                "url": "#",
-                "icon": "fa-file-invoice-dollar",
-                "text": _("تحويل إلى فاتورة"),
-                "class": "btn-success",
-                "toggle": "modal",
-                "target": "#convertInvoiceModal",
-            })
         header_buttons.append({
             "url": "#",
             "icon": "fa-ellipsis-v",

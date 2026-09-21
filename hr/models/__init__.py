@@ -14,6 +14,8 @@ from .attendance_summary import AttendanceSummary
 from .leave_summary import LeaveSummary
 from .end_of_service import EndOfServiceBenefit
 from .insurance_payment import InsurancePayment
+from .work_location import WorkLocation
+from .attendance_audit import AttendanceAuditLog
 from .attendance import *
 from .biometric import *
 from .biometric_mapping import *
@@ -69,4 +71,6 @@ __all__ = [
     'EndOfServiceBenefit',
     'InsurancePayment',
     'OfficialHoliday',
+    'WorkLocation',
+    'AttendanceAuditLog',
 ]

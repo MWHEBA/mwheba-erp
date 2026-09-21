@@ -97,15 +97,17 @@
 
   <!-- Modal تفاصيل الإذن -->
   <div class="modal fade" id="permissionModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-clock me-2"></i>تفاصيل الإذن
+  <!-- Modal تفاصيل الإذن -->
+  <div class="modal fade" id="permissionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-clock text-primary me-2"></i>تفاصيل الإذن
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <table class="table table-bordered">
                     <tr>
                         <th class="text-center" width="40%">نوع الإذن</th>
@@ -128,30 +130,206 @@
         </div>
     </div>
   </div>
+
+  <!-- Modal إضافة / تعديل حضور يدوي -->
+  <div class="modal fade" id="manualAttendanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="manualAttendanceForm">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0" id="manualAttendanceModalTitle">
+                        <i class="fas fa-edit text-primary me-2"></i>تسجيل حضور يدوي
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">الموظف <span class="text-danger">*</span></label>
+                            <select name="employee_id" id="manual_employee_id" class="form-select select2-modal" required>
+                                <option value="">اختر الموظف...</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.get_full_name_ar }} ({{ emp.employee_number }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">التاريخ <span class="text-danger">*</span></label>
+                            <input type="date" name="date" id="manual_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">الحالة <span class="text-danger">*</span></label>
+                            <select name="status" id="manual_status" class="form-select" required>
+                                <option value="present">حاضر (Present)</option>
+                                <option value="late">متأخر (Late)</option>
+                                <option value="half_day">نصف يوم (Half Day)</option>
+                                <option value="absent">غائب (Absent)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">وقت الحضور</label>
+                            <input type="time" name="check_in" id="manual_check_in" class="form-control" value="09:00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">وقت الانصراف</label>
+                            <input type="time" name="check_out" id="manual_check_out" class="form-control" value="17:00">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">المشرف الشاهد والمسؤول (اختياري)</label>
+                            <select name="supervisor_id" id="manual_supervisor_id" class="form-select select2-modal">
+                                <option value="">بدون مشرف شاهد</option>
+                                {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.get_full_name_ar }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">ملاحظات إضافية</label>
+                            <input type="text" name="notes" id="manual_notes" class="form-control" placeholder="ملاحظات اختيارية">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">سبب التعديل / الإدخال اليدوي <span class="text-danger">*</span></label>
+                            <textarea name="reason" id="manual_reason" class="form-control" rows="2" placeholder="اكتب سبب الإدخال اليدوي بدقة لتوثيقه في سجل التدقيق (مثال: عطل بماكينة البصمة، مأمورية عمل معتمدة...)" required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSaveManualAttendance">
+                        <i class="fas fa-save me-1"></i>حفظ وتوثيق
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+  </div>
+
+  <!-- Modal استيراد Excel -->
+  <div class="modal fade" id="importExcelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="importExcelForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-file-excel text-success me-2"></i>استيراد سجلات الحضور من Excel
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info d-flex align-items-center mb-3">
+                        <i class="fas fa-info-circle fa-2x me-3"></i>
+                        <div>
+                            <strong>تعليمات الاستيراد:</strong>
+                            <p class="mb-1 small">يرجى تحميل القالب النموذجي وملء البيانات وفق التنسيق الموضح لضمان صحة المطابقة الحسابية.</p>
+                            <a href="{% url 'hr:attendance_import_template' %}" class="btn btn-sm btn-outline-primary mt-1">
+                                <i class="fas fa-download me-1"></i>تحميل قالب Excel النموذجي
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">اختر ملف Excel (.xlsx) <span class="text-danger">*</span></label>
+                        <input type="file" name="excel_file" id="import_excel_file" class="form-control" accept=".xlsx, .xls" required>
+                    </div>
+
+                    <!-- حاوية نتائج الاستيراد والتقرير التفصيلي -->
+                    <div id="importReportContainer" style="display: none;">
+                        <hr class="my-3">
+                        <h6 class="fw-bold mb-2"><i class="fas fa-clipboard-check me-2"></i>تقرير نتائج الاستيراد:</h6>
+                        <div id="importSummaryBadge" class="mb-3"></div>
+                        <div id="importErrorsTableWrapper" class="table-responsive" style="max-height: 250px; overflow-y: auto; display: none;">
+                            <table class="table table-sm table-bordered table-hover">
+                                <thead class="table-danger">
+                                    <tr class="text-center">
+                                        <th>رقم السطر</th>
+                                        <th>كود الموظف</th>
+                                        <th>سبب الخطأ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="importErrorsTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold" id="btnSubmitImportExcel">
+                        <i class="fas fa-upload me-1"></i>بدء الاستيراد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+  </div>
+
+  <!-- Modal سجل التدقيق التاريخي -->
+  <div class="modal fade" id="auditHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-history text-dark me-2"></i>سجل تدقيق التعديلات: <span id="auditEmpName" class="text-primary"></span>
+                    <br><small class="text-muted" style="font-size: 0.8rem;" id="auditDate"></small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover mb-0">
+                        <thead class="table-light text-center">
+                            <tr>
+                                <th>الحقل المعدل</th>
+                                <th>القيمة السابقة</th>
+                                <th>القيمة الجديدة</th>
+                                <th>المستخدم</th>
+                                <th>الشاهد</th>
+                                <th>التاريخ</th>
+                                <th>السبب</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsBody">
+                            <!-- سيتم تعبئتها عبر AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // تفعيل Select2 على حقل الموظف
+    // تفعيل Select2 على حقل الموظف في الفلاتر
     $('.select2-field').select2({
         theme: "bootstrap-5",
         placeholder: "ابحث عن موظف...",
         allowClear: true
     });
-});
-</script>
-<script>
-$(document).ready(function() {
-    // تهيئة جدول الحضور - بدون pagination (نستخدم Django pagination)
+
+    // تهيئة select2 داخل المودالات
+    $('#manualAttendanceModal').on('shown.bs.modal', function () {
+        $('#manual_employee_id, #manual_supervisor_id').select2({
+            theme: "bootstrap-5",
+            dropdownParent: $('#manualAttendanceModal'),
+            dir: "rtl",
+            language: "ar",
+            width: '100%'
+        });
+    });
+
+    // تهيئة جدول الحضور
     const attendanceTable = document.getElementById('attendance-table');
     if (attendanceTable && typeof initGlobalTable === 'function') {
         initGlobalTable('attendance-table', {
-            ordering: false, // تعطيل الترتيب - نستخدم Django ordering
-            paging: false, // تعطيل pagination - نستخدم Django pagination
-            info: false, // تعطيل معلومات العدد
-            searching: true, // تفعيل البحث فقط
+            ordering: false,
+            paging: false,
+            info: false,
+            searching: true,
             columnDefs: [
                 { targets: [3, 4, 5, 6, 7, 8, 9, 10], className: 'text-center' }
             ],
@@ -166,17 +344,14 @@ $(document).ready(function() {
         const date = $(this).data('date');
         const movements = $(this).data('movements');
 
-        // تحديث عنوان المودال
         $('#modalEmployeeName').text('حركات البصمة - ' + employeeName);
         $('#modalDate').text(date);
 
-        // مسح القائمة القديمة
         const movementsList = $('#movementsList');
         movementsList.empty();
 
-        // ملء القائمة بالحركات
         if (movements && movements.length > 0) {
-            movements.forEach(function(movement, index) {
+            movements.forEach(function(movement) {
                 let badgeClass = 'bg-secondary';
                 let badgeText = 'حركة';
 
@@ -201,7 +376,6 @@ $(document).ready(function() {
             movementsList.append('<li class="list-group-item text-center text-muted">لا توجد حركات مسجلة</li>');
         }
 
-        // فتح المودال
         const modal = new bootstrap.Modal(document.getElementById('movementsModal'));
         modal.show();
     });
@@ -213,7 +387,6 @@ $(document).ready(function() {
         const isExtra = $(this).data('is-extra');
         const deductionHours = $(this).data('deduction-hours');
 
-        // ملء البيانات
         $('#permModalType').html(`<span class="badge bg-info">${permType}</span>`);
         $('#permModalDuration').html(`<strong>${duration}</strong> ساعة`);
         
@@ -226,9 +399,193 @@ $(document).ready(function() {
             $('#permModalDeductionRow').hide();
         }
 
-        // فتح المودال
         const modal = new bootstrap.Modal(document.getElementById('permissionModal'));
         modal.show();
+    });
+
+    // زر فتح مودال الحضور اليدوي (جديد)
+    window.openManualAttendanceModal = function() {
+        $('#manualAttendanceForm')[0].reset();
+        $('#manual_employee_id').val('').trigger('change');
+        $('#manual_supervisor_id').val('').trigger('change');
+        $('#manualAttendanceModalTitle').html('<i class="fas fa-plus-circle text-primary me-2"></i>تسجيل حضور يدوي جديد');
+        const modal = new bootstrap.Modal(document.getElementById('manualAttendanceModal'));
+        modal.show();
+    };
+
+    // زر تعديل حضور يدوي من الجدول
+    $(document).on('click', '.edit-attendance-btn', function() {
+        const empId = $(this).data('employee-id');
+        const date = $(this).data('date');
+        const status = $(this).data('status');
+        const checkIn = $(this).data('check-in');
+        const checkOut = $(this).data('check-out');
+
+        $('#manual_employee_id').val(empId).trigger('change');
+        $('#manual_date').val(date);
+        $('#manual_status').val(status);
+        $('#manual_check_in').val(checkIn);
+        $('#manual_check_out').val(checkOut);
+        $('#manual_reason').val('');
+        $('#manual_notes').val('');
+
+        $('#manualAttendanceModalTitle').html('<i class="fas fa-edit text-warning me-2"></i>تعديل سجل حضور يدوي');
+        const modal = new bootstrap.Modal(document.getElementById('manualAttendanceModal'));
+        modal.show();
+    });
+
+    // حفظ الحضور اليدوي
+    $('#manualAttendanceForm').on('submit', function(e) {
+        e.preventDefault();
+        const btn = $('#btnSaveManualAttendance');
+        const origHtml = btn.innerHTML;
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
+
+        const formData = $(this).serialize();
+
+        $.ajax({
+            url: '{% url "hr:attendance_manual_save" %}',
+            type: 'POST',
+            data: formData,
+            success: function(res) {
+                if (res.success) {
+                    if (window.showToastr) {
+                        window.showToastr(res.message || 'تم حفظ وتوثيق سجل الحضور بنجاح', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(res.message || 'تم حفظ وتوثيق سجل الحضور بنجاح');
+                    }
+                    bootstrap.Modal.getInstance(document.getElementById('manualAttendanceModal')).hide();
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    if (window.showToastr) {
+                        window.showToastr(res.message || 'حدث خطأ أثناء الحفظ', 'error');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(res.message || 'حدث خطأ أثناء الحفظ');
+                    }
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في الخادم';
+                if (window.showToastr) {
+                    window.showToastr(msg, 'error');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.error(msg);
+                }
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ وتوثيق');
+            }
+        });
+    });
+
+    // زر فتح مودال استيراد Excel
+    window.openImportExcelModal = function() {
+        $('#importExcelForm')[0].reset();
+        $('#importReportContainer').hide();
+        $('#importErrorsTableWrapper').hide();
+        const modal = new bootstrap.Modal(document.getElementById('importExcelModal'));
+        modal.show();
+    };
+
+    // إرسال ملف Excel
+    $('#importExcelForm').on('submit', function(e) {
+        e.preventDefault();
+        const btn = $('#btnSubmitImportExcel');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الاستيراد والتحليل...');
+
+        const formData = new FormData(this);
+
+        $.ajax({
+            url: '{% url "hr:attendance_import_excel" %}',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(res) {
+                $('#importReportContainer').show();
+                if (res.success) {
+                    let badgeHtml = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i><strong>تم الاستيراد بنجاح!</strong> تم معالجة ${res.success_count} سجل بنجاح.</div>`;
+                    if (res.error_count > 0) {
+                        badgeHtml += `<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>يوجد <strong>${res.error_count}</strong> أخطاء في بعض الصفوف، تم توضيحها في الجدول أدناه:</div>`;
+                        
+                        const tbody = $('#importErrorsTableBody');
+                        tbody.empty();
+                        res.errors.forEach(function(err) {
+                            tbody.append(`<tr><td class="text-center">${err.row}</td><td class="text-center">${err.code}</td><td>${err.reason}</td></tr>`);
+                        });
+                        $('#importErrorsTableWrapper').show();
+                    }
+                    $('#importSummaryBadge').html(badgeHtml);
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(res.message);
+                    }
+                } else {
+                    $('#importSummaryBadge').html(`<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>${res.message}</div>`);
+                    if (window.showToastr) {
+                        window.showToastr(res.message, 'error');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(res.message);
+                    }
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ أثناء رفع الملف';
+                $('#importReportContainer').show();
+                $('#importSummaryBadge').html(`<div class="alert alert-danger">${msg}</div>`);
+                if (window.showToastr) {
+                    window.showToastr(msg, 'error');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.error(msg);
+                }
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-upload me-1"></i>بدء الاستيراد');
+            }
+        });
+    });
+
+    // زر عرض سجل التدقيق
+    $(document).on('click', '.view-audit-btn', function() {
+        const attId = $(this).data('attendance-id');
+        const tbody = $('#auditLogsBody');
+        tbody.html('<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>جاري جلب سجل التدقيق...</td></tr>');
+
+        const modal = new bootstrap.Modal(document.getElementById('auditHistoryModal'));
+        modal.show();
+
+        $.get(`/hr/attendance/${attId}/audit-history/`, function(res) {
+            if (res.success) {
+                $('#auditEmpName').text(res.employee_name);
+                $('#auditDate').text(res.date);
+
+                tbody.empty();
+                if (res.logs && res.logs.length > 0) {
+                    res.logs.forEach(function(log) {
+                        tbody.append(`
+                            <tr>
+                                <td class="text-center fw-bold">${log.field_name}</td>
+                                <td class="text-center text-danger">${log.old_value}</td>
+                                <td class="text-center text-success">${log.new_value}</td>
+                                <td class="text-center">${log.changed_by}</td>
+                                <td class="text-center">${log.supervisor_witness}</td>
+                                <td class="text-center"><small>${log.created_at}</small></td>
+                                <td>${log.reason}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    tbody.html('<tr><td colspan="7" class="text-center text-muted py-3">لا توجد تعديلات سابقة مسجلة على هذا اليوم</td></tr>');
+                }
+            } else {
+                tbody.html('<tr><td colspan="7" class="text-center text-danger py-3">فشل تحميل سجل التدقيق</td></tr>');
+            }
+        }).fail(function() {
+            tbody.html('<tr><td colspan="7" class="text-center text-danger py-3">حدث خطأ في الاتصال بالخادم</td></tr>');
+        });
     });
 });
 
@@ -260,7 +617,6 @@ function executeBiometricProcessing() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري المعالجة...';
 
-    // CSRF Token
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 

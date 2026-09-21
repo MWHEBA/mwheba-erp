@@ -4,6 +4,8 @@
     <span class="badge bg-warning text-dark">متأخر</span>
 {% elif object.status == 'early_leave' %}
     <span class="badge bg-danger">انصراف مبكر</span>
+{% elif object.status == 'half_day' %}
+    <span class="badge bg-warning">نصف يوم</span>
 {% elif object.status == 'absent' %}
     <span class="badge bg-secondary">غائب</span>
 {% elif object.status == 'on_leave' %}
@@ -19,4 +21,10 @@
             </span>
         {% endif %}
     {% endif %}
+{% endif %}
+
+{% if object.is_manual or object.source == 'manual' %}
+    <br><span class="badge bg-light text-dark border mt-1" style="font-size: 0.65em;" title="تسجيل/تعديل يدوي"><i class="fas fa-user-edit me-1 text-primary"></i>يدوي</span>
+{% elif object.source == 'excel' %}
+    <br><span class="badge bg-light text-dark border mt-1" style="font-size: 0.65em;" title="استيراد من ملف Excel"><i class="fas fa-file-excel me-1 text-success"></i>إكسيل</span>
 {% endif %}

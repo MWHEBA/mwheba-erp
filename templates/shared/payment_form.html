@@ -203,7 +203,11 @@
 
             <!-- اختيار الخزينة / الحساب المالي / الرصيد المسبق -->
             <div class="col-md-6">
-              {% include "components/payment_account_select.html" with field_name="payment_method" field_id="payment_method" label="طريقة الدفع (الخزينة / البنك / الرصيد المسبق)" required=True action_type=action_type|default:(is_purchase|yesno:"disburse,deposit") %}
+              {% if is_purchase %}
+                {% include "components/payment_account_select.html" with field_name="payment_method" field_id="payment_method" label="طريقة الدفع (الخزينة / البنك / الرصيد المسبق)" required=True action_type="disburse" %}
+              {% else %}
+                {% include "components/payment_account_select.html" with field_name="payment_method" field_id="payment_method" label="طريقة الدفع (الخزينة / البنك / الرصيد المسبق)" required=True action_type="deposit" %}
+              {% endif %}
             </div>
 
             <!-- رقم المرجع والشيك مع التلميح الذكي -->
@@ -257,11 +261,11 @@
             </div>
           </div>
 
-          <!-- لوحة تحويل العملة الذكية وفروق الصرف (IAS 21) -->
+          <!-- لوحة تحويل العملة الذكية وفروق الصرف -->
           <div id="fx-conversion-panel" class="fx-panel-card p-3 my-4 d-none">
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
               <span class="fw-bold text-primary small">
-                <i class="fas fa-coins me-1"></i>معادلة تحويل العملة وسعر الصرف اللحظي (IAS 21)
+                <i class="fas fa-coins me-1"></i>معادلة تحويل العملة وسعر الصرف اللحظي
               </span>
               <span class="badge bg-primary" id="fx-badge-info"></span>
             </div>
@@ -388,8 +392,14 @@
     invoiceRate: parseFloat('{{ invoice.exchange_rate|default:"1.000000" }}') || 1.0
   };
 
+  function roundMoney(val, decimals = 2) {
+    if (isNaN(val) || !isFinite(val)) return 0;
+    const factor = Math.pow(10, decimals);
+    return Math.round((val + Number.EPSILON) * factor) / factor;
+  }
+
   function formatSmartNum(num) {
-    if (isNaN(num)) return '0';
+    if (isNaN(num)) return '0.00';
     if (Math.abs(num - Math.round(num)) < 0.0001) {
       return Math.round(num).toLocaleString('en-US');
     }
@@ -401,7 +411,12 @@
     if (Math.abs(num - Math.round(num)) < 0.0001) {
       return String(Math.round(num));
     }
-    return String(parseFloat(num.toFixed(2)));
+    return String(parseFloat(Number(num).toFixed(2)));
+  }
+
+  function cleanRateInput(rate) {
+    if (isNaN(rate)) return '1';
+    return String(parseFloat(Number(rate).toFixed(6)));
   }
 
   const amountField = $('#{{ form.amount.id_for_label }}');
@@ -422,66 +437,135 @@
   const valMsg = $('#amount-validation-msg');
   const refHint = $('#reference-hint-text');
 
-  function syncCurrencyPanel() {
-    const selectedOpt = paymentMethodSelect.find('option:selected');
-    const treasuryCurrency = selectedOpt.data('currency') || 'EGP';
-    const treasuryRate = parseFloat(selectedOpt.data('rate')) || 1.0;
-    const isPrepaid = paymentMethodSelect.val() === 'PREPAID_BALANCE';
-    
-    // Dynamic reference hints
-    const optText = selectedOpt.text() || '';
-    if (isPrepaid) {
-      refHint.html('<i class="fas fa-info-circle me-1 text-info"></i>خصم مباشر من رصيد الدفعات المقدمة');
-    } else if (optText.includes('بنك') || optText.includes('Bank') || selectedOpt.closest('optgroup').attr('label')?.includes('بنك')) {
-      refHint.html('<i class="fas fa-university me-1 text-primary"></i>رقم الحوالة البنكية / إشعار التحويل البنكي');
-    } else {
-      refHint.html('<i class="fas fa-receipt me-1 text-muted"></i>رقم الإيصال اليدوي أو إشعار الخزينة');
-    }
+  let isSyncing = false;
 
-    treasuryCurrSpan.text(treasuryCurrency);
-    treasuryCurrSymbol.text(treasuryCurrency);
-    
-    // تظهر لوحة تحويل العملة فقط عندما تختلف عملة الخزينة المسدد منها عن عملة الفاتورة
-    const isMultiCurrency = !isPrepaid && (treasuryCurrency !== INVOICE_DATA.currencyCode);
-    
-    if (isMultiCurrency) {
-      fxPanel.removeClass('d-none');
-      fxBadge.text(INVOICE_DATA.currencyCode + ' ➔ ' + treasuryCurrency);
-    } else {
-      fxPanel.addClass('d-none');
-    }
+  function syncCurrencyPanel(triggerSource = 'amount') {
+    if (isSyncing) return;
+    isSyncing = true;
 
-    const amountVal = parseFloat(amountField.val()) || 0;
-    let currentRate = parseFloat(rateField.val()) || (INVOICE_DATA.invoiceRate || 1.0);
-    
-    fxSettledDisplay.val(formatSmartNum(amountVal) + ' ' + INVOICE_DATA.currencySymbol);
-    
-    let paidCalculated = 0;
-    if (treasuryCurrency === INVOICE_DATA.currencyCode) {
-      paidCalculated = amountVal;
-      rateField.val(cleanNumInput(INVOICE_DATA.invoiceRate || 1.0));
-    } else if (treasuryCurrency === 'EGP') {
-      paidCalculated = amountVal * currentRate;
-    } else {
-      paidCalculated = (amountVal * currentRate) / (treasuryRate || 1.0);
-    }
-    
-    paidAmtField.val(cleanNumInput(paidCalculated));
-    
-    // Realized FX Preview
-    const invBookFunctional = amountVal * INVOICE_DATA.invoiceRate;
-    const treasuryFunctional = (treasuryCurrency === 'EGP') ? paidCalculated : (paidCalculated * treasuryRate);
-    const fxDiff = treasuryFunctional - invBookFunctional;
-    
-    if (Math.abs(fxDiff) > 0.005) {
-      const diffAbs = formatSmartNum(Math.abs(fxDiff));
-      if (fxDiff > 0) {
-        fxDiffText.html('<strong class="text-danger"><i class="fas fa-arrow-down me-1"></i>فروق عملة محققة: خسائر بمقدار ' + diffAbs + ' ج.م</strong> (سعر الصرف الحالي أعلى من سعر الفاتورة)');
+    try {
+      const selectedOpt = paymentMethodSelect.find('option:selected');
+      const treasuryCurrency = (selectedOpt.data('currency') || 'EGP').toUpperCase();
+      const isPrepaid = paymentMethodSelect.val() === 'PREPAID_BALANCE';
+      const invCurrency = (INVOICE_DATA.currencyCode || 'EGP').toUpperCase();
+      
+      // تلميح رقم المرجع الديناميكي
+      const optText = selectedOpt.text() || '';
+      if (isPrepaid) {
+        refHint.html('<i class="fas fa-info-circle me-1 text-info"></i>خصم مباشر من رصيد الدفعات المقدمة للمورد');
+      } else if (optText.includes('بنك') || optText.includes('Bank') || selectedOpt.closest('optgroup').attr('label')?.includes('بنك')) {
+        refHint.html('<i class="fas fa-university me-1 text-primary"></i>رقم الحوالة البنكية / إشعار التحويل البنكي');
       } else {
-        fxDiffText.html('<strong class="text-success"><i class="fas fa-arrow-up me-1"></i>فروق عملة محققة: أرباح بمقدار ' + diffAbs + ' ج.م</strong> (سعر الصرف الحالي أقل من سعر الفاتورة)');
+        refHint.html('<i class="fas fa-receipt me-1 text-muted"></i>رقم الإيصال اليدوي أو إشعار الخزينة');
       }
-    } else {
-      fxDiffText.html('القيد المحاسبي متزن تماماً بدون فروق أسعار صرف.');
+
+      treasuryCurrSpan.text(treasuryCurrency);
+      treasuryCurrSymbol.text(treasuryCurrency);
+      
+      // إظهار اللوحة فقط في حالة تعدد العملات
+      const isMultiCurrency = !isPrepaid && (treasuryCurrency !== invCurrency);
+      
+      if (isMultiCurrency) {
+        fxPanel.removeClass('d-none');
+        fxBadge.text(invCurrency + ' ➔ ' + treasuryCurrency);
+      } else {
+        fxPanel.addClass('d-none');
+      }
+
+      if (triggerSource === 'paymentMethod') {
+        const accRate = parseFloat(selectedOpt.data('rate')) || 0;
+        if (treasuryCurrency !== 'EGP' && accRate > 0) {
+          // الخزينة المختارة أجنبية: نعتمد سعر صرف الخزينة اللحظي
+          rateField.val(cleanRateInput(accRate));
+        } else if (invCurrency !== 'EGP' && isMultiCurrency) {
+          // الفاتورة أجنبية والخزينة محلية: نعتمد سعر صرف الفاتورة/العملة الأجنبية
+          const targetRate = parseFloat(INVOICE_DATA.invoiceRate) || 1.0;
+          rateField.val(cleanRateInput(targetRate));
+        } else if (!isMultiCurrency && invCurrency === 'EGP') {
+          rateField.val('1');
+        }
+      }
+
+      const amountVal = parseFloat(amountField.val()) || 0;
+      let currentRate = parseFloat(rateField.val()) || 1.0;
+      if (currentRate <= 0) currentRate = 1.0;
+      
+      fxSettledDisplay.val(formatSmartNum(amountVal) + ' ' + INVOICE_DATA.currencySymbol);
+
+      let paidCalculated = 0;
+      let formulaHtml = '';
+
+      if (triggerSource === 'paidAmt') {
+        // المستخدم كتب المبلغ المسدد بالعملة الأجنبية يدوياً
+        const userPaid = parseFloat(paidAmtField.val()) || 0;
+        if (treasuryCurrency === invCurrency) {
+          amountField.val(cleanNumInput(userPaid));
+          paidCalculated = userPaid;
+        } else if (invCurrency === 'EGP') {
+          // الفاتورة EGP والحساب أجنبي: سعر الصرف = المبلغ بالجنيه ÷ المبلغ بالأجنبي
+          if (userPaid > 0 && amountVal > 0) {
+            currentRate = roundMoney(amountVal / userPaid, 6);
+            rateField.val(cleanRateInput(currentRate));
+          }
+          paidCalculated = userPaid;
+        } else if (treasuryCurrency === 'EGP') {
+          // الفاتورة أجنبية والحساب EGP: سعر الصرف = المبلغ بالجنيه ÷ المبلغ بالأجنبي
+          if (amountVal > 0 && userPaid > 0) {
+            currentRate = roundMoney(userPaid / amountVal, 6);
+            rateField.val(cleanRateInput(currentRate));
+          }
+          paidCalculated = userPaid;
+        }
+      } else {
+        // حساب المبلغ المطلوب سحبه من الخزينة
+        if (treasuryCurrency === invCurrency) {
+          paidCalculated = amountVal;
+          if (invCurrency === 'EGP') {
+            rateField.val('1');
+          }
+          formulaHtml = `<i class="fas fa-check-circle me-1 text-success"></i>نفس العملة (${invCurrency})`;
+        } else if (invCurrency === 'EGP') {
+          // فاتورة محلية من حساب أجنبي: قسمة على سعر الصرف
+          paidCalculated = roundMoney(amountVal / currentRate, 2);
+          paidAmtField.val(cleanNumInput(paidCalculated));
+          formulaHtml = `<i class="fas fa-calculator me-1 text-primary"></i>المعادلة: <strong>${formatSmartNum(amountVal)} ج.م ÷ ${cleanRateInput(currentRate)} = ${formatSmartNum(paidCalculated)} ${treasuryCurrency}</strong>`;
+        } else if (treasuryCurrency === 'EGP') {
+          // فاتورة أجنبية من حساب محلي: ضرب في سعر الصرف
+          paidCalculated = roundMoney(amountVal * currentRate, 2);
+          paidAmtField.val(cleanNumInput(paidCalculated));
+          formulaHtml = `<i class="fas fa-calculator me-1 text-primary"></i>المعادلة: <strong>${formatSmartNum(amountVal)} ${invCurrency} × ${cleanRateInput(currentRate)} = ${formatSmartNum(paidCalculated)} ج.م</strong>`;
+        } else {
+          // تقاطع عملتين أجنبيتين
+          const invRate = INVOICE_DATA.invoiceRate || 1.0;
+          const funcVal = amountVal * invRate;
+          paidCalculated = roundMoney(funcVal / currentRate, 2);
+          paidAmtField.val(cleanNumInput(paidCalculated));
+          formulaHtml = `<i class="fas fa-calculator me-1 text-primary"></i>المعادلة: <strong>(${formatSmartNum(amountVal)} ${invCurrency} × ${invRate}) ÷ ${cleanRateInput(currentRate)} = ${formatSmartNum(paidCalculated)} ${treasuryCurrency}</strong>`;
+        }
+      }
+
+      // حساب فروق العملة اللحظية
+      if (invCurrency === 'EGP') {
+        // الفاتورة بالجنيه أصلاً -> لا توجد فروق عملة محققة
+        fxDiffText.html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>القيد المحاسبي متزن تماماً بدون فروق أسعار صرف.</span>' + (formulaHtml ? `<div class="mt-1 small text-muted">${formulaHtml}</div>` : ''));
+      } else {
+        const invBookFunctional = roundMoney(amountVal * (INVOICE_DATA.invoiceRate || 1.0), 2);
+        const treasuryFunctional = (treasuryCurrency === 'EGP') ? roundMoney(paidCalculated, 2) : roundMoney(paidCalculated * currentRate, 2);
+        const fxDiff = roundMoney(treasuryFunctional - invBookFunctional, 2);
+        
+        if (Math.abs(fxDiff) > 0.005) {
+          const diffAbs = formatSmartNum(Math.abs(fxDiff));
+          if (fxDiff > 0) {
+            fxDiffText.html(`<strong class="text-danger"><i class="fas fa-arrow-down me-1"></i>فروق صرف محققة: خسائر بمقدار ${diffAbs} ج.م</strong> (سعر السداد اللحظي أعلى من سعر الفاتورة الدفتري)<div class="mt-1 small text-muted">${formulaHtml}</div>`);
+          } else {
+            fxDiffText.html(`<strong class="text-success"><i class="fas fa-arrow-up me-1"></i>فروق صرف محققة: أرباح بمقدار ${diffAbs} ج.م</strong> (سعر السداد اللحظي أقل من سعر الفاتورة الدفتري)<div class="mt-1 small text-muted">${formulaHtml}</div>`);
+          }
+        } else {
+          fxDiffText.html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>القيد المحاسبي متزن تماماً بدون فروق أسعار صرف.</span><div class="mt-1 small text-muted">${formulaHtml}</div>`);
+        }
+      }
+    } finally {
+      isSyncing = false;
     }
   }
 
@@ -491,7 +575,6 @@
     let remaining = totalDue - amountValue;
 
     if (amountValue > totalDue + 0.005) {
-      // حالة التجاوز
       amountField.addClass('is-invalid');
       valMsg.removeClass('d-none');
       submitBtn.prop('disabled', true);
@@ -505,19 +588,17 @@
       submitBtn.prop('disabled', amountValue <= 0);
 
       if (remaining <= 0.005) {
-        // سداد كامل
         afterCard.removeClass('stats-card-danger stats-card-primary stats-card-warning').addClass('stats-card-success');
         afterVal.removeClass('text-danger text-primary').addClass('text-success').html('0 <small class="fs-6">' + INVOICE_DATA.currencySymbol + '</small>');
         afterStatus.html('<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i>مسددة بالكامل</span>');
       } else {
-        // سداد جزئي
         afterCard.removeClass('stats-card-danger stats-card-success').addClass('stats-card-warning');
         afterVal.removeClass('text-danger text-success').addClass('text-warning').html(formatSmartNum(remaining) + ' <small class="fs-6">' + INVOICE_DATA.currencySymbol + '</small>');
         afterStatus.html('<span class="text-muted">متبقي بعد الدفعة</span>');
       }
     }
 
-    syncCurrencyPanel();
+    syncCurrencyPanel('amount');
   }
 
   // أزرار السداد السريع
@@ -536,22 +617,23 @@
     updateRemainingAmount();
   });
 
-  paymentMethodSelect.on('change', syncCurrencyPanel);
+  paymentMethodSelect.on('change', function() {
+    syncCurrencyPanel('paymentMethod');
+  });
 
   rateField.on('input change', function() {
-    const amountVal = parseFloat(amountField.val()) || 0;
-    const r = parseFloat($(this).val()) || 1.0;
-    paidAmtField.val(cleanNumInput(amountVal * r));
-    syncCurrencyPanel();
+    syncCurrencyPanel('rate');
   });
 
   paidAmtField.on('input change', function() {
-    const paid = parseFloat($(this).val()) || 0;
-    const amountVal = parseFloat(amountField.val()) || 0;
-    if (amountVal > 0) {
-      rateField.val((paid / amountVal).toFixed(6));
+    syncCurrencyPanel('paidAmt');
+  });
+
+  // الحماية من التكرار المزدوج عند الإرسال
+  $('#payment-form').on('submit', function() {
+    if (!submitBtn.prop('disabled')) {
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ والترحيل...');
     }
-    syncCurrencyPanel();
   });
 
   // زر تحديث سعر الصرف اللحظي من البنك المركزي
@@ -577,57 +659,43 @@
     $btn.prop('disabled', true);
     $icon.addClass('fa-spin');
 
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
-                      document.querySelector('[name=csrfmiddlewaretoken]').value : 
-                      (document.cookie.split('; ').find(row => row.startsWith('csrftoken=')) || '').split('=')[1];
+    if (typeof window.syncLiveExchangeRate === 'function') {
+      window.syncLiveExchangeRate(targetCurrency, function(data) {
+        $btn.prop('disabled', false);
+        $icon.removeClass('fa-spin');
 
-    fetch("{% url 'financial:api_sync_exchange_rates' %}", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": csrfToken || "",
-        "Content-Type": "application/json"
-      }
-    })
-    .then(res => {
-      if (!res.ok) throw new Error("فشل الاتصال بخدمة أسعار الصرف");
-      return res.json();
-    })
-    .then(data => {
-      if (data.status === 'SUCCESS' && Array.isArray(data.synced_rates)) {
-        let matched = data.synced_rates.find(item => item.code.toUpperCase() === targetCurrency.toUpperCase());
-        if (matched && matched.rate) {
-          const newRate = parseFloat(matched.rate).toFixed(6);
-          rateField.val(newRate);
-          const amountVal = parseFloat(amountField.val()) || 0;
-          paidAmtField.val(cleanNumInput(amountVal * parseFloat(newRate)));
-          syncCurrencyPanel();
-          if (typeof window.showNotification === 'function') {
-            window.showNotification(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`, 'success');
-          } else if (typeof toastr !== 'undefined') {
-            toastr.success(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`);
-          }
-        } else {
-          if (typeof window.showNotification === 'function') {
-            window.showNotification('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة', 'warning');
-          } else if (typeof toastr !== 'undefined') {
-            toastr.warning('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة');
+        if (Array.isArray(data.synced_rates)) {
+          let matched = data.synced_rates.find(item => item.code.toUpperCase() === targetCurrency.toUpperCase());
+          if (matched && matched.rate) {
+            const newRate = parseFloat(matched.rate).toFixed(6);
+            rateField.val(newRate);
+            const amountVal = parseFloat(amountField.val()) || 0;
+            paidAmtField.val(cleanNumInput(amountVal * parseFloat(newRate)));
+            syncCurrencyPanel();
+            if (typeof window.showNotification === 'function') {
+              window.showNotification(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`, 'success');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.success(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`);
+            }
+          } else {
+            if (typeof window.showNotification === 'function') {
+              window.showNotification('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة', 'warning');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.warning('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة');
+            }
           }
         }
-      } else {
-        throw new Error(data.message || 'فشل تحديث أسعار الصرف');
-      }
-    })
-    .catch(err => {
-      if (typeof window.showNotification === 'function') {
-        window.showNotification(err.message || 'حدث خطأ أثناء تحديث سعر الصرف', 'error');
-      } else if (typeof toastr !== 'undefined') {
-        toastr.error(err.message || 'حدث خطأ أثناء تحديث سعر الصرف');
-      }
-    })
-    .finally(() => {
-      $btn.prop('disabled', false);
-      $icon.removeClass('fa-spin');
-    });
+      }, function(err) {
+        $btn.prop('disabled', false);
+        $icon.removeClass('fa-spin');
+        const errMsg = err && err.message ? err.message : 'حدث خطأ أثناء تحديث سعر الصرف';
+        if (typeof window.showNotification === 'function') {
+          window.showNotification(errMsg, 'error');
+        } else if (typeof toastr !== 'undefined') {
+          toastr.error(errMsg);
+        }
+      });
+    }
   });
 
   // حماية الإرسال والتنبيهات
@@ -635,21 +703,27 @@
     const amount = parseFloat(amountField.val());
     if (isNaN(amount) || amount <= 0) {
       e.preventDefault();
-      if (typeof toastr !== 'undefined') {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('يرجى إدخال مبلغ صحيح أكبر من صفر', 'warning');
+      } else if (typeof toastr !== 'undefined') {
         toastr.warning('يرجى إدخال مبلغ صحيح أكبر من صفر');
       }
       return false;
     }
     if (amount > INVOICE_DATA.amountDue + 0.005) {
       e.preventDefault();
-      if (typeof toastr !== 'undefined') {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('المبلغ المدخل يتجاوز المبلغ المتبقي على الفاتورة', 'error');
+      } else if (typeof toastr !== 'undefined') {
         toastr.error('المبلغ المدخل يتجاوز المبلغ المتبقي على الفاتورة');
       }
       return false;
     }
     if (!paymentMethodSelect.val()) {
       e.preventDefault();
-      if (typeof toastr !== 'undefined') {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('يرجى اختيار طريقة الدفع أو الخزينة', 'warning');
+      } else if (typeof toastr !== 'undefined') {
         toastr.warning('يرجى اختيار طريقة الدفع أو الخزينة');
       }
       return false;

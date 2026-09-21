@@ -81,7 +81,7 @@ class AccountingPeriod(models.Model):
         permissions = [
             ("close_accounting_period", _("إغلاق الفترة المحاسبية")),
             ("reopen_accounting_period", _("إعادة فتح فترة محاسبية مغلقة")),
-            ("run_fx_revaluation", _("تشغيل إعادة تقييم فروق العملات IAS 21")),
+            ("run_fx_revaluation", _("تشغيل إعادة تقييم فروق العملات")),
         ]
 
     def __str__(self):
@@ -517,8 +517,10 @@ class JournalEntry(models.Model):
                 # Whitelist: Allow updating reversed_by_entry, lock metadata, or posting metadata
                 allowed_fields = {
                     'reversed_by_entry', 'reversed_by_entry_id',
+                    'reversal_of', 'reversal_of_id',
                     'is_locked', 'locked_at', 'locked_by',
-                    'status', 'posted_at', 'posted_by', 'posting_source', 'posting_reference'
+                    'status', 'posted_at', 'posted_by', 'posting_source', 'posting_reference',
+                    'work_order', 'work_order_id', 'notes'
                 }
                 is_whitelisted_update = update_fields and set(update_fields).issubset(allowed_fields)
                 is_same_reversed_by_change = old.reversed_by_entry_id != self.reversed_by_entry_id and old.status == self.status

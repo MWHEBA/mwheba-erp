@@ -1,5 +1,5 @@
 """
-FXRevaluationService - محرك إعادة التقييم الدوري لفروق أسعار الصرف غير المحققة (IAS 21)
+FXRevaluationService - محرك إعادة التقييم الدوري لفروق أسعار الصرف غير المحققة
 يقوم بفحص الذمم والفواتير المفتوحة (Customer & Supplier Open Transactions) بتاريخ الإقفال،
 ويحسب فروق التقييم الناتجة عن تغير سعر الصرف بين تاريخ الفاتورة وتاريخ الإقفال،
 ويولد قيد تسوية محوكم على حساب فروق التقييم غير المحققة (71020_UNREALIZED_FX_GAIN_LOSS).
@@ -13,6 +13,7 @@ from django.db import transaction, models
 
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.services.ledger_core_service import LedgerCoreService
+from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
 from customer.models import CustomerTransaction
 from supplier.models import SupplierTransaction
 
@@ -21,7 +22,7 @@ logger = logging.getLogger("financial.services.fx_revaluation")
 
 class FXRevaluationService:
     """
-    خدمة إعادة التقييم الدوري وفق المعيار المحاسبي الدولي IAS 21
+    خدمة إعادة التقييم الدوري لفروق أسعار الصرف غير المحققة
     """
 
     @classmethod
@@ -178,7 +179,7 @@ class FXRevaluationService:
             acc_type = AccountType.objects.filter(category__in=["revenue", "expense", "other_income"]).first() or AccountType.objects.first()
             acc = ChartOfAccounts.objects.create(
                 code="71020_UNREALIZED_FX_GAIN_LOSS",
-                name="حساب فروق تقييم أسعار الصرف غير المحققة (IAS 21)",
+                name="حساب فروق تقييم أسعار الصرف غير المحققة",
                 account_type=acc_type,
                 is_active=True,
                 is_leaf=True
@@ -237,7 +238,7 @@ class FXRevaluationService:
                     "account": fx_account,
                     "debit": Decimal("0.00"),
                     "credit": total_diff,
-                    "description": f"أرباح فروق تقييم غير محققة (IAS 21) - فترة {data['as_of_date']}"
+                    "description": f"أرباح فروق تقييم غير محققة - فترة {data['as_of_date']}"
                 })
             else:
                 abs_diff = abs(total_diff)
@@ -246,7 +247,7 @@ class FXRevaluationService:
                     "account": fx_account,
                     "debit": abs_diff,
                     "credit": Decimal("0.00"),
-                    "description": f"خسائر فروق تقييم غير محققة (IAS 21) - فترة {data['as_of_date']}"
+                    "description": f"خسائر فروق تقييم غير محققة - فترة {data['as_of_date']}"
                 })
                 lines.append({
                     "account": ar_account,
@@ -257,7 +258,7 @@ class FXRevaluationService:
 
             draft_entry = LedgerCoreService.create_draft_entry(
                 date=data["as_of_date"],
-                description=f"قيد إعادة التقييم الدوري لفروق الصرف غير المحققة (IAS 21) - {data['as_of_date']}",
+                description=f"قيد إعادة التقييم الدوري لفروق الصرف غير المحققة - {data['as_of_date']}",
                 reference=f"FXREV-{data['as_of_date']}",
                 entry_type="GENERAL",
                 created_by=user,

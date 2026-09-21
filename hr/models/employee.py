@@ -130,6 +130,41 @@ class Employee(models.Model):
         related_name='employees',
         verbose_name='الوردية'
     )
+    work_location = models.ForeignKey(
+        'WorkLocation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employees',
+        verbose_name='مقر العمل المعتمد'
+    )
+    allow_mobile_attendance = models.BooleanField(
+        default=False,
+        verbose_name='السماح ببصمة الموبايل GPS',
+        help_text='تمكين الموظف من تسجيل الحضور عبر تطبيق الموبايل PWA'
+    )
+    allowed_all_locations = models.BooleanField(
+        default=False,
+        verbose_name='السماح بالبصمة في كافة المقرات (موظف متنقل)',
+        help_text='تمكين الموظف من البصمة في أي فرع أو مقر نشط للشركة'
+    )
+    allow_field_visits = models.BooleanField(
+        default=False,
+        verbose_name='السماح بالزيارات الميدانية والمأموريات',
+        help_text='تمكين تسجيل البصمة الميدانية خارج مقرات الشركة بدون التقيد بنطاق جغرافي محدد'
+    )
+    registered_device_uuid = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name='معرف الجهاز المعتمد',
+        help_text='بصمة عتاد الهاتف المرتبط بحساب الموظف لمنع تبادل الهواتف'
+    )
+    device_bound_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='تاريخ ربط الجهاز'
+    )
     biometric_user_id = models.CharField(
         max_length=50,
         blank=True,
@@ -197,13 +232,16 @@ class Employee(models.Model):
             ("can_manage_employees", "إدارة الموظفين"),
             ("can_view_all_employees", "عرض جميع الموظفين"),
             ("can_terminate_employees", "إنهاء خدمة الموظفين"),
+            ("can_manual_attendance", "إمكانية إضافة وتعديل الحضور اليدوي"),
+            ("can_import_attendance", "إمكانية استيراد الحضور من Excel"),
+            ("can_reset_device_binding", "إمكانية إعادة تعيين ربط جهاز الموظف"),
         ]
     
     def __str__(self):
         return f"{self.employee_number} - {self.get_full_name_ar()}"
     
     def get_full_name_ar(self):
-        """الحصول على الاسم الكامل بالعربية - Backward compatibility"""
+        """الحصول على الاسم الكامل بالعربية"""
         return self.name
     
     def get_masked_national_id(self):
@@ -218,101 +256,74 @@ class Employee(models.Model):
             return f"*******{self.mobile_phone[-4:]}"
         return ""
     
-    def get_full_name_en(self):
-        """الحصول على الاسم الكامل بالإنجليزية - Deprecated"""
-        return self.name
+    def get_first_name(self):
+        """الحصول على الاسم الأول"""
+        if self.name:
+            return self.name.split()[0]
+        return ""
     
-    @property
-    def age(self):
-        """حساب العمر"""
-        from datetime import date
-        today = date.today()
-        return today.year - self.birth_date.year - (
-            (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
-        )
-    
-    @property
-    def years_of_service(self):
-        """حساب سنوات الخدمة الفعلية (بالسنوات الكاملة)"""
-        from dateutil.relativedelta import relativedelta
-        from datetime import date
-        return relativedelta(date.today(), self.hire_date).years
-    
+    def get_last_name(self):
+        """الحصول على الاسم الأخير"""
+        if self.name:
+            parts = self.name.split()
+            return parts[-1] if len(parts) > 1 else parts[0]
     @property
     def is_active(self):
-        """هل الموظف نشط"""
+        """التحقق مما إذا كان الموظف نشطاً في الخدمة"""
         return self.status == 'active'
+
+    @property
+    def age(self):
+        """العمر بالسنوات"""
+        return self.get_age()
+
+    def get_age(self):
+        """حساب العمر بالسنوات"""
+        if self.birth_date:
+            from datetime import date
+            today = date.today()
+            return today.year - self.birth_date.year - (
+                (today.month, today.day) < (self.birth_date.month, self.birth_date.day)
+            )
+        return None
+    
+    def get_service_years(self):
+        """حساب سنوات الخدمة"""
+        if self.hire_date:
+            from datetime import date
+            end_date = self.termination_date if self.termination_date else date.today()
+            return end_date.year - self.hire_date.year - (
+                (end_date.month, end_date.day) < (self.hire_date.month, self.hire_date.day)
+            )
+        return None
     
     def get_active_contract(self):
-        """
-        Get employee's active contract
-        Returns the first active contract or None
-        """
-        from .contract import Contract
-        return Contract.objects.filter(
-            employee=self,
-            status='active'
-        ).first()
+        """الحصول على العقد النشط الحالي للموظف"""
+        return self.contracts.filter(status='active').first()
+    
+    def get_gender_display_ar(self):
+        """عرض الجنس بالعربية"""
+        return dict(self.GENDER_CHOICES).get(self.gender, self.gender)
+    
+    def get_marital_status_display_ar(self):
+        """عرض الحالة الاجتماعية بالعربية"""
+        return dict(self.MARITAL_STATUS_CHOICES).get(self.marital_status, self.marital_status)
+    
+    def get_status_display_ar(self):
+        """عرض الحالة بالعربية"""
+        return dict(self.STATUS_CHOICES).get(self.status, self.status)
     
     def clean(self):
-        """
-        Validate employee data
-        Issue #21-25: Missing model validations
-        """
         from django.core.exceptions import ValidationError
-        from django.utils import timezone
+        if self.hire_date and self.birth_date:
+            age_at_hire = (self.hire_date - self.birth_date).days / 365.25
+            if age_at_hire < 18:
+                raise ValidationError({'hire_date': 'عمر الموظف عند التعيين يجب أن يكون 18 سنة على الأقل'})
         
-        errors = {}
-        
-        today = timezone.localdate()
-        
-        # Validate hire date not in future
-        if self.hire_date and self.hire_date > today:
-            errors['hire_date'] = 'تاريخ التعيين لا يمكن أن يكون في المستقبل'
-        
-        # Validate birth date not in future
-        if self.birth_date and self.birth_date > today:
-            errors['birth_date'] = 'تاريخ الميلاد لا يمكن أن يكون في المستقبل'
-        
-        # Validate age >= 18
-        if self.birth_date:
-            age = today.year - self.birth_date.year
-            if age < 18:
-                errors['birth_date'] = 'يجب أن يكون عمر الموظف 18 سنة على الأقل'
-        
-        # Validate termination date
-        if self.termination_date:
+        if self.termination_date and self.hire_date:
             if self.termination_date < self.hire_date:
-                errors['termination_date'] = 'تاريخ إنهاء الخدمة لا يمكن أن يكون قبل تاريخ التعيين'
-            
-            if self.status != 'terminated':
-                errors['status'] = 'يجب تغيير الحالة إلى "منتهي الخدمة" عند تحديد تاريخ إنهاء الخدمة'
-        
-        # Validate status consistency
-        if self.status == 'terminated' and not self.termination_date:
-            errors['termination_date'] = 'يجب تحديد تاريخ إنهاء الخدمة للموظفين المنتهية خدمتهم'
-        
-        if errors:
-            raise ValidationError(errors)
+                raise ValidationError({'termination_date': 'تاريخ إنهاء الخدمة لا يمكن أن يكون قبل تاريخ التعيين'})
     
     def save(self, *args, **kwargs):
-        """Override save to call clean() and sync linked user status"""
         self.full_clean()
-        
-        old_status = None
-        if self.pk:
-            old_status = Employee.objects.filter(pk=self.pk).values_list('status', flat=True).first()
-            
         super().save(*args, **kwargs)
-        
-        # مزامنة الحالة مع حساب المستخدم المرتبط (مع تفادي التكرار)
-        if self.user:
-            try:
-                from users.services.user_management_service import UserManagementService
-                if self.status in ['suspended', 'terminated'] and self.user.is_active:
-                    UserManagementService.toggle_user_status(self.user, target_active=False)
-                elif self.status == 'active' and not self.user.is_active and old_status in ['suspended', 'terminated']:
-                    UserManagementService.toggle_user_status(self.user, target_active=True)
-            except Exception as sync_err:
-                import logging
-                logging.getLogger('hr.employee').warning(f"Could not sync user status from employee {self.id}: {sync_err}")

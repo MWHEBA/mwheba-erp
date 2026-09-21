@@ -78,7 +78,7 @@ class ProcurementService:
         cost_source_policy: str = "PO_PRICE"
     ) -> PurchaseOrder:
         """
-        إنشاء أمر شراء جديد (مسودة) مع دعم كامل للمعايير المحاسبية IAS 2 و IAS 21
+        إنشاء أمر شراء جديد (مسودة) مع دعم كامل للمعايير المحاسبية المعتمدة
         """
         from financial.models import Currency
 

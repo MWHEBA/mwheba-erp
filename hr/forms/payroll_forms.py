@@ -56,7 +56,7 @@ class PayrollForm(forms.ModelForm):
             
             choices = [('', 'اختر حساب الدفع')]
             for account in payment_accounts:
-                choices.append((account.code, f"{account.name} ({account.code})"))
+                choices.append((account.code, account.name))
             
             current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
             if current_method and current_method not in [c[0] for c in choices]:
@@ -64,7 +64,7 @@ class PayrollForm(forms.ModelForm):
                     from financial.models import ChartOfAccounts
                     acc = ChartOfAccounts.objects.filter(code=current_method).first()
                     if acc:
-                        choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                        choices.append((acc.code, acc.name))
                     else:
                         choices.append((current_method, current_method))
                 except Exception:

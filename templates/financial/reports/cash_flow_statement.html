@@ -465,7 +465,7 @@
     </div>
   </div>
 
-  <!-- 4. جدول قائمة التدفقات النقدية المعيارية (IAS 7) -->
+  <!-- 4. جدول قائمة التدفقات النقدية المعيارية -->
   <div class="section-container">
     <!-- شريط أدوات الشجرة والبحث الفوري المعتمد -->
     <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 no-print">
@@ -842,12 +842,12 @@
             </td>
           </tr>
 
-          <!-- أثر تغير أسعار صرف العملات الأجنبية (IAS 7.28) -->
-          <tr class="account-row tb-level-2" data-id="fx-effect" data-level="2" data-code="IAS-7.28" data-name="أثر تغيرات أسعار صرف العملات الأجنبية على النقدية">
+          <!-- أثر تغير أسعار صرف العملات الأجنبية -->
+          <tr class="account-row tb-level-2" data-id="fx-effect" data-level="2" data-code="FX-EFFECT" data-name="أثر تغيرات أسعار صرف العملات الأجنبية على النقدية">
             <td class="text-center small"><span class="badge bg-light text-dark border">FX</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-coins text-warning me-1"></i>
-              {% trans "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية وما في حكمها (IAS 7.28)" %}
+              {% trans "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية وما في حكمها" %}
             </td>
             <td class="number-cell col-sep-left"></td>
             <td class="number-cell col-sep-left {% if cf.fx_effect_on_cash >= 0 %}credit-val{% else %}debit-val{% endif %}">
@@ -957,11 +957,11 @@
     </div>
   </div>
 
-  <!-- 5. جدول المعاملات غير النقدية الإيضاحية (IAS 7.43) إن وجدت -->
+  <!-- 5. جدول المعاملات غير النقدية الإيضاحية إن وجدت -->
   {% if cf.non_cash_disclosures %}
     <div class="section-container mt-4 no-print">
       <h6 class="fw-bold text-dark mb-3">
-        <i class="fas fa-info-circle text-primary me-2"></i>{% trans "إيضاحات: المعاملات الاستثمارية والتمويلية غير النقدية (IAS 7.43)" %}
+        <i class="fas fa-info-circle text-primary me-2"></i>{% trans "إيضاحات: المعاملات الاستثمارية والتمويلية غير النقدية" %}
       </h6>
       <div class="table-responsive">
         <table class="table table-sm table-bordered">

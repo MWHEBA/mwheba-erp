@@ -147,6 +147,11 @@ class Payroll(models.Model):
         default='draft',
         verbose_name='الحالة'
     )
+    is_stale = models.BooleanField(
+        default=False,
+        verbose_name='بحاجة لإعادة الحساب',
+        help_text='يتم تعيينها عند تعديل بيانات الحضور للشهر بعد حساب المسودة'
+    )
     payment_method = models.CharField(
         max_length=50,
         blank=True,

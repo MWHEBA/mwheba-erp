@@ -514,7 +514,9 @@ class PayrollAccountingServiceTest(TestCase):
         self.user = User.objects.create_user(
             username=f'acc_test_{ts}',
             password='test',
-            email=f'acc_{ts}@test.com'
+            email=f'acc_{ts}@test.com',
+            is_staff=True,
+            is_superuser=True
         )
         
         # إنشاء account types

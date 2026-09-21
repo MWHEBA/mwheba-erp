@@ -117,10 +117,11 @@
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
-                    <label class="form-label">الحالة</label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                        <div class="text-danger">{{ form.status.errors }}</div>
+                    <label class="form-label">تعويض فارق التوقيت (ساعات)</label>
+                    {{ form.timezone_offset_hours }}
+                    <small class="text-muted d-block mt-1">إضافة أو خصم ساعات (+1 / -1) لتعويض التوقيت الصيفي أو خطأ ساعة الماكينة</small>
+                    {% if form.timezone_offset_hours.errors %}
+                        <div class="text-danger">{{ form.timezone_offset_hours.errors }}</div>
                     {% endif %}
                 </div>
             </div>
@@ -128,7 +129,16 @@
 
         <div class="row">
             <div class="col-md-6">
-                <div class="form-check mb-3">
+                <div class="mb-3">
+                    <label class="form-label">الحالة</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">{{ form.status.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check mb-3 mt-4">
                     {{ form.is_active }}
                     <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
                         نشط

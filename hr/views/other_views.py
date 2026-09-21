@@ -76,21 +76,57 @@ def hr_settings(request):
             return redirect('hr:hr_settings')
 
         if action == 'attendance_settings':
-            # حفظ إعدادات الحضور
+            # حفظ إعدادات الحضور والعمل الإضافي والسياسات
             import json
 
             # أيام الإجازة الأسبوعية (checkboxes متعددة)
             off_days = request.POST.getlist('hr_weekly_off_days')
             off_days_int = [int(d) for d in off_days if d.isdigit()]
-            SystemSetting.objects.filter(key='hr_weekly_off_days').update(value=json.dumps(off_days_int))
+            SystemSetting.objects.update_or_create(
+                key='hr_weekly_off_days',
+                defaults={'value': json.dumps(off_days_int), 'data_type': 'json', 'group': 'hr', 'is_active': True}
+            )
 
             # دقائق السماح الشهري
             grace = request.POST.get('hr_monthly_grace_minutes', '0')
-            SystemSetting.objects.filter(key='hr_monthly_grace_minutes').update(value=grace)
+            SystemSetting.objects.update_or_create(
+                key='hr_monthly_grace_minutes',
+                defaults={'value': grace, 'data_type': 'integer', 'group': 'hr', 'is_active': True}
+            )
+
+            # فلسفة فترة السماح
+            grace_mode = request.POST.get('hr_grace_period_mode', 'hard_threshold')
+            SystemSetting.objects.update_or_create(
+                key='hr_grace_period_mode',
+                defaults={'value': grace_mode, 'data_type': 'string', 'group': 'hr', 'is_active': True}
+            )
 
             # تفعيل العمل الإضافي
             overtime = 'true' if 'hr_overtime_enabled' in request.POST else 'false'
-            SystemSetting.objects.filter(key='hr_overtime_enabled').update(value=overtime)
+            SystemSetting.objects.update_or_create(
+                key='hr_overtime_enabled',
+                defaults={'value': overtime, 'data_type': 'boolean', 'group': 'hr', 'is_active': True}
+            )
+
+            # معاملات وضوابط الإضافي
+            for key, dt in [
+                ('hr_overtime_rate_regular', 'decimal'),
+                ('hr_overtime_rate_holiday', 'decimal'),
+                ('hr_overtime_min_minutes', 'integer'),
+                ('hr_overtime_max_daily_hours', 'decimal'),
+                ('hr_overtime_late_offset_policy', 'string'),
+                ('hr_overtime_late_offset_ratio', 'decimal'),
+                ('hr_daily_wage_divisor', 'string'),
+                ('hr_missing_checkout_policy', 'string'),
+                ('hr_default_shift_id', 'integer'),
+                ('hr_max_monthly_late_penalty_days', 'integer'),
+            ]:
+                if key in request.POST:
+                    val = request.POST.get(key, '').strip()
+                    SystemSetting.objects.update_or_create(
+                        key=key,
+                        defaults={'value': val, 'data_type': dt, 'group': 'hr', 'is_active': True}
+                    )
 
             # يوم بداية دورة الرواتب
             start_day = request.POST.get('payroll_cycle_start_day', '1').strip()
@@ -100,7 +136,7 @@ def hr_settings(request):
                     defaults={'value': start_day, 'data_type': 'integer', 'group': 'hr', 'is_active': True}
                 )
 
-            messages.success(request, 'تم حفظ إعدادات الحضور بنجاح')
+            messages.success(request, 'تم حفظ إعدادات الحضور والعمل الإضافي بنجاح')
             return redirect('hr:hr_settings')
             
         if action == 'permission_settings':
@@ -124,7 +160,6 @@ def hr_settings(request):
             'leave_accrual_partial_percentage',
             'leave_accrual_full_months',
             'leave_rollover_max_days',
-            # إعدادات سياسة الإجازات الجديدة
             'leave_partial_after_months',
             'leave_annual_partial_days',
             'leave_emergency_partial_days',
@@ -152,7 +187,6 @@ def hr_settings(request):
             value = 'true' if setting_key in request.POST else 'false'
             SystemSetting.objects.filter(key=setting_key).update(value=value)
 
-        # مرجع دورة الإجازات (string)
         if 'leave_year_reference' in request.POST:
             SystemSetting.objects.filter(key='leave_year_reference').update(
                 value=request.POST.get('leave_year_reference')
@@ -168,37 +202,43 @@ def hr_settings(request):
 
     # جلب إعدادات الإجازات
     leave_settings = {
-        # إعدادات قديمة (محتفظ بها للتوافق)
         'probation_months':    SystemSetting.get_setting('leave_accrual_probation_months', 3),
         'partial_percentage':  SystemSetting.get_setting('leave_accrual_partial_percentage', 25),
         'full_months':         SystemSetting.get_setting('leave_accrual_full_months', 6),
         'auto_create':         SystemSetting.get_setting('leave_auto_create_balances', True),
         'rollover_enabled':    SystemSetting.get_setting('leave_rollover_enabled', False),
         'rollover_max_days':   SystemSetting.get_setting('leave_rollover_max_days', 7),
-        # إعدادات الاستحقاق المرحلي الجديدة
         'partial_after_months':    SystemSetting.get_setting('leave_partial_after_months', 6),
         'annual_partial_days':     SystemSetting.get_setting('leave_annual_partial_days', 7),
         'emergency_partial_days':  SystemSetting.get_setting('leave_emergency_partial_days', 3),
         'annual_full_days':        SystemSetting.get_setting('leave_annual_full_days', 21),
         'emergency_full_days':     SystemSetting.get_setting('leave_emergency_full_days', 7),
-        # إعدادات كبار الموظفين
         'senior_age_threshold':    SystemSetting.get_setting('leave_senior_age_threshold', 50),
         'senior_service_years':    SystemSetting.get_setting('leave_senior_service_years', 10),
         'senior_annual_days':      SystemSetting.get_setting('leave_senior_annual_days', 30),
         'senior_emergency_days':   SystemSetting.get_setting('leave_senior_emergency_days', 10),
-        # دورة الإجازات
         'year_reference':          SystemSetting.get_setting('leave_year_reference', 'calendar_year'),
-        # تحويل الرصيد لمالي
         'encashment_enabled':      SystemSetting.get_setting('leave_encashment_enabled', False),
     }
 
     leave_types = LeaveType.objects.filter(is_active=True).order_by('code')
 
-    # جلب إعدادات الحضور
+    # جلب إعدادات الحضور والعمل الإضافي
     attendance_settings = {
         'weekly_off_days': SystemSetting.get_setting('hr_weekly_off_days', [4]),
         'monthly_grace_minutes': SystemSetting.get_setting('hr_monthly_grace_minutes', 0),
-        'overtime_enabled': SystemSetting.get_setting('hr_overtime_enabled', False),
+        'grace_period_mode': SystemSetting.get_setting('hr_grace_period_mode', 'hard_threshold'),
+        'overtime_enabled': SystemSetting.get_setting('hr_overtime_enabled', True),
+        'overtime_rate_regular': SystemSetting.get_setting('hr_overtime_rate_regular', '1.5'),
+        'overtime_rate_holiday': SystemSetting.get_setting('hr_overtime_rate_holiday', '2.0'),
+        'overtime_min_minutes': SystemSetting.get_setting('hr_overtime_min_minutes', 30),
+        'overtime_max_daily_hours': SystemSetting.get_setting('hr_overtime_max_daily_hours', '4.0'),
+        'overtime_late_offset_policy': SystemSetting.get_setting('hr_overtime_late_offset_policy', 'independent'),
+        'overtime_late_offset_ratio': SystemSetting.get_setting('hr_overtime_late_offset_ratio', '1.0'),
+        'daily_wage_divisor': SystemSetting.get_setting('hr_daily_wage_divisor', '30'),
+        'missing_checkout_policy': SystemSetting.get_setting('hr_missing_checkout_policy', 'notify_hr'),
+        'default_shift_id': SystemSetting.get_setting('hr_default_shift_id', ''),
+        'max_monthly_late_penalty_days': SystemSetting.get_setting('hr_max_monthly_late_penalty_days', ''),
         'payroll_cycle_start_day': SystemSetting.get_setting('payroll_cycle_start_day', 1),
     }
     
@@ -224,6 +264,7 @@ def hr_settings(request):
         'total_job_titles': JobTitle.objects.count(),
         'shifts_count': Shift.objects.filter(is_active=True).count(),
         'total_shifts': Shift.objects.count(),
+        'all_shifts': Shift.objects.filter(is_active=True),
         'biometric_devices_count': BiometricDevice.objects.filter(is_active=True).count(),
         'total_biometric_devices': BiometricDevice.objects.count(),
         'leave_balances_count': LeaveBalance.objects.count(),
