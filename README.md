@@ -14,9 +14,27 @@
 
 **A high-performance, modular, multi-tenant enterprise resource planning (ERP) platform built on Django 5.2 LTS. Designed to power complex industrial and commercial operations — from high-volume commercial printing and packaging plants to advertising agencies, wholesale trading conglomerates, and contracting firms.**
 
-[Executive Summary](#1-executive-summary) · [Multi-Industry Modularity](#2-multi-industry-operational-profiles) · [Dual-Layer Architecture](#3-the-dual-layer-governance-architecture) · [Deep Module Breakdown](#4-deep-module-breakdown--service-layer) · [RBAC & Security](#5-rbac--security-governance) · [Middleware Pipeline](#6-middleware-pipeline-architecture) · [Database & Caching](#7-database-transactions--caching-architecture) · [Installation & Setup](#8-installation--environment-setup) · [Testing & QA](#9-automated-testing--verification-suite) · [Deployment](#10-production-deployment--maintenance)
+[Executive Summary](#1-executive-summary) · [Documentation Index](#-comprehensive-documentation-index) · [Multi-Industry Modularity](#2-multi-industry-operational-profiles) · [Dual-Layer Architecture](#3-the-dual-layer-governance-architecture) · [Deep Module Breakdown](#4-deep-module-breakdown--service-layer) · [RBAC & Security](#5-rbac--security-governance) · [Database & Caching](#7-database-transactions--caching-architecture) · [Testing & QA](#9-automated-testing--verification-suite) · [Deployment](#10-production-deployment--maintenance)
 
 </div>
+
+---
+
+## 📚 Comprehensive Documentation Index
+
+| Module / Topic | Guide Reference | Key Capabilities |
+|---|---|---|
+| 🏛️ **Architecture & System Map** | [`docs/architecture.md`](docs/architecture.md) | Full application topology, request lifecycle, middleware, and database transaction rules. |
+| 💰 **Financial & Accounting Engine** | [`docs/financial-system.md`](docs/financial-system.md) | Multi-currency general ledger, FX revaluation engine, cash/treasury security, and period closing. |
+| 🖨️ **Printing Pricing & Work Orders** | [`docs/printing-pricing-system.md`](docs/printing-pricing-system.md) | SSOT pricing calculation engine, paper waste calculation, imposition visualizer, and procurement bridge. |
+| 👥 **HR, Payroll & Employee Custodies** | [`docs/hr-system.md`](docs/hr-system.md) | Employee life cycle, mobile punch & geofencing, biometric device sync, integrated payroll, and custodies. |
+| 🔐 **RBAC, Permissions & Scopes** | [`docs/users-permissions-system.md`](docs/users-permissions-system.md) | 10 standard enterprise roles, O(1) permission cache, data visibility scopes, and cash/warehouse security. |
+| 🎨 **Frontend & Design System** | [`docs/frontend-design-system.md`](docs/frontend-design-system.md) | CSS design tokens, flat colors, standardized data tables, modal dialogs, and SSR pagination. |
+| 🔌 **REST API & Integration** | [`docs/api-documentation.md`](docs/api-documentation.md) | JWT authentication, rate limiting, and external endpoints. |
+| ⏱️ **Biometrics & Hardware Sync** | [`docs/biometric-system.md`](docs/biometric-system.md) | ZKTeco hardware integration and standalone Windows sync service (`bridge_agent`). |
+| 🚀 **Production Deployment & Operations** | [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md) | cPanel / Passenger / VPS setup, database migrations, security hardening, and SSL. |
+| 🧪 **Testing & Quality Assurance** | [`TESTING_MASTER_PLAN.md`](TESTING_MASTER_PLAN.md) | pytest test suites, automated regression tests, and coverage benchmarks. |
+| 📖 **System Terminology & Glossary** | [`docs/glossary.md`](docs/glossary.md) | Standardized financial, printing, inventory, and architectural domain terminology. |
 
 ---
 

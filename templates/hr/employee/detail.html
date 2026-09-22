@@ -720,6 +720,108 @@
             </div>
             {% endif %}
 
+            <!-- العهد النقدية والعينية والأمانات -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-id-card-alt me-2 text-primary"></i>العهد النقدية والعينية والأمانات</h6>
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'financial:custody_advance_create' %}?employee_id={{ employee.id }}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i>صرف عهدة نقدية
+                        </a>
+                        <a href="{% url 'financial:custody_settlement_create' %}?employee_id={{ employee.id }}" class="btn btn-outline-success">
+                            <i class="fas fa-receipt me-1"></i>تسوية عهدة
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- ملخص سريع للعهد -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                                <span class="fs-7 text-muted"><i class="fas fa-wallet me-1 text-warning"></i>الرصيد النقدي في ذمة الموظف:</span>
+                                <strong class="fs-6 text-warning">{{ total_custody_advances_balance|smart_float }} ج.م</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                                <span class="fs-7 text-muted"><i class="fas fa-laptop me-1 text-info"></i>العهد العينية والأجهزة النشطة:</span>
+                                <strong class="fs-6 text-info">{{ active_asset_custodies_count }} عهدة مسجلة</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- أ) العهد النقدية -->
+                    <h6 class="fs-7 fw-bold text-dark border-bottom pb-1 mb-2"><i class="fas fa-coins me-1 text-warning"></i>العهد النقدية والمؤقتة</h6>
+                    {% if custody_advances %}
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-hover align-middle border mb-0">
+                            <thead class="table-light fs-7">
+                                <tr>
+                                    <th>رقم العهدة</th>
+                                    <th>تاريخ الصرف</th>
+                                    <th>الاستحقاق</th>
+                                    <th class="text-end">المبلغ</th>
+                                    <th class="text-end">المتبقي</th>
+                                    <th class="text-center">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody class="fs-7">
+                                {% for adv in custody_advances %}
+                                <tr>
+                                    <td><span class="font-monospace text-primary">{{ adv.advance_number }}</span></td>
+                                    <td>{{ adv.issue_date|date:"Y-m-d" }}</td>
+                                    <td>{{ adv.due_date|date:"Y-m-d" }}</td>
+                                    <td class="text-end fw-bold">{{ adv.amount|smart_float }}</td>
+                                    <td class="text-end fw-bold text-success">{{ adv.current_balance|smart_float }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">{{ adv.get_status_display }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-muted fs-7 mb-3"><i class="fas fa-check-circle text-success me-1"></i>لا توجد عهد نقدية معلقة في ذمة الموظف.</div>
+                    {% endif %}
+
+                    <!-- ب) العهد العينية والأجهزة -->
+                    <h6 class="fs-7 fw-bold text-dark border-bottom pb-1 mb-2"><i class="fas fa-laptop me-1 text-info"></i>الأجهزة والعهد العينية المستلمة</h6>
+                    {% if asset_custodies %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle border mb-0">
+                            <thead class="table-light fs-7">
+                                <tr>
+                                    <th>اسم العهدة / الجهاز</th>
+                                    <th>التصنيف</th>
+                                    <th>الرقم التسلسلي</th>
+                                    <th>تاريخ الاستلام</th>
+                                    <th class="text-end">القيمة التقديرية</th>
+                                    <th class="text-center">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody class="fs-7">
+                                {% for asset in asset_custodies %}
+                                <tr>
+                                    <td class="fw-bold">{{ asset.item_name }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ asset.get_category_display }}</span></td>
+                                    <td><code class="text-muted">{{ asset.serial_number|default:"-" }}</code></td>
+                                    <td>{{ asset.received_date|date:"Y-m-d" }}</td>
+                                    <td class="text-end">{{ asset.estimated_value|smart_float }} ج.م</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">{{ asset.get_status_display }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-muted fs-7"><i class="fas fa-info-circle text-muted me-1"></i>لا توجد أجهزة أو عهد عينية مسجلة باسم الموظف.</div>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- العقود -->
             <div class="section-container mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">

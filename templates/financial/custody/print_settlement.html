@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --text-dark: #212529;
+            --border-color: #dee2e6;
+            --light-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-dark);
+            background: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .print-container {
+            max-width: 850px;
+            margin: 0 auto;
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 8px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid var(--text-dark);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .doc-title {
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background: var(--light-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #6c757d;
+        }
+
+        .info-value {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .items-table th, .items-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        .items-table th {
+            background: var(--light-bg);
+            text-align: center;
+        }
+
+        .totals-table {
+            width: 300px;
+            margin-right: auto;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .totals-table td {
+            padding: 6px 10px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .signatures-table {
+            width: 100%;
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        .signatures-table td {
+            padding: 20px 10px;
+            font-weight: bold;
+            border-top: 1px solid var(--border-color);
+        }
+
+        @media print {
+            body { padding: 0; }
+            .print-container { border: none; padding: 0; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align: center; margin-bottom: 20px;">
+        <button onclick="window.print()" style="padding: 8px 25px; font-weight: bold; cursor: pointer; background: #0d6efd; color: #fff; border: none; border-radius: 4px;">
+            طباعة السند
+        </button>
+    </div>
+
+    <div class="print-container">
+        <table class="header-table">
+            <tr>
+                <td style="text-align: right; width: 33%;">
+                    <h3 style="margin: 0;">شركة موهبة</h3>
+                    <small>نظام الإدارة المالية والعهد</small>
+                </td>
+                <td style="text-align: center; width: 34%;">
+                    <div class="doc-title">سند تسوية عهدة ومصروفات</div>
+                </td>
+                <td style="text-align: left; width: 33%;">
+                    <div><strong>الرقم:</strong> {{ settlement.settlement_number }}</div>
+                    <div><strong>التاريخ:</strong> {{ settlement.settlement_date|date:"Y-m-d" }}</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="info-grid">
+            <div class="info-box">
+                <div class="info-label">الموظف مقدم التسوية</div>
+                <div class="info-value">{{ settlement.employee.name }} ({{ settlement.employee.employee_number }})</div>
+            </div>
+            <div class="info-box">
+                <div class="info-label">العهدة المرتبطة</div>
+                <div class="info-value">
+                    {% if settlement.custody_advance %}
+                        {{ settlement.custody_advance.advance_number }} (أصل العهدة: {{ settlement.custody_advance.amount }} ج.م)
+                    {% else %}
+                        تسوية عامة / عهدة مستديمة
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 30px;">#</th>
+                    <th>نوع البند</th>
+                    <th>حساب المصروف</th>
+                    <th>رقم الفاتورة</th>
+                    <th>البيان</th>
+                    <th style="width: 80px;">المبلغ</th>
+                    <th style="width: 70px;">VAT</th>
+                    <th style="width: 70px;">WHT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in lines %}
+                    <tr>
+                        <td style="text-align: center;">{{ forloop.counter }}</td>
+                        <td>{{ line.get_line_type_display }}</td>
+                        <td>{{ line.expense_account.name|default:"-" }}</td>
+                        <td style="text-align: center;">{{ line.invoice_number|default:"-" }}</td>
+                        <td>{{ line.description }}</td>
+                        <td style="text-align: left; font-weight: bold;">{{ line.amount }}</td>
+                        <td style="text-align: left;">{{ line.tax_amount }}</td>
+                        <td style="text-align: left;">{{ line.wht_amount }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <table class="totals-table">
+            <tr>
+                <td><strong>إجمالي المصروفات:</strong></td>
+                <td style="text-align: left; font-weight: bold;">{{ settlement.total_expenses }} ج.م</td>
+            </tr>
+            <tr>
+                <td><strong>ضريبة القيمة المضافة:</strong></td>
+                <td style="text-align: left;">{{ settlement.total_tax }} ج.م</td>
+            </tr>
+            <tr>
+                <td><strong>ضريبة الخصم من المنبع:</strong></td>
+                <td style="text-align: left;">- {{ settlement.total_wht }} ج.م</td>
+            </tr>
+            <tr>
+                <td><strong>فائض مورد للخزينة:</strong></td>
+                <td style="text-align: left;">{{ settlement.cash_returned_to_treasury }} ج.م</td>
+            </tr>
+            <tr style="border-top: 2px solid #000;">
+                <td><strong>صافي إجمالي التسوية:</strong></td>
+                <td style="text-align: left; font-weight: bold; font-size: 15px; color: var(--primary-color);">{{ settlement.total_settled_amount }} ج.م</td>
+            </tr>
+        </table>
+
+        <table class="signatures-table">
+            <tr>
+                <td>مقدم التسوية<br><br>...........................</td>
+                <td>المراجع المالي<br><br>...........................</td>
+                <td>اعتماد المدير المالي<br><br>...........................</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>

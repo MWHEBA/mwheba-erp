@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <form method="POST" id="countForm">
+        {% csrf_token %}
+
+        <div class="row">
+            <!-- 1. البيانات الأساسية للجرد -->
+            <div class="col-lg-5">
+                <div class="section-container mb-4">
+                    <h5 class="section-title mb-4">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>بيانات محضر الجرد
+                    </h5>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف أمين العهدة <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-select select2-filter" required>
+                            <option value="">-- اختر الموظف --</option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">حساب العهدة / الخزينة</label>
+                        <select name="custody_account_id" class="form-select select2-filter">
+                            <option value="">-- اختياري --</option>
+                            {% for ca in custody_accounts %}
+                                <option value="{{ ca.id }}">{{ ca.name }} ({{ ca.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الرصيد الدفتري المسجل بالسيستم <span class="text-danger">*</span></label>
+                        <input type="number" name="gl_balance" id="gl_balance" step="0.01" class="form-control fw-bold" required placeholder="0.00" oninput="calculateVariance()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">إجمالي الفواتير والإيصالات المعلقة تحت التسوية</label>
+                        <input type="number" name="pending_vouchers_amount" id="pending_vouchers" step="0.01" class="form-control" value="0.00" oninput="calculateVariance()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ملاحظات وقرار لجنة الجرد</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="ملاحظات وتوصيات المراجع الداخلي..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. تفقيط فئات النقدية المعدودة بالدرج -->
+            <div class="col-lg-7">
+                <div class="section-container mb-4">
+                    <h5 class="section-title mb-4">
+                        <i class="fas fa-coins me-2 text-primary"></i>تفقيط فئات النقدية المعدودة بالدرج
+                    </h5>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-3">
+                            <thead class="table-light text-center fs-7">
+                                <tr>
+                                    <th style="width: 140px;">فئة النقدية</th>
+                                    <th style="width: 160px;">العدد / القطع</th>
+                                    <th class="text-end">الإجمالي الفرعي (ج.م)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="fw-bold text-center">200 جنيه</td>
+                                    <td><input type="number" name="denom_200" min="0" class="form-control form-control-sm text-center denom-count" data-val="200" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_200">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">100 جنيه</td>
+                                    <td><input type="number" name="denom_100" min="0" class="form-control form-control-sm text-center denom-count" data-val="100" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_100">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">50 جنيه</td>
+                                    <td><input type="number" name="denom_50" min="0" class="form-control form-control-sm text-center denom-count" data-val="50" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_50">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">20 جنيه</td>
+                                    <td><input type="number" name="denom_20" min="0" class="form-control form-control-sm text-center denom-count" data-val="20" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_20">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">10 جنيه</td>
+                                    <td><input type="number" name="denom_10" min="0" class="form-control form-control-sm text-center denom-count" data-val="10" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_10">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">5 جنيه</td>
+                                    <td><input type="number" name="denom_5" min="0" class="form-control form-control-sm text-center denom-count" data-val="5" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_5">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-center">1 جنيه / فكة</td>
+                                    <td><input type="number" name="denom_1" min="0" class="form-control form-control-sm text-center denom-count" data-val="1" value="0" oninput="calculateDenoms()"></td>
+                                    <td class="text-end fw-bold denom-subtotal" id="sub_1">0.00</td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <td colspan="2" class="fw-bold text-end">إجمالي النقدية الفعلية بالدرج:</td>
+                                    <td class="text-end fw-bold text-success fs-6" id="total_cash_counted">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold text-end">إجمالي الرصيد الفعلي (نقدية + فواتير معلقة):</td>
+                                    <td class="text-end fw-bold text-primary fs-6" id="total_actual_balance">0.00</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="fw-bold text-end">الفارق المحاسبي (عجز / زيادة):</td>
+                                    <td class="text-end fw-bold fs-6" id="variance_display">0.00</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'financial:custody_count_list' %}" class="btn btn-secondary px-4">إلغاء</a>
+                        <button type="submit" class="btn btn-primary px-5 fw-bold">
+                            <i class="fas fa-check-circle me-1"></i>حفظ واعتماد محضر الجرد
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function calculateDenoms() {
+    var totalCash = 0;
+    $('.denom-count').each(function() {
+        var count = parseInt($(this).val()) || 0;
+        var val = parseFloat($(this).data('val')) || 0;
+        var sub = count * val;
+        $('#sub_' + val).text(sub.toFixed(2));
+        totalCash += sub;
+    });
+
+    $('#total_cash_counted').text(totalCash.toFixed(2));
+    calculateVariance();
+}
+
+function calculateVariance() {
+    var totalCash = 0;
+    $('.denom-count').each(function() {
+        var count = parseInt($(this).val()) || 0;
+        var val = parseFloat($(this).data('val')) || 0;
+        totalCash += (count * val);
+    });
+
+    var glBalance = parseFloat($('#gl_balance').val()) || 0;
+    var pendingVouchers = parseFloat($('#pending_vouchers').val()) || 0;
+    var totalActual = totalCash + pendingVouchers;
+    var diff = totalActual - glBalance;
+
+    $('#total_actual_balance').text(totalActual.toFixed(2));
+    
+    var varElem = $('#variance_display');
+    varElem.text(diff.toFixed(2));
+    if (diff === 0) {
+        varElem.removeClass('text-danger text-warning').addClass('text-success');
+    } else if (diff < 0) {
+        varElem.removeClass('text-success text-warning').addClass('text-danger');
+    } else {
+        varElem.removeClass('text-success text-danger').addClass('text-warning');
+    }
+}
+
+$(document).ready(function() {
+    if ($.fn.select2) {
+        $('.select2-filter').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
+    calculateDenoms();
+});
+</script>
+{% endblock %}

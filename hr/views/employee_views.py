@@ -1,6 +1,7 @@
 """
 Views إدارة الموظفين
 """
+from decimal import Decimal
 from .base_imports import *
 from django.utils.translation import gettext as _
 from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricLog, BiometricUserMapping, WorkLocation
@@ -372,6 +373,13 @@ def employee_detail(request, pk):
         'paid_advances': paid_advances if can_view_salaries else 0,
         'approved_advances_count': approved_advances_count if can_view_salaries else 0,
         'total_advances_amount': total_advances_amount if can_view_salaries else 0,
+        
+        # بيانات العهد النقدية والعينية والأمانات
+        'custody_advances': employee.custody_advances.select_related('currency', 'source_treasury').order_by('-issue_date')[:5],
+        'total_custody_advances_balance': employee.custody_advances.filter(status__in=['active', 'partially_settled']).aggregate(tot=Sum('current_balance'))['tot'] or Decimal('0.00'),
+        'assigned_custody_accounts': employee.assigned_custody_accounts.filter(is_active=True),
+        'asset_custodies': employee.asset_custodies.all().order_by('-received_date'),
+        'active_asset_custodies_count': employee.asset_custodies.filter(status='active').count(),
         
         # بيانات التأمين للموظفين الخارجيين
         'insurance_component': (

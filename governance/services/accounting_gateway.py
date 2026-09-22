@@ -145,9 +145,12 @@ class AccountingGateway:
         'product.BatchVoucher',
         'product.BundleSale',
         'product.Product',
-        'operations.WorkOrder',
-        'operations.ProductionRun',
-        'operations.MaintenanceTask',
+        'financial.EmployeeCustodyAdvance',
+        'financial.PettyCashSettlement',
+        'financial.CustodyTransfer',
+        'financial.PettyCashCount',
+        'hr.EmployeeAssetCustody',
+        'hr.EmployeeAssetTransfer',
     }
     
     # High-priority workflows that require strict validation

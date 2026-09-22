@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- 1. كروت الـ KPI الإحصائية المنفصلة -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card stats-card-info h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي العهد المنصرفة الجارية</div>
+                        <div class="stats-card-value fs-4 fw-bold text-info">{{ total_active_advances|smart_float }} <span class="fs-6 text-muted">ج.م</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
+                        <i class="fas fa-hand-holding-usd fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">الرصيد المتبقي في ذمة الموظفين</div>
+                        <div class="stats-card-value fs-4 fw-bold text-warning">{{ total_current_balance|smart_float }} <span class="fs-6 text-muted">ج.م</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
+                        <i class="fas fa-balance-scale fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card stats-card-danger h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">عهد متأخرة عن الاستحقاق</div>
+                        <div class="stats-card-value fs-4 fw-bold text-danger">{{ count_overdue }} <span class="fs-7 text-muted">عهدة معلقة</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-danger p-3 rounded-circle">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. قسم الفلاتر والبحث القابل للطي -->
+    <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#filterSection">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-filter me-2 text-primary"></i>فلاتر وبحث العهد النقدية
+            </h5>
+            <i class="fas fa-chevron-down text-muted"></i>
+        </div>
+
+        <div class="collapse show mt-3" id="filterSection">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fs-7 fw-bold">بحث سريع</label>
+                    <input type="text" name="q" value="{{ search_q }}" class="form-control form-control-sm" placeholder="رقم العهدة، اسم الموظف، الغرض...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fs-7 fw-bold">الموظف</label>
+                    <select name="employee" class="form-select form-select-sm select2-filter">
+                        <option value="">-- جميع الموظفين --</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if selected_employee == emp.id|stringformat:"s" %}selected{% endif %}>{{ emp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fs-7 fw-bold">حالة العهدة</label>
+                    <select name="status" class="form-select form-select-sm select2-filter">
+                        <option value="">-- جميع الحالات --</option>
+                        <option value="active" {% if selected_status == 'active' %}selected{% endif %}>نشطة / جارية</option>
+                        <option value="partially_settled" {% if selected_status == 'partially_settled' %}selected{% endif %}>مسواة جزئياً</option>
+                        <option value="settled" {% if selected_status == 'settled' %}selected{% endif %}>مسواة بالكامل</option>
+                        <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>متأخرة عن الاستحقاق</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
+                        <i class="fas fa-search me-1"></i>تصفية
+                    </button>
+                    <a href="{% url 'financial:custody_advance_list' %}" class="btn btn-outline-secondary btn-sm" title="إعادة تعيين">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. جدول بيانات العهد النقدية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-list-alt me-2 text-primary"></i>قائمة العهد النقدية المسجلة
+        </h5>
+
+        {% if advances %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 140px;">رقم السند</th>
+                            <th>الموظف المستلم</th>
+                            <th>خزينة الصرف</th>
+                            <th>تاريخ الصرف</th>
+                            <th>تاريخ الاستحقاق</th>
+                            <th class="text-end">المبلغ الأصلي</th>
+                            <th class="text-end">الرصيد المتبقي</th>
+                            <th class="text-center">الحالة</th>
+                            <th class="text-center" style="width: 140px;">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for adv in advances %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-light text-dark border font-monospace">{{ adv.advance_number }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ adv.employee.name }}</div>
+                                    <small class="text-muted">{{ adv.purpose|truncatechars:35 }}</small>
+                                </td>
+                                <td>{{ adv.source_treasury.name }}</td>
+                                <td>{{ adv.issue_date|date:"Y-m-d" }}</td>
+                                <td>
+                                    <span class="{% if adv.status == 'overdue' %}text-danger fw-bold{% endif %}">
+                                        {{ adv.due_date|date:"Y-m-d" }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold">{{ adv.amount|smart_float }} <small class="text-muted">{{ adv.currency.code }}</small></td>
+                                <td class="text-end fw-bold text-success">{{ adv.current_balance|smart_float }} <small class="text-muted">{{ adv.currency.code }}</small></td>
+                                <td class="text-center">
+                                    {% if adv.status == 'active' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info">نشطة / جارية</span>
+                                    {% elif adv.status == 'partially_settled' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">مسواة جزئياً</span>
+                                    {% elif adv.status == 'settled' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success">مسواة بالكامل</span>
+                                    {% elif adv.status == 'overdue' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">متأخرة</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ adv.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'financial:custody_advance_print' adv.id %}" target="_blank" class="btn btn-outline-secondary" title="طباعة سند الصرف">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                        {% if adv.status != 'settled' %}
+                                            <a href="{% url 'financial:custody_settlement_create' %}?advance_id={{ adv.id }}&employee_id={{ adv.employee_id }}" class="btn btn-outline-primary" title="تسوية العهدة">
+                                                <i class="fas fa-receipt"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SSR Pagination Wrapper -->
+            <div id="pagination-wrapper" class="mt-3">
+                {% include "partials/pagination.html" %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3"></i>
+                <h6 class="text-muted">لا توجد عهد نقدية مسجلة مطابقة للفلاتر الحالية.</h6>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

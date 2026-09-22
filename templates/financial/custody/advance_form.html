@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="section-container mb-4">
+                <h5 class="section-title mb-4">
+                    <i class="fas fa-hand-holding-usd me-2 text-primary"></i>بيانات طلب وصرف العهدة النقدية
+                </h5>
+
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">الموظف المستلم للعهدة <span class="text-danger">*</span></label>
+                            <select name="employee_id" class="form-select select2-filter" required>
+                                <option value="">-- اختر الموظف --</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }}) - {{ emp.job_title.title_ar|default:'' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">الخزينة المصدرة للصرف <span class="text-danger">*</span></label>
+                            <select name="source_treasury_id" class="form-select select2-filter" required>
+                                <option value="">-- اختر الخزينة --</option>
+                                {% for tr in treasuries %}
+                                    <option value="{{ tr.id }}">{{ tr.name }} ({{ tr.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">مبلغ العهدة <span class="text-danger">*</span></label>
+                            <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">العملة <span class="text-danger">*</span></label>
+                            <select name="currency_id" class="form-select" required>
+                                {% for cur in currencies %}
+                                    <option value="{{ cur.id }}" {% if cur.is_functional %}selected{% endif %}>{{ cur.name }} ({{ cur.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">تاريخ الاستحقاق المتوقع للتسوية <span class="text-danger">*</span></label>
+                            <input type="date" name="due_date" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الغرض من العهدة / بيان المأمورية <span class="text-danger">*</span></label>
+                        <textarea name="purpose" class="form-control" rows="3" required placeholder="بيان الغرض من طلب العهدة بالتفصيل وموقع العمل..."></textarea>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">مقر العمل المستفيد</label>
+                            <select name="work_location_id" class="form-select">
+                                <option value="">-- اختياري --</option>
+                                {% for loc in locations %}
+                                    <option value="{{ loc.id }}">{{ loc.name_ar }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">سند الأمانة / إقرار الاستلام الموقع (PDF/صورة)</label>
+                            <input type="file" name="signed_acknowledgment_file" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
+                        </div>
+                    </div>
+
+                    <div class="card bg-light border p-3 mb-4">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" name="is_per_diem_split" id="perDiemSwitch">
+                            <label class="form-check-label fw-bold" for="perDiemSwitch">
+                                صرف عهدة مأمورية سفر مركبة (بدل مقطوع معفى + عهدة فواتير)
+                            </label>
+                        </div>
+                        <div class="row g-2 mt-1" id="perDiemDiv" style="display: none;">
+                            <div class="col-md-6">
+                                <label class="form-label fs-7">مبلغ بدل السفر اليومي المقطوع</label>
+                                <input type="number" name="per_diem_amount" step="0.01" class="form-control form-control-sm" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'financial:custody_advance_list' %}" class="btn btn-secondary px-4">إلغاء</a>
+                        <button type="submit" class="btn btn-primary px-5 fw-bold">
+                            <i class="fas fa-check-circle me-1"></i>حفظ وصرف العهدة
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#perDiemSwitch').on('change', function() {
+        if ($(this).is(':checked')) {
+            $('#perDiemDiv').slideDown(200);
+        } else {
+            $('#perDiemDiv').slideUp(200);
+        }
+    });
+
+    if ($.fn.select2) {
+        $('.select2-filter').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
+});
+</script>
+{% endblock %}

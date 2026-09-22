@@ -33,3 +33,12 @@ class DocumentType(models.TextChoices):
     INVENTORY_ADJUSTMENT = "INVENTORY_ADJUSTMENT", _("تسوية مخزنية")
     WORK_ORDER = "WORK_ORDER", _("أمر شغل")
     PRINTING_REQUEST = "PRINTING_REQUEST", _("طلب تسعير مطبوعات")
+
+    # Custody & Route Settlement Documents
+    CUSTODY_ADVANCE = "CUSTODY_ADVANCE", _("سند صرف عهدة مؤقتة")
+    CUSTODY_SETTLEMENT = "CUSTODY_SETTLEMENT", _("سند تسوية عهدة")
+    CUSTODY_TRANSFER = "CUSTODY_TRANSFER", _("سند تحويل ومناقلة عهدة")
+    CUSTODY_COUNT = "CUSTODY_COUNT", _("محضر جرد عهدة نقدية")
+    CUSTODY_ASSET_RECEIPT = "CUSTODY_ASSET_RECEIPT", _("إقرار استلام عهدة عينية")
+    CUSTODY_ASSET_TRANSFER = "CUSTODY_ASSET_TRANSFER", _("محضر مناقلة عهدة عينية")
+    CUSTODY_ROUTE_SETTLEMENT = "CUSTODY_ROUTE_SETTLEMENT", _("سند تقفيل خط سير مندوب")

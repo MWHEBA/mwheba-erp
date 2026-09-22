@@ -32,6 +32,13 @@ from .salary_component import *
 from .salary_component_template import *
 from .biometric import BiometricDevice, BiometricLog, BiometricSyncLog
 from .biometric_mapping import BiometricUserMapping
+from .employee_asset_custody import (
+    EmployeeAssetCustody,
+    EmployeeAssetTransfer,
+    AssetCustodyStatus,
+    AssetCondition,
+    AssetCategory,
+)
 
 __all__ = [
     'Employee',
@@ -73,4 +80,9 @@ __all__ = [
     'OfficialHoliday',
     'WorkLocation',
     'AttendanceAuditLog',
+    'EmployeeAssetCustody',
+    'EmployeeAssetTransfer',
+    'AssetCustodyStatus',
+    'AssetCondition',
+    'AssetCategory',
 ]

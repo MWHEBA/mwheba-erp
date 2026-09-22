@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <form method="POST" id="settlementForm" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- رأس سند التسوية -->
+        <div class="section-container mb-4">
+            <h5 class="section-title mb-4">
+                <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>البيانات الأساسية لسند التسوية
+            </h5>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">الموظف مقدم التسوية <span class="text-danger">*</span></label>
+                    <select name="employee_id" id="employee_select" class="form-select select2-filter" required>
+                        <option value="">-- اختر الموظف --</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if request.GET.employee_id == emp.id|stringformat:"s" %}selected{% endif %}>
+                                {{ emp.name }} ({{ emp.employee_number }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">العهدة النقدية المرتبطة</label>
+                    <select name="custody_advance_id" id="advance_select" class="form-select select2-filter">
+                        <option value="">-- تسوية عامة / عهدة مستديمة --</option>
+                        {% for adv in advances %}
+                            <option value="{{ adv.id }}" data-emp="{{ adv.employee_id }}" data-balance="{{ adv.current_balance }}" {% if request.GET.advance_id == adv.id|stringformat:"s" %}selected{% endif %}>
+                                {{ adv.advance_number }} - رصيد: {{ adv.current_balance|smart_float }} {{ adv.currency.code }} ({{ adv.employee.name }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">تاريخ سند التسوية <span class="text-danger">*</span></label>
+                    <input type="date" name="settlement_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                </div>
+
+                <div class="col-md-8">
+                    <label class="form-label fw-bold">بيان وملاحظات التسوية</label>
+                    <input type="text" name="notes" class="form-control" placeholder="بيان تفصيلي لفواتير ومصروفات التسوية...">
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">فائض النقدية المورد للخزينة (إن وجد)</label>
+                    <input type="number" name="cash_returned_to_treasury" id="cash_returned" step="0.01" min="0" class="form-control" value="0.00">
+                </div>
+            </div>
+        </div>
+
+        <!-- جدول بنود ومصروفات التسوية التفصيلية -->
+        <div class="section-container mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="section-title mb-0">
+                    <i class="fas fa-list-ol me-2 text-primary"></i>بنود وفواتير المصروفات
+                </h5>
+                <button type="button" class="btn btn-outline-primary btn-sm fw-bold" onclick="addNewLine()">
+                    <i class="fas fa-plus me-1"></i>إضافة سطر مصروف
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0" id="linesTable">
+                    <thead class="table-light">
+                        <tr class="fs-7 text-center">
+                            <th style="width: 40px;">#</th>
+                            <th style="width: 170px;">نوع البند</th>
+                            <th style="width: 200px;">حساب المصروف</th>
+                            <th style="width: 130px;">المبلغ الإجمالي</th>
+                            <th style="width: 110px;">ضريبة VAT</th>
+                            <th style="width: 90px;">نسبة WHT%</th>
+                            <th style="width: 100px;">ضريبة WHT</th>
+                            <th style="width: 100px;">الخصم</th>
+                            <th style="width: 130px;">رقم الفاتورة</th>
+                            <th style="width: 180px;">البيان</th>
+                            <th style="width: 150px;">مركز التكلفة</th>
+                            <th style="width: 40px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="linesTableBody">
+                        <!-- السطر الأول الافتراضي -->
+                        <tr class="line-row">
+                            <td class="text-center row-num font-monospace fs-7">1</td>
+                            <td>
+                                <select name="line_type[]" class="form-select form-select-sm">
+                                    {% for val, name in line_types %}
+                                        <option value="{{ val }}">{{ name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="expense_account_id[]" class="form-select form-select-sm select2-row" required>
+                                    <option value="">-- اختر الحساب --</option>
+                                    {% for acc in expense_accounts %}
+                                        <option value="{{ acc.id }}">{{ acc.name }} ({{ acc.code }})</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" name="amount[]" step="0.01" min="0.01" class="form-control form-control-sm text-end line-amount" required placeholder="0.00" oninput="calculateRow(this)">
+                            </td>
+                            <td>
+                                <input type="number" name="tax_amount[]" step="0.01" min="0" class="form-control form-control-sm text-end line-tax" value="0.00" oninput="calculateTotals()">
+                            </td>
+                            <td>
+                                <select name="wht_rate[]" class="form-select form-select-sm line-wht-rate" onchange="calculateWht(this)">
+                                    <option value="0">0%</option>
+                                    <option value="1">1%</option>
+                                    <option value="3">3%</option>
+                                    <option value="5">5%</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" name="wht_amount[]" step="0.01" min="0" class="form-control form-control-sm text-end line-wht" value="0.00" oninput="calculateTotals()">
+                            </td>
+                            <td>
+                                <input type="number" name="discount_amount[]" step="0.01" min="0" class="form-control form-control-sm text-end line-discount" value="0.00" oninput="calculateTotals()">
+                            </td>
+                            <td>
+                                <input type="text" name="invoice_number[]" class="form-control form-control-sm font-monospace" placeholder="INV-...">
+                            </td>
+                            <td>
+                                <input type="text" name="description[]" class="form-control form-control-sm" placeholder="بيان البند..." required>
+                            </td>
+                            <td>
+                                <select name="cost_center_id[]" class="form-select form-select-sm">
+                                    <option value="">-- اختياري --</option>
+                                    {% for cc in cost_centers %}
+                                        <option value="{{ cc.id }}">{{ cc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-outline-danger btn-sm p-1" onclick="removeLine(this)" title="حذف السطر">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="3" class="text-end">الإجماليات الكلية:</td>
+                            <td class="text-end text-primary" id="total_amount_display">0.00</td>
+                            <td class="text-end text-info" id="total_tax_display">0.00</td>
+                            <td></td>
+                            <td class="text-end text-danger" id="total_wht_display">0.00</td>
+                            <td class="text-end text-success" id="total_discount_display">0.00</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="d-flex justify-content-end gap-2 border-top pt-3 mb-5">
+            <a href="{% url 'financial:custody_settlement_list' %}" class="btn btn-secondary px-4">إلغاء</a>
+            <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary px-4 fw-bold">
+                <i class="fas fa-save me-1"></i>حفظ مسودة للمراجعة
+            </button>
+            <button type="submit" name="action" value="post_now" class="btn btn-success px-5 fw-bold">
+                <i class="fas fa-check-double me-1"></i>حفظ واعتماد وترحيل القيد
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function initRowSelect2(context) {
+    if ($.fn.select2) {
+        $(context).find('.select2-row').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
+}
+
+function calculateWht(selectElem) {
+    var row = $(selectElem).closest('tr');
+    var rate = parseFloat($(selectElem).val()) || 0;
+    var totalAmt = parseFloat(row.find('.line-amount').val()) || 0;
+    var taxAmt = parseFloat(row.find('.line-tax').val()) || 0;
+    var baseAmt = totalAmt - taxAmt; // وعاء ضريبة الخصم من المنبع قبل VAT
+    if (baseAmt < 0) baseAmt = totalAmt;
+
+    var wht = (baseAmt * rate) / 100;
+    row.find('.line-wht').val(wht.toFixed(2));
+    calculateTotals();
+}
+
+function calculateRow(inputElem) {
+    var row = $(inputElem).closest('tr');
+    calculateWht(row.find('.line-wht-rate'));
+}
+
+function calculateTotals() {
+    var totAmt = 0;
+    var totTax = 0;
+    var totWht = 0;
+    var totDisc = 0;
+
+    $('.line-row').each(function() {
+        totAmt += parseFloat($(this).find('.line-amount').val()) || 0;
+        totTax += parseFloat($(this).find('.line-tax').val()) || 0;
+        totWht += parseFloat($(this).find('.line-wht').val()) || 0;
+        totDisc += parseFloat($(this).find('.line-discount').val()) || 0;
+    });
+
+    $('#total_amount_display').text(totAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    $('#total_tax_display').text(totTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    $('#total_wht_display').text(totWht.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    $('#total_discount_display').text(totDisc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+}
+
+function addNewLine() {
+    var tbody = $('#linesTableBody');
+    var rowCount = tbody.find('tr').length + 1;
+    var firstRow = tbody.find('tr:first');
+    
+    // إنشاء نسخة نظيفة
+    var newRow = firstRow.clone();
+    newRow.find('.row-num').text(rowCount);
+    newRow.find('input').val('');
+    newRow.find('.line-tax, .line-wht, .line-discount').val('0.00');
+    newRow.find('.line-wht-rate').val('0');
+    newRow.find('.select2-container').remove();
+    
+    tbody.append(newRow);
+    initRowSelect2(newRow);
+    calculateTotals();
+}
+
+function removeLine(btn) {
+    var tbody = $('#linesTableBody');
+    if (tbody.find('tr').length > 1) {
+        $(btn).closest('tr').remove();
+        tbody.find('tr').each(function(idx) {
+            $(this).find('.row-num').text(idx + 1);
+        });
+        calculateTotals();
+    } else {
+        alert('يجب الإبقاء على سطر واحد على الأقل في سند التسوية.');
+    }
+}
+
+$(document).ready(function() {
+    initRowSelect2(document);
+    
+    if ($.fn.select2) {
+        $('.select2-filter').select2({
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
+
+    calculateTotals();
+});
+</script>
+{% endblock %}

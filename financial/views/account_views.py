@@ -672,6 +672,33 @@ def cash_and_bank_accounts_list(request):
             }
         )
 
+    # جلب حسابات العهد وصناديق الموظفين
+    from hr.models.employee import Employee
+    custody_accounts_qs = ChartOfAccounts.objects.filter(is_custody_account=True).select_related("assigned_employee", "currency", "work_location", "account_type").order_by("code")
+    custody_accounts_list = list(custody_accounts_qs)
+    custody_account_ids = [ca.id for ca in custody_accounts_list]
+
+    custody_balances_qs = (
+        JournalEntryLine.objects
+        .filter(journal_entry__status="posted", account_id__in=custody_account_ids)
+        .values("account_id")
+        .annotate(
+            total_debit=Sum("debit"),
+            total_credit=Sum("credit"),
+        )
+    )
+    custody_balances_map = {
+        row["account_id"]: (row["total_debit"] or Decimal("0")) - (row["total_credit"] or Decimal("0"))
+        for row in custody_balances_qs
+    }
+
+    total_custody_balance = Decimal("0.00")
+    for ca in custody_accounts_list:
+        c_bal = custody_balances_map.get(ca.id, Decimal("0.00")) + (ca.opening_balance or Decimal("0.00"))
+        ca.current_balance = c_bal
+        total_custody_balance += c_bal
+
+    active_employees = list(Employee.objects.filter(is_active=True).order_by("name"))
     currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
     cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 
@@ -680,13 +707,17 @@ def cash_and_bank_accounts_list(request):
         "accounts_count": len(accounts_list),
         "cash_accounts_count": cash_accounts_count,
         "bank_accounts_count": bank_accounts_count,
+        "custody_accounts": custody_accounts_list,
+        "custody_accounts_count": len(custody_accounts_list),
+        "total_custody_balance": total_custody_balance,
+        "employees": active_employees,
         "total_balance": total_balance_base,
         "base_currency_code": base_currency_code,
         "base_currency_symbol": base_currency_symbol,
         "currencies": currencies,
         "cost_centers": cost_centers,
-        "page_title": "قائمة الخزن والحسابات النقدية",
-        "page_subtitle": "الحسابات النقدية والبنكية التي يمكن الصرف منها والإيداع فيها",
+        "page_title": "قائمة الخزن والحسابات النقدية والعهد",
+        "page_subtitle": "إدارة وحوكمة الخزن النقدية، الحسابات البنكية، وصناديق وبطاقات عهد الموظفين",
         "page_icon": "fas fa-money-bill-wave",
         "breadcrumb_items": [
             {
@@ -695,7 +726,7 @@ def cash_and_bank_accounts_list(request):
                 "icon": "fas fa-home",
             },
             {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
-            {"title": "قائمة الخزن", "active": True},
+            {"title": "الخزن والعهد النقدية", "active": True},
         ],
         "header_buttons": [
             *(
@@ -727,6 +758,53 @@ def cash_and_bank_accounts_list(request):
     return render(
         request, "financial/banking/cash_and_bank_accounts_list.html", context
     )
+
+
+@login_required
+@require_POST
+def assign_custody_account_employee(request):
+    """تحديث وإسناد الموظف المسؤول عن صندوق أو بطاقة العهدة مع توثيق السجل التاريخي"""
+    from django.http import JsonResponse
+    from financial.models.custody_history import CustodyAssignmentHistory
+    from hr.models.employee import Employee
+
+    if not (request.user.is_superuser or request.user.has_perm("financial.change_chartofaccounts")):
+        return JsonResponse({"status": "error", "message": "غير مصرح لك بتعديل وإسناد مسؤولي العهد."}, status=403)
+
+    account_id = request.POST.get("account_id")
+    employee_id = request.POST.get("employee_id")
+    notes = request.POST.get("notes", "")
+
+    try:
+        account = ChartOfAccounts.objects.get(id=account_id, is_custody_account=True)
+    except ChartOfAccounts.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "حساب العهدة غير موجود."}, status=404)
+
+    employee = None
+    if employee_id:
+        try:
+            employee = Employee.objects.get(id=employee_id, is_active=True)
+        except Employee.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "الموظف المحدد غير موجود أو غير نشط."}, status=404)
+
+    old_employee = account.assigned_employee
+    account.assigned_employee = employee
+    account.save(update_fields=["assigned_employee"])
+
+    if employee:
+        CustodyAssignmentHistory.objects.create(
+            account=account,
+            employee=employee,
+            assigned_by=request.user,
+            opening_balance_on_handover=account.current_balance if hasattr(account, 'current_balance') else Decimal("0.00"),
+            notes=notes or f"إسناد وتكليف إدارة العهدة للموظف {employee.name}" + (f" (بدلاً من {old_employee.name})" if old_employee else ""),
+        )
+
+    return JsonResponse({
+        "status": "success",
+        "message": f"تم إسناد وتحديث مسؤول العهدة بنجاح إلى: {employee.name if employee else 'بدون مسؤول'}",
+        "employee_name": employee.name if employee else "غير مسند",
+    })
 
 
 # ============== دليل الحسابات ==============

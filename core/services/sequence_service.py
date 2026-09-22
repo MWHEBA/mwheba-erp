@@ -47,6 +47,13 @@ class SequenceService:
         DocumentType.INVENTORY_ADJUSTMENT: "IA",
         DocumentType.WORK_ORDER: "WO",
         DocumentType.PRINTING_REQUEST: "PR",
+        DocumentType.CUSTODY_ADVANCE: "CADV",
+        DocumentType.CUSTODY_SETTLEMENT: "CSET",
+        DocumentType.CUSTODY_TRANSFER: "CTRF",
+        DocumentType.CUSTODY_COUNT: "CCNT",
+        DocumentType.CUSTODY_ASSET_RECEIPT: "CASR",
+        DocumentType.CUSTODY_ASSET_TRANSFER: "CAST",
+        DocumentType.CUSTODY_ROUTE_SETTLEMENT: "CRTS",
     }
 
     # خريطة الموديلات والحقول لتحديد الـ Seed الأولي للبيانات القديمة
@@ -68,6 +75,12 @@ class SequenceService:
         DocumentType.INVENTORY_ADJUSTMENT: [("product.InventoryAdjustment", "adjustment_number")],
         DocumentType.WORK_ORDER: [("work_order.WorkOrder", "number")],
         DocumentType.PRINTING_REQUEST: [("printing_pricing.PrintingOrder", "order_number")],
+        DocumentType.CUSTODY_ADVANCE: [("financial.EmployeeCustodyAdvance", "advance_number")],
+        DocumentType.CUSTODY_SETTLEMENT: [("financial.PettyCashSettlement", "settlement_number")],
+        DocumentType.CUSTODY_TRANSFER: [("financial.CustodyTransfer", "transfer_number")],
+        DocumentType.CUSTODY_COUNT: [("financial.PettyCashCount", "count_number")],
+        DocumentType.CUSTODY_ASSET_RECEIPT: [("hr.EmployeeAssetCustody", "custody_code")],
+        DocumentType.CUSTODY_ASSET_TRANSFER: [("hr.EmployeeAssetTransfer", "transfer_code")],
     }
 
     @classmethod
@@ -114,6 +127,15 @@ class SequenceService:
             "PRINTING_ORDER": DocumentType.PRINTING_REQUEST,
             "PRINTING_REQUEST": DocumentType.PRINTING_REQUEST,
             "PR": DocumentType.PRINTING_REQUEST,
+            "CUSTODY_ADVANCE": DocumentType.CUSTODY_ADVANCE,
+            "PETTY_CASH_ADVANCE": DocumentType.CUSTODY_ADVANCE,
+            "CUSTODY_SETTLEMENT": DocumentType.CUSTODY_SETTLEMENT,
+            "PETTY_CASH_SETTLEMENT": DocumentType.CUSTODY_SETTLEMENT,
+            "CUSTODY_TRANSFER": DocumentType.CUSTODY_TRANSFER,
+            "CUSTODY_COUNT": DocumentType.CUSTODY_COUNT,
+            "CUSTODY_ASSET_RECEIPT": DocumentType.CUSTODY_ASSET_RECEIPT,
+            "CUSTODY_ASSET_TRANSFER": DocumentType.CUSTODY_ASSET_TRANSFER,
+            "CUSTODY_ROUTE_SETTLEMENT": DocumentType.CUSTODY_ROUTE_SETTLEMENT,
         }
 
         return alias_map.get(raw, raw)

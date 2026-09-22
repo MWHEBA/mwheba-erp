@@ -126,23 +126,32 @@ class EmployeeService:
         return employee
     
     @staticmethod
-    def get_employee_summary(employee):
-        """الحصول على ملخص شامل للموظف"""
-        from datetime import date
-        current_year = date.today().year
-        current_month = date.today().replace(day=1)
-        
+    def check_custody_clearance(employee):
+        """
+        فحص وتدقيق إخلاء طرف الموظف من العهد النقدية والعينية والأمانات
+        """
+        from decimal import Decimal
+        from django.db.models import Sum
+
+        # 1. فحص العهد النقدية
+        cash_advances_qs = employee.custody_advances.filter(status__in=['active', 'partially_settled', 'overdue'])
+        pending_cash_balance = cash_advances_qs.aggregate(tot=Sum('current_balance'))['tot'] or Decimal('0.00')
+
+        # 2. فحص صناديق وبطاقات العهد المسندة
+        assigned_accounts_count = employee.assigned_custody_accounts.filter(is_active=True).count()
+
+        # 3. فحص الأجهزة والعهد العينية
+        active_assets_qs = employee.asset_custodies.filter(status='active')
+        active_assets_count = active_assets_qs.count()
+
+        is_cleared = (pending_cash_balance == Decimal('0.00') and assigned_accounts_count == 0 and active_assets_count == 0)
+
         return {
-            'personal_info': {
-                'name': employee.get_full_name_ar(),
-                'employee_number': employee.employee_number,
-                'department': employee.department.name_ar,
-                'job_title': employee.job_title.title_ar,
-                'hire_date': employee.hire_date,
-                'years_of_service': employee.years_of_service,
-            },
-            'leave_balances': LeaveBalance.objects.filter(
-                employee=employee,
-                year=current_year
-            ),
+            'is_cleared': is_cleared,
+            'pending_cash_balance': pending_cash_balance,
+            'unsettled_advances_count': cash_advances_qs.count(),
+            'assigned_accounts_count': assigned_accounts_count,
+            'active_assets_count': active_assets_count,
+            'active_assets': list(active_assets_qs.values('item_name', 'serial_number', 'estimated_value')),
+            'clearance_status_text': 'تم إخلاء الطرف بالكامل' if is_cleared else 'معلق بانتظار تسوية واسترداد العهد',
         }

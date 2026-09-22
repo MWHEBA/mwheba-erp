@@ -7,7 +7,6 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات تلتزم بالـ CSS Variables الخاصة بالنظام فقط -->
 <style>
     /* كروت الحسابات */
     .cash-account-card {
@@ -129,488 +128,543 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
 
-    <!-- Accounts Grid المحسن -->
-    {% if accounts %}
-        <div class="row">
-            {% for account in accounts %}
-                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
-                    <div class="card cash-account-card h-100 border shadow-sm">
-                        <div class="card-body clickable-card cursor-pointer" data-href="{% url 'financial:cash_account_movements' account.id %}">
-                            <!-- رأس الكرت -->
-                            <div class="account-header">
-                                <div class="flex-grow-1">
-                                    <h5 class="account-title mb-1">
-                                        <a href="{% url 'financial:cash_account_movements' account.id %}" class="text-reset text-decoration-none fw-bold">
-                                            {{ account.name }}
-                                        </a>
-                                    </h5>
-                                    <span class="account-code">{{ account.code }}</span>
-                                </div>
-                                
-                                <!-- نوع الحساب والعملة -->
-                                <div class="text-end">
-                                    {% if account.is_cash_account %}
-                                        <span class="account-type-badge cash-badge bg-light border text-primary me-1">
-                                            <i class="fas fa-money-bill-wave me-1"></i>نقدي
-                                        </span>
-                                    {% elif account.is_bank_account %}
-                                        <span class="account-type-badge bank-badge bg-light border text-info me-1">
-                                            <i class="fas fa-university me-1"></i>بنكي
-                                        </span>
-                                    {% else %}
-                                        <span class="account-type-badge wallet-badge bg-light border text-secondary me-1">
-                                            <i class="fas fa-wallet me-1"></i>خزينة
-                                        </span>
-                                    {% endif %}
-                                    <span class="badge bg-secondary border" style="font-size: 0.75rem;">{{ account.currency_symbol }}</span>
-                                </div>
-                            </div>
-
-                            <!-- شارات الصلاحيات والإسناد الحوكمي -->
-                            <div class="d-flex flex-wrap align-items-center gap-1 my-2">
-                                {% if request.user.is_superuser %}
-                                    <span class="badge bg-light text-primary border" title="كامل الصلاحيات كمسؤول نظام">
-                                        <i class="fas fa-crown me-1 text-warning"></i>كامل الصلاحيات
-                                    </span>
-                                {% elif account.user_access %}
-                                    {% if account.user_access.can_deposit %}
-                                        <span class="badge bg-light text-success border" title="صلاحية الإيداع والقبض">
-                                            <i class="fas fa-arrow-down me-1 text-success"></i>إيداع
-                                        </span>
-                                    {% endif %}
-                                    {% if account.user_access.can_disburse %}
-                                        <span class="badge bg-light text-warning border" title="صلاحية الصرف والسداد">
-                                            <i class="fas fa-arrow-up me-1 text-warning"></i>صرف
-                                        </span>
-                                    {% endif %}
-                                    {% if account.user_access.is_default %}
-                                        <span class="badge bg-light text-primary border" title="خزينة افتراضية للعملة">
-                                            <i class="fas fa-star me-1 text-warning"></i>افتراضية
-                                        </span>
-                                    {% endif %}
-                                {% endif %}
-
-                                {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
-                                    <span class="badge bg-light text-muted border ms-auto" title="عدد المستخدمين المفوضين بهذه الخزينة">
-                                        <i class="fas fa-users-cog me-1 text-info"></i>{{ account.assigned_users_count }} مفوض
-                                    </span>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- عرض الرصيد المزدوج -->
-                            <div class="balance-display">
-                                <div class="balance-amount">
-                                    {% if account.calculated_balance is not None %}
-                                        {{ account.calculated_balance|default:0|smart_float }}
-                                    {% else %}
-                                        {{ account.opening_balance|default:0|smart_float }}
-                                    {% endif %}
-                                    <span class="fs-6 ms-1">{{ account.currency_symbol }}</span>
-                                </div>
-                                
-                                <!-- القيمة المعادلة بالعملة الرئيسية بخط صغير تحت القيمة الأجنبية -->
-                                {% if account.is_foreign_currency %}
-                                    <div class="balance-base-equivalent">
-                                        ≈ {{ account.calculated_base_balance|smart_float }} {{ base_currency_symbol }}
-                                        {% if account.rate_error %}
-                                            <span class="badge bg-danger text-white ms-1" title="يرجى تسجيل سعر الصرف للعملة {{ account.currency_code }}"><i class="fas fa-exclamation-triangle me-1"></i>سعر الصرف غير مسجل</span>
-                                        {% else %}
-                                            <span class="badge border ms-1" style="background-color: var(--light-bg); color: var(--text-dark);">سعر الصرف: {{ account.current_spot_rate|floatformat:2 }}</span>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- معلومات إضافية -->
-                            <div class="account-info-grid text-center">
-                                <div class="info-item text-center d-flex flex-column align-items-center justify-content-center">
-                                    <div class="info-label text-center w-100">آخر تحديث</div>
-                                    <div class="info-value text-center w-100">
-                                        {% if account.last_movement_date %}
-                                            {% if account.updated_at %}
-                                                {{ account.updated_at|date:"Y-m-d" }} {{ account.updated_at|date:"g:i" }} {% if account.updated_at.hour < 12 %}ص{% else %}م{% endif %}
-                                            {% else %}
-                                                {{ account.last_movement_date|date:"Y-m-d" }}
-                                            {% endif %}
-                                        {% else %}
-                                            لا يوجد حركات
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                        </div>
-
-                        <!-- أزرار الإجراءات السريعة على كل كرت متوافقة مع الحوكمة -->
-                        <div class="card-footer bg-light border-top py-2 px-3 d-flex justify-content-between align-items-center">
-                            <div class="btn-group btn-group-sm">
-                                <a href="{% url 'financial:cash_account_movements' account.id %}" class="btn btn-outline-secondary btn-sm" title="عرض حركات الخزينة">
-                                    <i class="fas fa-history me-1"></i>الحركات
-                                </a>
-                                {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
-                                <a href="{% url 'financial:cash_account_edit' account.id %}" class="btn btn-outline-primary btn-sm" title="تعديل بيانات الخزينة">
-                                    <i class="fas fa-edit me-1"></i>تعديل
-                                </a>
-                                {% endif %}
-                            </div>
-                            {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
-                                <a href="{% url 'financial:treasury_assignments_list' %}?treasury={{ account.id }}" class="btn btn-outline-info btn-sm fw-bold" title="إدارة إسناد هذه الخزينة للمستخدمين">
-                                    <i class="fas fa-user-shield me-1"></i>إسناد
-                                </a>
-                            {% endif %}
-                        </div>
+    <!-- 1. كروت الـ KPI الإحصائية الأربعة المنفصلة -->
+    <div class="row g-3 mb-4">
+        <!-- كارت 1: إجمالي السيولة النقدية والبنكية -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي السيولة النقدية والبنكية</div>
+                        <div class="stats-card-value fs-4 fw-bold text-success">{{ total_balance|smart_float }} <span class="fs-6 text-muted">{{ base_currency_symbol }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-success p-3 rounded-circle">
+                        <i class="fas fa-wallet fa-2x"></i>
                     </div>
                 </div>
-            {% endfor %}
+            </div>
         </div>
 
-    {% else %}
-        <!-- حالة فارغة محسنة -->
-        <div class="empty-state">
-            <div class="empty-icon">
-                <i class="fas fa-money-bill-wave"></i>
+        <!-- كارت 2: إجمالي رصيد عهد الموظفين -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي رصيد عهد الموظفين</div>
+                        <div class="stats-card-value fs-4 fw-bold text-warning">{{ total_custody_balance|smart_float }} <span class="fs-6 text-muted">{{ base_currency_symbol }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
+                        <i class="fas fa-hand-holding-usd fa-2x"></i>
+                    </div>
+                </div>
             </div>
-            <h4 class="empty-title">لا توجد حسابات نقدية أو بنكية مسندة إليك</h4>
-            <p class="empty-description">
-                لم يتم العثور على أي خزن أو حسابات نقدية متاحة لحسابك حالياً.<br>
-                يرجى التواصل مع الإدارة المالية لإسناد الخزينة المخصصة لك.
-            </p>
-            {% if request.user.is_superuser or perms.financial.add_chartofaccounts %}
-            <button type="button" class="btn btn-success" onclick="openQuickAddModal()">
-                <i class="fas fa-plus me-2"></i>إضافة أول خزنة
+        </div>
+
+        <!-- كارت 3: عدد الخزن والحسابات البنكية -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">الخزن والحسابات البنكية</div>
+                        <div class="stats-card-value fs-4 fw-bold text-info">{{ accounts_count }} <span class="fs-7 text-muted">({{ cash_accounts_count }} كاش / {{ bank_accounts_count }} بنك)</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
+                        <i class="fas fa-university fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- كارت 4: عدد العهد وصناديق الموظفين -->
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-primary h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">صناديق وبطاقات العهد</div>
+                        <div class="stats-card-value fs-4 fw-bold text-primary">{{ custody_accounts_count }} <span class="fs-7 text-muted">عهدة مسجلة</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-primary p-3 rounded-circle">
+                        <i class="fas fa-id-card-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Dual-View Nav Tabs (الخزن والبنوك | صناديق وبطاقات عهد الموظفين) -->
+    <ul class="nav nav-pills mb-4 border-bottom pb-2" id="treasuryViewTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold px-4 py-2 me-2" id="treasury-tab" data-bs-toggle="pill" data-bs-target="#treasury-view" type="button" role="tab">
+                <i class="fas fa-vault me-2"></i>الخزن والحسابات البنكية الرئيسية ({{ accounts_count }})
             </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold px-4 py-2" id="custody-tab" data-bs-toggle="pill" data-bs-target="#custody-view" type="button" role="tab">
+                <i class="fas fa-user-tag me-2"></i>صناديق وبطاقات عهد الموظفين ({{ custody_accounts_count }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="treasuryViewTabsContent">
+        <!-- View 1: شبكة كروت الخزن والحسابات البنكية -->
+        <div class="tab-pane fade show active" id="treasury-view" role="tabpanel">
+            {% if accounts %}
+                <div class="row">
+                    {% for account in accounts %}
+                        <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                            <div class="card cash-account-card h-100 border shadow-sm">
+                                <div class="card-body clickable-card cursor-pointer" data-href="{% url 'financial:cash_account_movements' account.id %}">
+                                    <!-- رأس الكرت -->
+                                    <div class="account-header">
+                                        <div class="flex-grow-1">
+                                            <h5 class="account-title mb-1">
+                                                <a href="{% url 'financial:cash_account_movements' account.id %}" class="text-reset text-decoration-none fw-bold">
+                                                    {{ account.name }}
+                                                </a>
+                                            </h5>
+                                            <span class="account-code">{{ account.code }}</span>
+                                        </div>
+                                        
+                                        <!-- نوع الحساب والعملة -->
+                                        <div class="text-end">
+                                            {% if account.is_cash_account %}
+                                                <span class="account-type-badge cash-badge bg-light border text-primary me-1">
+                                                    <i class="fas fa-money-bill-wave me-1"></i>نقدي
+                                                </span>
+                                            {% elif account.is_bank_account %}
+                                                <span class="account-type-badge bank-badge bg-light border text-info me-1">
+                                                    <i class="fas fa-university me-1"></i>بنكي
+                                                </span>
+                                            {% else %}
+                                                <span class="account-type-badge wallet-badge bg-light border text-secondary me-1">
+                                                    <i class="fas fa-wallet me-1"></i>خزينة
+                                                </span>
+                                            {% endif %}
+                                            <span class="badge bg-secondary border" style="font-size: 0.75rem;">{{ account.currency_symbol }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- شارات الصلاحيات والإسناد الحوكمي -->
+                                    <div class="d-flex flex-wrap align-items-center gap-1 my-2">
+                                        {% if request.user.is_superuser %}
+                                            <span class="badge bg-light text-primary border" title="كامل الصلاحيات كمسؤول نظام">
+                                                <i class="fas fa-crown me-1 text-warning"></i>كامل الصلاحيات
+                                            </span>
+                                        {% elif account.user_access %}
+                                            {% if account.user_access.can_deposit %}
+                                                <span class="badge bg-light text-success border" title="صلاحية الإيداع والقبض">
+                                                    <i class="fas fa-arrow-down me-1 text-success"></i>إيداع
+                                                </span>
+                                            {% endif %}
+                                            {% if account.user_access.can_disburse %}
+                                                <span class="badge bg-light text-warning border" title="صلاحية الصرف والسداد">
+                                                    <i class="fas fa-arrow-up me-1 text-warning"></i>صرف
+                                                </span>
+                                            {% endif %}
+                                            {% if account.user_access.is_default %}
+                                                <span class="badge bg-light text-primary border" title="خزينة افتراضية للعملة">
+                                                    <i class="fas fa-star me-1 text-warning"></i>افتراضية
+                                                </span>
+                                            {% endif %}
+                                        {% endif %}
+
+                                        {% if request.user.is_superuser or perms.financial.change_chartofaccounts %}
+                                            <span class="badge bg-light text-muted border ms-auto" title="عدد المستخدمين المفوضين بهذه الخزينة">
+                                                <i class="fas fa-users-cog me-1 text-info"></i>{{ account.assigned_users_count }} مفوض
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- عرض الرصيد المزدوج -->
+                                    <div class="balance-display">
+                                        <div class="balance-amount">
+                                            {% if account.calculated_balance is not None %}
+                                                {{ account.calculated_balance|default:0|smart_float }}
+                                            {% else %}
+                                                {{ account.opening_balance|default:0|smart_float }}
+                                            {% endif %}
+                                            <span class="fs-6 ms-1">{{ account.currency_symbol }}</span>
+                                        </div>
+                                        
+                                        {% if account.is_foreign_currency %}
+                                            <div class="balance-base-equivalent">
+                                                ≈ {{ account.calculated_base_balance|smart_float }} {{ base_currency_symbol }}
+                                                {% if account.rate_error %}
+                                                    <span class="badge bg-danger text-white ms-1" title="يرجى تسجيل سعر الصرف للعملة {{ account.currency_code }}"><i class="fas fa-exclamation-triangle me-1"></i>سعر الصرف غير مسجل</span>
+                                                {% else %}
+                                                    <span class="text-muted ms-1">(1 {{ account.currency_code }} = {{ account.effective_exchange_rate|floatformat:4 }} {{ base_currency_symbol }})</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- معلومات إضافية -->
+                                    <div class="account-info-grid">
+                                        <div class="info-item">
+                                            <span class="info-label">آخر حركة مالية</span>
+                                            <span class="info-value">
+                                                {% if account.last_movement_date %}
+                                                    {{ account.last_movement_date|date:"Y-m-d" }}
+                                                {% else %}
+                                                    <span class="text-muted">لا توجد حركات</span>
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- أزرار العمليات السريعة -->
+                                <div class="card-footer bg-light border-top p-2 text-center">
+                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                        <a href="{% url 'financial:cash_account_movements' account.id %}" class="btn btn-outline-secondary" title="كشف الحساب">
+                                            <i class="fas fa-list me-1"></i>كشف الحساب
+                                        </a>
+                                        {% if perms.financial.change_chartofaccounts or request.user.is_superuser %}
+                                            <button type="button" class="btn btn-outline-primary" onclick="openTransferModalFor('{{ account.id }}', '{{ account.currency_id }}', '{{ account.currency_symbol }}')" title="تحويل مالي">
+                                                <i class="fas fa-exchange-alt me-1"></i>تحويل
+                                            </button>
+                                            <a href="{% url 'financial:treasury_assignments_list' %}" class="btn btn-outline-info" title="إدارة المفوضين">
+                                                <i class="fas fa-user-shield me-1"></i>المفوضين
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="section-container text-center py-5">
+                    <i class="fas fa-wallet fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">لا توجد خزن أو حسابات بنكية مفعلة</h5>
+                </div>
             {% endif %}
         </div>
-    {% endif %}
-    
-    <!-- Modal إضافة خزنة/بنك سريع المحسن بـ 2 عامود وتفاعلي -->
-    <div class="modal fade" id="quickAddModal" tabindex="-1" aria-labelledby="quickAddModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="quickAddModalLabel">
-                        <i class="fas fa-plus-circle me-2 text-success" id="quickAddIcon"></i><span id="quickAddTitleText">إضافة خزنة نقدية أو حساب بنكي</span>
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="quickAddForm">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <!-- نوع الحساب المحسن -->
-                        <div class="mb-4 text-center">
-                            <label class="form-label fw-bold mb-2">اختر نوع الحساب <span class="text-danger">*</span></label>
-                            <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="account_type" id="type_cash" value="cash" checked autocomplete="off">
-                                <label class="btn btn-outline-primary py-2 fw-bold" for="type_cash">
-                                    <i class="fas fa-money-bill-wave me-2"></i>خزنة نقدية
-                                </label>
-                                
-                                <input type="radio" class="btn-check" name="account_type" id="type_bank" value="bank" autocomplete="off">
-                                <label class="btn btn-outline-primary py-2 fw-bold" for="type_bank">
-                                    <i class="fas fa-university me-2"></i>حساب بنكي
-                                </label>
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <!-- العمود الأول: البيانات الأساسية -->
-                            <div class="col-md-6 border-end-md">
-                                <h6 class="text-muted fw-bold mb-3 border-bottom pb-2">
-                                    <i class="fas fa-info-circle me-1 text-primary"></i>البيانات الأساسية
-                                </h6>
-                                
-                                <!-- اسم الحساب -->
-                                <div class="mb-3">
-                                    <label for="account_name" class="form-label">الاسم <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="account_name" name="name" required placeholder="مثال: الخزنة الرئيسية">
-                                </div>
+        <!-- View 2: جدول صناديق وبطاقات عهد الموظفين -->
+        <div class="tab-pane fade" id="custody-view" role="tabpanel">
+            <div class="section-container mb-4">
+                <h5 class="section-title mb-3">
+                    <i class="fas fa-id-card-alt me-2 text-primary"></i>صناديق وبطاقات عهد الموظفين المسجلة في دليل الحسابات
+                </h5>
 
-                                <!-- العملة -->
-                                <div class="mb-3">
-                                    <label for="currency_id" class="form-label">عملة الحساب <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="currency_id" name="currency_id">
-                                        {% for curr in currencies %}
-                                            <option value="{{ curr.id }}" data-code="{{ curr.code }}" {% if curr.is_functional %}selected{% endif %}>
-                                                {{ curr.code }} - {{ curr.name }} {% if curr.is_functional %}(العملة الأساسية){% endif %}
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                
-                                <!-- الرصيد الافتتاحي -->
-                                <div class="mb-3">
-                                    <label for="opening_balance" class="form-label">الرصيد الافتتاحي</label>
-                                    <input type="number" class="form-control" id="opening_balance" name="opening_balance" value="0" min="0" step="0.01" placeholder="0.00">
-                                </div>
-                                
-                                <!-- تاريخ الرصيد -->
-                                <div class="mb-3">
-                                    <label for="opening_balance_date" class="form-label">تاريخ الرصيد الافتتاحي</label>
-                                    <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date" value="{% now 'Y-m-d' %}">
-                                </div>
-                            </div>
-
-                            <!-- العمود الثاني: البيانات التفاعلية والتفاصيل -->
-                            <div class="col-md-6 d-flex flex-column">
-                                <h6 class="text-muted fw-bold mb-3 border-bottom pb-2">
-                                    <i class="fas fa-sliders-h me-1 text-primary"></i>التفاصيل والتخصيص
-                                </h6>
-
-                                <!-- حقول الخزنة النقدية -->
-                                <div id="cash_fields_container">
-                                    <div class="mb-3">
-                                        <label for="custodian" class="form-label">أمين الخزنة / المسؤول (اختياري)</label>
-                                        <input type="text" class="form-control" id="custodian" name="custodian" placeholder="مثال: أحمد محمود">
-                                    </div>
-                                </div>
-
-                                <!-- حقول الحساب البنكي (مخفية افتراضياً وتظهر عند اختيار بنك) -->
-                                <div id="bank_fields_container" style="display: none;">
-                                    <div class="mb-3">
-                                        <label for="bank_name" class="form-label">اسم البنك (اختياري)</label>
-                                        <input type="text" class="form-control" id="bank_name" name="bank_name" placeholder="مثال: البنك الأهلي المصري">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="account_number" class="form-label">رقم الحساب البنكي (اختياري)</label>
-                                        <input type="text" class="form-control" id="account_number" name="account_number" placeholder="مثال: 1234567890">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="iban" class="form-label">رقم الآيبان IBAN / SWIFT (اختياري)</label>
-                                        <input type="text" class="form-control" id="iban" name="iban" placeholder="مثال: EG12345678901234567890">
-                                    </div>
-                                </div>
-                                
-                                <!-- الوصف الممتد للارتفاع المتبقي -->
-                                <div class="mb-3 flex-grow-1 d-flex flex-column">
-                                    <label for="description" class="form-label">الوصف / ملاحظات</label>
-                                    <textarea class="form-control flex-grow-1" id="description" name="description" style="resize: vertical;" placeholder="ملاحظات أو وصف اختياري للحساب"></textarea>
-                                </div>
-                            </div>
-                        </div>
+                {% if custody_accounts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle border mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 120px;">كود الحساب</th>
+                                    <th>اسم صندوق / بطاقة العهدة</th>
+                                    <th>نوع العهدة</th>
+                                    <th>الموظف المسؤول</th>
+                                    <th>مقر العمل</th>
+                                    <th>رقم البطاقة</th>
+                                    <th class="text-end">الرصيد المتاح</th>
+                                    <th class="text-center" style="width: 160px;">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ca in custody_accounts %}
+                                    <tr>
+                                        <td><span class="badge bg-light text-dark border font-monospace">{{ ca.code }}</span></td>
+                                        <td>
+                                            <a href="{% url 'financial:cash_account_movements' ca.id %}" class="text-decoration-none fw-bold text-dark">
+                                                {{ ca.name }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if ca.custody_type == 'permanent' %}
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success">عهدة مستديمة</span>
+                                            {% elif ca.custody_type == 'temporary' %}
+                                                <span class="badge bg-info bg-opacity-10 text-info border border-info">عهدة مؤقتة</span>
+                                            {% elif ca.custody_type == 'collection' %}
+                                                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">تحصيل مبيعات</span>
+                                            {% elif ca.custody_type == 'card' %}
+                                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary">بطاقة بنكية</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">عهدة موظف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if ca.assigned_employee %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-user-check text-success me-2"></i>
+                                                    <div>
+                                                        <div class="fw-bold fs-7">{{ ca.assigned_employee.name }}</div>
+                                                        <small class="text-muted">{{ ca.assigned_employee.employee_number }}</small>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-danger fs-7"><i class="fas fa-exclamation-circle me-1"></i>غير مسند لموظف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ca.work_location.name_ar|default:"المقر الرئيسي" }}</td>
+                                        <td>
+                                            {% if ca.card_masked_number %}
+                                                <span class="font-monospace fs-7 bg-light px-2 py-1 border rounded">{{ ca.card_masked_number }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            <span class="fw-bold fs-6 text-success">{{ ca.current_balance|smart_float }}</span>
+                                            <small class="text-muted ms-1">{{ ca.currency.symbol|default:base_currency_symbol }}</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'financial:cash_account_movements' ca.id %}" class="btn btn-outline-secondary" title="كشف الحركات">
+                                                    <i class="fas fa-list"></i>
+                                                </a>
+                                                {% if perms.financial.change_chartofaccounts or request.user.is_superuser %}
+                                                    <button type="button" class="btn btn-outline-primary" onclick="openAssignModal('{{ ca.id }}', '{{ ca.name|escapejs }}', '{{ ca.assigned_employee.id|default:0 }}')" title="إسناد / تغيير المسؤول">
+                                                        <i class="fas fa-user-edit"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-2"></i>إلغاء
-                        </button>
-                        <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save me-2"></i>حفظ الحساب
-                        </button>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-id-card fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">لا توجد حسابات عهد مسجلة حتى الآن. يمكنك تفعيل خاصية العهدة من شجرة الحسابات.</h6>
                     </div>
-                </form>
+                {% endif %}
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Modal التحويل بين الخزائن -->
-    <div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="transferModalLabel">
-                        <i class="fas fa-exchange-alt me-2 text-primary"></i>تحويل مالي بين الخزائن والحسابات
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="transferForm">
-                    {% csrf_token %}
-                    <div class="modal-body">
-                        <div class="row">
-                            <!-- الحساب المصدر -->
-                            <div class="col-md-6 mb-3">
-                                <label for="from_account" class="form-label">من خزنة / حساب <span class="text-danger">*</span></label>
-                                <select class="form-select" id="from_account" name="from_account" required>
-                                    <option value="">-- اختر الحساب المصدر --</option>
-                                    {% for acc in accounts %}
-                                        {% if acc.calculated_balance and acc.calculated_balance > 0 %}
-                                            <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}" data-balance="{{ acc.calculated_balance }}">
-                                                {{ acc.name }} (الرصيد المتاح: {{ acc.calculated_balance|smart_float }} {{ acc.currency_symbol }})
-                                            </option>
-                                        {% endif %}
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <!-- الحساب المستهدف -->
-                            <div class="col-md-6 mb-3">
-                                <label for="to_account" class="form-label">إلى خزنة / حساب <span class="text-danger">*</span></label>
-                                <select class="form-select" id="to_account" name="to_account" required>
-                                    <option value="">-- اختر الحساب المستهدف --</option>
-                                    {% for acc in accounts %}
-                                        <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}">
-                                            {{ acc.name }} ({{ acc.currency_code }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <!-- المبلغ المسحوب -->
-                            <div class="col-md-6 mb-3">
-                                <label for="transfer_amount" class="form-label">المبلغ المسحوب من المصدر <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="transfer_amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
-                                    <span class="input-group-text" id="source_symbol_addon">المصدر</span>
-                                </div>
-                            </div>
-                            <!-- المبلغ المودع / الوارد -->
-                            <div class="col-md-6 mb-3">
-                                <label for="destination_amount" class="form-label">المبلغ المودع المقابل (اختياري)</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="destination_amount" name="destination_amount" min="0.01" step="0.01" placeholder="تلقائي بحسب سعر الصرف">
-                                    <span class="input-group-text" id="dest_symbol_addon">المستهدف</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <!-- تاريخ التحويل -->
-                            <div class="col-md-6 mb-3">
-                                <label for="transfer_date" class="form-label">تاريخ التحويل</label>
-                                <input type="date" class="form-control" id="transfer_date" name="transfer_date">
-                            </div>
-                            <!-- مركز التكلفة / الفرع -->
-                            <div class="col-md-6 mb-3">
-                                <label for="cost_center_id" class="form-label">مركز التكلفة / الفرع (اختياري)</label>
-                                <select class="form-select" id="cost_center_id" name="cost_center_id">
-                                    <option value="">-- بدون تحديد --</option>
-                                    {% for cc in cost_centers %}
-                                        <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <!-- رسوم التحويل -->
-                            <div class="col-md-6 mb-3">
-                                <label for="transfer_fee" class="form-label">رسوم/عمولة التحويل (اختياري)</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" id="transfer_fee" name="transfer_fee" value="0" min="0" step="0.01">
-                                    <span class="input-group-text">{{ base_currency_symbol }}</span>
-                                </div>
-                            </div>
-                            <!-- البيان / السبب -->
-                            <div class="col-md-6 mb-3">
-                                <label for="transfer_description" class="form-label">البيان / الوصف</label>
-                                <input type="text" class="form-control" id="transfer_description" name="description" placeholder="سبب أو ملاحظات التحويل">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-2"></i>إلغاء
-                        </button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-check-circle me-2"></i>تأكيد التحويل
-                        </button>
-                    </div>
-                </form>
+<!-- Modal 1: إسناد وتغيير مسؤول العهدة النقدية -->
+<div class="modal fade" id="assignCustodyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-user-shield text-primary me-2"></i>إسناد وتكليف مسؤول العهدة
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form id="assignCustodyForm">
+                {% csrf_token %}
+                <input type="hidden" name="account_id" id="assign_account_id">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">حساب العهدة</label>
+                        <input type="text" id="assign_account_name" class="form-control bg-light" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الموظف المسؤول الجديد <span class="text-danger">*</span></label>
+                        <select name="employee_id" id="assign_employee_select" class="form-select" required>
+                            <option value="">-- اختر الموظف --</option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }}) - {{ emp.job_title.title_ar|default:'' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ملاحظات وقرار التكليف</label>
+                        <textarea name="notes" id="assign_notes" class="form-control" rows="3" placeholder="ملاحظات التسليم والتسلم وتاريخ بدء المسؤولية..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-check-circle me-1"></i>حفظ وتكليف
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
 
+<!-- Modal 2: إضافة خزنة / حساب جديد -->
+<div class="modal fade" id="quickAddModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-plus text-primary me-2"></i>إضافة خزنة أو حساب جديد
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quickAddForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">نوع الحساب <span class="text-danger">*</span></label>
+                        <select name="account_category" id="modal_account_category" class="form-select" required>
+                            <option value="cash">خزينة نقدية (كاش)</option>
+                            <option value="bank">حساب بنكي</option>
+                            <option value="custody">صندوق عهدة موظف</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم الحساب / الخزينة <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="مثال: الخزينة الفرعية - التجمع" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">العملة <span class="text-danger">*</span></label>
+                            <select name="currency_id" class="form-select" required>
+                                {% for cur in currencies %}
+                                    <option value="{{ cur.id }}" {% if cur.is_functional %}selected{% endif %}>{{ cur.name }} ({{ cur.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">الرصيد الافتتاحي</label>
+                            <input type="number" name="opening_balance" step="0.01" class="form-control" value="0.00">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i>حفظ الحساب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 3: التحويل بين الخزائن -->
+<div class="modal fade" id="transferModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-exchange-alt text-primary me-2"></i>تحويل نقدي بين الخزائن
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="transferForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">من خزينة / حساب <span class="text-danger">*</span></label>
+                        <select name="from_account_id" id="from_account" class="form-select" required>
+                            <option value="">-- اختر الحساب المصدر --</option>
+                            {% for acc in accounts %}
+                                <option value="{{ acc.id }}" data-symbol="{{ acc.currency_symbol }}">{{ acc.name }} ({{ acc.code }}) - {{ acc.currency_symbol }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">إلى خزينة / حساب <span class="text-danger">*</span></label>
+                        <select name="to_account_id" id="to_account" class="form-select" required>
+                            <option value="">-- اختر الحساب المستلم --</option>
+                            {% for acc in accounts %}
+                                <option value="{{ acc.id }}" data-symbol="{{ acc.currency_symbol }}">{{ acc.name }} ({{ acc.code }}) - {{ acc.currency_symbol }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">المبلغ المحول <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+                            <span class="input-group-text bg-light" id="dest_symbol_addon">{{ base_currency_symbol }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">بيان التحويل / ملاحظات</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="بيان التحويل الداخلي..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-check me-1"></i>تنفيذ التحويل
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// تفعيل Select2 لعملة الحساب
-function initCurrencySelect2() {
-    if ($('#currency_id').length > 0) {
-        $('#currency_id').select2({
-            theme: 'bootstrap-5',
-            dropdownParent: $('#quickAddModal'),
-            width: '100%',
-            dir: 'rtl'
-        });
-    }
-}
-
-// فتح مودال إضافة خزنة
 function openQuickAddModal() {
     $('#quickAddModal').modal('show');
-    var today = new Date().toISOString().split('T')[0];
-    $('#opening_balance_date').val(today);
 }
 
-// فتح مودال التحويل بين الخزائن
 function openTransferModal() {
     $('#transferModal').modal('show');
-    var today = new Date().toISOString().split('T')[0];
-    $('#transfer_date').val(today);
+}
+
+function openTransferModalFor(accountId, currencyId, currencySymbol) {
+    $('#from_account').val(accountId).trigger('change');
+    $('#transferModal').modal('show');
+}
+
+function openAssignModal(accountId, accountName, currentEmpId) {
+    $('#assign_account_id').val(accountId);
+    $('#assign_account_name').val(accountName);
+    $('#assign_employee_select').val(currentEmpId).trigger('change');
+    $('#assign_notes').val('');
+    $('#assignCustodyModal').modal('show');
 }
 
 $(document).ready(function() {
-    // التنقل عند النقر على كرت الخزينة مع استثناء الروابط والأزرار
-    $(document).on('click', '.clickable-card', function(e) {
-        if (!$(e.target).closest('a, button, input, select, label').length) {
-            var href = $(this).data('href');
-            if (href) {
-                window.location.href = href;
-            }
-        }
-    });
+    // تفعيل Select2 داخل الـ Modals مع dropdownParent
+    if ($.fn.select2) {
+        $('#assign_employee_select').select2({
+            dropdownParent: $('#assignCustodyModal'),
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+        $('#from_account, #to_account').select2({
+            dropdownParent: $('#transferModal'),
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
 
-    // تعيين تاريخ اليوم تلقائياً
-    var today = new Date().toISOString().split('T')[0];
-    $('#transfer_date').val(today);
-    $('#opening_balance_date').val(today);
+    // إرسال فورم إسناد العهدة
+    $('#assignCustodyForm').on('submit', function(e) {
+        e.preventDefault();
+        var submitBtn = $(this).find('button[type="submit"]');
+        var origText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
 
-    // التبديل التفاعلي بين الخزنة النقدية والحساب البنكي
-    $('input[name="account_type"]').on('change', function() {
-        var selectedType = $(this).val();
-        if (selectedType === 'bank') {
-            $('#bank_fields_container').slideDown(200);
-            $('#cash_fields_container').slideUp(200);
-            $('#account_name').attr('placeholder', 'مثال: حساب البنك الأهلي - جاري');
-            $('#quickAddIcon').removeClass('fa-money-bill-wave text-success').addClass('fa-university text-primary');
-            $('#quickAddTitleText').text('إضافة حساب بنكي جديد');
-        } else {
-            $('#bank_fields_container').slideUp(200);
-            $('#cash_fields_container').slideDown(200);
-            $('#account_name').attr('placeholder', 'مثال: الخزنة الرئيسية');
-            $('#quickAddIcon').removeClass('fa-university text-primary').addClass('fa-money-bill-wave text-success');
-            $('#quickAddTitleText').text('إضافة خزنة نقدية جديدة');
-        }
-    });
-
-    // إعادة تعيين المودال عند الإغلاق
-    $('#quickAddModal').on('hidden.bs.modal', function() {
-        $('#quickAddForm')[0].reset();
-        $('#type_cash').prop('checked', true).trigger('change');
-    });
-
-    $('#quickAddModal').on('shown.bs.modal', function() {
-        initCurrencySelect2();
-    });
-
-    // التعديل التفاعلي لرموز العملة واستبعاد الخزنة المختارة من قائمة المستهدف
-    $('#from_account').on('change', function() {
-        var selectedFromId = $(this).val();
-        var symbol = $(this).find(':selected').data('symbol') || 'المصدر';
-        $('#source_symbol_addon').text(symbol);
-
-        // إخفاء الخزنة المختارة كـ "من" من قائمة "إلى"
-        $('#to_account option').each(function() {
-            var val = $(this).val();
-            if (val && val === selectedFromId) {
-                $(this).hide().prop('disabled', true);
-                if ($('#to_account').val() === selectedFromId) {
-                    $('#to_account').val('');
-                    $('#dest_symbol_addon').text('المستهدف');
+        $.ajax({
+            url: '{% url "financial:assign_custody_account_employee" %}',
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(resp) {
+                if (resp.status === 'success') {
+                    $('#assignCustodyModal').modal('hide');
+                    if (window.showNotification) {
+                        window.showNotification(resp.message, 'success', 'تم التكليف بنجاح');
+                    }
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    if (window.showNotification) {
+                        window.showNotification(resp.message || 'حدث خطأ', 'error');
+                    }
+                    submitBtn.prop('disabled', false).html(origText);
                 }
-            } else {
-                $(this).show().prop('disabled', false);
+            },
+            error: function(xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'فشل إسناد مسؤول العهدة';
+                if (window.showNotification) {
+                    window.showNotification(msg, 'error');
+                }
+                submitBtn.prop('disabled', false).html(origText);
             }
         });
-    });
-
-    $('#to_account').on('change', function() {
-        var symbol = $(this).find(':selected').data('symbol') || 'المستهدف';
-        $('#dest_symbol_addon').text(symbol);
     });
 
     // إرسال فورم إضافة خزنة جديدة
@@ -618,7 +672,6 @@ $(document).ready(function() {
         e.preventDefault();
         var submitBtn = $(this).find('button[type="submit"]');
         var originalText = submitBtn.html();
-        
         submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
         
         $.ajax({
@@ -628,35 +681,22 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#quickAddModal').modal('hide');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'تم الحفظ بنجاح',
-                        text: response.message,
-                        confirmButtonText: 'حسناً'
-                    }).then(function() {
-                        location.reload();
-                    });
+                    if (window.showNotification) {
+                        window.showNotification(response.message, 'success');
+                    }
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'خطأ في الحفظ',
-                        text: response.error,
-                        confirmButtonText: 'حسناً'
-                    });
+                    if (window.showNotification) {
+                        window.showNotification(response.error, 'error');
+                    }
                     submitBtn.prop('disabled', false).html(originalText);
                 }
             },
             error: function(xhr) {
-                var errorMsg = 'حدث خطأ أثناء الحفظ';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
+                var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'حدث خطأ أثناء الحفظ';
+                if (window.showNotification) {
+                    window.showNotification(errorMsg, 'error');
                 }
-                Swal.fire({
-                    icon: 'error',
-                    title: 'خطأ',
-                    text: errorMsg,
-                    confirmButtonText: 'حسناً'
-                });
                 submitBtn.prop('disabled', false).html(originalText);
             }
         });
@@ -667,7 +707,6 @@ $(document).ready(function() {
         e.preventDefault();
         var submitBtn = $(this).find('button[type="submit"]');
         var originalText = submitBtn.html();
-
         submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري تنفيذ التحويل...');
 
         $.ajax({
@@ -677,35 +716,22 @@ $(document).ready(function() {
             success: function(response) {
                 if (response.success) {
                     $('#transferModal').modal('hide');
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'تم التحويل بنجاح',
-                        text: response.message,
-                        confirmButtonText: 'حسناً'
-                    }).then(function() {
-                        location.reload();
-                    });
+                    if (window.showNotification) {
+                        window.showNotification(response.message, 'success');
+                    }
+                    setTimeout(function() { location.reload(); }, 1500);
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'فشل التحويل',
-                        text: response.error,
-                        confirmButtonText: 'حسناً'
-                    });
+                    if (window.showNotification) {
+                        window.showNotification(response.error, 'error');
+                    }
                     submitBtn.prop('disabled', false).html(originalText);
                 }
             },
             error: function(xhr) {
-                var errorMsg = 'حدث خطأ أثناء التحويل';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    errorMsg = xhr.responseJSON.error;
+                var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'حدث خطأ أثناء التحويل';
+                if (window.showNotification) {
+                    window.showNotification(errorMsg, 'error');
                 }
-                Swal.fire({
-                    icon: 'error',
-                    title: 'خطأ',
-                    text: errorMsg,
-                    confirmButtonText: 'حسناً'
-                });
                 submitBtn.prop('disabled', false).html(originalText);
             }
         });

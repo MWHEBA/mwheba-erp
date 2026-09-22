@@ -38,6 +38,31 @@ urlpatterns = [
         views.cash_account_delete,
         name="cash_account_delete",
     ),
+    # إسناد وتعديل مسؤول حساب العهدة
+    path(
+        "cash-accounts/assign-custody-employee/",
+        views.assign_custody_account_employee,
+        name="assign_custody_account_employee",
+    ),
+    # ============== نظام عهد وسلف الموظفين ==============
+    # 1. العهد النقدية
+    path("custody/advances/", views.advance_list_view, name="custody_advance_list"),
+    path("custody/advances/create/", views.advance_create_view, name="custody_advance_create"),
+    path("custody/advances/<int:pk>/print/", views.print_advance_view, name="custody_advance_print"),
+    
+    # 2. تسويات العهد
+    path("custody/settlements/", views.settlement_list_view, name="custody_settlement_list"),
+    path("custody/settlements/create/", views.settlement_create_view, name="custody_settlement_create"),
+    path("custody/settlements/<int:pk>/post/", views.settlement_post_action, name="custody_settlement_post"),
+    path("custody/settlements/<int:pk>/print/", views.print_settlement_view, name="custody_settlement_print"),
+
+    # 3. مناقلات العهد
+    path("custody/transfers/", views.transfer_list_view, name="custody_transfer_list"),
+    path("custody/transfers/create/", views.transfer_create_view, name="custody_transfer_create"),
+
+    # 4. محاضر الجرد الفعلي
+    path("custody/counts/", views.count_list_view, name="custody_count_list"),
+    path("custody/counts/create/", views.count_create_view, name="custody_count_create"),
     # إسناد الخزن والحسابات البنكية للمستخدمين (Granular Treasury Assignments)
     path(
         "treasury-assignments/",

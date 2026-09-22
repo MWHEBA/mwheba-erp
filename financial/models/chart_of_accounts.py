@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from django.conf import settings
 from datetime import date
 
@@ -125,6 +126,50 @@ class ChartOfAccounts(models.Model):
     is_cash_account = models.BooleanField(_("حساب نقدي"), default=False)
     is_reconcilable = models.BooleanField(_("يخضع للتسوية"), default=False)
     is_control_account = models.BooleanField(_("حساب رقابي"), default=False)
+    
+    # خصائص حسابات العهد
+    is_custody_account = models.BooleanField(
+        _("حساب عهدة موظف"),
+        default=False,
+        help_text=_("تحديد الحساب كعهدة موظف نقدية أو بطاقة عهدة بنكية"),
+    )
+    custody_type = models.CharField(
+        _("نوع العهدة"),
+        max_length=20,
+        choices=(
+            ("permanent", _("عهدة مستديمة")),
+            ("temporary", _("عهدة مؤقتة")),
+            ("collection", _("عهدة تحصيل مبيعات")),
+            ("card", _("بطاقة عهدة بنكية")),
+            ("check", _("عهدة شيكات تحت التسليم")),
+            ("fuel", _("عهدة كارت وقود")),
+        ),
+        null=True,
+        blank=True,
+    )
+    assigned_employee = models.ForeignKey(
+        "hr.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_custody_accounts",
+        verbose_name=_("الموظف المسؤول عن العهدة"),
+    )
+    card_masked_number = models.CharField(
+        _("رقم البطاقة المقنع"),
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text=_("أربعة أرقام أخيرة فقط لأمان PCI-DSS (مثال: **** **** **** 1234)"),
+    )
+    work_location = models.ForeignKey(
+        "hr.WorkLocation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="custody_accounts",
+        verbose_name=_("مقر العمل"),
+    )
     currency = models.ForeignKey(
         'financial.Currency',
         on_delete=models.SET_NULL,

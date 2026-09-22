@@ -97,6 +97,20 @@ from financial.fx.models import (
 )
 from .approval import EnterpriseApprovalRule, EnterpriseApprovalRequest, EnterpriseApprovalStep, EnterpriseApprovalAuditLog
 from .treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
+from .custody_history import CustodyAssignmentHistory
+from .custody import (
+    CustodyAdvanceStatus,
+    SettlementStatus,
+    SettlementLineType,
+    SettlementLineStatus,
+    PaymentChannel,
+    VarianceRouting,
+    EmployeeCustodyAdvance,
+    PettyCashSettlement,
+    PettyCashSettlementLine,
+    CustodyTransfer,
+    PettyCashCount,
+)
 
 __all__ = [
     # النماذج الأساسية
@@ -159,4 +173,17 @@ __all__ = [
     "FXRevaluationLine",
     "FXRateSnapshot",
     "FXApprovalWorkflow",
+    # نماذج العهد المالية والنقدية وبطاقات العهدة
+    "CustodyAssignmentHistory",
+    "EmployeeCustodyAdvance",
+    "PettyCashSettlement",
+    "PettyCashSettlementLine",
+    "CustodyTransfer",
+    "PettyCashCount",
+    "CustodyAdvanceStatus",
+    "SettlementStatus",
+    "SettlementLineType",
+    "SettlementLineStatus",
+    "PaymentChannel",
+    "VarianceRouting",
 ]

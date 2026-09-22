@@ -23,6 +23,15 @@ class UserTreasuryAccess(models.Model):
         related_name="treasury_accesses",
         verbose_name=_("المستخدم"),
     )
+    employee = models.ForeignKey(
+        "hr.Employee",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="treasury_accesses",
+        verbose_name=_("الموظف"),
+        help_text=_("ربط الإسناد بالموظف مباشرة للعهد والخدمة الذاتية"),
+    )
     treasury = models.ForeignKey(
         "financial.ChartOfAccounts",
         on_delete=models.CASCADE,
