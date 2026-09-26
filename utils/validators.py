@@ -4,6 +4,27 @@ import re
 import os
 
 
+def sanitize_email(value):
+    """
+    تنظيف وتطهير البريد الإلكتروني من المسافات والمحارف غير المرئية ومحارف اتجاه النص (Bidi Control Chars)
+    """
+    if not value:
+        return ""
+    # إزالة كافة المسافات والمحارف غير المرئية وعلامات اتجاه النص Bidi (LTR/RTL marks, zero-width chars, BOM, non-breaking space)
+    clean_val = re.sub(r'[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]', '', str(value))
+    return clean_val.strip().lower()
+
+
+def sanitize_username(value):
+    """
+    تنظيف وتطهير اسم المستخدم من المسافات والمحارف غير المرئية ومحارف اتجاه النص
+    """
+    if not value:
+        return ""
+    clean_val = re.sub(r'[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]', '', str(value))
+    return clean_val.strip()
+
+
 def validate_phone_number(value):
     """
     التحقق من صحة رقم الهاتف

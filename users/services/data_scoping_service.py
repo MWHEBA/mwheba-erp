@@ -41,7 +41,7 @@ class DataScopingService:
             ~Q(custom_permissions__codename__in=['add_sale', 'view_sale', 'add_salesorder', 'add_quotation'])
         )
 
-        base_filter = Q(is_active=True) & ~excluded_filter
+        base_filter = Q(is_active=True) & ~excluded_filter & ~User.get_hidden_filter()
         if include_user_id:
             base_filter = base_filter | Q(pk=include_user_id)
 

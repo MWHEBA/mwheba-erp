@@ -211,7 +211,12 @@ class SupplierForm(forms.ModelForm):
                 raise forms.ValidationError(
                     _("هذا الكود مستخدم من قبل، الرجاء استخدام كود آخر")
                 )
-        return code
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email:
+            from utils.validators import sanitize_email
+            return sanitize_email(email)
+        return email
 
     def clean(self):
         cleaned_data = super().clean()

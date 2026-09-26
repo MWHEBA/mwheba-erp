@@ -247,8 +247,8 @@ class UserEmployeeService:
     
     @staticmethod
     def get_unlinked_users():
-        """الحصول على المستخدمين غير المرتبطين بموظفين"""
-        return User.objects.filter(employee_profile__isnull=True)
+        """الحصول على المستخدمين غير المرتبطين بموظفين (مع استبعاد حسابات النظام المخفية)"""
+        return User.objects.exclude(User.get_hidden_filter()).filter(employee_profile__isnull=True)
     
     @staticmethod
     def auto_link_by_email():

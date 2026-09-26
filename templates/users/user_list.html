@@ -568,6 +568,13 @@ function initCreateUserModalEvents() {
         });
     });
 
+    // تطهير البريد الإلكتروني واسم المستخدم فورياً من المسافات والمحارف المخفية
+    $('#create_email, #create_username, #edit_email').on('input paste blur', function() {
+        const isEmail = this.type === 'email' || this.id.includes('email');
+        const cleaned = this.value.replace(/[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g, '');
+        this.value = isEmail ? cleaned.toLowerCase() : cleaned;
+    });
+
     // إعادة ضبط النموذج عند إغلاق النافذة
     const createModalEl = document.getElementById('createUserModal');
     if (createModalEl) {
@@ -591,6 +598,12 @@ function initCreateUserModalEvents() {
     if (createForm) {
         createForm.addEventListener('submit', function(e) {
             e.preventDefault();
+
+            // تنظيف الحقول قبل الإرسال
+            const emailInp = document.getElementById('create_email');
+            const userInp = document.getElementById('create_username');
+            if (emailInp) emailInp.value = emailInp.value.replace(/[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g, '').toLowerCase();
+            if (userInp) userInp.value = userInp.value.replace(/[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g, '');
 
             const p1 = document.getElementById('create_password1').value;
             const p2 = document.getElementById('create_password2').value;
@@ -926,6 +939,10 @@ if (togglePasswordBtn) {
 // حفظ تعديلات المستخدم
 document.getElementById('editUserForm').addEventListener('submit', function(e) {
     e.preventDefault();
+
+    const editEmail = document.getElementById('edit_email');
+    if (editEmail) editEmail.value = editEmail.value.replace(/[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g, '').toLowerCase();
+
     const submitBtn = document.getElementById('editUserSubmitBtn');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';

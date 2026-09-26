@@ -81,8 +81,8 @@ class UserManagementService(TransactionalService):
                 # Get custom permission IDs once to avoid repeated queries
                 custom_perm_ids = list(PermissionService.get_custom_permissions_only().values_list('id', flat=True))
                 
-                # Optimized query with all necessary relations (including inactive users)
-                users = User.objects.all().select_related('role').prefetch_related(
+                # Optimized query with all necessary relations (including inactive users, excluding hidden system users)
+                users = User.objects.exclude(User.get_hidden_filter()).select_related('role').prefetch_related(
                     'secondary_roles',
                     Prefetch(
                         'custom_permissions',
@@ -296,24 +296,25 @@ class UserManagementService(TransactionalService):
         """
         with monitor_operation("get_system_permission_statistics"):
             try:
-                # Basic counts with optimized queries
-                total_users = User.objects.filter(is_active=True).count()
+                # Basic counts with optimized queries excluding hidden system users
+                hidden_q = User.get_hidden_filter()
+                total_users = User.objects.exclude(hidden_q).filter(is_active=True).count()
                 total_roles = Role.objects.filter(is_active=True).count()
                 total_custom_permissions = PermissionService.get_custom_permissions_only().count()
                 
                 # Users with roles
-                users_with_roles = User.objects.filter(role__isnull=False, is_active=True).count()
+                users_with_roles = User.objects.exclude(hidden_q).filter(role__isnull=False, is_active=True).count()
                 
                 # Users with direct custom permissions - optimized query
                 custom_perm_ids = PermissionService.get_custom_permissions_only().values_list('id', flat=True)
-                users_with_direct_custom_perms = User.objects.filter(
+                users_with_direct_custom_perms = User.objects.exclude(hidden_q).filter(
                     user_permissions__in=custom_perm_ids,
                     is_active=True
                 ).distinct().count()
                 
                 # Role usage statistics with optimized queries
                 roles_with_counts = Role.objects.filter(is_active=True).annotate(
-                    active_users_count=Count('users', filter=Q(users__is_active=True))
+                    active_users_count=Count('users', filter=Q(users__is_active=True) & ~hidden_q)
                 ).prefetch_related(
                     Prefetch(
                         'permissions',
@@ -446,8 +447,8 @@ class UserManagementService(TransactionalService):
         """
         with monitor_operation("search_users"):
             try:
-                # Start with all users (including inactive)
-                users_query = User.objects.all()
+                # Start with all users (including inactive, excluding hidden system users)
+                users_query = User.objects.exclude(User.get_hidden_filter())
                 
                 # Apply search query
                 if query:

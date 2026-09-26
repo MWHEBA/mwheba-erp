@@ -274,10 +274,11 @@ def permissions_dashboard(request):
 def _get_overview_tab_data(request):
     """Get data for overview tab."""
     try:
-        # Basic statistics
-        total_users = User.objects.filter(is_active=True).count()
+        # Basic statistics excluding hidden system users
+        hidden_q = User.get_hidden_filter()
+        total_users = User.objects.exclude(hidden_q).filter(is_active=True).count()
         total_roles = Role.objects.filter(is_active=True).count()
-        users_with_roles = User.objects.filter(role__isnull=False, is_active=True).count()
+        users_with_roles = User.objects.exclude(hidden_q).filter(role__isnull=False, is_active=True).count()
         users_without_roles = total_users - users_with_roles
         
         # Recent activity (last 7 days)
@@ -286,14 +287,14 @@ def _get_overview_tab_data(request):
         week_ago = timezone.now() - timedelta(days=7)
         
         # Get recent users (created in last 7 days)
-        recent_users = User.objects.filter(
+        recent_users = User.objects.exclude(hidden_q).filter(
             date_joined__gte=week_ago,
             is_active=True
         ).select_related('role').order_by('-date_joined')[:5]
         
         # Get active roles with user counts - using different field name
         active_roles = Role.objects.filter(is_active=True).annotate(
-            user_count=Count('users', filter=Q(users__is_active=True))
+            user_count=Count('users', filter=Q(users__is_active=True) & ~hidden_q)
         ).order_by('-user_count')[:5]
         
         return {
@@ -326,9 +327,10 @@ def _get_overview_tab_data(request):
 def _get_roles_tab_data(request):
     """Get data for roles management tab."""
     try:
-        # Get all roles with user counts and annotated permissions count (N+1 free)
+        # Get all roles with user counts and annotated permissions count (N+1 free, excluding hidden system users)
+        hidden_q = User.get_hidden_filter()
         roles = Role.objects.select_related('parent_role').annotate(
-            user_count=Count('users', filter=Q(users__is_active=True), distinct=True),
+            user_count=Count('users', filter=Q(users__is_active=True) & ~hidden_q, distinct=True),
             permissions_count_annotated=Count('permissions', distinct=True)
         ).order_by('-is_system_role', 'display_name')
         

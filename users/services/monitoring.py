@@ -38,14 +38,15 @@ class PermissionMonitoringService:
             dict: System health status
         """
         try:
-            # Basic counts
-            total_users = User.objects.filter(is_active=True).count()
+            # Basic counts excluding hidden system users
+            hidden_q = User.get_hidden_filter()
+            total_users = User.objects.exclude(hidden_q).filter(is_active=True).count()
             total_roles = Role.objects.filter(is_active=True).count()
-            users_with_roles = User.objects.filter(role__isnull=False, is_active=True).count()
+            users_with_roles = User.objects.exclude(hidden_q).filter(role__isnull=False, is_active=True).count()
             
             # Recent activity (last 24 hours)
             since_yesterday = timezone.now() - timedelta(days=1)
-            recent_logins = User.objects.filter(last_login__gte=since_yesterday).count()
+            recent_logins = User.objects.exclude(hidden_q).filter(last_login__gte=since_yesterday).count()
             
             # Calculate health score
             role_coverage = (users_with_roles / total_users * 100) if total_users > 0 else 0

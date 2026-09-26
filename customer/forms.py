@@ -222,6 +222,13 @@ class CustomerForm(forms.ModelForm):
         risk = self.cleaned_data.get("risk_category")
         return risk or "LOW"
 
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if email:
+            from utils.validators import sanitize_email
+            return sanitize_email(email)
+        return email
+
     def clean_national_id(self):
         """التحقق من صحة الرقم القومي المصري عند إدخاله"""
         national_id = self.cleaned_data.get("national_id")

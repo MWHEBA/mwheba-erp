@@ -3,7 +3,7 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}تسجيل الدخول | نظام موهبة{% endblock %}
+{% block title %}تسجيل الدخول | MWHEBA ERP{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -20,51 +20,55 @@
 <div class="auth-container">
     <div class="logo-container">
         {% if settings.company_logo %}
-            <img src="{{ MEDIA_URL }}{{ settings.company_logo }}" alt="{{ settings.company_name|default:'شعار النظام' }}" class="img-fluid login-logo">
+        <img src="{{ MEDIA_URL }}{{ settings.company_logo }}" alt="{{ settings.company_name|default:'شعار النظام' }}"
+            class="img-fluid login-logo">
         {% else %}
-            <img src="{% static 'img/logo.png' %}" alt="شعار نظام موهبة" class="img-fluid login-logo">
+        <img src="{% static 'img/logo.png' %}" alt="شعار MWHEBA ERP" class="img-fluid login-logo">
         {% endif %}
     </div>
-    
+
     <div class="welcome-message">
         <h3>مرحبًا بك مجددًا</h3>
         <p>يرجى تسجيل الدخول للوصول إلى حسابك</p>
     </div>
-    
+
     <div class="auth-form">
         <form method="post" action="{% url 'login' %}">
             {% csrf_token %}
             {% if next %}
             <input type="hidden" name="next" value="{{ next }}">
             {% endif %}
-            
+
             {% if form.errors %}
             <div class="alert alert-danger alert-dismissible fade show py-2 px-3 mb-3 small" role="alert">
                 <i class="fas fa-exclamation-circle me-1"></i>
                 <strong>خطأ!</strong> اسم المستخدم أو كلمة المرور غير صحيحة.
-                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+                <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"
+                    aria-label="إغلاق"></button>
             </div>
             {% endif %}
-            
+
             <div class="form-group mb-3">
                 <label for="id_username" class="form-label">اسم المستخدم أو البريد الإلكتروني</label>
                 <div class="position-relative">
                     <i class="fas fa-user input-icon"></i>
-                    <input type="text" name="username" id="id_username" class="form-control input-with-icon" placeholder="اسم المستخدم أو البريد" required autofocus autocomplete="username">
+                    <input type="text" name="username" id="id_username" class="form-control input-with-icon"
+                        placeholder="اسم المستخدم أو البريد" required autofocus autocomplete="username">
                 </div>
             </div>
-            
+
             <div class="form-group mb-3">
                 <label for="id_password" class="form-label">كلمة المرور</label>
                 <div class="position-relative">
                     <i class="fas fa-lock input-icon"></i>
-                    <input type="password" name="password" id="id_password" class="form-control input-with-icon" placeholder="كلمة المرور" required autocomplete="current-password">
+                    <input type="password" name="password" id="id_password" class="form-control input-with-icon"
+                        placeholder="كلمة المرور" required autocomplete="current-password">
                     <span class="toggle-password" role="button" title="عرض/إخفاء كلمة المرور">
                         <i class="fas fa-eye"></i>
                     </span>
                 </div>
             </div>
-            
+
             <div class="d-flex align-items-center justify-content-between mb-4 mt-2">
                 <div class="form-check m-0">
                     <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me">
@@ -74,7 +78,7 @@
                     <i class="fas fa-key me-1"></i> نسيت كلمة المرور؟
                 </a>
             </div>
-            
+
             <button type="submit" class="auth-button">
                 <i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول
             </button>
@@ -86,10 +90,10 @@
 {% block extra_js %}
 <script>
     // تبديل عرض كلمة المرور
-    document.querySelector('.toggle-password').addEventListener('click', function() {
+    document.querySelector('.toggle-password').addEventListener('click', function () {
         const passwordInput = document.getElementById('id_password');
         const icon = this.querySelector('i');
-        
+
         if (passwordInput.type === 'password') {
             passwordInput.type = 'text';
             icon.classList.remove('fa-eye');
@@ -101,4 +105,4 @@
         }
     });
 </script>
-{% endblock %} 
+{% endblock %}

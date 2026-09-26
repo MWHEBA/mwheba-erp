@@ -1143,4 +1143,61 @@ function initDropdowns() {
     } else {
         initSelect2Autofocus();
     }
+})();
+
+// ====================================================
+// Global Auto-Sanitizer for Emails, Usernames & Inputs
+// (Eliminates hidden unicode chars, zero-width spaces, LTR/RTL marks & spaces)
+// ====================================================
+(function() {
+    const INVISIBLE_AND_SPACES_REGEX = /[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g;
+
+    window.sanitizeInputString = function(str, isEmail) {
+        if (!str || typeof str !== 'string') return '';
+        let cleaned = str.replace(INVISIBLE_AND_SPACES_REGEX, '');
+        return isEmail ? cleaned.toLowerCase() : cleaned;
+    };
+
+    function sanitizeField(input) {
+        if (!input || input.readOnly || input.disabled) return;
+        const isEmail = input.type === 'email' || 
+                        (input.name && input.name.toLowerCase().includes('email')) || 
+                        (input.id && input.id.toLowerCase().includes('email'));
+        const originalVal = input.value;
+        if (!originalVal) return;
+        const sanitized = window.sanitizeInputString(originalVal, isEmail);
+        if (originalVal !== sanitized) {
+            input.value = sanitized;
+        }
+    }
+
+    const FIELD_SELECTOR = 'input[type="email"], input[name*="email" i], input[id*="email" i], input[name="username"], input[id*="username" i]';
+
+    // أحداث الإدخال واللصق وفقدان التركيز (Input, Paste, Blur, Change)
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.matches && e.target.matches(FIELD_SELECTOR)) {
+            sanitizeField(e.target);
+        }
+    }, true);
+
+    document.addEventListener('paste', function(e) {
+        if (e.target && e.target.matches && e.target.matches(FIELD_SELECTOR)) {
+            setTimeout(function() { sanitizeField(e.target); }, 0);
+        }
+    }, true);
+
+    document.addEventListener('blur', function(e) {
+        if (e.target && e.target.matches && e.target.matches(FIELD_SELECTOR)) {
+            sanitizeField(e.target);
+        }
+    }, true);
+
+    // مرحلة الالتقاط عند الإرسال (Capturing Submit) قبل فحص الـ HTML5 validation الداخلي في المتصفح
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (form && form.querySelectorAll) {
+            const inputs = form.querySelectorAll(FIELD_SELECTOR);
+            inputs.forEach(sanitizeField);
+        }
+    }, true);
 })(); 

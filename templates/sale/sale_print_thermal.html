@@ -3,12 +3,13 @@
 {% load app_tags %}
 {% load custom_filters %}
 <html lang="ar" dir="rtl" style="--page-width: {{ paper_width }}mm;">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
-    
+
     <style>
         @font-face {
             font-family: 'Tajawal';
@@ -16,12 +17,14 @@
             font-weight: 400;
             src: url("{% static 'fonts/Tajawal-Regular.ttf' %}") format('truetype');
         }
+
         @font-face {
             font-family: 'Tajawal';
             font-style: normal;
             font-weight: 500;
             src: url("{% static 'fonts/Tajawal-Medium.ttf' %}") format('truetype');
         }
+
         @font-face {
             font-family: 'Tajawal';
             font-style: normal;
@@ -280,48 +283,64 @@
                 padding: 2mm 3mm !important;
                 margin: 0 !important;
             }
-            
+
             .receipt-item {
                 page-break-inside: avoid !important;
             }
         }
     </style>
 </head>
+
 <body>
 
     <!-- أزرار التحكم (تخفى أثناء الطباعة) -->
     <div class="no-print">
         <button onclick="window.print()" class="btn btn-print">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-printer"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="feather feather-printer">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+            </svg>
             طباعة الإيصال
         </button>
         <button onclick="downloadPDF()" class="btn btn-pdf">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="feather feather-download">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
             تحميل PDF
         </button>
         <a href="{% url 'sale:sale_detail' sale.id %}" class="btn btn-back">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
             العودة للفاتورة
         </a>
     </div>
 
     <!-- الفاتورة الحرارية -->
     <div class="receipt-container">
-        
+
         <!-- الترويسة -->
         <div class="receipt-header">
             {% if company_logo %}
-                <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="شعار الشركة" class="company-logo" onerror="this.style.display='none'">
+            <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="شعار الشركة" class="company-logo"
+                onerror="this.style.display='none'">
             {% endif %}
             <h1 class="company-name">{{ company_name }}</h1>
             {% if company_address %}
-                <p class="company-info">{{ company_address }}</p>
+            <p class="company-info">{{ company_address }}</p>
             {% endif %}
             {% if company_phone %}
-                <p class="company-info">هاتف: {{ company_phone }}</p>
+            <p class="company-info">هاتف: {{ company_phone }}</p>
             {% endif %}
             {% if company_tax_number %}
-                <p class="company-info">الرقم الضريبي: {{ company_tax_number }}</p>
+            <p class="company-info">الرقم الضريبي: {{ company_tax_number }}</p>
             {% endif %}
         </div>
 
@@ -355,7 +374,7 @@
                 <span class="meta-value">{{ sale.warehouse.name }}</span>
             </div>
             {% endif %}
-            
+
             {% if sale.customer %}
             <div class="divider"></div>
             <div class="meta-row">
@@ -380,21 +399,26 @@
                 <div class="item-name">
                     {{ item.product.name }}
                     {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
-                        <span style="font-size: 9px; font-weight: normal; color: #555; display: block; margin-top: 1px;">
+                    <span style="font-size: 9px; font-weight: normal; color: #555; display: block; margin-top: 1px;">
                         {% if settings.invoice_product_code_display == 'sku' %}
-                            كود: {{ item.product.code|default:item.product.sku|default:"-" }}
+                        كود: {{ item.product.code|default:item.product.sku|default:"-" }}
                         {% elif settings.invoice_product_code_display == 'barcode' %}
-                            باركود: {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
+                        باركود: {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-"
+                        }}
                         {% elif settings.invoice_product_code_display == 'both' %}
-                            {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{% endif %}
-                            {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{ item.product.barcode }}{% endif %}
-                            {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
+                        {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{%
+                        endif %}
+                        {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{
+                        item.product.barcode }}{% endif %}
+                        {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                         {% endif %}
-                        </span>
+                    </span>
                     {% endif %}
                 </div>
                 <div class="item-details">
-                    <span class="item-calc">{{ item.quantity|remove_trailing_zeros }}{% if item.product.unit %} {{ item.product.unit.symbol|default:item.product.unit.name }}{% endif %} × {{ item.unit_price|currency }}</span>
+                    <span class="item-calc">{{ item.quantity|remove_trailing_zeros }}{% if item.product.unit %} {{
+                        item.product.unit.symbol|default:item.product.unit.name }}{% endif %} × {{
+                        item.unit_price|currency }}</span>
                     <span class="item-total">{{ item.total|currency }}</span>
                 </div>
             </div>
@@ -440,8 +464,11 @@
             {% for field in sale.custom_fields %}
             {% if field.show_on_thermal and field.value %}
             <div class="meta-row" style="display: flex; justify-content: space-between; font-size: 11px;">
-                <span class="meta-label" style="font-weight: bold;">{% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}:</span>
-                <span class="meta-value">{% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}</span>
+                <span class="meta-label" style="font-weight: bold;">{% if is_english %}{{
+                    field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}:</span>
+                <span class="meta-value">{% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{%
+                    elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value
+                    }}{% endif %}</span>
             </div>
             {% endif %}
             {% endfor %}
@@ -456,7 +483,7 @@
         <!-- ذيل الإيصال -->
         <div class="receipt-footer">
             <p class="footer-msg" style="margin-bottom: 4px;">شكراً لزيارتكم ونتطلع لخدمتكم دائماً</p>
-            <p style="margin: 0; line-height: 1.2;">نظام موهبة لإدارة الشركات والمخازن</p>
+            <p style="margin: 0; line-height: 1.2;">MWHEBA ERP لإدارة الشركات</p>
             <p style="font-size: 8px; color: var(--gray-500); margin: 1px 0 0 0; line-height: 1;">01229609292</p>
         </div>
 
@@ -469,11 +496,11 @@
             const element = document.querySelector('.receipt-container');
             const logo = element.querySelector('.company-logo');
             let originalSrc = '';
-            
+
             // 1. إزالة الحواف والظلال مؤقتاً لتجنب ظهور ستروك في الـ PDF
             element.style.border = 'none';
             element.style.boxShadow = 'none';
-            
+
             // تحويل اللوجو لأبيض وأسود عبر الكانفاس لتخطي قصور مكتبة html2pdf مع فلاتر CSS
             if (logo && logo.tagName === 'IMG' && logo.complete) {
                 try {
@@ -481,7 +508,7 @@
                     const ctx = canvas.getContext('2d');
                     canvas.width = logo.naturalWidth || logo.width;
                     canvas.height = logo.naturalHeight || logo.height;
-                    
+
                     ctx.drawImage(logo, 0, 0);
                     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imgData.data;
@@ -498,11 +525,11 @@
                     console.log("Canvas grayscale conversion error, keeping original:", e);
                 }
             }
-            
+
             // 2. حساب الطول الفعلي للمحتوى باستخدام scrollHeight لضمان عدم حدوث أي قطع من الأسفل
             const elementWidth = parseFloat('{{ paper_width|default:80 }}');
             // 1 بكسل = 0.264583 مليمتر + إضافة هامش أمان 45 مم للأسفل (يعمل كذيل للفاتورة الحرارية ويمنع القطع)
-            const elementHeight = Math.ceil(element.scrollHeight * 0.264583) + 45; 
+            const elementHeight = Math.ceil(element.scrollHeight * 0.264583) + 45;
 
             const opt = {
                 margin: [4, 4, 2, 4],
@@ -525,4 +552,5 @@
     </script>
 
 </body>
+
 </html>

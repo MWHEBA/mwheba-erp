@@ -549,6 +549,39 @@
             });
         }
     });
+
+    // تنظيف وتطهير حقول البريد الإلكتروني واسم المستخدم من المسافات والمحارف المخفية
+    (function() {
+        const INVISIBLE_AND_SPACES_REGEX = /[\s\u00A0\u1680\u2000-\u200F\u2028-\u202F\u205F\u2066-\u2069\u3000\uFEFF]/g;
+        function sanitizeField(input) {
+            if (!input || input.readOnly || input.disabled) return;
+            const isEmail = input.type === 'email' || 
+                            (input.name && input.name.toLowerCase().includes('email')) || 
+                            (input.id && input.id.toLowerCase().includes('email'));
+            const originalVal = input.value;
+            if (!originalVal) return;
+            const sanitized = originalVal.replace(INVISIBLE_AND_SPACES_REGEX, '');
+            const finalVal = isEmail ? sanitized.toLowerCase() : sanitized;
+            if (originalVal !== finalVal) input.value = finalVal;
+        }
+
+        const SELECTOR = 'input[type="email"], input[name*="email" i], input[id*="email" i], input[name="username"], input[id*="username" i]';
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.matches && e.target.matches(SELECTOR)) sanitizeField(e.target);
+        }, true);
+        document.addEventListener('paste', function(e) {
+            if (e.target && e.target.matches && e.target.matches(SELECTOR)) setTimeout(() => sanitizeField(e.target), 0);
+        }, true);
+        document.addEventListener('blur', function(e) {
+            if (e.target && e.target.matches && e.target.matches(SELECTOR)) sanitizeField(e.target);
+        }, true);
+        document.addEventListener('submit', function(e) {
+            const form = e.target;
+            if (form && form.querySelectorAll) {
+                form.querySelectorAll(SELECTOR).forEach(sanitizeField);
+            }
+        }, true);
+    })();
     </script>
     
     {% block extra_js %}{% endblock %}

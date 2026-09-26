@@ -3,6 +3,7 @@
 {% load utils_extras %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <title>{{ document_title|default:"ملخص حركة وأرصدة الحسابات" }}</title>
@@ -23,12 +24,14 @@
         @page {
             size: A4 portrait;
             margin: 12mm 10mm 14mm 10mm;
+
             @bottom-left {
-                content: "نظام موهبة ERP المحاسبي";
+                content: "MWHEBA ERP المحاسبي";
                 font-family: 'Tajawal', sans-serif;
                 font-size: 7.5pt;
                 color: #94a3b8;
             }
+
             @bottom-center {
                 content: "صفحة " counter(page) " من " counter(pages);
                 font-family: 'Tajawal', sans-serif;
@@ -36,6 +39,7 @@
                 color: #64748b;
                 font-weight: bold;
             }
+
             @bottom-right {
                 content: "تاريخ الاستخراج: {{ generated_at }}";
                 font-family: 'Tajawal', sans-serif;
@@ -163,15 +167,49 @@
             background-color: var(--bg-light);
         }
 
-        .col-code { width: 12%; text-align: center; font-weight: bold; }
-        .col-name { width: 33%; text-align: right; font-weight: 600; }
-        .col-type { width: 15%; text-align: center; color: var(--text-muted); }
-        .col-num { width: 13%; text-align: left; direction: ltr; unicode-bidi: embed; padding-left: 6px !important; }
-        .col-count { width: 8%; text-align: center; }
+        .col-code {
+            width: 12%;
+            text-align: center;
+            font-weight: bold;
+        }
 
-        .cell-debit { color: var(--debit-color); }
-        .cell-credit { color: var(--credit-color); }
-        .cell-balance { font-weight: bold; color: var(--text-dark); }
+        .col-name {
+            width: 33%;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        .col-type {
+            width: 15%;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .col-num {
+            width: 13%;
+            text-align: left;
+            direction: ltr;
+            unicode-bidi: embed;
+            padding-left: 6px !important;
+        }
+
+        .col-count {
+            width: 8%;
+            text-align: center;
+        }
+
+        .cell-debit {
+            color: var(--debit-color);
+        }
+
+        .cell-credit {
+            color: var(--credit-color);
+        }
+
+        .cell-balance {
+            font-weight: bold;
+            color: var(--text-dark);
+        }
 
         .summary-section {
             page-break-inside: avoid;
@@ -212,6 +250,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- 1. ترويسة المنشأة الرسمية -->
@@ -228,7 +267,7 @@
         </div>
         <div class="header-col company-logo-box">
             {% if company_logo %}
-                <img src="{{ company_logo }}" alt="Logo" class="company-logo">
+            <img src="{{ company_logo }}" alt="Logo" class="company-logo">
             {% endif %}
         </div>
     </div>
@@ -299,4 +338,5 @@
     </div>
 
 </body>
+
 </html>
