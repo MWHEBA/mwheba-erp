@@ -1887,34 +1887,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.querySelectorAll('.btn-preview-template').forEach(btn => {
         btn.addEventListener('click', function() {
-            const templateName = this.getAttribute('data-template-name');
-            const docTitle = this.getAttribute('data-doc-title') || '';
+            const templateName = (this.getAttribute('data-template-name') || 'document_send_ar').trim();
+            const docTitle = (this.getAttribute('data-doc-title') || '').trim();
 
-            document.getElementById('previewTemplateBadge').textContent = templateName;
-            document.getElementById('previewBodyText').textContent = '{% trans "جاري جلب الصياغة..." %}';
+            const badgeEl = document.getElementById('previewTemplateBadge');
+            if (badgeEl) badgeEl.textContent = templateName;
+
+            const bodyTextEl = document.getElementById('previewBodyText');
+            if (bodyTextEl) bodyTextEl.textContent = '{% trans "جاري جلب الصياغة المعتمدة..." %}';
 
             const mediaBox = document.getElementById('previewMediaBox');
+            const pdfNameEl = document.getElementById('previewPdfName');
+            
+            // تهيئة مبدئية لصندوق المرفق
             if (templateName.startsWith('document_send')) {
-                mediaBox.classList.remove('d-none');
-                document.getElementById('previewPdfName').textContent = (docTitle || 'Document') + '.pdf';
+                if (mediaBox) mediaBox.classList.remove('d-none');
+                if (pdfNameEl) pdfNameEl.textContent = (docTitle || 'Document').replace(/\s+/g, '_') + '.pdf';
             } else {
-                mediaBox.classList.add('d-none');
+                if (mediaBox) mediaBox.classList.add('d-none');
             }
 
             if (previewModal) previewModal.show();
 
-            fetch(`/api/whatsapp/template-preview/?template_name=${templateName}`, { credentials: 'same-origin' })
+            const urlParams = new URLSearchParams({
+                template_name: templateName,
+                name: templateName,
+                doc_title: docTitle,
+                title: docTitle
+            });
+
+            fetch(`/api/whatsapp/template-preview/?${urlParams.toString()}`, { credentials: 'same-origin' })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    document.getElementById('previewBodyText').textContent = data.rendered_text;
-                    document.getElementById('previewCategoryBadge').textContent = data.category || 'UTILITY';
+                    const text = data.rendered_text || (data.preview && (data.preview.mock_text || data.preview.raw_text)) || data.mock_text || '';
+                    if (bodyTextEl) bodyTextEl.textContent = text;
+
+                    const cat = data.category || (data.preview && data.preview.category) || 'UTILITY';
+                    const catBadge = document.getElementById('previewCategoryBadge');
+                    if (catBadge) catBadge.textContent = cat;
+
+                    const hasPdf = (data.has_pdf !== undefined) ? data.has_pdf : (data.preview && data.preview.has_pdf);
+                    if (mediaBox) {
+                        if (hasPdf) {
+                            mediaBox.classList.remove('d-none');
+                            const pdfName = data.pdf_filename || (data.preview && data.preview.pdf_filename) || ((docTitle || 'Document').replace(/\s+/g, '_') + '.pdf');
+                            if (pdfNameEl) pdfNameEl.textContent = pdfName;
+                        } else {
+                            mediaBox.classList.add('d-none');
+                        }
+                    }
                 } else {
-                    document.getElementById('previewBodyText').textContent = data.error || '{% trans "تعذر جلب صياغة القالب" %}';
+                    if (bodyTextEl) bodyTextEl.textContent = data.error || '{% trans "تعذر جلب صياغة القالب" %}';
                 }
             })
             .catch(err => {
-                document.getElementById('previewBodyText').textContent = '{% trans "خطأ في الاتصال بالخادم" %}';
+                if (bodyTextEl) bodyTextEl.textContent = '{% trans "خطأ في الاتصال بالخادم" %}';
             });
         });
     });

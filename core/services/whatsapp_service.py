@@ -1113,90 +1113,143 @@ class WhatsAppService:
     # ==================== محرك المعاينة الحية للقوالب والبيانات الواقعية ====================
 
     @classmethod
-    def get_template_preview_text(cls, template_name: str) -> Dict[str, Any]:
-        """توليد نص المعاينة الواقعية ومحاكاة شكل الرسالة على هاتف العميل"""
-        from ..models import SystemSetting
-        site_name = SystemSetting.get_site_name()
+    def get_template_preview_text(cls, template_name: str, doc_display: str = None) -> Dict[str, Any]:
+        """توليد نص المعاينة الواقعية ومحاكاة شكل الرسالة على هاتف العميل بناءً على القالب والمستند المختار"""
+        try:
+            from ..models import SystemSetting
+            site_name = SystemSetting.get_site_name() or "موهبة ERP"
+        except Exception:
+            site_name = "موهبة ERP"
 
-        previews = {
-            "document_send_ar": {
-                "title": "قالب إرسال المستندات والفواتير الرسمية",
+        doc_title = doc_display.strip() if doc_display else "مستند معتمد"
+
+        # تفصيل النصوص الواقعية حسب نوع القالب والمستند المحدد
+        if template_name in ("document_send_ar", "document_send_en"):
+            raw_text = "مرحباً بك أ/ {{1}}، تم إصدار مستند جديد لحسابكم وهو {{2}} بقيمة {{3}}، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {{4}} ويسعدنا دائماً خدمتكم."
+            mock_text = f"مرحباً بك أ/ شركة الأمل للتجارة والمقاولات، تم إصدار مستند جديد لحسابكم وهو {doc_title} برقم INV-2026-0042 بقيمة 15,450.00 ج.م، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {site_name} ويسعدنا دائماً خدمتكم."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
                 "category": "UTILITY",
                 "has_pdf": True,
-                "raw_text": "مرحباً بك أ/ {{1}}، تم إصدار مستند جديد لحسابكم وهو {{2}} بقيمة {{3}}، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {{4}} ويسعدنا دائماً خدمتكم.",
-                "mock_text": f"مرحباً بك أ/ شركة الأمل للتجارة والمقاولات، تم إصدار مستند جديد لحسابكم وهو فاتورة مبيعات معتمدة INV-2026-0042 بقيمة 15,450.00 ج.م، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {site_name} ويسعدنا دائماً خدمتكم.",
+                "doc_title": doc_title,
+                "pdf_filename": f"{doc_title.replace(' ', '_')}_INV-0042.pdf",
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": [
-                    {"code": "{{1}}", "name": "اسم العميل / الشريك", "example": "شركة الأمل للتجارة والمقاولات"},
-                    {"code": "{{2}}", "name": "نوع ورقم المستند", "example": "فاتورة مبيعات معتمدة INV-2026-0042"},
-                    {"code": "{{3}}", "name": "القيمة الإجمالية والعملة", "example": "15,450.00 ج.م"},
+                    {"code": "{{1}}", "name": "اسم الشريك / المستلم", "example": "شركة الأمل للتجارة والمقاولات"},
+                    {"code": "{{2}}", "name": "نوع ورقم المستند", "example": f"{doc_title} برقم INV-2026-0042"},
+                    {"code": "{{3}}", "name": "القيمة الإجمالية", "example": "15,450.00 ج.م"},
                     {"code": "{{4}}", "name": "اسم المنشأة", "example": site_name},
                 ]
-            },
-            "payment_receipt_ar": {
-                "title": "قالب إيصالات وسندات التحصيل المالي",
+            }
+
+        elif template_name in ("payment_receipt_ar", "payment_receipt_en"):
+            raw_text = "مرحباً بك أ/ {{1}}، تم استلام وتسجيل دفعة مالية بقيمة {{2}} بموجب سند رقم {{3}}، ورصيدكم المتبقي {{4}}. شكراً لتعاملكم مع {{5}} ويسعدنا خدمتكم."
+            mock_text = f"مرحباً بك أ/ م. محمود عبد العزيز، تم تسجيل {doc_title} بقيمة 5,000.00 ج.م بموجب إيصال رقم REC-2026-0089، ورصيدكم المتبقي 10,450.00 ج.م. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
                 "category": "UTILITY",
                 "has_pdf": False,
-                "raw_text": "مرحباً بك أ/ {{1}}، تم استلام وتسجيل دفعة مالية بقيمة {{2}} بموجب سند رقم {{3}}، ورصيدكم المتبقي {{4}}. شكراً لتعاملكم مع {{5}} ويسعدنا خدمتكم.",
-                "mock_text": f"مرحباً بك أ/ م. محمود عبد العزيز، تم استلام وتسجيل دفعة مالية بقيمة 5,000.00 ج.م بموجب سند رقم REC-2026-0089، ورصيدكم المتبقي 10,450.00 ج.م. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم.",
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": [
-                    {"code": "{{1}}", "name": "اسم الشريك", "example": "م. محمود عبد العزيز"},
-                    {"code": "{{2}}", "name": "المبلغ المحصل", "example": "5,000.00 ج.م"},
-                    {"code": "{{3}}", "name": "رقم سند القبض/الصرف", "example": "REC-2026-0089"},
+                    {"code": "{{1}}", "name": "اسم الشريك / المستلم", "example": "م. محمود عبد العزيز"},
+                    {"code": "{{2}}", "name": "المبلغ المالي", "example": "5,000.00 ج.م"},
+                    {"code": "{{3}}", "name": "رقم السند / الإيصال", "example": "REC-2026-0089"},
                     {"code": "{{4}}", "name": "الرصيد المتبقي بعد الحركة", "example": "10,450.00 ج.م"},
                     {"code": "{{5}}", "name": "اسم المنشأة", "example": site_name},
                 ]
-            },
-            "order_status_ar": {
-                "title": "قالب إشعارات تحديث الحالات والأذون",
+            }
+
+        elif template_name in ("order_status_ar", "order_status_en"):
+            raw_text = "مرحباً بك أ/ {{1}}، نود إحاطتكم بتحديث حالة الطلب رقم {{2}} حيث أصبحت: {{3}}. شكراً لتعاملكم مع {{4}} ويسعدنا خدمتكم دائماً."
+            mock_text = f"مرحباً بك أ/ شركة النور الحديثة، نود إحاطتكم بشأن {doc_title} (رقم SO-2026-0155) حيث أصبحت حالته: معتمد وجاهز للتنفيذ. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم دائماً."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
                 "category": "UTILITY",
                 "has_pdf": False,
-                "raw_text": "مرحباً بك أ/ {{1}}، نود إحاطتكم بتحديث حالة الطلب رقم {{2}} حيث أصبحت: {{3}}. شكراً لتعاملكم مع {{4}} ويسعدنا خدمتكم دائماً.",
-                "mock_text": f"مرحباً بك أ/ شركة النور الحديثة، نود إحاطتكم بتحديث حالة الطلب رقم SO-2026-0155 حيث أصبحت: تم التجهيز والشحن وجاري التسليم. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم دائماً.",
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": [
                     {"code": "{{1}}", "name": "اسم المستلم", "example": "شركة النور الحديثة"},
-                    {"code": "{{2}}", "name": "رقم الطلب / المستند", "example": "SO-2026-0155"},
-                    {"code": "{{3}}", "name": "الحالة الجديدة للعملية", "example": "تم التجهيز والشحن وجاري التسليم"},
+                    {"code": "{{2}}", "name": "رقم الطلب / العملية", "example": f"{doc_title} #SO-2026-0155"},
+                    {"code": "{{3}}", "name": "الحالة الجديدة للعملية", "example": "معتمد وجاهز للتنفيذ"},
                     {"code": "{{4}}", "name": "اسم المنشأة", "example": site_name},
                 ]
-            },
-            "welcome_new_customer": {
-                "title": "قالب الترحيب بالعملاء الجدد",
-                "category": "UTILITY",
+            }
+
+        elif template_name == "welcome_new_customer":
+            raw_text = "مرحباً بك أ/ {{customer_name}} في منصتنا، يسعدنا انضمامك لعملاء {{company_name}} ونحن في خدمتك دائماً."
+            mock_text = f"مرحباً بك أ/ أحمد إبراهيم في منصتنا، يسعدنا انضمامك لعملاء {site_name} ونحن في خدمتك دائماً."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
+                "category": "MARKETING",
                 "has_pdf": False,
-                "raw_text": "مرحباً بك أ/ {{customer_name}} في منصتنا، يسعدنا انضمامك لعملاء {{company_name}} ونحن في خدمتك دائماً.",
-                "mock_text": f"مرحباً بك أ/ عميلنا العزيز في منصتنا، يسعدنا انضمامك لعملاء {site_name} ونحن في خدمتك دائماً.",
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": [
                     {"code": "{{customer_name}}", "name": "اسم العميل المسجل", "example": "أحمد إبراهيم"},
+                    {"code": "{{company_name}}", "name": "اسم المنشأة", "example": site_name},
                 ]
-            },
-            "otp_code": {
-                "title": "قالب رمز التحقق والأمان (OTP 2FA)",
+            }
+
+        elif template_name in ("otp_code", "otp_auth_code"):
+            raw_text = "رمز التحقق الخاص بحسابك في النظام هو: {{1}}. الرمز صالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص."
+            mock_text = "رمز التحقق الخاص بحسابك في النظام هو: 849201. الرمز صالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
                 "category": "AUTHENTICATION",
                 "has_pdf": False,
-                "raw_text": "رمز التحقق الخاص بحسابك في النظام هو: {{1}}. الرمز صالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص.",
-                "mock_text": "رمز التحقق الخاص بحسابك في النظام هو: 849201. الرمز صالح لمدة 10 دقائق. لا تشارك هذا الرمز مع أي شخص.",
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": [
-                    {"code": "{{1}}", "name": "رمز التحقق المشفر (6 أرقام)", "example": "849201"},
+                    {"code": "{{1}}", "name": "رمز التحقق (6 أرقام)", "example": "849201"},
                 ]
-            },
-            "visit": {
-                "title": "قالب إشعار الزيارة والاجتماع",
+            }
+
+        elif template_name == "visit":
+            raw_text = "مرحباً بك، نود تذكيركم بموعد الزيارة / الاجتماع المحدد معكم. ويسعدنا دائماً خدمتكم."
+            mock_text = f"مرحباً بك، نود تذكيركم بموعد الزيارة / الاجتماع المحدد معكم من فريق {site_name}. ويسعدنا دائماً خدمتكم."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
                 "category": "UTILITY",
                 "has_pdf": False,
-                "raw_text": "مرحباً بك، نود تذكيركم بموعد الزيارة / الاجتماع المحدد معكم. ويسعدنا دائماً خدمتكم.",
-                "mock_text": f"مرحباً بك، نود تذكيركم بموعد الزيارة / الاجتماع المحدد معكم من فريق {site_name}. ويسعدنا دائماً خدمتكم.",
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
                 "variables": []
             }
-        }
 
-        return previews.get(template_name, {
-            "title": f"قالب {template_name}",
-            "category": "UTILITY",
-            "has_pdf": False,
-            "raw_text": "إشعار رسمي من النظام.",
-            "mock_text": f"إشعار رسمي من {site_name} بشأن مستند معتمد لحسابكم.",
-            "variables": []
-        })
+        else:
+            raw_text = "إشعار رسمي من النظام لحسابكم."
+            mock_text = f"مرحباً بكم، إشعار رسمي من {site_name} بشأن {doc_title} لحسابكم. ويسعدنا دائماً خدمتكم."
+            return {
+                "title": f"معاينة {doc_title}",
+                "template_name": template_name,
+                "category": "UTILITY",
+                "has_pdf": False,
+                "doc_title": doc_title,
+                "raw_text": raw_text,
+                "mock_text": mock_text,
+                "rendered_text": mock_text,
+                "variables": []
+            }
 
     # ==================== فحص التوقيع HMAC للـ Webhook ====================
 

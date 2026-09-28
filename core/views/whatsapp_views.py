@@ -182,9 +182,20 @@ def whatsapp_template_preview_api(request):
     """
     نقطة إرجاع نصوص المعاينة الحية والبيانات الواقعية للقوالب (Realistic Live Mockup)
     """
-    template_name = request.GET.get('name', 'document_send_ar').strip()
-    preview_data = WhatsAppService.get_template_preview_text(template_name)
-    return JsonResponse({"success": True, "preview": preview_data})
+    template_name = (request.GET.get('template_name') or request.GET.get('name') or 'document_send_ar').strip()
+    doc_title = (request.GET.get('doc_title') or request.GET.get('title') or '').strip()
+    preview_data = WhatsAppService.get_template_preview_text(template_name, doc_display=doc_title)
+    return JsonResponse({
+        "success": True,
+        "preview": preview_data,
+        "rendered_text": preview_data.get("mock_text", ""),
+        "mock_text": preview_data.get("mock_text", ""),
+        "raw_text": preview_data.get("raw_text", ""),
+        "category": preview_data.get("category", "UTILITY"),
+        "title": preview_data.get("title", ""),
+        "has_pdf": preview_data.get("has_pdf", False),
+        "pdf_filename": preview_data.get("pdf_filename", "Document.pdf"),
+    })
 
 
 @login_required
