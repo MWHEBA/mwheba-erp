@@ -1425,6 +1425,7 @@ def customer_detail(request, pk):
         "page_subtitle": "معلومات وبيانات العميل الكاملة",
         "page_icon": "fas fa-user",
         "unallocated_prepaid": unallocated_prepaid,
+        "customer_content_type_id": ContentType.objects.get_for_model(Customer).id,
     }
 
     from financial.models import ChartOfAccounts

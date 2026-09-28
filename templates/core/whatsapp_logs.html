@@ -1,0 +1,385 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <!-- Central Page Header & Breadcrumbs (Rule 6) -->
+    {% include "shared/page_header.html" %}
+
+    <!-- Statistical KPI Cards (Rule 7: Never wrapped in .section-container) -->
+    <div class="row g-3 mb-4" id="whatsappLogsKPI">
+        <!-- Total Messages -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-info h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "إجمالي الرسائل" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-dark" id="kpiTotal">{{ total_messages }}</h3>
+                    </div>
+                    <div class="stats-card-icon bg-info-subtle text-info p-3 rounded">
+                        <i class="fab fa-whatsapp fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Rate -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-primary h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "نسبة التسليم للهواتف" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-primary" id="kpiDeliveredRate">{{ delivery_rate }}%</h3>
+                        <small class="text-muted" id="kpiDeliveredSub">{{ delivered_count }} {% trans "رسالة مستلمة" %}</small>
+                    </div>
+                    <div class="stats-card-icon bg-primary-subtle text-primary p-3 rounded">
+                        <i class="fas fa-check-double fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Read Rate -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-success h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "نسبة القراءة والمشاهدة" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-success" id="kpiReadRate">{{ read_rate }}%</h3>
+                        <small class="text-muted" id="kpiReadSub">{{ read_count }} {% trans "رسالة مقروءة" %}</small>
+                    </div>
+                    <div class="stats-card-icon bg-success-subtle text-success p-3 rounded">
+                        <i class="fas fa-eye fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Failed Count -->
+        <div class="col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-danger h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "الرسائل المتعثرة" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-danger" id="kpiFailed">{{ failed_count }}</h3>
+                        <small class="text-muted">{% trans "خطأ في الرقم أو الرصيد" %}</small>
+                    </div>
+                    <div class="stats-card-icon bg-danger-subtle text-danger p-3 rounded">
+                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collapsible Filter Section (Rule 6) -->
+    <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-filter text-primary me-2"></i>
+                {% trans "خيارات البحث والتصفية المتقدمة" %}
+            </h5>
+            <i class="fas fa-chevron-down text-muted"></i>
+        </div>
+
+        <div class="collapse show mt-3" id="filterSection">
+            <form method="get" id="filterForm" class="row g-3" onsubmit="event.preventDefault(); window.doSearch();">
+                <!-- Search Query -->
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">{% trans "البحث برقم الهاتف أو الاسم أو المعرف:" %}</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" class="form-control" name="q" id="filter_q" value="{{ filter_q }}" placeholder="{% trans 'اكتب للبحث...' %}">
+                    </div>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "حالة الرسالة:" %}</label>
+                    <select class="form-select form-select-sm" name="status" id="filter_status">
+                        <option value="">{% trans "كافة الحالات" %}</option>
+                        <option value="SENT" {% if filter_status == 'SENT' %}selected{% endif %}>{% trans "تم الإرسال (SENT)" %}</option>
+                        <option value="DELIVERED" {% if filter_status == 'DELIVERED' %}selected{% endif %}>{% trans "تم التسليم (DELIVERED)" %}</option>
+                        <option value="READ" {% if filter_status == 'READ' %}selected{% endif %}>{% trans "تمت القراءة (READ)" %}</option>
+                        <option value="FAILED" {% if filter_status == 'FAILED' %}selected{% endif %}>{% trans "فشل الإرسال (FAILED)" %}</option>
+                        <option value="SKIPPED" {% if filter_status == 'SKIPPED' %}selected{% endif %}>{% trans "تم التخطي (SKIPPED)" %}</option>
+                    </select>
+                </div>
+
+                <!-- Template Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "اسم القالب:" %}</label>
+                    <select class="form-select form-select-sm" name="template_name" id="filter_template">
+                        <option value="">{% trans "كافة القوالب" %}</option>
+                        <option value="document_send_ar" {% if filter_template == 'document_send_ar' %}selected{% endif %}>document_send_ar</option>
+                        <option value="payment_receipt_ar" {% if filter_template == 'payment_receipt_ar' %}selected{% endif %}>payment_receipt_ar</option>
+                        <option value="order_status_ar" {% if filter_template == 'order_status_ar' %}selected{% endif %}>order_status_ar</option>
+                        <option value="otp_auth_code" {% if filter_template == 'otp_auth_code' %}selected{% endif %}>otp_auth_code</option>
+                    </select>
+                </div>
+
+                <!-- Partner Type Filter -->
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "نوع الشريك:" %}</label>
+                    <select class="form-select form-select-sm" name="partner_type" id="filter_partner_type">
+                        <option value="">{% trans "الكل (عملاء، موردين، موظفين)" %}</option>
+                        <option value="customer" {% if filter_partner_type == 'customer' %}selected{% endif %}>{% trans "عملاء فقط" %}</option>
+                        <option value="supplier" {% if filter_partner_type == 'supplier' %}selected{% endif %}>{% trans "موردين فقط" %}</option>
+                        <option value="user" {% if filter_partner_type == 'user' %}selected{% endif %}>{% trans "موظفين ومستخدمين" %}</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">{% trans "تاريخ الإرسال (من - إلى):" %}</label>
+                    <div class="input-group input-group-sm">
+                        <input type="date" class="form-control" name="start_date" id="filter_start_date" value="{{ filter_start_date }}">
+                        <span class="input-group-text bg-light">-</span>
+                        <input type="date" class="form-control" name="end_date" id="filter_end_date" value="{{ filter_end_date }}">
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="resetFilters()">
+                        <i class="fas fa-undo me-1"></i> {% trans "إعادة تعيين" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
+                        <i class="fas fa-search me-1"></i> {% trans "تطبيق الفلترة" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Data Table Section (Rule 7: In .section-container with standard header) -->
+    <div class="section-container p-0 overflow-hidden">
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-list text-primary me-2"></i>
+                {% trans "سجلات المراسلات وحالات التسليم" %}
+            </h5>
+            <span class="text-muted small">
+                {% trans "يتم تحديث الحالات لحظياً عبر سيرفرات Meta Cloud Webhooks" %}
+            </span>
+        </div>
+
+        <div id="whatsapp-logs-table-container">
+            {% include "core/partials/whatsapp_logs_table.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal (Rule 8: Standard Corporate Modal) -->
+<div class="modal fade" id="whatsappLogDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fab fa-whatsapp text-success me-2"></i>
+                    {% trans "تفاصيل رسالة WhatsApp السحابية" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "رقم الهاتف المستلم:" %}</label>
+                        <span class="fw-bold font-monospace text-dark fs-6" id="mdlPhone" dir="ltr">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "الشريك المرتبط:" %}</label>
+                        <span class="fw-bold text-dark" id="mdlPartner">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "المستند الأصلي:" %}</label>
+                        <span class="text-dark" id="mdlDoc">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "اسم القالب في Meta:" %}</label>
+                        <code class="text-dark" id="mdlTemplate">-</code>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "معرف الرسالة السحابي (wamid):" %}</label>
+                        <span class="font-monospace small text-muted" id="mdlWamid">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "معرف الوسائط (Media ID):" %}</label>
+                        <span class="font-monospace small text-muted" id="mdlMediaId">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "حالة التسليم:" %}</label>
+                        <span class="badge" id="mdlStatus">-</span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small d-block">{% trans "تاريخ وتوقيت الإرسال:" %}</label>
+                        <span class="text-dark small" id="mdlCreatedAt">-</span>
+                    </div>
+                    <div class="col-12" id="mdlErrorContainer">
+                        <div class="alert alert-danger py-2 px-3 small mb-0">
+                            <strong>{% trans "تفاصيل الخطأ:" %}</strong>
+                            <div id="mdlErrorMsg" class="mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * WhatsApp Logs Dynamic Search, State Sync & Fresh Resend Engine
+ */
+function doSearch(pageUrl) {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    let targetUrl = pageUrl || (window.location.pathname + '?' + params.toString());
+    if (pageUrl) {
+        const pageParams = new URL(pageUrl, window.location.origin).searchParams;
+        for (const [key, val] of pageParams.entries()) {
+            params.set(key, val);
+        }
+        targetUrl = window.location.pathname + '?' + params.toString();
+    }
+
+    const container = document.getElementById('whatsapp-logs-table-container');
+    container.style.opacity = '0.5';
+
+    fetch(targetUrl, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        container.style.opacity = '1';
+        if (data.success) {
+            container.innerHTML = data.table_html;
+            
+            // تحديث مؤشرات الـ KPI
+            if (data.total_messages !== undefined) {
+                document.getElementById('kpiTotal').textContent = data.total_messages;
+                document.getElementById('kpiDeliveredRate').textContent = data.delivery_rate + '%';
+                document.getElementById('kpiReadRate').textContent = data.read_rate + '%';
+                document.getElementById('kpiFailed').textContent = data.failed_count;
+            }
+
+            // مزامنة حالة المتصفح
+            window.history.replaceState({}, '', targetUrl);
+        }
+    })
+    .catch(err => {
+        container.style.opacity = '1';
+        console.error('Error fetching logs:', err);
+    });
+}
+window.doSearch = doSearch;
+
+function resetFilters() {
+    document.getElementById('filter_q').value = '';
+    document.getElementById('filter_status').value = '';
+    document.getElementById('filter_template').value = '';
+    document.getElementById('filter_partner_type').value = '';
+    document.getElementById('filter_start_date').value = '';
+    document.getElementById('filter_end_date').value = '';
+    window.doSearch();
+}
+
+function viewLogDetail(logId) {
+    fetch('/api/whatsapp/logs/' + logId + '/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('mdlPhone').textContent = data.recipient_phone;
+                document.getElementById('mdlPartner').textContent = data.partner_name + ' (' + data.partner_type + ')';
+                document.getElementById('mdlDoc').textContent = data.document_label;
+                document.getElementById('mdlTemplate').textContent = data.template_name;
+                document.getElementById('mdlWamid').textContent = data.message_id;
+                document.getElementById('mdlMediaId').textContent = data.media_id;
+                document.getElementById('mdlStatus').textContent = data.status_display;
+                document.getElementById('mdlCreatedAt').textContent = data.created_at;
+
+                const errorBox = document.getElementById('mdlErrorContainer');
+                if (data.error_message) {
+                    errorBox.classList.remove('d-none');
+                    document.getElementById('mdlErrorMsg').textContent = (data.error_code ? '[' + data.error_code + '] ' : '') + data.error_message;
+                } else {
+                    errorBox.classList.add('d-none');
+                }
+
+                const modal = new bootstrap.Modal(document.getElementById('whatsappLogDetailModal'));
+                modal.show();
+            }
+        });
+}
+
+function resendWhatsAppMessage(logId) {
+    if (!confirm('{% trans "هل ترغب في إعادة إرسال هذه الرسالة وتوليد ملف PDF طازج في الذاكرة؟" %}')) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+
+    fetch('/api/whatsapp/resend/' + logId + '/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (window.showNotification) {
+                window.showNotification('{% trans "تمت إعادة إرسال الرسالة بنجاح! wamid: " %}' + (data.message_id || ''), 'success');
+            } else {
+                alert('{% trans "تمت إعادة إرسال الرسالة بنجاح!" %}');
+            }
+            window.doSearch();
+        } else {
+            if (window.showNotification) {
+                window.showNotification(data.error || '{% trans "فشلت إعادة الإرسال" %}', 'error');
+            } else {
+                alert(data.error || '{% trans "فشلت إعادة الإرسال" %}');
+            }
+        }
+    })
+    .catch(err => {
+        alert('{% trans "حدث خطأ غير متوقع أثناء إعادة الإرسال." %}');
+    });
+}
+
+// Event delegation for table action buttons & pagination
+document.addEventListener('click', function(e) {
+    const viewBtn = e.target.closest('.btn-view-log');
+    if (viewBtn) {
+        e.preventDefault();
+        const logId = viewBtn.getAttribute('data-log-id');
+        if (logId) viewLogDetail(logId);
+        return;
+    }
+
+    const resendBtn = e.target.closest('.btn-resend-log');
+    if (resendBtn) {
+        e.preventDefault();
+        const logId = resendBtn.getAttribute('data-log-id');
+        if (logId) resendWhatsAppMessage(logId);
+        return;
+    }
+
+    const pageLink = e.target.closest('#pagination-wrapper a');
+    if (pageLink && pageLink.href) {
+        e.preventDefault();
+        window.doSearch(pageLink.href);
+    }
+});
+</script>
+{% endblock %}

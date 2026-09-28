@@ -35,18 +35,6 @@
 <div class="container-fluid">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
-                    
-                    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                        <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
-                    </button>
-                    
-                    <a href="{% url 'sale:sale_return_list' %}" class="btn btn-outline-primary">
-                        <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
     
     <!-- حالة المرتجع -->
     <div class="row mb-4">

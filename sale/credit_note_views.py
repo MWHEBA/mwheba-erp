@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.paginator import Paginator
+from django.contrib.contenttypes.models import ContentType
 
 from customer.models import Customer
 from sale.models import Sale, CreditNote
@@ -254,6 +255,19 @@ def credit_note_detail(request, pk):
         "page_subtitle": f"العميل: {credit_note.customer.name} - القيمة: {credit_note.total_amount} EGP",
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": [
+            {
+                "dropdown": True,
+                "icon": "fa-share-alt",
+                "text": _("مشاركة"),
+                "class": "btn-outline-success",
+                "items": [
+                    {
+                        "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(CreditNote).id}, objectId: {credit_note.pk}, partnerId: {credit_note.customer.pk if credit_note.customer else 'null'}, partnerType: 'customer'}})",
+                        "icon": "fab fa-whatsapp text-success",
+                        "text": _("إرسال واتساب")
+                    },
+                ]
+            },
             *([{
                 "url": reverse("sale:credit_note_post", kwargs={"pk": credit_note.pk}),
                 "icon": "fa-check-circle",

@@ -1,0 +1,118 @@
+{% load i18n %}
+<!-- WhatsApp Partner Communications Timeline Component (MWHEBA ERP) -->
+<div class="section-container mb-4" id="whatsappTimelineContainer" data-partner-type="{{ partner_type|default:'customer' }}" data-partner-id="{{ partner.id }}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0">
+            <i class="fab fa-whatsapp text-success me-2"></i>
+            {% trans "سجل مراسلات الواتساب السحابية" %}
+        </h5>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadWhatsAppPartnerTimeline()">
+                <i class="fas fa-sync-alt me-1"></i> {% trans "تحديث" %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Timeline Loading Skeleton -->
+    <div id="waTimelineLoading" class="text-center py-4">
+        <div class="spinner-border spinner-border-sm text-success" role="status">
+            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+        </div>
+        <span class="text-muted ms-2 small">{% trans "جاري جلب سجل المراسلات..." %}</span>
+    </div>
+
+    <!-- Empty State -->
+    <div id="waTimelineEmpty" class="text-center py-4 text-muted d-none">
+        <i class="fab fa-whatsapp fa-2x text-muted opacity-50 mb-2"></i>
+        <p class="mb-0 small">{% trans "لم يتم إرسال أي رسائل واتساب لهذا الشريك بعد." %}</p>
+    </div>
+
+    <!-- Timeline Table -->
+    <div id="waTimelineContent" class="table-responsive d-none">
+        <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">{% trans "المستند" %}</th>
+                    <th>{% trans "رقم الهاتف" %}</th>
+                    <th>{% trans "القالب" %}</th>
+                    <th>{% trans "الحالة" %}</th>
+                    <th>{% trans "تاريخ الإرسال" %}</th>
+                    <th class="text-end pe-3">{% trans "المرفق" %}</th>
+                </tr>
+            </thead>
+            <tbody id="waTimelineTableBody">
+                <!-- Dynamically populated -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function loadWhatsAppPartnerTimeline() {
+    const container = document.getElementById('whatsappTimelineContainer');
+    if (!container) return;
+
+    const partnerType = container.getAttribute('data-partner-type') || 'customer';
+    const partnerId = container.getAttribute('data-partner-id');
+    if (!partnerId) return;
+
+    const loadingEl = document.getElementById('waTimelineLoading');
+    const emptyEl = document.getElementById('waTimelineEmpty');
+    const contentEl = document.getElementById('waTimelineContent');
+    const tbody = document.getElementById('waTimelineTableBody');
+
+    loadingEl.classList.remove('d-none');
+    emptyEl.classList.add('d-none');
+    contentEl.classList.add('d-none');
+
+    fetch(`/api/whatsapp/partner/${partnerType}/${partnerId}/`, { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+            loadingEl.classList.add('d-none');
+            if (data.success && data.logs && data.logs.length > 0) {
+                tbody.innerHTML = '';
+                data.logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    
+                    let statusBadge = `<span class="badge bg-secondary">${log.status_display}</span>`;
+                    if (log.status === 'SENT') {
+                        statusBadge = `<span class="badge bg-primary">{% trans "تم الإرسال" %}</span>`;
+                    } else if (log.status === 'DELIVERED') {
+                        statusBadge = `<span class="badge bg-success">{% trans "تم التسليم" %}</span>`;
+                    } else if (log.status === 'READ') {
+                        statusBadge = `<span class="badge bg-info text-dark">{% trans "تمت القراءة 👁️" %}</span>`;
+                    } else if (log.status === 'FAILED') {
+                        statusBadge = `<span class="badge bg-danger" title="${log.error_message}">{% trans "فشل الإرسال" %}</span>`;
+                    } else if (log.status === 'SKIPPED') {
+                        statusBadge = `<span class="badge bg-warning text-dark">{% trans "تم التخطي" %}</span>`;
+                    }
+
+                    const mediaBadge = log.has_media ? 
+                        `<span class="badge bg-danger-subtle text-danger"><i class="fas fa-file-pdf me-1"></i> PDF</span>` : 
+                        `<span class="text-muted small">-</span>`;
+
+                    row.innerHTML = `
+                        <td class="ps-3 fw-bold">${log.document_label}</td>
+                        <td class="font-monospace small" dir="ltr">${log.recipient_phone}</td>
+                        <td><span class="badge bg-light text-dark border">${log.template_name}</span></td>
+                        <td>${statusBadge}</td>
+                        <td class="small text-muted font-monospace">${log.created_at}</td>
+                        <td class="text-end pe-3">${mediaBadge}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                contentEl.classList.remove('d-none');
+            } else {
+                emptyEl.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            loadingEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadWhatsAppPartnerTimeline();
+});
+</script>

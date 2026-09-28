@@ -2172,9 +2172,29 @@ def supplier_detail(request, pk):
             "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
 
+    from django.contrib.contenttypes.models import ContentType
+    supplier_ct_id = ContentType.objects.get_for_model(Supplier).id
+
+    header_buttons = [
+        {
+            "url": reverse("supplier:supplier_edit", kwargs={"pk": supplier.pk}),
+            "icon": "fas fa-edit",
+            "text": _("تعديل المورد"),
+            "class": "btn-outline-primary",
+        },
+        {
+            "url": "#",
+            "icon": "fab fa-whatsapp",
+            "text": _("إرسال كشف الحساب واتساب"),
+            "class": "btn-success",
+            "onclick": f"openWhatsAppModal({{contentTypeId: {supplier_ct_id}, objectId: {supplier.pk}, partnerId: {supplier.pk}, partnerType: 'supplier'}}); return false;",
+        },
+    ]
+
     context["prepaid_balances"] = prepaid_bals
     context["header_badges"] = header_badges
     context["header_buttons"] = header_buttons
+    context["supplier_content_type_id"] = supplier_ct_id
     
     # البريدكرمب
     context["breadcrumb_items"] = [

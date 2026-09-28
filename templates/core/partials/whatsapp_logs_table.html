@@ -1,0 +1,113 @@
+{% load i18n static %}
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle border mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="ps-3" style="width: 50px;">#</th>
+                <th>{% trans "تاريخ الإرسال" %}</th>
+                <th>{% trans "المستلم / الشريك" %}</th>
+                <th>{% trans "رقم الهاتف" %}</th>
+                <th>{% trans "المستند" %}</th>
+                <th>{% trans "اسم القالب" %}</th>
+                <th>{% trans "مرفق PDF" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "المستخدم" %}</th>
+                <th class="text-end pe-3" style="width: 140px;">{% trans "الإجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td class="ps-3 text-muted small">{{ forloop.counter }}</td>
+                <td class="small">
+                    <span class="text-dark fw-bold">{{ log.created_at|date:"Y-m-d" }}</span>
+                    <span class="text-muted d-block font-monospace" style="font-size: 0.75rem;">{{ log.created_at|date:"H:i:s" }}</span>
+                </td>
+                <td>
+                    {% if log.customer %}
+                        <a href="{% url 'customer:customer_detail' log.customer.pk %}" class="fw-bold text-decoration-none text-primary">
+                            <i class="fas fa-user text-primary me-1"></i> {{ log.customer.name }}
+                        </a>
+                        <span class="badge bg-primary-subtle text-primary ms-1" style="font-size: 0.65rem;">{% trans "عميل" %}</span>
+                    {% elif log.supplier %}
+                        <a href="{% url 'supplier:supplier_detail' log.supplier.pk %}" class="fw-bold text-decoration-none text-dark">
+                            <i class="fas fa-truck text-secondary me-1"></i> {{ log.supplier.name }}
+                        </a>
+                        <span class="badge bg-secondary-subtle text-dark ms-1" style="font-size: 0.65rem;">{% trans "مورد" %}</span>
+                    {% else %}
+                        <span class="text-dark">{{ log.recipient_name|default:"-" }}</span>
+                        {% if log.is_custom_phone %}
+                            <span class="badge bg-light text-muted border ms-1" style="font-size: 0.65rem;">{% trans "رقم مخصص" %}</span>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="font-monospace text-dark fw-bold" dir="ltr">{{ log.recipient_phone }}</span>
+                </td>
+                <td>
+                    <span class="text-dark small">{{ log.safe_document_label }}</span>
+                </td>
+                <td>
+                    <code class="text-dark small">{{ log.template_name }}</code>
+                </td>
+                <td>
+                    {% if log.has_media %}
+                        <span class="badge bg-danger-subtle text-danger">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </span>
+                    {% else %}
+                        <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if log.status == 'SENT' %}
+                        <span class="badge bg-info-subtle text-info"><i class="fas fa-check me-1"></i> {% trans "تم الإرسال" %}</span>
+                    {% elif log.status == 'DELIVERED' %}
+                        <span class="badge bg-primary-subtle text-primary"><i class="fas fa-check-double me-1"></i> {% trans "تم التسليم" %}</span>
+                    {% elif log.status == 'READ' %}
+                        <span class="badge bg-success-subtle text-success"><i class="fas fa-eye me-1"></i> {% trans "تمت القراءة" %}</span>
+                    {% elif log.status == 'FAILED' %}
+                        <span class="badge bg-danger-subtle text-danger" title="{{ log.error_message }}">
+                            <i class="fas fa-times-circle me-1"></i> {% trans "فشل الإرسال" %}
+                        </span>
+                    {% elif log.status == 'SKIPPED' %}
+                        <span class="badge bg-warning-subtle text-dark" title="{{ log.error_message }}">
+                            <i class="fas fa-ban me-1"></i> {% trans "تم التخطي" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-muted">{% trans "قيد الإرسال" %}</span>
+                    {% endif %}
+                </td>
+                <td class="small text-muted">
+                    {{ log.created_by.username|default:"آلي" }}
+                </td>
+                <td class="text-end pe-3">
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary btn-view-log" data-log-id="{{ log.id }}" title="{% trans 'عرض التفاصيل' %}">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
+                        {% if log.status == 'FAILED' or log.status == 'SENT' or log.status == 'DELIVERED' %}
+                        <button type="button" class="btn btn-outline-primary btn-resend-log" data-log-id="{{ log.id }}" title="{% trans 'إعادة الإرسال (توليد PDF طازج)' %}">
+                            <i class="fas fa-redo-alt"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-4 text-muted">
+                    <i class="fab fa-whatsapp fa-3x mb-2 text-muted opacity-50 d-block"></i>
+                    {% trans "لا توجد رسائل واتساب مطابقة لمعايير البحث." %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- SSR Pagination Wrapper (Rule 6) -->
+<div id="pagination-wrapper" class="p-3 border-top bg-light">
+    {% include "partials/pagination.html" %}
+</div>

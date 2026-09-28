@@ -21,6 +21,7 @@ from purchase.models import Purchase, PurchasePayment, PurchaseItem
 from purchase.forms import PurchaseForm
 from product.models import Product, Warehouse
 from supplier.models import Supplier
+from django.contrib.contenttypes.models import ContentType
 from core.models import SystemSetting
 from users.services.data_scoping_service import DataScopingService
 
@@ -820,7 +821,7 @@ def purchase_detail(request, pk):
                             "text": "تحميل PDF"
                         },
                         {
-                            "onclick": f"shareWhatsAppPDF('{purchase.supplier.phone if purchase.supplier and purchase.supplier.phone else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
+                            "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Purchase).id}, objectId: {purchase.pk}, partnerId: {purchase.supplier.pk if purchase.supplier else 'null'}, partnerType: 'supplier'}})",
                             "icon": "fab fa-whatsapp text-success",
                             "text": "إرسال واتساب"
                         },

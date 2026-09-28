@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from users.decorators import require_permission
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.core.paginator import Paginator
 from django.urls import reverse
@@ -11,6 +12,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Sum, Count, Q
 from django.template.loader import render_to_string
+from django.contrib.contenttypes.models import ContentType
 
 from purchase.models.procurement_models import (
     PurchaseOrder,
@@ -668,9 +670,9 @@ def po_detail(request, pk):
                 "text": _("تحميل PDF")
             },
             {
-                "onclick": f"if(window.shareWhatsAppPDF) {{ shareWhatsAppPDF('{po.supplier.phone if po.supplier and po.supplier.phone else ''}', '{po.order_number}', 'أمر شراء', '{reverse('purchase:po_pdf_download', kwargs={'pk': po.pk})}', '{reverse('purchase:po_print', kwargs={'pk': po.pk})}'); }}",
+                "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(PurchaseOrder).id}, objectId: {po.pk}, partnerId: {po.supplier.pk if po.supplier else 'null'}, partnerType: 'supplier'}})",
                 "icon": "fab fa-whatsapp text-success",
-                "text": _("إرسال واتساب للمورد")
+                "text": _("إرسال واتساب")
             },
             {
                 "onclick": f"if(window.sendEmailPDF) {{ sendEmailPDF('{reverse('purchase:po_email_pdf', kwargs={'pk': po.pk})}', '{po.supplier.email if po.supplier and po.supplier.email else ''}', '{po.order_number}', 'أمر شراء', '{reverse('purchase:po_pdf_download', kwargs={'pk': po.pk})}', '{reverse('purchase:po_print', kwargs={'pk': po.pk})}'); }}",
@@ -717,24 +719,28 @@ def po_detail(request, pk):
     return render(request, "purchase/po_detail.html", context)
 
 
-@login_required
-@require_permission("purchase.view_purchaseorder")
-@check_purchase_orders_enabled
-def po_print(request, pk):
-    """طباعة وتصدير أمر الشراء الرسمي للمورد (PO Print View)"""
+def get_po_print_context(request, pk):
+    """استخراج كائن أمر الشراء وسياق الطباعة الموحد"""
     po = get_object_or_404(
         PurchaseOrder.objects.select_related("supplier", "warehouse", "currency", "created_by", "approved_by")
         .prefetch_related("items__product", "items__unit"),
         pk=pk
     )
-
     currency_symbol = po.currency.symbol if po.currency and po.currency.symbol else "ج.م"
-
     context = {
         "po": po,
         "currency_symbol": currency_symbol,
-        "page_title": _(f"أمر شراء #{po.order_number} - {po.supplier.name}"),
+        "page_title": _(f"أمر شراء #{po.order_number} - {po.supplier.name if po.supplier else ''}"),
     }
+    return po, context
+
+
+@login_required
+@require_permission("purchase.view_purchaseorder")
+@check_purchase_orders_enabled
+def po_print(request, pk):
+    """طباعة وتصدير أمر الشراء الرسمي للمورد (PO Print View)"""
+    po, context = get_po_print_context(request, pk)
     return render(request, "purchase/po_print.html", context)
 
 
@@ -745,18 +751,7 @@ def po_pdf_download(request, pk):
     """تصدير وتحميل أمر الشراء كملف PDF رسمي"""
     from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
 
-    po = get_object_or_404(
-        PurchaseOrder.objects.select_related("supplier", "warehouse", "currency", "created_by", "approved_by")
-        .prefetch_related("items__product", "items__unit"),
-        pk=pk
-    )
-    currency_symbol = po.currency.symbol if po.currency and po.currency.symbol else "ج.م"
-
-    context = {
-        "po": po,
-        "currency_symbol": currency_symbol,
-        "page_title": f"أمر شراء #{po.order_number} - {po.supplier.name}",
-    }
+    po, context = get_po_print_context(request, pk)
 
     try:
         html_content = render_to_string("purchase/po_print.html", context, request=request)
@@ -769,6 +764,7 @@ def po_pdf_download(request, pk):
         pass
 
     return generate_guaranteed_pdf_response("purchase_order", context, filename=f"PO_{po.order_number}.pdf")
+
 
 
 @login_required

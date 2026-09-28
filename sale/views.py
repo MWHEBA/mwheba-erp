@@ -11,6 +11,7 @@ from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
+from django.contrib.contenttypes.models import ContentType
 from django.http import JsonResponse
 from django.db import models
 from django.db.models import Sum, Q
@@ -851,7 +852,7 @@ def sale_detail(request, pk):
                             "text": "تحميل PDF"
                         },
                         {
-                            "onclick": f"shareWhatsAppPDF('{sale.customer.phone if sale.customer and sale.customer.phone else ''}', '{sale.number}', 'فاتورة مبيعات', '{reverse('sale:sale_pdf_download', kwargs={'pk': sale.pk})}', '{reverse('sale:sale_print', kwargs={'pk': sale.pk})}')",
+                            "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Sale).id}, objectId: {sale.pk}, partnerId: {sale.customer.pk if sale.customer else 'null'}, partnerType: 'customer'}})",
                             "icon": "fab fa-whatsapp text-success",
                             "text": "إرسال واتساب"
                         },
@@ -1599,6 +1600,8 @@ def payment_detail(request, pk):
         "financial_info": financial_info,
         "active_menu": "sales",
         "title": f"تفاصيل الدفعة #{payment.id}",
+        "page_title": f"سند قبض #{payment.payment_code or payment.id}",
+        "payment_content_type_id": ContentType.objects.get_for_model(SalePayment).id,
     }
     
     return render(request, "sale/payment_detail.html", context)
@@ -1905,11 +1908,52 @@ def sale_return_detail(request, pk):
     sale_return = get_object_or_404(SaleReturn, pk=pk)
     items = sale_return.items.select_related("product").all()
     
+    header_buttons = [
+        {
+            "dropdown": True,
+            "icon": "fa-share-alt",
+            "text": _("مشاركة"),
+            "class": "btn-outline-success",
+            "items": [
+                {
+                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(SaleReturn).id}, objectId: {sale_return.pk}, partnerId: {sale_return.sale.customer.pk if sale_return.sale and sale_return.sale.customer else 'null'}, partnerType: 'customer'}})",
+                    "icon": "fab fa-whatsapp text-success",
+                    "text": _("إرسال واتساب")
+                },
+            ]
+        },
+        {
+            "url": reverse("sale:sale_return_list"),
+            "icon": "fa-arrow-right",
+            "text": _("العودة للقائمة"),
+            "class": "btn-outline-primary",
+        }
+    ]
+    if sale_return.status == 'draft':
+        header_buttons.insert(0, {
+            "url": reverse("sale:sale_return_confirm", kwargs={"pk": sale_return.pk}),
+            "icon": "fa-check",
+            "text": _("تأكيد المرتجع"),
+            "class": "btn-success",
+        })
+
+    breadcrumb_items = [
+        {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+        {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+        {"title": _("مرتجعات المبيعات"), "url": reverse("sale:sale_return_list")},
+        {"title": f"مرتجع #{sale_return.id}", "active": True},
+    ]
+
     context = {
         "sale_return": sale_return,
         "items": items,
         "active_menu": "sales",
         "title": f"تفاصيل المرتجع #{sale_return.id}",
+        "page_title": f"تفاصيل المرتجع #{sale_return.id}",
+        "page_subtitle": f"فاتورة الأصل: {sale_return.sale.number if sale_return.sale else '-'}",
+        "page_icon": "fas fa-undo",
+        "header_buttons": header_buttons,
+        "breadcrumb_items": breadcrumb_items,
     }
     
     return render(request, "sale/sale_return_detail.html", context)

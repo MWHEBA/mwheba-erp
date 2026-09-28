@@ -608,6 +608,17 @@ def work_order_detail(request, pk):
             "target": "#actionsModal",
         })
 
+    from django.contrib.contenttypes.models import ContentType
+    wo_ct_id = ContentType.objects.get_for_model(WorkOrder).id
+    cust_id = work_order.customer_id if work_order.customer else None
+    header_buttons.append({
+        "url": "#",
+        "icon": "fab fa-whatsapp",
+        "text": _("إرسال واتساب"),
+        "class": "btn-success",
+        "onclick": f"openWhatsAppModal({{contentTypeId: {wo_ct_id}, objectId: {work_order.pk}, partnerId: {cust_id or 'null'}, partnerType: 'customer'}}); return false;",
+    })
+
     context.update({
         "title": _("أمر شغل {}").format(work_order.number),
         "page_title": _("أمر شغل {}").format(work_order.number),

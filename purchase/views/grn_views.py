@@ -190,8 +190,12 @@ def grn_detail(request, pk):
         {'title': f"GRN #{grn.grn_number}", 'active': True}
     ]
 
+    from django.contrib.contenttypes.models import ContentType
+    grn_content_type_id = ContentType.objects.get_for_model(GoodsReceivedNote).id
+
     return render(request, 'purchase/grn_detail.html', {
         'grn': grn,
+        'grn_content_type_id': grn_content_type_id,
         'breadcrumb_items': breadcrumb_items,
         'title': _("تفاصيل إذن استلام المشتريات #{}").format(grn.grn_number)
     })

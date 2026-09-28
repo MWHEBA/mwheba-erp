@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.contrib.contenttypes.models import ContentType
 from django.template.loader import render_to_string
 from django.http import JsonResponse
 
@@ -273,6 +274,19 @@ def delivery_note_detail(request, pk):
             "icon": "fa-print",
             "class": "btn-outline-secondary",
             "target": "_blank",
+        },
+        {
+            "dropdown": True,
+            "icon": "fa-share-alt",
+            "text": _("مشاركة"),
+            "class": "btn-outline-success",
+            "items": [
+                {
+                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(DeliveryNote).id}, objectId: {dn.pk}, partnerId: {dn.customer.pk if dn.customer else 'null'}, partnerType: 'customer'}})",
+                    "icon": "fab fa-whatsapp text-success",
+                    "text": _("إرسال واتساب")
+                },
+            ]
         }
     ]
 

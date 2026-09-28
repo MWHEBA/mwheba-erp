@@ -82,6 +82,12 @@
       <button onclick="window.print()" class="btn btn-outline-secondary">
         <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
       </button>
+
+      {% if grn.supplier %}
+      <button type="button" class="btn btn-outline-success" data-wa-trigger data-content-type-id="{{ grn_content_type_id }}" data-object-id="{{ grn.pk }}" data-partner-id="{{ grn.supplier.pk }}" data-partner-type="supplier">
+        <i class="fab fa-whatsapp me-1"></i> {% trans "إرسال واتساب" %}
+      </button>
+      {% endif %}
     </div>
   </div>
 
@@ -285,4 +291,6 @@
   </div>
 </div>
 {% endif %}
+
+{% include "components/whatsapp_send_modal.html" %}
 {% endblock %}

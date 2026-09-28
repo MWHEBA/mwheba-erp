@@ -234,6 +234,26 @@ class Customer(models.Model):
         help_text=_("معدل التواصل المطلوب مع العميل"),
     )
 
+    # حقول إشعارات الواتساب وتدقيق إلغاء الاشتراك (WhatsApp Integration & Opt-Out Audit)
+    whatsapp_opt_out = models.BooleanField(
+        _("إلغاء الاشتراك في رسائل الواتساب (Opt-Out)"),
+        default=False,
+        help_text=_("إلغاء اشتراك العميل في استلام الإشعارات التلقائية عبر الواتساب بناءً على طلبه")
+    )
+    whatsapp_opt_out_at = models.DateTimeField(
+        _("تاريخ آخر تعديل للاشتراك"),
+        null=True,
+        blank=True,
+        help_text=_("تاريخ وتوقيت آخر تعديل لحالة اشتراك الواتساب")
+    )
+    whatsapp_opt_out_reason = models.CharField(
+        _("سبب ومصدر تعديل الاشتراك"),
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text=_("سبب ومصدر تعديل حالة الاشتراك (مثال: Inbound Keyword Webhook أو يدوي بواسطة المحاسب)")
+    )
+
     # الملاحظات
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
 

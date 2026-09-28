@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('printing_pricing', '0002_initial'),
+        ('printing_pricing', '0003_upgrade_specs_to_multi_part'),
     ]
 
     operations = [

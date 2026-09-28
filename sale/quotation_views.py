@@ -9,6 +9,7 @@ from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -781,7 +782,7 @@ def quotation_detail(request, pk):
                     "text": _("تحميل PDF")
                 },
                 {
-                    "onclick": f"shareWhatsAppPDF('{quotation.customer.phone if quotation.customer and quotation.customer.phone else ''}', '{quotation.number}', 'عرض سعر', '{reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk})}', '{reverse('sale:quotation_print', kwargs={'pk': quotation.pk})}')",
+                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Quotation).id}, objectId: {quotation.pk}, partnerId: {quotation.customer.pk if quotation.customer else 'null'}, partnerType: 'customer'}})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

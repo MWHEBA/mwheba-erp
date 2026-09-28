@@ -3,10 +3,17 @@ from . import api
 from .views import (
     # Main views
     dashboard, company_settings, operations_settings, system_settings, get_current_time,
-    system_reset, notifications_list, notification_settings, whatsapp_settings,
-    whatsapp_webhook,
+    system_reset, notifications_list, notification_settings,
     # Logs views
     view_error_logs, clear_error_logs,
+    # WhatsApp views
+    whatsapp_settings_view, whatsapp_webhook_view,
+    whatsapp_test_connection_api, whatsapp_send_test_message_api, whatsapp_sync_templates_api,
+    whatsapp_create_templates_api,
+    whatsapp_prepare_send, whatsapp_send_document, whatsapp_document_status,
+    whatsapp_partner_logs, whatsapp_logs_list, whatsapp_resend_message_api,
+    whatsapp_log_detail_api, whatsapp_template_preview_api,
+    whatsapp_toggle_trigger_api, whatsapp_readiness_metrics_api,
     # Backup views
     backup_management, create_backup, download_backup, restore_backup,
     restore_backup_from_upload,
@@ -58,8 +65,23 @@ urlpatterns = [
     # صفحة عرض كل الإشعارات
     path("notifications/", notifications_list, name="notifications_list"),
     path("notifications/settings/", notification_settings, name="notification_settings"),
-    path("settings/whatsapp/", whatsapp_settings, name="whatsapp_settings"),
-    path("webhooks/whatsapp/", whatsapp_webhook, name="whatsapp_webhook"),
+    # مسارات WhatsApp Business Cloud API (الإعدادات والـ Webhook والمودال والسجلات) ✅
+    path("settings/whatsapp/", whatsapp_settings_view, name="whatsapp_settings"),
+    path("logs/whatsapp/", whatsapp_logs_list, name="whatsapp_logs"),
+    path("webhooks/whatsapp/", whatsapp_webhook_view, name="whatsapp_webhook"),
+    path("api/whatsapp/test-connection/", whatsapp_test_connection_api, name="whatsapp_test_connection"),
+    path("api/whatsapp/send-test/", whatsapp_send_test_message_api, name="whatsapp_send_test"),
+    path("api/whatsapp/sync-templates/", whatsapp_sync_templates_api, name="whatsapp_sync_templates"),
+    path("api/whatsapp/create-templates/", whatsapp_create_templates_api, name="whatsapp_create_templates"),
+    path("api/whatsapp/prepare/", whatsapp_prepare_send, name="whatsapp_prepare_send"),
+    path("api/whatsapp/send/", whatsapp_send_document, name="whatsapp_send_document"),
+    path("api/whatsapp/status/", whatsapp_document_status, name="whatsapp_document_status"),
+    path("api/whatsapp/resend/<int:log_id>/", whatsapp_resend_message_api, name="whatsapp_resend_message"),
+    path("api/whatsapp/logs/<int:log_id>/", whatsapp_log_detail_api, name="whatsapp_log_detail"),
+    path("api/whatsapp/partner/<str:partner_type>/<int:partner_id>/", whatsapp_partner_logs, name="whatsapp_partner_logs"),
+    path("api/whatsapp/template-preview/", whatsapp_template_preview_api, name="whatsapp_template_preview"),
+    path("api/whatsapp/toggle-trigger/", whatsapp_toggle_trigger_api, name="whatsapp_toggle_trigger"),
+    path("api/whatsapp/readiness-metrics/", whatsapp_readiness_metrics_api, name="whatsapp_readiness_metrics"),
     
     # مسارات API الإشعارات - مفعلة ✅
     path('api/notifications/mark-read/<int:notification_id>/', api.mark_notification_read, name='mark_notification_read'),

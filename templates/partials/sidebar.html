@@ -1031,6 +1031,12 @@
                                 <i class="fas fa-bell me-2"></i>{% trans "الإشعارات" %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'core:whatsapp_logs' %}"
+                                class="submenu-link {% if request.resolver_match.url_name == 'whatsapp_logs' %}active{% endif %}">
+                                <i class="fab fa-whatsapp me-2 text-success"></i>{% trans "سجل رسائل WhatsApp" %}
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 {% else %}
@@ -1079,6 +1085,11 @@
                         <li>
                             <a href="{% url 'core:module_management' %}" class="submenu-link">
                                 <i class="fas fa-cubes me-2"></i>{% trans "تطبيقات النظام" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'core:whatsapp_settings' %}" class="submenu-link {% if request.resolver_match.url_name == 'whatsapp_settings' %}active{% endif %}">
+                                <i class="fab fa-whatsapp me-2 text-success"></i>{% trans "إعدادات WhatsApp" %}
                             </a>
                         </li>
 

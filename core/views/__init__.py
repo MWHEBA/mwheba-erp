@@ -17,3 +17,6 @@ from .security_views import *
 
 # Module management views
 from .module_management import module_management
+
+# WhatsApp Integration views
+from .whatsapp_views import *

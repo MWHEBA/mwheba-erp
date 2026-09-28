@@ -469,6 +469,10 @@
                         </a>
                         {% endif %}
                         
+                        <button type="button" class="btn btn-outline-success" data-wa-trigger data-content-type-id="{{ payment_content_type_id }}" data-object-id="{{ payment.pk }}" data-partner-id="{{ sale.customer.pk }}" data-partner-type="customer">
+                            <i class="fab fa-whatsapp me-1"></i>{% trans "إرسال إشعار سداد (واتساب)" %}
+                        </button>
+                        
                         <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-outline-secondary">
                             <i class="fas fa-arrow-left me-1"></i>العودة للفاتورة
                         </a>
@@ -488,6 +492,8 @@
         </div>
     </div>
 </div>
+
+{% include "components/whatsapp_send_modal.html" %}
 {% endblock %}
 
 {% block extra_js %}

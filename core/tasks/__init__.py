@@ -1,10 +1,13 @@
-# ✅ SIMPLIFIED MONITORING TASKS
-# Basic maintenance tasks for SMB-scale deployment
-
+# -*- coding: utf-8 -*-
+"""
+Core Celery Tasks Package for MWHEBA ERP
+Includes monitoring tasks, backup tasks, and WhatsApp asynchronous dispatching tasks.
+"""
+import logging
+from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,6 @@ def cleanup_old_logs_task(self, days_to_keep=30):
     """
     try:
         from core.models import UnifiedLog
-        from datetime import timedelta
         
         cutoff_date = timezone.now() - timedelta(days=days_to_keep)
         

@@ -1,6 +1,11 @@
+from typing import Any
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.conf import settings
 
 User = get_user_model()
 
@@ -1314,7 +1319,7 @@ class Alert(models.Model):
     metric_value = models.FloatField(_("قيمة المقياس"))
     threshold_value = models.FloatField(_("قيمة العتبة"))
     acknowledged_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True, 
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, 
         related_name='acknowledged_alerts', verbose_name=_("تم الإقرار بواسطة")
     )
     acknowledged_at = models.DateTimeField(_("وقت الإقرار"), null=True, blank=True)
@@ -1331,7 +1336,7 @@ class Alert(models.Model):
             models.Index(fields=['rule', 'created_at']),
         ]
     
-    def acknowledge(self, user: User):
+    def acknowledge(self, user=None):
         """Acknowledge the alert"""
         self.status = 'acknowledged'
         self.acknowledged_by = user
@@ -1503,7 +1508,7 @@ class Attachment(models.Model):
     original_name = models.CharField(_("اسم الملف الأصلي"), max_length=255)
     version = models.PositiveIntegerField(_("رقم الإصدار"), default=1)
     is_latest = models.BooleanField(_("النسخة الأحدث"), default=True, db_index=True)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
     deleted_at = models.DateTimeField(_("تاريخ الحذف الناعم"), null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(_("تاريخ الرفع"), auto_now_add=True)
 
@@ -1528,7 +1533,7 @@ class DraftAttachment(models.Model):
     file_blob = models.ForeignKey(FileBlob, on_delete=models.CASCADE, related_name='draft_attachments', verbose_name=_("كتلة التخزين"))
     category = models.ForeignKey(AttachmentCategory, on_delete=models.CASCADE, verbose_name=_("فئة المستند"))
     original_name = models.CharField(_("اسم الملف الأصلي"), max_length=255)
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
     expires_at = models.DateTimeField(_("تاريخ الانتهاء"), db_index=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
@@ -1555,7 +1560,7 @@ class AttachmentAuditLog(models.Model):
 
     attachment = models.ForeignKey(Attachment, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs', verbose_name=_("المرفق"))
     action = models.CharField(_("نوع الإجراء"), max_length=20, choices=ACTION_CHOICES)
-    performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالإجراء"))
+    performed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالإجراء"))
     user_name_snapshot = models.CharField(_("لقطة اسم المستخدم"), max_length=150, blank=True, null=True)
     user_email_snapshot = models.CharField(_("لقطة بريد المستخدم"), max_length=150, blank=True, null=True)
     ip_address = models.GenericIPAddressField(_("عنوان IP"), blank=True, null=True)
@@ -1581,7 +1586,7 @@ class AttachmentOrphanReview(models.Model):
     file_blob = models.ForeignKey(FileBlob, on_delete=models.CASCADE, related_name='orphan_reviews')
     status = models.CharField(_("حالة المراجعة"), max_length=30, choices=STATUS_CHOICES, default='FOUND')
     detected_at = models.DateTimeField(_("توقيت الاكتشاف"), auto_now_add=True)
-    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المراجع"))
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المراجع"))
     deleted_at = models.DateTimeField(_("تاريخ الحذف النهائي"), null=True, blank=True)
 
     class Meta:
@@ -1654,7 +1659,7 @@ class DocumentSequenceAudit(models.Model):
     document_number = models.CharField(_("رقم المستند الناتج"), max_length=100, blank=True, null=True, db_index=True)
     company_code = models.CharField(_("كود الشركة"), max_length=50, default="DEFAULT")
     warehouse = models.ForeignKey('product.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المخزن / الفرع"))
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم (إن وجد)"))
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم (إن وجد)"))
     source_type = models.CharField(_("مصدر الطلب"), max_length=20, default="USER")
     timestamp = models.DateTimeField(_("تاريخ وتوقيت الحدث"), auto_now_add=True, db_index=True)
     reason = models.TextField(_("السبب / الملاحظات"), blank=True, null=True)
@@ -1669,4 +1674,163 @@ class DocumentSequenceAudit(models.Model):
         verbose_name = _("سجل تدقيق الترقيم")
         verbose_name_plural = _("سجلات تدقيق الترقيم")
         ordering = ["-timestamp"]
+
+
+class WhatsAppMessageLog(models.Model):
+    """
+    سجل تدقيق ومراقبة رسائل الواتساب السحابية الموحد (WhatsApp Business Cloud Message Log)
+    """
+    STATUS_CHOICES = [
+        ('PENDING', _('قيد الإرسال')),
+        ('SENT', _('تم الإرسال لـ Meta')),
+        ('DELIVERED', _('تم التسليم للهاتف')),
+        ('READ', _('تمت القراءة 👁️')),
+        ('FAILED', _('فشل الإرسال')),
+        ('SKIPPED', _('تم التخطي (رقم غير صالح / Opt-Out)')),
+    ]
+
+    # مصفوفة التدرج الآمن لمنع ارتداد الحالات للخلف
+    STATUS_RANK = {
+        'PENDING': 0,
+        'SENT': 1,
+        'DELIVERED': 2,
+        'READ': 3,
+        'FAILED': 99,
+        'SKIPPED': 99,
+    }
+
+    CATEGORY_CHOICES = [
+        ('UTILITY', _('خدمية (Utility)')),
+        ('AUTHENTICATION', _('تحقق وأمان (Authentication)')),
+        ('MARKETING', _('تسويقية (Marketing)')),
+        ('SERVICE', _('خدمة عملاء (Service)')),
+    ]
+
+    recipient_phone = models.CharField(_("رقم المستلم"), max_length=30, db_index=True)
+    recipient_name = models.CharField(_("اسم المستلم"), max_length=150, blank=True, default="")
+    is_custom_phone = models.BooleanField(_("رقم مخصص يدوياً"), default=False)
+
+    # دعم الشركاء المتعددين (عملاء وموردين)
+    customer = models.ForeignKey(
+        'customer.Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='whatsapp_messages',
+        verbose_name=_("العميل")
+    )
+    supplier = models.ForeignKey(
+        'supplier.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='whatsapp_messages',
+        verbose_name=_("المورد")
+    )
+
+    # Generic Foreign Key لكافة المستندات الـ 20 المدعومة في النظام
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    document_object = GenericForeignKey('content_type', 'object_id')
+
+    template_name = models.CharField(_("اسم القالب"), max_length=100)
+    language_code = models.CharField(_("لغة القالب"), max_length=10, default='ar')
+    pricing_category = models.CharField(_("فئة التسعير"), max_length=30, choices=CATEGORY_CHOICES, default='UTILITY')
+
+    message_id = models.CharField(_("معرف الرسالة (wamid)"), max_length=150, blank=True, null=True, db_index=True)
+    status = models.CharField(_("حالة الرسالة"), max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
+
+    has_media = models.BooleanField(_("يحتوي على مرفق PDF"), default=False)
+    media_id = models.CharField(_("معرف الوسائط (Media ID)"), max_length=150, blank=True, null=True)
+
+    error_code = models.CharField(_("كود الخطأ"), max_length=50, blank=True, null=True)
+    error_message = models.TextField(_("تفاصيل الخطأ"), blank=True, null=True)
+
+    is_automatic = models.BooleanField(_("إرسال تلقائي"), default=False)
+    retry_count = models.PositiveIntegerField(_("عدد محاولات الإرسال"), default=0)
+
+    # التوثيق الزمني المنفصل للإثبات القانوني والضريبي
+    delivered_at = models.DateTimeField(_("توقيت التسليم للهاتف"), null=True, blank=True)
+    read_at = models.DateTimeField(_("توقيت فتح وقراءة العميل 👁️"), null=True, blank=True)
+    document_reference_text = models.CharField(_("مرجع المستند النصي الدائم"), max_length=255, blank=True, default="")
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sent_whatsapp_messages',
+        verbose_name=_("المستخدم المنشئ")
+    )
+    created_at = models.DateTimeField(_("تاريخ وتوقيت الإرسال"), auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(_("آخر تحديث"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("سجل رسائل الواتساب")
+        verbose_name_plural = _("سجلات رسائل الواتساب")
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['content_type', 'object_id', 'status']),
+            models.Index(fields=['recipient_phone', '-created_at']),
+            models.Index(fields=['customer', '-created_at']),
+            models.Index(fields=['supplier', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+        permissions = [
+            ("can_send_whatsapp", _("يمكنه إرسال إشعارات ومستندات عبر الواتساب")),
+        ]
+
+    def __str__(self):
+        return f"{self.recipient_phone} ({self.template_name}) - {self.get_status_display()}"
+
+    def update_status_safely(self, new_status: str, message_id: str = None, error_code: str = None, error_message: str = None):
+        """تحديث آمن للحالة يمنع ارتداد الرسالة من READ إلى DELIVERED في حال وصول Webhooks متأخرة مع توثيق التوقيت القانوني"""
+        current_rank = self.STATUS_RANK.get(self.status, 0)
+        new_rank = self.STATUS_RANK.get(new_status, 0)
+
+        update_fields = ['status', 'updated_at']
+        if message_id:
+            self.message_id = str(message_id)
+            update_fields.append('message_id')
+
+        # التحديث مسموح فقط للأمام أو في حال الفشل
+        if new_rank >= current_rank or new_status in ('FAILED', 'SKIPPED'):
+            self.status = new_status
+            if error_code is not None:
+                self.error_code = str(error_code)
+                update_fields.append('error_code')
+            if error_message is not None:
+                self.error_message = str(error_message)
+                update_fields.append('error_message')
+
+            now = timezone.now()
+            if new_status == 'DELIVERED' and not self.delivered_at:
+                self.delivered_at = now
+                update_fields.append('delivered_at')
+            elif new_status == 'READ':
+                if not self.delivered_at:
+                    self.delivered_at = now
+                    update_fields.append('delivered_at')
+                if not self.read_at:
+                    self.read_at = now
+                    update_fields.append('read_at')
+
+            self.save(update_fields=list(set(update_fields)))
+        elif message_id:
+            self.save(update_fields=['message_id', 'updated_at'])
+
+    @property
+    def safe_document_label(self) -> str:
+        """عرض آمن للمستند يمنع انهيار الشاشة في حال حذف المستند الأصل"""
+        try:
+            if self.document_object:
+                if hasattr(self.document_object, 'number'):
+                    return f"{self.document_object._meta.verbose_name} #{self.document_object.number}"
+                return str(self.document_object)
+        except Exception:
+            pass
+        if self.content_type and self.object_id:
+            return f"{self.content_type.name} #{self.object_id} (محذوف أو غير متوفر)"
+        return "مستند غير محدد"
+
 

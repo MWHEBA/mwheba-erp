@@ -377,12 +377,13 @@ def purchase_return_detail(request, pk):
         pk=pk
     )
 
-    context = {
-        "purchase_return": purchase_return,
-        "page_title": f"مرتجع رقم {purchase_return.number}",
-        "page_subtitle": f"فاتورة {purchase_return.purchase.number} | {purchase_return.purchase.supplier.name}",
-        "page_icon": "fas fa-undo-alt",
-        "header_buttons": ([] if purchase_return.status != 'draft' else [
+    from django.contrib.contenttypes.models import ContentType
+    ct_id = ContentType.objects.get_for_model(PurchaseReturn).id
+    supplier_id = getattr(getattr(purchase_return, 'purchase', None), 'supplier_id', None)
+
+    header_buttons = []
+    if purchase_return.status == 'draft':
+        header_buttons.extend([
             {
                 "url": reverse("purchase:purchase_return_confirm", kwargs={"pk": purchase_return.pk}),
                 "icon": "fa-check",
@@ -397,7 +398,22 @@ def purchase_return_detail(request, pk):
                 "class": "btn-danger",
                 "onclick": "return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')",
             },
-        ]),
+        ])
+    elif purchase_return.status == 'confirmed':
+        header_buttons.append({
+            "url": "#",
+            "icon": "fab fa-whatsapp",
+            "text": "إرسال واتساب",
+            "class": "btn-success",
+            "onclick": f"openWhatsAppModal({{contentTypeId: {ct_id}, objectId: {purchase_return.pk}, partnerId: {supplier_id or 'null'}, partnerType: 'supplier'}}); return false;",
+        })
+
+    context = {
+        "purchase_return": purchase_return,
+        "page_title": f"مرتجع رقم {purchase_return.number}",
+        "page_subtitle": f"فاتورة {purchase_return.purchase.number} | {purchase_return.purchase.supplier.name}",
+        "page_icon": "fas fa-undo-alt",
+        "header_buttons": header_buttons,
         "breadcrumb_items": [
             {
                 "title": "لوحة التحكم",
