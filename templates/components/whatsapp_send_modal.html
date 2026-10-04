@@ -3,7 +3,7 @@
 <div class="modal fade" id="whatsappSendModal" tabindex="-1" aria-labelledby="whatsappSendModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <!-- Modal Header -->
+            <!-- Modal Header (Rule 8 Standard) -->
             <div class="modal-header bg-light border-bottom px-4 py-3">
                 <h5 class="modal-title fw-bold text-dark mb-0" id="whatsappSendModalLabel">
                     <i class="fab fa-whatsapp text-success me-2 fs-5"></i>
@@ -57,12 +57,35 @@
                         </div>
                     </div>
 
+                    <!-- 24-Hour Active Window Banner (Meta Coexistence) -->
+                    <div id="wa24hWindowAlert" class="alert alert-success-subtle border border-success-subtle text-success py-2 px-3 mb-3 d-none small">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-comment-dots text-success me-2 fs-5"></i>
+                            <div>
+                                <strong>{% trans "نافذة خدمة العملاء (24 ساعة) نشطة 🟢" %}</strong>
+                                <div class="text-muted small">{% trans "العميل تواصل مؤخراً، سيتم تسليم الرسالة فوراً دون قيود." %}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Last Send History Banner (if exists) -->
                     <div id="waLastLogBanner" class="alert alert-info py-2 px-3 mb-3 d-none small">
                         <div class="d-flex justify-content-between align-items-center">
                             <span><i class="fas fa-history me-1"></i> {% trans "آخر إرسال:" %} <strong id="waLastStatus"></strong></span>
                             <span class="text-muted font-monospace" id="waLastDate"></span>
                         </div>
+                    </div>
+
+                    <!-- Multi-WABA Account / Branch Selector -->
+                    <div id="waAccountSelectWrapper" class="mb-3 d-none">
+                        <label class="form-label fw-bold small text-dark mb-1" for="waAccountSelect">
+                            <i class="fas fa-building me-1 text-secondary"></i>
+                            {% trans "إرسال من حساب / فرع:" %}
+                        </label>
+                        <select id="waAccountSelect" class="form-select form-select-sm" dir="rtl">
+                            <!-- Populated dynamically -->
+                        </select>
+                        <div class="form-text text-muted small">{% trans "اختر رقم وحساب المنشأة المرسل منه المستند." %}</div>
                     </div>
 
                     <!-- Recipient Selection -->
@@ -91,7 +114,7 @@
                         <div id="waCustomPhoneWrapper" class="mt-2 d-none">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-white"><i class="fas fa-mobile-alt text-muted"></i></span>
-                                <input type="tel" id="waCustomPhoneInput" class="form-control text-start font-monospace" placeholder="مثال: 01012345678 أو 966501234567" dir="ltr">
+                                <input type="tel" id="waCustomPhoneInput" class="form-control text-start font-monospace" placeholder="مثال: 01012345678 أو +201012345678" dir="ltr">
                             </div>
                             <small class="text-muted d-block mt-1">{% trans "أدخل الرقم بالصيغة المحلية أو الدولية المباشرة" %}</small>
                         </div>
@@ -106,17 +129,17 @@
                     <!-- Opt-Out Notice -->
                     <div id="waOptOutAlert" class="alert alert-danger py-2 px-3 mb-0 d-none small">
                         <i class="fas fa-ban text-danger me-1"></i>
-                        {% trans "تنبيه قانوني: هذا العميل ملغي للاشتراك (Opt-Out). الإرسال متوقف لحماية الرقم." %}
+                        {% trans "تنبيه: هذا العميل قام بإلغاء الاشتراك مسبقاً (Opt-Out). تم إيقاف الإرسال لحماية جودة الرقم." %}
                     </div>
                 </div>
             </div>
 
-            <!-- Modal Footer -->
+            <!-- Modal Footer (Rule 8 Standard) -->
             <div class="modal-footer bg-light border-top px-4 py-3">
                 <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
                     {% trans "إلغاء" %}
                 </button>
-                <button type="button" class="btn btn-success px-4 fw-bold" id="waSubmitBtn" disabled>
+                <button type="button" class="btn btn-success px-4 fw-bold shadow-sm" id="waSubmitBtn" disabled>
                     <span id="waBtnSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status" aria-hidden="true"></span>
                     <i class="fab fa-whatsapp me-1" id="waBtnIcon"></i>
                     <span id="waBtnText">{% trans "إرسال الآن" %}</span>
@@ -129,6 +152,7 @@
 <script>
 /**
  * MWHEBA ERP — WhatsApp Send Engine & UI Orchestrator
+ * Supports Multi-WABA Account Selection & Meta Coexistence
  */
 (function() {
     let currentPayload = {
@@ -157,9 +181,12 @@
     const elFinancial = document.getElementById('waFinancialSummary');
     const elPdfRow = document.getElementById('waPdfRow');
     const elPdfName = document.getElementById('waPdfName');
+    const el24hAlert = document.getElementById('wa24hWindowAlert');
     const elLastLog = document.getElementById('waLastLogBanner');
     const elLastStatus = document.getElementById('waLastStatus');
     const elLastDate = document.getElementById('waLastDate');
+    const elAccountSelectWrap = document.getElementById('waAccountSelectWrapper');
+    const elAccountSelect = document.getElementById('waAccountSelect');
     const elPhoneSelect = document.getElementById('waPhoneSelect');
     const elPhoneSelectWrap = document.getElementById('waPhoneSelectWrapper');
     const elCustomCheck = document.getElementById('waCustomPhoneCheck');
@@ -248,6 +275,7 @@
         if (elCustomInput) elCustomInput.value = '';
         if (elLandlineWarn) elLandlineWarn.classList.add('d-none');
         if (elOptOut) elOptOut.classList.add('d-none');
+        if (el24hAlert) el24hAlert.classList.add('d-none');
 
         modalInstance().show();
 
@@ -285,6 +313,20 @@
                     elPdfRow.classList.add('d-none');
                 }
 
+                // مؤشر نافذة الـ 24 ساعة
+                if (data.is_24h_window_active && el24hAlert) {
+                    el24hAlert.classList.remove('d-none');
+                } else if (el24hAlert) {
+                    el24hAlert.classList.add('d-none');
+                }
+
+                // مؤشر إلغاء الاشتراك Opt-Out
+                if (data.is_opt_out && elOptOut) {
+                    elOptOut.classList.remove('d-none');
+                } else if (elOptOut) {
+                    elOptOut.classList.add('d-none');
+                }
+
                 // آخر سجل
                 if (data.last_log) {
                     elLastLog.classList.remove('d-none');
@@ -294,10 +336,30 @@
                     elLastLog.classList.add('d-none');
                 }
 
+                // تعبئة الحسابات المتاحة للإرسال (Multi-WABA Accounts)
+                if (elAccountSelect && data.accounts && data.accounts.length > 1) {
+                    elAccountSelect.innerHTML = '';
+                    data.accounts.forEach(acc => {
+                        const opt = document.createElement('option');
+                        opt.value = acc.id;
+                        const coexBadge = acc.is_coexistence ? ' [تعايش + موبايل]' : ' [سحابي]';
+                        const defBadge = acc.is_default ? ' ★ (الافتراضي)' : '';
+                        opt.textContent = `${acc.name} (${acc.phone_number || 'ID: ' + acc.id})${coexBadge}${defBadge}`;
+                        if (acc.is_default) opt.selected = true;
+                        elAccountSelect.appendChild(opt);
+                    });
+                    elAccountSelectWrap.classList.remove('d-none');
+                } else if (elAccountSelect && data.accounts && data.accounts.length === 1) {
+                    elAccountSelect.innerHTML = `<option value="${data.accounts[0].id}" selected>${data.accounts[0].name}</option>`;
+                    elAccountSelectWrap.classList.add('d-none');
+                } else if (elAccountSelectWrap) {
+                    elAccountSelectWrap.classList.add('d-none');
+                }
+
                 // تعبئة أرقام الهاتف
                 elPhoneSelect.innerHTML = '';
                 if (data.phone_options && data.phone_options.length > 0) {
-                    data.phone_options.forEach((opt, idx) => {
+                    data.phone_options.forEach((opt) => {
                         const optEl = document.createElement('option');
                         optEl.value = opt.phone;
                         optEl.textContent = opt.label;
@@ -358,7 +420,9 @@
                 return;
             }
 
-            // تفعيل حالة التحميل والقفل
+            const selectedAccountId = elAccountSelect ? elAccountSelect.value : null;
+
+            // تفعيل حالة التحميل والقفل لمنع التكرار (Debounce)
             isSending = true;
             elSubmitBtn.disabled = true;
             elBtnSpinner.classList.remove('d-none');
@@ -378,7 +442,8 @@
                 is_custom_phone: isCustom,
                 template_name: currentPayload.templateName,
                 from_date: currentPayload.fromDate,
-                to_date: currentPayload.toDate
+                to_date: currentPayload.toDate,
+                account_id: selectedAccountId
             };
 
             fetch('/api/whatsapp/send/', {
@@ -402,10 +467,12 @@
                     modalInstance().hide();
                     
                     // تحديث شارة الهيدر اللحظية بدون Full Reload
-                    window.updateWhatsAppHeaderBadge('SENT', data.message_id);
+                    if (window.updateWhatsAppHeaderBadge) {
+                        window.updateWhatsAppHeaderBadge('SENT', data.message_id);
+                    }
 
                     if (window.showNotification) {
-                        window.showNotification('{% trans "تم إرسال المستند عبر واتساب وتسليمه لـ Meta بنجاح!" %}', 'success', '{% trans "واتساب" %}');
+                        window.showNotification('{% trans "تم إرسال المستند عبر واتساب وتسليمه لـ Meta بنجاح! ✅" %}', 'success', '{% trans "واتساب" %}');
                     } else if (window.toastr) {
                         toastr.success('{% trans "تم إرسال المستند عبر واتساب وتسليمه لـ Meta بنجاح!" %}');
                     } else {

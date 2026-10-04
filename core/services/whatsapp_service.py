@@ -61,7 +61,7 @@ class WhatsAppService:
 
     @classmethod
     def get_session(cls) -> requests.Session:
-        """الحصول على جلسة HTTP معززة بمحول إعادة الاتصال التلقائي"""
+        """الحصول على جلسة HTTP معززة بمحول إعادة الاتصال التلقائي وإدارة اتصالات عالية الأداء"""
         with cls._session_lock:
             if cls._session is None:
                 session = requests.Session()
@@ -71,7 +71,7 @@ class WhatsAppService:
                     status_forcelist=[429, 500, 502, 503, 504],
                     allowed_methods=["HEAD", "GET", "OPTIONS", "POST"]
                 )
-                adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=10, pool_maxsize=20)
+                adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=50)
                 session.mount("https://", adapter)
                 session.mount("http://", adapter)
                 cls._session = session
@@ -91,21 +91,73 @@ class WhatsAppService:
         cache.delete("whatsapp_health_status")
         cache.delete("whatsapp_health_cache")
 
-    # ==================== قراءة وتشفير الإعدادات ====================
+    # ==================== قراءة وتشفير الإعدادات (3-Tier Backward Compatible Resolution) ====================
 
     @classmethod
-    def get_config(cls) -> Dict[str, Any]:
-        """قراءة إعدادات WhatsApp من SystemSetting مع التخزين المؤقت في الكاش"""
-        from ..models import SystemSetting
-        cached = cache.get("whatsapp_config")
-        if cached:
-            return cached
+    def get_config(cls, account: Optional[Any] = None, account_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        قراءة إعدادات WhatsApp عبر طبقة التوافق العكسي ثلاثية المستويات (3-Tier Fallback):
+        - Tier 1: حساب WhatsAppAccount الممرر أو الافتراضي (مع فك التشفير الآمن)
+        - Tier 2: إعدادات SystemSetting المحفوظة في قاعدة البيانات
+        - Tier 3: متغيرات البيئة في django.conf.settings
+        """
+        from ..models import SystemSetting, WhatsAppAccount
+
+        # محاولة حل الحساب من Tier 1
+        account_obj = None
+        if account and isinstance(account, WhatsAppAccount):
+            account_obj = account
+        elif account_id:
+            account_obj = WhatsAppAccount.objects.filter(pk=account_id).first()
+        
+        if not account_obj:
+            account_obj = WhatsAppAccount.objects.filter(is_default=True).first() or WhatsAppAccount.objects.filter(account_status='CONNECTED').first()
+
+        phone_number_id = ""
+        access_token = ""
+        waba_id = ""
+        app_id = ""
+        is_coexistence = True
+        account_id_val = None
+
+        if account_obj:
+            phone_number_id = str(account_obj.phone_number_id or "").strip()
+            access_token = str(account_obj.access_token or "").strip()
+            waba_id = str(account_obj.waba_id or "").strip()
+            app_id = str(account_obj.app_id or "").strip()
+            is_coexistence = bool(account_obj.is_coexistence)
+            account_id_val = account_obj.id
+
+        # Fallback إلى Tier 2 (SystemSetting)
+        if not phone_number_id:
+            phone_number_id = SystemSetting.get_setting("whatsapp_phone_number_id", "").strip()
+        if not access_token:
+            access_token = SystemSetting.get_setting("whatsapp_access_token", "").strip()
+        if not waba_id:
+            waba_id = SystemSetting.get_setting("whatsapp_waba_id", "").strip()
+        if not app_id:
+            app_id = SystemSetting.get_setting("whatsapp_app_id", "").strip()
+
+        # Fallback إلى Tier 3 (settings)
+        if not phone_number_id:
+            phone_number_id = getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', '').strip()
+        if not access_token:
+            access_token = getattr(settings, 'WHATSAPP_ACCESS_TOKEN', '').strip()
+        if not waba_id:
+            waba_id = getattr(settings, 'WHATSAPP_WABA_ID', '').strip()
+        if not app_id:
+            app_id = getattr(settings, 'WHATSAPP_APP_ID', '').strip()
+
         config = {
-            "enabled": SystemSetting.get_setting("whatsapp_enabled", False),
-            "access_token": SystemSetting.get_setting("whatsapp_access_token", "").strip(),
-            "phone_number_id": SystemSetting.get_setting("whatsapp_phone_number_id", "").strip(),
-            "waba_id": SystemSetting.get_setting("whatsapp_waba_id", "").strip(),
-            "app_secret": SystemSetting.get_setting("whatsapp_app_secret", "").strip(),
+            "account_id": account_id_val,
+            "account": account_obj,
+            "enabled": SystemSetting.get_setting("whatsapp_enabled", True) if (phone_number_id and access_token) else False,
+            "access_token": access_token,
+            "phone_number_id": phone_number_id,
+            "waba_id": waba_id,
+            "app_id": app_id,
+            "app_secret": SystemSetting.get_setting("whatsapp_app_secret", "").strip() or getattr(settings, 'WHATSAPP_APP_SECRET', '').strip(),
+            "is_coexistence": is_coexistence,
             "default_country_code": SystemSetting.get_setting("whatsapp_default_country_code", "+20").strip(),
             "fallback_template": SystemSetting.get_setting("whatsapp_fallback_template", "document_send_ar").strip(),
             "fallback_template_lang": SystemSetting.get_setting("whatsapp_fallback_template_lang", "ar").strip(),
@@ -115,27 +167,39 @@ class WhatsAppService:
             "send_overdue_reminder": SystemSetting.get_setting("whatsapp_send_overdue", True),
             "overdue_reminder_days": SystemSetting.get_setting("whatsapp_overdue_days", 7),
         }
-        cache.set("whatsapp_config", config, timeout=3600)
         return config
 
     @classmethod
-    def is_enabled(cls) -> bool:
-        """هل خدمة WhatsApp مفعلة وتحتوي على مفاتيح الربط الأساسية؟"""
-        config = cls.get_config()
+    def is_enabled(cls, account: Optional[Any] = None, account_id: Optional[int] = None) -> bool:
+        """هل خدمة WhatsApp مفعلة ومربوطة بحساب صالح؟"""
+        config = cls.get_config(account=account, account_id=account_id)
         return bool(config.get("enabled") and config.get("access_token") and config.get("phone_number_id"))
+
+    @staticmethod
+    def calculate_document_sha256(file_bytes: bytes) -> str:
+        """حساب البصمة التشفيرية لمستند PDF لضمان الإثبات الجنائي والقانوني (Non-Repudiation)"""
+        if not file_bytes:
+            return ""
+        return hashlib.sha256(file_bytes).hexdigest()
 
     # ==================== أدوات معالجة الأرقام والنصوص ====================
 
     @classmethod
-    def clean_template_variable(cls, text: Any) -> str:
-        """تطهير نصوص المتغيرات من الأسطر الجديدة والمسافات الزائدة لمنع رفض Meta للرسالة بخطأ 100"""
+    def clean_template_variable(cls, text: Any, isolate_bidi: bool = True) -> str:
+        """تطهير نصوص المتغيرات واستبدال القيم الفارغة بقيمة آمنة (-) لمنع خطأ Meta 132000 مع عزل اتجاه النص"""
         if text is None:
-            return ""
+            return "-"
         s = str(text).strip()
+        if not s:
+            return "-"
         # إزالة علامات الأسطر الجديدة المتكررة واستبدالها بمسافة
         s = re.sub(r'[\r\n\t]+', ' ', s)
         s = re.sub(r'\s{2,}', ' ', s)
-        return s[:1024]
+        s = s[:1024]
+        if isolate_bidi and any(c.isdigit() for c in s):
+            # عزل النص ثنائي الاتجاه بالـ Unicode Isolation
+            return f"\u2066{s}\u2069"
+        return s
 
     @classmethod
     def normalize_phone(cls, phone: str, default_country_code: str = None, partner: Any = None) -> str:
@@ -302,7 +366,8 @@ class WhatsAppService:
     # ==================== عمليات الرفع والإرسال لـ Meta Cloud ====================
 
     @classmethod
-    def upload_media(cls, file_bytes: bytes, filename: str, mime_type: str = "application/pdf") -> Dict[str, Any]:
+    def upload_media(cls, file_bytes: bytes, filename: str, mime_type: str = "application/pdf",
+                     account: Any = None, account_id: Optional[int] = None) -> Dict[str, Any]:
         """
         رفع ملف وسائط ثنائي (In-Memory Stream) مباشرة إلى Meta Graph API
         POST /v21.0/{phone_number_id}/media
@@ -310,7 +375,7 @@ class WhatsAppService:
         if not cls.is_enabled():
             return {"success": False, "error": "خدمة WhatsApp غير مفعلة"}
 
-        config = cls.get_config()
+        config = cls.get_config(account=account, account_id=account_id)
         clean_filename = cls.sanitize_filename(filename)
         url = f"{cls.GRAPH_API_BASE}/{config['phone_number_id']}/media"
         headers = {"Authorization": f"Bearer {config['access_token']}"}
@@ -347,13 +412,19 @@ class WhatsAppService:
                                components: List[Dict[str, Any]] = None, header_media_id: str = None,
                                header_filename: str = "Document.pdf", partner: Any = None,
                                content_object: Any = None, created_by: Any = None,
-                               is_custom_phone: bool = False, is_automatic: bool = False) -> Dict[str, Any]:
+                               is_custom_phone: bool = False, is_automatic: bool = False,
+                               account: Any = None, account_id: Optional[int] = None) -> Dict[str, Any]:
         """
-        إرسال رسالة قالب Meta معتمدة مع إدارة قفل التكرار والسجل التدقيقي الآمن
+        إرسال رسالة قالب Meta معتمدة مع إدارة قفل التكرار والسجل التدقيقي الآمن ودعم تعدد الحسابات
         POST /v21.0/{phone_number_id}/messages
         """
         if not cls.is_enabled():
             return {"success": False, "error": "خدمة WhatsApp غير مفعلة في إعدادات النظام"}
+
+        # استرجاع الحساب المخصص إذا تم تحديده
+        from ..models import WhatsAppAccount
+        if account_id and not account:
+            account = WhatsAppAccount.objects.filter(id=account_id).exclude(account_status='DISCONNECTED').first()
 
         normalized_phone = cls.normalize_phone(phone, partner=partner)
         if not normalized_phone:
@@ -402,9 +473,15 @@ class WhatsAppService:
             return {"success": False, "error": "جاري إرسال نفس الرسالة لهذا الرقم بالفعل، يرجى الانتظار بضع ثوانٍ"}
 
         config = cls.get_config()
-        url = f"{cls.GRAPH_API_BASE}/{config['phone_number_id']}/messages"
+        token = account.decrypted_access_token if (account and account.decrypted_access_token) else config.get('access_token')
+        phone_id = account.phone_number_id if (account and account.phone_number_id) else config.get('phone_number_id')
+
+        if not token or not phone_id:
+            return {"success": False, "error": "بيانات اعتماد WhatsApp API (Access Token / Phone Number ID) غير مهيأة"}
+
+        url = f"{cls.GRAPH_API_BASE}/{phone_id}/messages"
         headers = {
-            "Authorization": f"Bearer {config['access_token']}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
 
@@ -460,9 +537,14 @@ class WhatsAppService:
             except Exception:
                 doc_ref_text = str(content_object)
 
+        # استرجاع الحساب الافتراضي إذا لم يتم تمرير حساب محدد
+        if not account:
+            account = WhatsAppAccount.objects.filter(is_default=True).exclude(account_status='DISCONNECTED').first()
+
         # إنشاء سجل مبدئي بحالة PENDING
         recipient_display_name = getattr(partner, 'name', '') if partner else ''
         log = WhatsAppMessageLog(
+            account=account,
             recipient_phone=normalized_phone,
             recipient_name=recipient_display_name,
             is_custom_phone=is_custom_phone,
@@ -519,6 +601,204 @@ class WhatsAppService:
             return {"success": False, "error": error_msg, "log_id": log.id}
         except Exception as e:
             logger.exception(f"خطأ غير متوقع أثناء إرسال رسالة الواتساب: {e}")
+            log.update_status_safely('FAILED', error_code='EXCEPTION', error_message=str(e))
+            return {"success": False, "error": str(e), "log_id": log.id}
+
+    # ==================== إرسال الرسائل النصية الحرة وإدارة نافذة الـ 24 ساعة (Phase 4 Live Chat) ====================
+
+    @classmethod
+    def get_conversation_window_status(cls, phone: str, account_id: Optional[int] = None) -> Dict[str, Any]:
+        """
+        فحص حالة نافذة خدمة العملاء (24-Hour Customer Service Window)
+        تحسب التوقيت المتبقي بالثواني والصيغة البشرية بناءً على آخر رسالة واردة INBOUND
+        """
+        from datetime import timedelta
+        from ..models import WhatsAppMessageLog
+        normalized_phone = cls.normalize_phone(phone)
+        if not normalized_phone:
+            return {
+                "is_open": False,
+                "seconds_remaining": 0,
+                "formatted_remaining": "رقم غير صالح",
+                "last_inbound_at": None,
+                "expires_at": None,
+            }
+
+        qs = WhatsAppMessageLog.objects.filter(
+            recipient_phone=normalized_phone,
+            direction='INBOUND'
+        )
+        if account_id:
+            qs = qs.filter(account_id=account_id)
+
+        last_inbound = qs.order_by('-created_at').first()
+        if not last_inbound:
+            # تحقق من كاش الجلسة كـ Fallback
+            cache_ts = cache.get(f"wa_24h_session_{normalized_phone}")
+            if cache_ts:
+                try:
+                    from django.utils.dateparse import parse_datetime
+                    dt = parse_datetime(cache_ts)
+                    if dt:
+                        exp = dt + timedelta(hours=24)
+                        now = timezone.now()
+                        secs = max(0, int((exp - now).total_seconds()))
+                        if secs > 0:
+                            h, rem = divmod(secs, 3600)
+                            m, s = divmod(rem, 60)
+                            return {
+                                "is_open": True,
+                                "seconds_remaining": secs,
+                                "formatted_remaining": f"{h:02d}:{m:02d}:{s:02d}",
+                                "last_inbound_at": dt.isoformat(),
+                                "expires_at": exp.isoformat(),
+                            }
+                except Exception:
+                    pass
+
+            return {
+                "is_open": False,
+                "seconds_remaining": 0,
+                "formatted_remaining": "منتهية",
+                "last_inbound_at": None,
+                "expires_at": None,
+            }
+
+        now = timezone.now()
+        expires_at = last_inbound.created_at + timedelta(hours=24)
+        seconds_remaining = max(0, int((expires_at - now).total_seconds()))
+        is_open = seconds_remaining > 0
+
+        if is_open:
+            h, rem = divmod(seconds_remaining, 3600)
+            m, s = divmod(rem, 60)
+            formatted = f"{h:02d}:{m:02d}:{s:02d}"
+        else:
+            formatted = "منتهية"
+
+        return {
+            "is_open": is_open,
+            "seconds_remaining": seconds_remaining,
+            "formatted_remaining": formatted,
+            "last_inbound_at": last_inbound.created_at.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        }
+
+    @classmethod
+    def send_text_message(cls, phone: str, text: str, account: Any = None,
+                          account_id: Optional[int] = None, created_by: Any = None,
+                          bypass_window_check: bool = False) -> Dict[str, Any]:
+        """
+        إرسال رسالة نصية حرة (Freeform Text Message) داخل نافذة خدمة العملاء الـ 24 ساعة
+        POST /v21.0/{phone_number_id}/messages
+        """
+        if not text or not str(text).strip():
+            return {"success": False, "error": "نص الرسالة لا يمكن أن يكون فارغاً"}
+
+        if not cls.is_enabled():
+            return {"success": False, "error": "خدمة WhatsApp غير مفعلة في إعدادات النظام"}
+
+        normalized_phone = cls.normalize_phone(phone)
+        if not normalized_phone:
+            return {"success": False, "error": "رقم الهاتف غير صالح"}
+
+        # 1. التحقق من صلاحية نافذة الـ 24 ساعة
+        window_status = cls.get_conversation_window_status(normalized_phone, account_id=account_id)
+        if not window_status["is_open"] and not bypass_window_check:
+            return {
+                "success": False,
+                "window_expired": True,
+                "error": "انتهت صلاحية نافذة خدمة العملاء (24-Hour Window). يلزم إرسال قالب معتمد لدى Meta لإعادة فتح المحادثة.",
+            }
+
+        # 2. استرجاع الحساب والتشفير
+        from ..models import WhatsAppAccount, WhatsAppMessageLog
+        if account_id and not account:
+            account = WhatsAppAccount.objects.filter(id=account_id).exclude(account_status='DISCONNECTED').first()
+        if not account:
+            account = WhatsAppAccount.objects.filter(is_default=True).exclude(account_status='DISCONNECTED').first()
+
+        config = cls.get_config()
+        token = account.decrypted_access_token if (account and account.decrypted_access_token) else config.get('access_token')
+        phone_id = account.phone_number_id if (account and account.phone_number_id) else config.get('phone_number_id')
+
+        if not token or not phone_id:
+            return {"success": False, "error": "بيانات اعتماد WhatsApp API غير مهيأة"}
+
+        # مطابقة الشريك
+        customer_obj, supplier_obj, partner_display_name = cls.match_partner_by_phone(normalized_phone)
+
+        # قفل منع التكرار اللحظي
+        lock_key = f"wa_send_lock_text_{normalized_phone}"
+        if cache.get(lock_key) or not cache.add(lock_key, "locked", timeout=5):
+            return {"success": False, "error": "جاري إرسال رسالة لهذا الرقم بالفعل، يرجى الانتظار ثانية واحدة"}
+
+        url = f"{cls.GRAPH_API_BASE}/{phone_id}/messages"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        clean_text = str(text).strip()
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": normalized_phone,
+            "type": "text",
+            "text": {
+                "preview_url": False,
+                "body": clean_text
+            }
+        }
+
+        log = WhatsAppMessageLog(
+            account=account,
+            recipient_phone=normalized_phone,
+            recipient_name=partner_display_name,
+            customer=customer_obj,
+            supplier=supplier_obj,
+            direction='OUTBOUND_ERP',
+            sent_via='SYSTEM',
+            message_type='text',
+            body_text=clean_text[:2000],
+            status='PENDING',
+            created_by=created_by,
+            assigned_user=created_by,
+        )
+        log.save()
+
+        try:
+            session = cls.get_session()
+            response = session.post(url, headers=headers, json=payload, timeout=10)
+            resp_json = response.json()
+
+            if response.status_code in (200, 201) and "messages" in resp_json:
+                msg_info = resp_json["messages"][0]
+                wamid = msg_info.get("id")
+                log.update_status_safely('SENT', message_id=wamid)
+                logger.info(f"✅ تم إرسال الرسالة النصية لـ Meta بنجاح -> wamid: {wamid}")
+                return {
+                    "success": True,
+                    "message_id": wamid,
+                    "log_id": log.id,
+                    "message": "تم إرسال الرسالة بنجاح ✅"
+                }
+
+            error_data = resp_json.get("error", {})
+            error_code = error_data.get("code")
+            raw_msg = error_data.get("error_user_msg") or error_data.get("message", "")
+            guidance = cls.META_ERROR_GUIDANCE.get(error_code)
+            error_msg = f"{guidance or raw_msg or 'خطأ Meta'} (كود {error_code})"
+
+            log.update_status_safely('FAILED', error_code=str(error_code), error_message=error_msg)
+            logger.error(f"❌ فشل إرسال الرسالة النصية ({error_code}): {error_msg}")
+            return {"success": False, "error_code": error_code, "error": error_msg, "log_id": log.id}
+
+        except requests.exceptions.Timeout:
+            error_msg = "انتهت مهلة الاتصال بسيرفرات Meta (10 ثوانٍ)"
+            log.update_status_safely('FAILED', error_code='TIMEOUT', error_message=error_msg)
+            return {"success": False, "error": error_msg, "log_id": log.id}
+        except Exception as e:
+            logger.exception(f"خطأ غير متوقع أثناء إرسال الرسالة النصية: {e}")
             log.update_status_safely('FAILED', error_code='EXCEPTION', error_message=str(e))
             return {"success": False, "error": str(e), "log_id": log.id}
 
@@ -600,7 +880,7 @@ class WhatsAppService:
     # ==================== فحص الاتصال وجودة الرقم وتوليد التوكن ====================
 
     @classmethod
-    def test_connection(cls, access_token: str = None, phone_number_id: str = None, waba_id: str = None) -> Dict[str, Any]:
+    def test_connection(cls, access_token: str = None, phone_number_id: str = None, waba_id: str = None, account_id: Optional[int] = None) -> Dict[str, Any]:
         """
         فحص الاتصال الحي بسيرفرات Meta واسترجاع:
         - حالة التوكن وصلاحيته
@@ -609,10 +889,15 @@ class WhatsAppService:
         - مستوى الـ Tier وسقف الرسائل اليومي
         - زمن الاستجابة (Latency ms)
         """
+        from ..models import WhatsAppAccount
+        account = None
+        if account_id:
+            account = WhatsAppAccount.objects.filter(id=account_id).first()
+
         config = cls.get_config()
-        token = access_token.strip() if access_token else config.get("access_token")
-        phone_id = phone_number_id.strip() if phone_number_id else config.get("phone_number_id")
-        waba = waba_id.strip() if waba_id else config.get("waba_id")
+        token = access_token.strip() if access_token else (account.decrypted_access_token if (account and account.decrypted_access_token) else config.get("access_token"))
+        phone_id = phone_number_id.strip() if phone_number_id else (account.phone_number_id if (account and account.phone_number_id) else config.get("phone_number_id"))
+        waba = waba_id.strip() if waba_id else (account.waba_id if (account and account.waba_id) else config.get("waba_id"))
 
         if not token or not phone_id:
             return {"success": False, "message": "يرجى إدخال Access Token و Phone Number ID للاختبار"}
@@ -638,6 +923,19 @@ class WhatsAppService:
                 raw_tier = resp_json.get("messaging_limit_tier", "TIER_250")
                 raw_name_status = resp_json.get("name_status", "UNKNOWN")
                 new_name_status = resp_json.get("new_name_status")
+
+                # تحديث بيانات الحساب في قاعدة البيانات إذا كان فحص حساب محدد
+                if account:
+                    try:
+                        account.verified_name = verified_name
+                        account.display_phone_number = display_phone
+                        if quality in ('GREEN', 'YELLOW', 'RED', 'UNKNOWN'):
+                            account.quality_rating = quality
+                        if status in ('CONNECTED', 'RESTRICTED', 'FLAGGED', 'BLOCKED'):
+                            account.account_status = status
+                        account.save(update_fields=['verified_name', 'display_phone_number', 'quality_rating', 'account_status', 'updated_at'])
+                    except Exception as db_err:
+                        logger.warning(f"Failed to update WhatsAppAccount live diagnostics: {db_err}")
 
                 # ترجمة حالة اسم العرض
                 name_status_map = {
@@ -1275,4 +1573,97 @@ class WhatsAppService:
         ).hexdigest()
 
         return hmac.compare_digest(expected_sig, calculated_sig)
+
+    # ==================== تنزيل الوسائط ومطابقة الشركاء للـ Coexistence ====================
+
+    @classmethod
+    def match_partner_by_phone(cls, phone: str) -> Tuple[Optional[Any], Optional[Any], str]:
+        """
+        مطابقة رقم الهاتف بدقة مع العملاء والموردين
+        يرجع (customer_obj, supplier_obj, display_name)
+        """
+        if not phone:
+            return None, None, ""
+
+        from django.db.models import Q
+        normalized = cls.normalize_phone(phone)
+        from customer.models import Customer
+        from supplier.models import Supplier
+
+        # 1. البحث في العملاء
+        last_9 = normalized[-9:] if len(normalized) >= 9 else normalized
+        cust_q = (
+            Q(phone__icontains=last_9) |
+            Q(phone_primary__icontains=last_9) |
+            Q(phone_secondary__icontains=last_9)
+        )
+        customer = Customer.objects.filter(cust_q).first()
+        if customer:
+            return customer, None, customer.name
+
+        # 2. البحث في الموردين
+        supp_q = (
+            Q(phone__icontains=last_9) |
+            Q(secondary_phone__icontains=last_9) |
+            Q(whatsapp__icontains=last_9)
+        )
+        supplier = Supplier.objects.filter(supp_q).first()
+        if supplier:
+            return None, supplier, supplier.name
+
+        return None, None, ""
+
+    @classmethod
+    def download_inbound_media(cls, media_id: str, mime_type: str = None) -> Optional[Tuple[bytes, str]]:
+        """
+        تنزيل ملف وسائط وارد من خوادم Meta Graph API وحفظه في الذاكرة
+        GET /v21.0/{media_id} -> GET url
+        """
+        if not cls.is_enabled() or not media_id:
+            return None
+
+        config = cls.get_config()
+        token = config.get("access_token")
+        headers = {"Authorization": f"Bearer {token}"}
+        url = f"{cls.GRAPH_API_BASE}/{media_id}"
+
+        try:
+            session = cls.get_session()
+            meta_res = session.get(url, headers=headers, timeout=15)
+            if meta_res.status_code != 200:
+                logger.error(f"WhatsApp Media Download: فشل جلب رابط الميديا ({media_id}): {meta_res.text}")
+                return None
+
+            data = meta_res.json()
+            download_url = data.get("url")
+            raw_mime = data.get("mime_type") or mime_type or "application/octet-stream"
+
+            if not download_url:
+                return None
+
+            # تنزيل الملف الفعلي
+            bin_res = session.get(download_url, headers=headers, timeout=30)
+            if bin_res.status_code != 200:
+                logger.error(f"WhatsApp Media Download: فشل تنزيل الملف الثنائي: {bin_res.status_code}")
+                return None
+
+            ext_map = {
+                "image/jpeg": ".jpg",
+                "image/png": ".png",
+                "image/webp": ".webp",
+                "application/pdf": ".pdf",
+                "audio/ogg": ".ogg",
+                "audio/mpeg": ".mp3",
+                "audio/mp4": ".m4a",
+                "video/mp4": ".mp4",
+                "text/plain": ".txt",
+            }
+            clean_mime = raw_mime.split(';')[0].strip().lower()
+            ext = ext_map.get(clean_mime, ".bin")
+            filename = f"wa_{media_id[:12]}_{timezone.now().strftime('%Y%m%d%H%M%S')}{ext}"
+            return bin_res.content, filename
+
+        except Exception as e:
+            logger.exception(f"WhatsApp Media Download Exception: {e}")
+            return None
 

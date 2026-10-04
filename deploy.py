@@ -1030,6 +1030,40 @@ class DeploymentManager:
             print(f"❌ خطأ في الرفع: {e}")
             return False
 
+    def run_remote_migration(self):
+        """تنفيذ أمر الميجريشن manage.py migrate مباشرة على السيرفر البعيد"""
+        print("\n🗄️  تنفيذ الميجريشن على السيرفر...")
+        remote_app_name = Path(self.remote_path).name
+        venv = f"/home/{self.username}/virtualenv/{remote_app_name}/{self.python_version}/bin/python"
+        
+        try:
+            ssh = self._create_ssh_connection()
+            cmd = f"cd {self.remote_path} && {venv} manage.py migrate --noinput"
+            print(f"  ⏳ تشغيل: {cmd}")
+            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=300)
+            exit_code = stdout.channel.recv_exit_status()
+            out = stdout.read().decode('utf-8', errors='replace').strip()
+            err = stderr.read().decode('utf-8', errors='replace').strip()
+            if out:
+                print(f"  📄 مخرجات الميجريشن:\n{out}")
+            if exit_code == 0:
+                print(f"  ✅ تم تطبيق الميجريشن بنجاح على السيرفر!")
+            else:
+                print(f"  ❌ خطأ في الميجريشن: {err}")
+            
+            # إعادة تشغيل التطبيق
+            print("  ⏳ إعادة تشغيل تطبيق الويب (restart)...")
+            reload_cmd = f"/usr/sbin/cloudlinux-selector restart --json --interpreter python --app-root {remote_app_name}"
+            ssh.exec_command(reload_cmd, timeout=120)
+            touch_cmd = f"touch {self.remote_path}/passenger_wsgi.py"
+            ssh.exec_command(touch_cmd)
+            print("  ✅ تم إعادة تشغيل تطبيق الويب بنجاح!")
+            ssh.close()
+            return exit_code == 0
+        except Exception as e:
+            print(f"  ❌ تعذر الاتصال بالسيرفر: {e}")
+            return False
+
     def run_post_deploy_commands(self, first_deploy=False):
         """تنفيذ أوامر ما بعد الرفع على السيرفر"""
         remote_app_name = Path(self.remote_path).name
@@ -1853,10 +1887,11 @@ def main():
   %(prog)s --client baraka --mode all        # رفع كامل للعميل
         """
     )
-    parser.add_argument('--mode', choices=['all', 'modified', 'status', 'file', 'sync', 'remote', 'test'],
+    parser.add_argument('--mode', choices=['all', 'modified', 'status', 'file', 'sync', 'remote', 'test', 'migrate'],
                         default='modified', help='وضع النشر (افتراضي: modified)')
     parser.add_argument('--file', type=str, help='ملف محدد للرفع (مع --mode file)')
     parser.add_argument('--force', action='store_true', help='بدون تأكيد')
+    parser.add_argument('--migrate', action='store_true', help='تشغيل الميجريشن manage.py migrate على السيرفر مباشرة')
     parser.add_argument('--client', type=str, help='اسم العميل للنشر المتعدد')
     parser.add_argument('--list-clients', action='store_true', help='عرض قائمة العملاء المتاحين')
     
@@ -1869,6 +1904,12 @@ def main():
             return
 
         target_client = args.client
+
+        # إذا تم طلب الميجريشن مباشرة
+        if args.migrate or args.mode == 'migrate':
+            deploy_manager = DeploymentManager(force=True)
+            deploy_manager.run_remote_migration()
+            return
 
         # إذا لم يتم تحديد العميل ولم يكن الوضع إجبارياً، نعرض قائمة الاختيار التفاعلي
         if not args.client and not args.force:

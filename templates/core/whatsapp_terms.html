@@ -1,0 +1,175 @@
+{% extends 'public_base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% trans "شروط الاستخدام والخدمة" %} | {{ settings.company_name|default:company_name }}
+{% endblock %}
+
+{% block content %}
+<!-- 1. Hero Section -->
+<section class="hero-banner">
+    <div class="container">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="policy-badge">
+                <i class="fab fa-whatsapp text-success me-1"></i>
+                <span>Meta Business Cloud API Compliant</span>
+            </span>
+            <span class="text-muted small">|</span>
+            <span class="text-muted small">
+                <span class="lang-ar">الإصدار المعتمد 4.0</span>
+                <span class="lang-en d-none">Standard Version 4.0</span>
+            </span>
+        </div>
+        <h1 class="h3 fw-bold text-dark mb-1">
+            <i class="fas fa-file-contract text-primary me-2"></i>
+            <span class="lang-ar">شروط الاستخدام والخدمة</span>
+            <span class="lang-en d-none">Terms of Service & Acceptable Use Policy</span>
+        </h1>
+        <p class="text-muted mb-0 small">
+            <span class="lang-ar">اتفاقية الاستخدام التجاري وقواعد المراسلة عبر WhatsApp Business Cloud API لمنظومة {{ settings.company_name|default:company_name }}</span>
+            <span class="lang-en d-none">Commercial Messaging Agreement & Operating Standards for {{ settings.company_name|default:company_name }} WhatsApp Cloud Platform</span>
+        </p>
+    </div>
+</section>
+
+<!-- 2. Content Container -->
+<div class="container pb-5">
+    <!-- ARABIC TERMS CONTENT -->
+    <div id="termsArabic" class="policy-card p-4 p-lg-5 mb-4 lang-ar" style="line-height: 2;">
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-4 flex-wrap gap-2">
+            <span class="policy-badge">
+                <i class="fas fa-certificate text-primary me-1"></i>
+                الشروط والضوابط المعتمدة لمنظومة موهبة ERP
+            </span>
+            <span class="text-muted small">تاريخ التحديث: 1 يناير 2026 | الإصدار: 4.0</span>
+        </div>
+
+        <div class="policy-section-title">
+            <i class="fas fa-handshake"></i>
+            <span>1. القبول والالتزام بالشروط</span>
+        </div>
+        <p class="text-secondary mb-4">
+            باستخدامك لخدمات المراسلة الفورية والـ API التابعة لمنظومة <strong>{{ settings.company_name|default:company_name }}</strong>، فإنك تقر وتوافق صراحةً على الالتزام الكامل بهذه الشروط، بالإضافة إلى سياسات الاستخدام التجاري وقواعد السلوك المعتمدة لدى <strong>Meta Platforms, Inc.</strong>
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-check-circle"></i>
+            <span>2. نطاق استخدام الخدمة المسموح به</span>
+        </div>
+        <ul class="text-secondary mb-4">
+            <li>تُستخدم قنوات واتساب حصرياً لإرسال المعاملات التجارية المباشرة (فواتير، إيصالات سداد، عروض أسعار، إشعارات تشغيلية معتمدة).</li>
+            <li>يحظر تماماً استخدام المنظومة لإرسال أي رسائل ترويجية عشوائية (SPAM) أو محتوى يخالف القوانين السارية أو سياسات Meta.</li>
+            <li>يقتصر التراسل على الأطراف والشركاء الذين لديهم تعامل تجاري موثق ووافقوا مسبقاً على استلام الإشعارات.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-shield-alt"></i>
+            <span>3. أمان الحسابات ورموز الوصول (API Credentials)</span>
+        </div>
+        <p class="text-secondary mb-4">
+            يلتزم المستخدمون بالحفاظ على سرية بيانات تسجيل الدخول وتوكنات الربط. تتم حماية وإدارة مفاتيح الـ API السحابية بأعلى درجات التشفير المالي AES-256 لمنع أي وصول غير مصرح به أو إساءة استخدام.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-server"></i>
+            <span>4. توفر الخدمة وحدود المسؤولية</span>
+        </div>
+        <p class="text-secondary mb-4">
+            تبذل المنظومة العناية التقنية الفائقة لضمان استقرار الخدمة وتوافرها المستمر، دون تحمل أي مسؤولية عن انقطاعات الخدمة الناتجة عن شبكات الاتصالات الدولية أو الأعطال الطارئة في خوادم Meta الخارجية.
+        </p>
+    </div>
+
+    <!-- ENGLISH TERMS CONTENT (FOR META REVIEWERS & INTERNATIONAL AUDIT) -->
+    <div id="termsEnglish" class="policy-card p-4 p-lg-5 mb-4 lang-en d-none" dir="ltr" style="line-height: 1.85; text-align: left;">
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-4 flex-wrap gap-2">
+            <span class="policy-badge">
+                <i class="fas fa-certificate text-primary me-1"></i>
+                Official Terms of Service & Commercial Messaging Agreement
+            </span>
+            <span class="text-muted small">Effective Date: January 1, 2026 | Standard Version: 4.0</span>
+        </div>
+
+        <div class="policy-section-title">
+            <i class="fas fa-handshake text-primary"></i>
+            <span>1. Acceptance of Agreement & Meta Terms Integration</span>
+        </div>
+        <p class="text-secondary mb-4">
+            By activating, accessing, or utilizing the messaging services and APIs provided by <strong>{{ settings.company_name|default:company_name }}</strong> ("MWHEBA ERP"), you ("Client", "User", or "Enterprise Partner") expressly agree to be bound by these Terms of Service, our Privacy Policy, and the governing <strong>Meta WhatsApp Business Terms of Service</strong> and <strong>Meta Commercial Terms</strong>.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-check-circle text-primary"></i>
+            <span>2. Permitted Commercial Use & Transactional Scope</span>
+        </div>
+        <p class="text-secondary mb-2">
+            The WhatsApp Business Cloud API integration is authorized strictly for legitimate business-to-business and business-to-consumer operational communications:
+        </p>
+        <ul class="text-secondary mb-4">
+            <li><strong>Automated Transactional Dispatch:</strong> Delivery of official PDF tax invoices, electronic payment vouchers, sales quotations, and periodic account statement summaries requested by recipients.</li>
+            <li><strong>Interactive Customer Support:</strong> Two-way communications within Meta-approved 24-hour customer service windows to resolve queries and technical requests.</li>
+            <li><strong>Operational Alerts:</strong> Payment reminders and order fulfillment updates issued strictly to customers with active business relationships.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-ban text-primary"></i>
+            <span>3. Prohibited Conduct & Strict Anti-Spam Policy</span>
+        </div>
+        <p class="text-secondary mb-2">Users and enterprise operators are strictly prohibited from:</p>
+        <ul class="text-secondary mb-4">
+            <li>Transmitting unsolicited promotional blasts, cold-outreach campaigns, or unsolicited commercial bulk spam (SPAM).</li>
+            <li>Utilizing purchased, harvested, or scraped telephone number lists.</li>
+            <li>Disseminating defamatory, fraudulent, infringing, or unlawful content in violation of Meta Acceptable Use Policies.</li>
+            <li>Attempting to bypass recipient opt-out flags, message template approval guidelines, or system rate limits.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-shield-alt text-primary"></i>
+            <span>4. API Credential Security & Encryption Governance</span>
+        </div>
+        <p class="text-secondary mb-4">
+            All system administrators must preserve credential confidentiality. Access tokens, System User credentials, and Embedded Signup IDs are cryptographically isolated and encrypted at rest with <strong>AES-256 Fernet</strong>. Any suspected credential breach must be reported immediately to our security response team.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-user-check text-primary"></i>
+            <span>5. Recipient Consent & Mandatory Opt-Out Compliance</span>
+        </div>
+        <p class="text-secondary mb-4">
+            Clients utilizing MWHEBA ERP WhatsApp dispatches must ensure valid recipient opt-in prior to initiating business-originated templates. Our platform enforces immediate suppression upon recipient opt-out (e.g. replying "STOP" or "إلغاء"), which cannot be overridden without verifiable renewed customer consent.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-server text-primary"></i>
+            <span>6. Service Availability, SLA & Limitation of Liability</span>
+        </div>
+        <p class="text-secondary mb-4">
+            MWHEBA ERP is engineered for enterprise reliability with high-throughput webhook processing. However, MWHEBA ERP shall not be held liable for message delivery delays or service interruptions resulting from upstream Meta Cloud server outages, carrier network downtime, or internet infrastructure failures beyond our reasonable control.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-gavel text-primary"></i>
+            <span>7. Modifications, Termination & Governing Jurisdiction</span>
+        </div>
+        <p class="text-secondary mb-4">
+            We reserve the right to modify these Terms to maintain alignment with Meta API version deprecations and statutory regulations. Continued usage following published updates constitutes acceptance. These Terms are governed by applicable commercial laws, with disputes subject to competent jurisdiction.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-envelope text-primary"></i>
+            <span>8. Contact & Legal Inquiries</span>
+        </div>
+        <p class="text-secondary mb-0">
+            For legal inquiries, terms compliance, or enterprise API agreements, please contact:
+            <br>
+            <strong>Legal & Compliance Department</strong>
+            <br>
+            {{ settings.company_name|default:company_name }}
+            <br>
+            Email: <a href="mailto:privacy@mwheba.co.uk" class="text-primary fw-bold text-decoration-none">privacy@mwheba.co.uk</a>
+            <br>
+            Website: <a href="https://mwheba.co.uk" class="text-secondary text-decoration-none">https://mwheba.co.uk</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -17,6 +17,9 @@ CSP_CONFIG = {
         "https://code.jquery.com",
         "https://cdn.datatables.net",
         "https://static.cloudflareinsights.com",  # Cloudflare Analytics
+        "https://connect.facebook.net",           # Meta / Facebook JavaScript SDK
+        "https://*.facebook.com",
+        "https://*.facebook.net",
     ],
     
     # المصادر الموثوقة للـ Styles
@@ -44,6 +47,9 @@ CSP_CONFIG = {
         "data:",
         "blob:",
         "https:",  # السماح بجميع الصور HTTPS
+        "https://*.facebook.com",
+        "https://*.facebook.net",
+        "https://*.fbcdn.net",
     ],
     
     # المصادر الموثوقة للاتصالات
@@ -52,6 +58,9 @@ CSP_CONFIG = {
         "https://cdn.jsdelivr.net",
         "https://cdnjs.cloudflare.com",
         "https://cloudflareinsights.com",  # Cloudflare Analytics
+        "https://*.facebook.com",          # Meta Graph API & Webhooks
+        "https://*.facebook.net",
+        "https://graph.facebook.com",
     ],
     
     # المصادر الموثوقة للوسائط
@@ -64,7 +73,12 @@ CSP_CONFIG = {
     'BASE_URI': ["'self'"],
     'FORM_ACTION': ["'self'"],
     'FRAME_ANCESTORS': ["'self'"],
-    'FRAME_SRC': ["'self'"],
+    'FRAME_SRC': [
+        "'self'",
+        "https://*.facebook.com",          # Meta Embedded Signup & Login dialogs
+        "https://*.facebook.net",
+        "https://web.facebook.com",
+    ],
     'WORKER_SRC': ["'self'"],
     'MANIFEST_SRC': ["'self'"],
     'DEFAULT_SRC': ["'self'"],

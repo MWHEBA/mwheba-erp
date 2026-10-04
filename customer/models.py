@@ -627,7 +627,7 @@ class PaymentTerm(models.Model):
     شروط الدفع المعيارية للعملاء والموردين
     """
     name = models.CharField(_("اسم شرط الدفع"), max_length=100, unique=True)
-    code = models.CharField(_("كود الشرط"), max_length=50, unique=True, blank=True)
+    code = models.CharField(_("كود الشرط"), max_length=50, unique=True, blank=True, null=True)
     days = models.IntegerField(_("عدد أيام الإمهال"), default=30)
     is_credit = models.BooleanField(_("يعتبر بيعاً ائتمانياً"), default=True)
     discount_percentage = models.DecimalField(_("نسبة خصم التعجيل %"), max_digits=5, decimal_places=2, default=Decimal("0.00"))

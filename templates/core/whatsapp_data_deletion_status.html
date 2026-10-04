@@ -1,0 +1,64 @@
+{% extends 'public_base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% trans "حالة طلب حذف البيانات" %} | {{ settings.company_name|default:company_name }}
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="policy-card text-center p-4 p-md-5">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle text-success fa-4x"></i>
+                </div>
+
+                <!-- Arabic Version -->
+                <div class="lang-ar">
+                    <h4 class="fw-bold text-dark mb-2">تم استلام ومعالجة طلب حذف البيانات بنجاح</h4>
+                    <p class="text-muted small mb-4">
+                        Data Deletion Request Processed Successfully (Meta Platform Compliance)
+                    </p>
+                    <p class="text-secondary small mb-4">
+                        تم استلام طلب حذف بيانات المستخدم الوارد من منصة Meta وتم تطهير سجلات التتبع والربط فورياً وفقاً لمعايير الخصوصية وحماية البيانات.
+                    </p>
+                </div>
+
+                <!-- English Version -->
+                <div class="lang-en d-none">
+                    <h4 class="fw-bold text-dark mb-2">User Data Deletion Request Processed</h4>
+                    <p class="text-muted small mb-4">
+                        Official Meta Platform Data Deletion Compliance Callback
+                    </p>
+                    <p class="text-secondary small mb-4">
+                        The user data deletion request initiated via Meta Platform has been successfully processed and verified. All associated session tracking and messaging identifiers have been purged in compliance with enterprise data protection standards.
+                    </p>
+                </div>
+
+                <div class="bg-light p-3 rounded mb-4 border text-center">
+                    <span class="text-muted small d-block mb-1">
+                        <span class="lang-ar">كود تأكيد العملية (Confirmation Code):</span>
+                        <span class="lang-en d-none">Deletion Confirmation Code:</span>
+                    </span>
+                    <code class="fw-bold text-primary fs-5">{{ confirmation_code }}</code>
+                </div>
+
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="{% url 'core:whatsapp_privacy_policy' %}" class="btn btn-outline-primary btn-sm px-3">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        <span class="lang-ar">سياسة الخصوصية</span>
+                        <span class="lang-en d-none">Privacy Policy</span>
+                    </a>
+                    <a href="{% url 'core:whatsapp_terms' %}" class="btn btn-outline-secondary btn-sm px-3">
+                        <i class="fas fa-file-contract me-1"></i>
+                        <span class="lang-ar">شروط الاستخدام</span>
+                        <span class="lang-en d-none">Terms of Service</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

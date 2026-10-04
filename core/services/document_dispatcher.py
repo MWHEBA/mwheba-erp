@@ -1031,7 +1031,9 @@ class DocumentDispatcher:
         is_custom_phone: bool = False,
         is_automatic: bool = False,
         custom_components: List[Dict[str, Any]] = None,
-        extra_params: Dict[str, Any] = None
+        extra_params: Dict[str, Any] = None,
+        account: Any = None,
+        account_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         تنفيذ عملية الإرسال الشاملة مع تطبيق كافة الضمانات التشغيلية
@@ -1074,7 +1076,9 @@ class DocumentDispatcher:
             partner=target_partner,
             created_by=created_by,
             is_custom_phone=is_custom_phone,
-            is_automatic=is_automatic
+            is_automatic=is_automatic,
+            account=account,
+            account_id=account_id
         )
 
         return res

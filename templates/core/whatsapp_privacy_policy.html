@@ -1,0 +1,223 @@
+{% extends 'public_base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% trans "سياسة الخصوصية وحماية البيانات" %} | {{ settings.company_name|default:company_name }}
+{% endblock %}
+
+{% block content %}
+<!-- 1. Hero Section -->
+<section class="hero-banner">
+    <div class="container">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="policy-badge">
+                <i class="fab fa-whatsapp text-success me-1"></i>
+                <span>Meta Business Cloud API Compliant</span>
+            </span>
+            <span class="text-muted small">|</span>
+            <span class="text-muted small">
+                <span class="lang-ar">الإصدار المعتمد 4.0</span>
+                <span class="lang-en d-none">Standard Version 4.0</span>
+            </span>
+        </div>
+        <h1 class="h3 fw-bold text-dark mb-1">
+            <i class="fas fa-shield-alt text-primary me-2"></i>
+            <span class="lang-ar">سياسة الخصوصية وحماية البيانات</span>
+            <span class="lang-en d-none">Privacy Policy & Data Protection Notice</span>
+        </h1>
+        <p class="text-muted mb-0 small">
+            <span class="lang-ar">إشعار الامتثال لمعايير Meta Cloud API وحماية البيانات المؤسسية لمنظومة {{ settings.company_name|default:company_name }}</span>
+            <span class="lang-en d-none">Official Privacy & Data Governance Compliance Notice for {{ settings.company_name|default:company_name }} WhatsApp Business Cloud API</span>
+        </p>
+    </div>
+</section>
+
+<!-- 2. Content Container -->
+<div class="container pb-5">
+    <!-- ARABIC POLICY CONTENT -->
+    <div id="policyArabic" class="policy-card p-4 p-lg-5 mb-4 lang-ar" style="line-height: 2;">
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-4 flex-wrap gap-2">
+            <span class="policy-badge">
+                <i class="fas fa-certificate text-primary me-1"></i>
+                المعايير المعتمدة لبروتوكول Meta Tech Provider
+            </span>
+            <span class="text-muted small">تاريخ السريان: 1 يناير 2026 | آخر تحديث: 2026</span>
+        </div>
+
+        <div class="policy-section-title">
+            <i class="fas fa-building"></i>
+            <span>1. مقدمة وهوية الجهة المسؤولة (Data Controller)</span>
+        </div>
+        <p class="text-secondary mb-4">
+            تلتزم <strong>{{ settings.company_name|default:company_name }}</strong> («نحن»، «المنظومة»، أو «MWHEBA ERP») بحماية خصوصية وأمان بيانات العملاء والموردين وشركاء الأعمال بأعلى درجات الموثوقية. توضح هذه السياسة بشفافية تامة طبيعة البيانات التي نقوم بمعالجتها عبر تطبيق وخدمات <strong>WhatsApp Business Cloud API</strong> التابعة لشركة <strong>Meta Platforms, Inc.</strong>، وأغراض الاستخدام المشروعة، وتدابير الحماية التشفيرية المطبقة.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-database"></i>
+            <span>2. البيانات التي نقوم بجمعها ومعالجتها</span>
+        </div>
+        <ul class="text-secondary mb-4">
+            <li><strong>بيانات جهات الاتصال التجارية:</strong> أرقام الهواتف المحمولة وأسماء مسؤولي الاتصال المسجلين لدى المنشأة لإرسال الإشعارات التشغيلية والمالية.</li>
+            <li><strong>المستندات والمعاملات المالية:</strong> الفواتير الضريبية المعتمدة (PDF)، إيصالات سندات القبض والصرف، عروض الأسعار الرسمية، وكشوف الحسابات الدورية.</li>
+            <li><strong>البيانات الوصفية وحالات التسليم (Metadata):</strong> معرفات الرسائل (Message IDs)، التوقيت الزمني الدقيق للإرسال والاستلام والقراءة (Sent, Delivered, Read)، ومؤشرات جودة التوصيل.</li>
+            <li><strong>سجلات خدمة العملاء والدعم الفني:</strong> نصوص واستفسارات الدعم الفني الواردة إلى قنوات خدمة العملاء عبر واتساب للرد الفوري عليها.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-cogs"></i>
+            <span>3. الأغراض المشروعة للمعالجة واستخدام البيانات</span>
+        </div>
+        <ul class="text-secondary mb-4">
+            <li>توصيل الفواتير الإلكترونية المعتمدة وإشعارات السداد اللحظية بطلب مباشر من صاحب التعامل التجاري.</li>
+            <li>توفير قنوات تواصل سريعة وفعالة لخدمة العملاء وتقديم الدعم الفني المطلوب.</li>
+            <li>الامتثال للمعايير المحاسبية والقانونية وسجلات التدقيق المالي المعتمدة لمنع التلاعب.</li>
+            <li><strong>التزام قاطع بالخصوصية:</strong> لا نقوم مطلقاً ببيع، تأجير، أو مشاركة أي أرقام هواتف أو بيانات تخص عملاء المنظومة مع أي أطراف ثالثة أو جهات إعلانية.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-lock"></i>
+            <span>4. معايير الأمان والتشفير المالي (Enterprise Security)</span>
+        </div>
+        <p class="text-secondary mb-4">
+            تخضع كافة مفاتيح الوصول والتوكنات السرية (Access Tokens) لأعلى درجات التشفير المعتمدة <strong>AES-256 Fernet Encryption</strong> في قواعد البيانات المحلية. كما تتم كافة الاتصالات الشبكية مع خوادم Meta السحابية عبر قنوات مشفرة <strong>HTTPS / TLS 1.3</strong>، ويتم توثيق كل طلب وارد عبر الـ Webhook بواسطة التوقيع الرقمي المشفر <strong>HMAC-SHA256</strong> لمنع أي تلاعب أو انتحال.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-user-slash"></i>
+            <span>5. حق إلغاء الاشتراك الفوري (Opt-Out Mechanism)</span>
+        </div>
+        <p class="text-secondary mb-4">
+            يحق لأي مستلم إلغاء اشتراكه وإيقاف استقبال الرسائل الآلية في أي وقت دون أي قيد. يكفي إرسال كلمة <strong>«إلغاء»</strong> أو <strong>«توقف»</strong> أو <strong>«STOP»</strong> في المحادثة، وسيقوم النظام تلقائياً برصد الكلمة وتفعيل حظر الإرسال الفوري لحماية خصوصية المستخدم.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-trash-alt"></i>
+            <span>6. تعليمات وآلية حذف البيانات (Meta User Data Deletion Instructions)</span>
+        </div>
+        <div class="bg-light p-3 p-md-4 rounded border mb-4">
+            <p class="text-secondary mb-2">
+                امتثالاً لمتطلبات منصة Meta للمطورين ومزودي الحلول التقنية، نوفر مساراً تقنياً مؤتمتاً لاستقبال ومعالجة طلبات حذف البيانات عبر الرابط البرمجي:
+            </p>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <code class="bg-white px-3 py-2 rounded border text-primary fw-bold">/api/whatsapp/data-deletion/</code>
+            </div>
+            <p class="text-secondary small mb-0">
+                كما يمكن لأي مستخدم التقدم بطلب يدوي لحذف بياناته أو سجلات تواصله بالتواصل المباشر مع مسؤول حماية البيانات عبر البريد:
+                <strong class="text-dark">privacy@mwheba.co.uk</strong>
+            </p>
+        </div>
+    </div>
+
+    <!-- ENGLISH POLICY CONTENT (FOR META REVIEWERS & INTERNATIONAL AUDIT) -->
+    <div id="policyEnglish" class="policy-card p-4 p-lg-5 mb-4 lang-en d-none" dir="ltr" style="line-height: 1.85; text-align: left;">
+        <div class="d-flex justify-content-between align-items-center pb-3 border-bottom mb-4 flex-wrap gap-2">
+            <span class="policy-badge">
+                <i class="fas fa-certificate text-primary me-1"></i>
+                Official Meta Tech Provider & Cloud API Compliance Notice
+            </span>
+            <span class="text-muted small">Effective Date: January 1, 2026 | Standard Version: 4.0</span>
+        </div>
+
+        <div class="policy-section-title">
+            <i class="fas fa-building text-primary"></i>
+            <span>1. Identity of Data Controller & Platform Scope</span>
+        </div>
+        <p class="text-secondary mb-4">
+            <strong>{{ settings.company_name|default:company_name }}</strong> ("we", "our", "us", or "MWHEBA ERP") is an enterprise Cloud Enterprise Resource Planning (ERP) platform and authorized business solution. We are strictly committed to safeguarding the privacy, confidentiality, and integrity of personal and commercial data handled through our software. This Privacy Policy governs our processing of data transmitted via the <strong>WhatsApp Business Cloud API</strong> operated by <strong>Meta Platforms, Inc.</strong>
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-database text-primary"></i>
+            <span>2. Categories of Data Collected & Processed</span>
+        </div>
+        <p class="text-secondary mb-2">
+            In connection with our WhatsApp Business Cloud API integration, we collect and process only the minimal data necessary to fulfill commercial transactions:
+        </p>
+        <ul class="text-secondary mb-4">
+            <li><strong>Authorized Contact Information:</strong> Recipient mobile phone numbers (in E.164 international format) and contact names registered by enterprise clients within the ERP accounting database.</li>
+            <li><strong>Commercial & Accounting Documents:</strong> Legitimate transactional PDF documents, including sales invoices, receipt vouchers, payment collection notices, official quotations, and periodic account statements.</li>
+            <li><strong>Messaging Telemetry & Delivery Metadata:</strong> WhatsApp Message IDs (WAMIDs), timestamps corresponding to message state transitions (Sent, Delivered, Read), error diagnostic codes, and webhook delivery latency records.</li>
+            <li><strong>Customer Support Communications:</strong> Inbound customer queries, technical assistance requests, and interactive text replies transmitted by users to authorized business phone numbers.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-cogs text-primary"></i>
+            <span>3. Lawful Basis & Legitimate Purposes of Processing</span>
+        </div>
+        <p class="text-secondary mb-2">We process data under the following legitimate business purposes and legal bases:</p>
+        <ul class="text-secondary mb-4">
+            <li><strong>Contractual Performance & Document Fulfillment:</strong> Direct delivery of requested accounting documents, invoice payment links, and receipts to customers and suppliers.</li>
+            <li><strong>Customer Support & Real-Time Engagement:</strong> Enabling authorized enterprise staff to assist clients promptly via integrated live chat and two-way messaging.</li>
+            <li><strong>Legal Compliance & Audit Integrity:</strong> Maintaining non-repudiation audit trails for statutory accounting standards and tax authority recordkeeping.</li>
+            <li><strong>Zero Data Commercialization Guarantee:</strong> We explicitly and unconditionally declare that <strong>we do NOT sell, rent, lease, monetize, or disclose</strong> user phone numbers or message logs to any third-party advertisers, data brokers, or marketing networks.</li>
+        </ul>
+
+        <div class="policy-section-title">
+            <i class="fas fa-lock text-primary"></i>
+            <span>4. Enterprise Security, Cryptography & Data Storage</span>
+        </div>
+        <p class="text-secondary mb-4">
+            We implement strict defense-in-depth technical and organizational measures:
+            <br>
+            • <strong>Encryption at Rest:</strong> All Meta Cloud API access tokens, system secrets, and client credentials are encrypted using military-grade <strong>AES-256 Fernet cryptography</strong> with isolated encryption keys.
+            <br>
+            • <strong>Encryption in Transit:</strong> All HTTP communications between our application servers and Meta Cloud API endpoints strictly require <strong>HTTPS with TLS 1.3 / TLS 1.2</strong> enforcement.
+            <br>
+            • <strong>Cryptographic Webhook Verification:</strong> Every inbound webhook payload received from Meta servers is cryptographically validated using <strong>HMAC-SHA256 signatures</strong> against registered App Secrets to prevent tampering, replay attacks, and spoofing.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-user-slash text-primary"></i>
+            <span>5. Recipient Rights & Immediate Opt-Out (STOP / Cancel)</span>
+        </div>
+        <p class="text-secondary mb-4">
+            Recipients retain the absolute, unconditional right to opt out of automated dispatches at any time. Simply replying with <strong>"STOP"</strong>, <strong>"CANCEL"</strong>, <strong>"UNSUBSCRIBE"</strong>, or <strong>"إلغاء"</strong> in the chat immediately triggers our automated suppression engine, blocking future automated message dispatches to that phone number until explicit re-opt-in is provided.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-trash-alt text-primary"></i>
+            <span>6. Meta User Data Deletion Instructions & Automated Endpoint</span>
+        </div>
+        <div class="bg-light p-3 p-md-4 rounded border mb-4">
+            <p class="text-secondary mb-2">
+                Pursuant to Meta Platform Terms and Developer Data Deletion compliance requirements, MWHEBA ERP maintains an automated User Data Deletion Callback endpoint at:
+            </p>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <code class="bg-white px-3 py-2 rounded border text-primary fw-bold">https://mwheba.co.uk/api/whatsapp/data-deletion/</code>
+            </div>
+            <p class="text-secondary small mb-2">
+                Upon receipt of a valid Meta signed deletion request, our platform immediately purges user tracking identifiers, delivery logs, and interaction tokens, returning a distinct <strong>Confirmation Code</strong> and status tracking URL.
+            </p>
+            <p class="text-secondary small mb-0">
+                To submit a manual data erasure request or contact our Data Protection Officer directly, please email:
+                <strong class="text-dark">privacy@mwheba.co.uk</strong>
+            </p>
+        </div>
+
+        <div class="policy-section-title">
+            <i class="fas fa-clock text-primary"></i>
+            <span>7. Data Retention & Lifecycle Management</span>
+        </div>
+        <p class="text-secondary mb-4">
+            Message transmission logs and delivery status receipts are retained for a maximum duration required by statutory financial regulations (typically up to 365 days for tax invoice audit trails) after which operational metadata is securely purged or anonymized. Temporary media attachments are automatically expunged from transient storage within 30 days.
+        </p>
+
+        <div class="policy-section-title">
+            <i class="fas fa-envelope text-primary"></i>
+            <span>8. Contact Information & Data Protection Office</span>
+        </div>
+        <p class="text-secondary mb-0">
+            For questions, legal notices, or inquiries regarding this Privacy Policy or our Meta Tech Provider compliance, please contact:
+            <br>
+            <strong>Data Protection & Compliance Office</strong>
+            <br>
+            {{ settings.company_name|default:company_name }}
+            <br>
+            Email: <a href="mailto:privacy@mwheba.co.uk" class="text-primary fw-bold text-decoration-none">privacy@mwheba.co.uk</a>
+            <br>
+            Website: <a href="https://mwheba.co.uk" class="text-secondary text-decoration-none">https://mwheba.co.uk</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

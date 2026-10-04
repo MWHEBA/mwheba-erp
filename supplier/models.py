@@ -261,6 +261,26 @@ class Supplier(models.Model):
     whatsapp = models.CharField(_("واتساب"), max_length=20, blank=True)
     secondary_phone = models.CharField(_("هاتف ثانوي"), max_length=17, blank=True)
 
+    # تفضيلات رسائل الواتساب وإلغاء الاشتراك (Rule 1: Parity with Customer)
+    whatsapp_opt_out = models.BooleanField(
+        _("إلغاء الاشتراك في واتساب"),
+        default=False,
+        help_text=_("هل قام المورد بإلغاء الاشتراك في إشعارات الواتساب")
+    )
+    whatsapp_opt_out_at = models.DateTimeField(
+        _("تاريخ إلغاء الاشتراك"),
+        null=True,
+        blank=True,
+        help_text=_("تاريخ وتوقيت إلغاء الاشتراك في الواتساب")
+    )
+    whatsapp_opt_out_reason = models.CharField(
+        _("سبب إلغاء الاشتراك"),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_("سبب إلغاء الاشتراك أو الرسالة الواردة")
+    )
+
     # معلومات الموقع
     city = models.CharField(_("المدينة"), max_length=100, blank=True)
     country = models.CharField(_("البلد"), max_length=100, blank=True, default="مصر")

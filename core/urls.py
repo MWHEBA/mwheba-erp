@@ -14,6 +14,16 @@ from .views import (
     whatsapp_partner_logs, whatsapp_logs_list, whatsapp_resend_message_api,
     whatsapp_log_detail_api, whatsapp_template_preview_api,
     whatsapp_toggle_trigger_api, whatsapp_readiness_metrics_api,
+    whatsapp_account_save_api, whatsapp_account_toggle_default_api,
+    whatsapp_account_delete_api, whatsapp_embedded_signup_callback_api,
+    whatsapp_live_chat_view, whatsapp_chat_conversations_api, whatsapp_chat_messages_api,
+    whatsapp_chat_send_text_api, whatsapp_chat_assign_agent_api, whatsapp_chat_convert_lead_api,
+    whatsapp_campaigns_list_view, whatsapp_campaign_create_api, whatsapp_campaign_launch_api,
+    whatsapp_campaign_status_api, whatsapp_campaign_delete_api,
+    # Phase 6 views (SLA, Costs, Simulator, Privacy, Terms, Data Deletion)
+    whatsapp_sla_metrics_api, whatsapp_cost_analytics_api, whatsapp_simulator_dispatch_api,
+    whatsapp_privacy_policy_view, whatsapp_terms_view,
+    whatsapp_data_deletion_callback_api, whatsapp_data_deletion_status_view,
     # Backup views
     backup_management, create_backup, download_backup, restore_backup,
     restore_backup_from_upload,
@@ -82,6 +92,34 @@ urlpatterns = [
     path("api/whatsapp/template-preview/", whatsapp_template_preview_api, name="whatsapp_template_preview"),
     path("api/whatsapp/toggle-trigger/", whatsapp_toggle_trigger_api, name="whatsapp_toggle_trigger"),
     path("api/whatsapp/readiness-metrics/", whatsapp_readiness_metrics_api, name="whatsapp_readiness_metrics"),
+    path("api/whatsapp/accounts/save/", whatsapp_account_save_api, name="whatsapp_account_save"),
+    path("api/whatsapp/accounts/<int:account_id>/set-default/", whatsapp_account_toggle_default_api, name="whatsapp_account_toggle_default"),
+    path("api/whatsapp/accounts/<int:account_id>/delete/", whatsapp_account_delete_api, name="whatsapp_account_delete"),
+    path("api/whatsapp/embedded-signup/callback/", whatsapp_embedded_signup_callback_api, name="whatsapp_embedded_signup_callback"),
+    
+    # مسارات الشات الحي والمحادثات المباشرة (Live Chat) - المرحلة الرابعة ✅
+    path("whatsapp/chat/", whatsapp_live_chat_view, name="whatsapp_live_chat"),
+    path("api/whatsapp/chat/conversations/", whatsapp_chat_conversations_api, name="whatsapp_chat_conversations"),
+    path("api/whatsapp/chat/messages/", whatsapp_chat_messages_api, name="whatsapp_chat_messages"),
+    path("api/whatsapp/chat/send-text/", whatsapp_chat_send_text_api, name="whatsapp_chat_send_text"),
+    path("api/whatsapp/chat/assign/", whatsapp_chat_assign_agent_api, name="whatsapp_chat_assign_agent"),
+    path("api/whatsapp/chat/convert-lead/", whatsapp_chat_convert_lead_api, name="whatsapp_chat_convert_lead"),
+    
+    # مسارات الحملات والإشعارات الجماعية وخنق التدفق (Campaigns) - المرحلة الخامسة ✅
+    path("whatsapp/campaigns/", whatsapp_campaigns_list_view, name="whatsapp_campaigns"),
+    path("api/whatsapp/campaigns/create/", whatsapp_campaign_create_api, name="whatsapp_campaign_create"),
+    path("api/whatsapp/campaigns/<int:campaign_id>/launch/", whatsapp_campaign_launch_api, name="whatsapp_campaign_launch"),
+    path("api/whatsapp/campaigns/<int:campaign_id>/status/", whatsapp_campaign_status_api, name="whatsapp_campaign_status"),
+    path("api/whatsapp/campaigns/<int:campaign_id>/delete/", whatsapp_campaign_delete_api, name="whatsapp_campaign_delete"),
+    
+    # مسارات المرحلة السادسة: سجل التكاليف، مقاييس SLA، محاكي الاعتماد وصفحات الامتثال (Phase 6) ✅
+    path("api/whatsapp/metrics/sla/", whatsapp_sla_metrics_api, name="whatsapp_sla_metrics"),
+    path("api/whatsapp/analytics/costs/", whatsapp_cost_analytics_api, name="whatsapp_cost_analytics"),
+    path("api/whatsapp/simulator/dispatch/", whatsapp_simulator_dispatch_api, name="whatsapp_simulator_dispatch"),
+    path("whatsapp/privacy/", whatsapp_privacy_policy_view, name="whatsapp_privacy_policy"),
+    path("whatsapp/terms/", whatsapp_terms_view, name="whatsapp_terms"),
+    path("api/whatsapp/data-deletion/", whatsapp_data_deletion_callback_api, name="whatsapp_data_deletion_callback"),
+    path("whatsapp/data-deletion/status/<str:confirmation_code>/", whatsapp_data_deletion_status_view, name="whatsapp_data_deletion_status"),
     
     # مسارات API الإشعارات - مفعلة ✅
     path('api/notifications/mark-read/<int:notification_id>/', api.mark_notification_read, name='mark_notification_read'),

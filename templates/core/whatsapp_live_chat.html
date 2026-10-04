@@ -1,0 +1,1231 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_name|default:"موهبة ERP" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* WhatsApp Live Chat Workstation — Unified ERP Design (Rule 2) */
+.page-header-container {
+    margin-bottom: 0.4rem !important;
+}
+.page-header {
+    padding: 0.35rem 0.75rem !important;
+    min-height: auto !important;
+}
+.page-header-title {
+    gap: 0.5rem !important;
+}
+.page-header-title .header-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1.05rem !important;
+}
+.page-header-title h1, .page-header-title .header-title {
+    font-size: 1.1rem !important;
+    margin-bottom: 0 !important;
+}
+.header-subtitle {
+    font-size: 0.78rem !important;
+    margin-bottom: 0 !important;
+}
+
+/* إلغاء مساحة وهوامش الفوتر في صفحة الـ Live Chat للاستفادة من كامل مساحة الشاشة */
+.content-wrapper {
+    margin-bottom: 0 !important;
+    padding-bottom: 0.2rem !important;
+    min-height: auto !important;
+}
+
+.footer, footer, #footer {
+    display: none !important;
+}
+
+.live-chat-card {
+    height: calc(100vh - 170px);
+    min-height: 480px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-card);
+    overflow: hidden;
+}
+
+.chat-sidebar {
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--bg-body);
+}
+
+.chat-sidebar-header {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+}
+
+.chat-filter-pills .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--border-radius-full);
+}
+
+.conversations-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 0.85rem;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: background-color var(--transition-fast, 0.15s ease);
+    margin-bottom: 0.35rem;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.conversation-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.conversation-item.active {
+    background-color: var(--bg-soft-primary);
+    border-color: var(--primary-color);
+}
+
+.chat-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--border-radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+    background-color: var(--bg-soft-secondary);
+    color: var(--text-dark);
+    flex-shrink: 0;
+    position: relative;
+}
+
+.window-indicator-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: var(--border-radius-full);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    border: 2px solid var(--white);
+}
+
+.window-dot-open {
+    background-color: var(--success-color);
+}
+
+.window-dot-closed {
+    background-color: var(--secondary-color);
+}
+
+.chat-main {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--bg-body);
+}
+
+.chat-header {
+    padding: 0.85rem 1.25rem;
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    background-color: var(--bg-body);
+}
+
+.message-bubble-wrapper {
+    display: flex;
+    flex-direction: column;
+    max-width: 75%;
+}
+
+.message-inbound {
+    align-self: flex-start;
+}
+
+.message-outbound {
+    align-self: flex-end;
+}
+
+.message-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: var(--border-radius-lg);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    position: relative;
+    word-break: break-word;
+}
+
+.message-inbound .message-bubble {
+    background-color: var(--bg-card);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+    border-bottom-right-radius: 2px;
+}
+
+.message-outbound .message-bubble {
+    background-color: var(--primary-color);
+    color: var(--text-white);
+    border-bottom-left-radius: 2px;
+}
+
+.message-meta {
+    font-size: 0.72rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.message-inbound .message-meta {
+    color: var(--text-muted);
+    justify-content: flex-start;
+}
+
+.message-outbound .message-meta {
+    color: var(--text-muted);
+    justify-content: flex-end;
+}
+
+.chat-input-area {
+    padding: 0.85rem 1.25rem;
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+}
+
+.chat-textarea {
+    resize: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.95rem;
+}
+
+.chat-textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-focus);
+    outline: none;
+}
+
+.empty-chat-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+}
+
+.audio-player-box {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    width: 280px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 py-1">
+    <!-- Page Header المركزي (بدون مسار التنقل) -->
+    {% include "shared/page_header.html" with show_breadcrumb=False %}
+
+    <div class="card border-0 shadow-sm live-chat-card">
+        <div class="row g-0 h-100">
+            
+            <!-- ==================== العمود الجانبي للمحادثات (Left Pane) ==================== -->
+            <div class="col-12 col-md-5 col-lg-4 col-xl-3 chat-sidebar">
+                
+                <!-- رأس القائمة: اختيار الحساب والبحث والفلاتر -->
+                <div class="chat-sidebar-header">
+                    <!-- محدد الحساب -->
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1 fw-bold">
+                            <i class="fab fa-whatsapp text-success me-1"></i>{% trans "حساب الواتساب" %}:
+                        </label>
+                        <select class="form-select form-select-sm" id="chatAccountSelect">
+                            <option value="all">{% trans "جميع الحسابات النشطة" %}</option>
+                            {% for acc in accounts %}
+                            <option value="{{ acc.id }}" {% if acc.is_default %}selected{% endif %}>
+                                {{ acc.name }} ({{ acc.display_phone_number|default:acc.phone_number_id }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- صندوق البحث -->
+                    <div class="input-group input-group-sm mb-2">
+                        <span class="input-group-text bg-light border-end-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-start-0" id="chatSearchInput" placeholder="{% trans 'بحث بالاسم أو الرقم...' %}" autocomplete="off">
+                        <button class="btn btn-outline-secondary" type="button" id="chatSearchClearBtn" style="display:none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <!-- أزرار الفلترة السريعة -->
+                    <div class="d-flex gap-1 flex-wrap chat-filter-pills" id="chatFilterPills">
+                        <button type="button" class="btn btn-primary btn-sm active" data-filter="all">{% trans "الكل" %}</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-filter="unread">
+                            {% trans "غير مقروء" %} <span class="badge bg-danger rounded-pill ms-1" id="unreadPillCount" style="display:none;">0</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-filter="open_window">{% trans "نافذة نشطة" %}</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-filter="mine">{% trans "محادثاتي" %}</button>
+                    </div>
+                </div>
+
+                <!-- قائمة المحادثات القابلة للتمرير -->
+                <div class="conversations-scroll" id="conversationsList">
+                    <div class="text-center py-5 text-muted" id="conversationsLoading">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span>{% trans "جاري تحميل المحادثات..." %}</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ==================== منطقة المحادثة المباشرة (Right Pane) ==================== -->
+            <div class="col-12 col-md-7 col-lg-8 col-xl-9 chat-main">
+                
+                <!-- شاشة عدم اختيار أي محادثة (Empty State) -->
+                <div class="empty-chat-state" id="noChatSelectedState">
+                    <div class="p-4 text-center">
+                        <div class="mb-3">
+                            <i class="fab fa-whatsapp text-success" style="font-size: 4rem;"></i>
+                        </div>
+                        <h5 class="fw-bold text-dark">{% trans "منظومة المحادثات الحية المباشرة" %}</h5>
+                        <p class="text-muted small max-w-md mx-auto">
+                            {% trans "اختر جهة اتصال من القائمة للبدء في مراسلة العميل، أو الاستجابة للاستفسارات الواردة، أو إرسال الفواتير والمستندات." %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- شاشة المحادثة النشطة -->
+                <div class="d-flex flex-column h-100" id="activeChatPane" style="display: none !important;">
+                    
+                    <!-- رأس المحادثة -->
+                    <div class="chat-header">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="chat-avatar" id="activeChatAvatar">
+                                <span>-</span>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <h6 class="fw-bold text-dark mb-0" id="activeChatName">---</h6>
+                                    <span class="badge bg-light text-dark border" id="activeChatPartnerBadge">{% trans "مجهول" %}</span>
+                                    <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill" id="convertLeadHeaderBtn" style="display:none;">
+                                        <i class="fas fa-user-plus me-1"></i>{% trans "تحويل لشريك" %}
+                                    </button>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <span class="text-muted small" dir="ltr" id="activeChatPhone">---</span>
+                                    <span class="badge bg-light text-muted border py-1" id="activeChatAccountBadge">---</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- حالة النافذة والموظف المسؤول والأزرار -->
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- مؤشر نافذة الـ 24 ساعة -->
+                            <div id="windowBadgeWrapper">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle py-2 px-3" id="activeChatWindowBadge">
+                                    <i class="fas fa-clock me-1"></i> <span id="windowCountdownText">{% trans "النافذة نشطة" %}</span>
+                                </span>
+                            </div>
+
+                            <!-- إسناد الموظف -->
+                            <div class="d-flex align-items-center gap-1">
+                                <select class="form-select form-select-sm" id="activeChatAgentSelect" style="width: 140px;">
+                                    <option value="">{% trans "بدون إسناد" %}</option>
+                                    {% for u in staff_users %}
+                                    <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- زر التحديث اليدوي -->
+                            <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshChatBtn" title="{% trans 'تحديث' %}">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- شريط تحذير تصادم الموظفين (Collision Alert) -->
+                    <div class="alert alert-warning border-0 rounded-0 py-2 px-3 mb-0 d-flex align-items-center justify-content-between" id="collisionWarningBanner" style="display:none;">
+                        <div class="small">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            <span id="collisionWarningText">{% trans "تنبيه: يوجد موظف آخر يتابع هذه المحادثة حالياً." %}</span>
+                        </div>
+                        <button type="button" class="btn-close btn-sm" id="dismissCollisionBtn"></button>
+                    </div>
+
+                    <!-- شريط تحذير إلغاء الاشتراك (Opt-Out Banner) -->
+                    <div class="alert alert-danger border-0 rounded-0 py-2 px-3 mb-0" id="optOutWarningBanner" style="display:none;">
+                        <i class="fas fa-ban me-1"></i>
+                        <span class="small fw-bold">{% trans "تنبيه: هذا الشريك قام بإلغاء الاشتراك في خدمة الواتساب (Opt-Out). لن يتم تسليم الرسائل الحرة." %}</span>
+                    </div>
+
+                    <!-- مساحة عرض الرسائل (Messages Container) -->
+                    <div class="messages-container" id="messagesContainer">
+                        <div class="text-center py-4 text-muted" id="messagesLoading">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span>{% trans "جاري تحميل الرسائل..." %}</span>
+                        </div>
+                    </div>
+
+                    <!-- مساحة الإدخال والإرسال (Chat Input Area) -->
+                    <div class="chat-input-area" id="chatInputArea">
+                        
+                        <!-- في حال انتهاء نافذة الـ 24 ساعة -->
+                        <div id="windowExpiredArea" style="display:none;">
+                            <div class="alert alert-secondary border-0 p-3 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark">
+                                        <i class="fas fa-lock text-warning me-2"></i>{% trans "انتهت صلاحية نافذة الرد الحر (24-Hour Customer Window)" %}
+                                    </h6>
+                                    <p class="small text-muted mb-0">
+                                        {% trans "وفق سياسات Meta الرسمية، لا يمكن إرسال نصوص حرة خارج نافذة الـ 24 ساعة. يجب إرسال قالب معتمد لدى Meta لإعادة فتح المحادثة." %}
+                                    </p>
+                                </div>
+                                <button type="button" class="btn btn-primary btn-sm fw-bold px-3" id="openTemplateModalFromExpiredBtn">
+                                    <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال قالب معتمد" %}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- في حال كانت النافذة مفتوحة ونشطة -->
+                        <div id="windowActiveInputArea">
+                            <div class="d-flex align-items-end gap-2">
+                                <div class="flex-grow-1">
+                                    <textarea class="form-control chat-textarea" id="chatMessageInput" rows="2" placeholder="{% trans 'اكتب رسالتك هنا... (Enter للإرسال، Shift+Enter لسطر جديد)' %}"></textarea>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="chatQuickTemplateBtn" title="{% trans 'إرسال قالب رسمي' %}">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-primary btn-sm fw-bold px-3 py-2" id="chatSendBtn">
+                                        <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 1. مودال تحويل جهة الاتصال لعميل/مورد (Rule 8 Centered Modal) ==================== -->
+<div class="modal fade" id="convertLeadModal" tabindex="-1" aria-labelledby="convertLeadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="convertLeadModalLabel">
+                    <i class="fas fa-user-plus text-primary me-2"></i>{% trans "تحويل وتوثيق جهة الاتصال كشريك نظام" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="convertLeadForm" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-bold">{% trans "رقم الهاتف" %}</label>
+                        <input type="text" class="form-control" id="convertLeadPhone" readonly dir="ltr">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-bold">{% trans "اسم الشريك / المنشأة" %} <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="convertLeadName" required placeholder="{% trans 'مثال: شركة النور للتجارة' %}">
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small text-muted fw-bold">{% trans "نوع الشريك" %}</label>
+                            <select class="form-select" id="convertLeadTargetType">
+                                <option value="customer" selected>{% trans "عميل (Customer)" %}</option>
+                                <option value="supplier">{% trans "مورد (Supplier)" %}</option>
+                            </select>
+                        </div>
+                        <div class="col-6" id="customerTierWrapper">
+                            <label class="form-label small text-muted fw-bold">{% trans "شريحة العميل" %}</label>
+                            <select class="form-select" id="convertLeadTier">
+                                <option value="">{% trans "الافتراضية" %}</option>
+                                {% for tier in customer_tiers %}
+                                <option value="{{ tier.id }}">{{ tier.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-bold">{% trans "البريد الإلكتروني (اختياري)" %}</label>
+                        <input type="email" class="form-control" id="convertLeadEmail" placeholder="partner@example.com">
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small text-muted fw-bold">{% trans "ملاحظات وعنوان الشريك" %}</label>
+                        <textarea class="form-control" id="convertLeadNotes" rows="2" placeholder="{% trans 'العنوان أو الملاحظات التجارية...' %}"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="convertLeadSubmitBtn">
+                        <i class="fas fa-check me-1"></i>{% trans "إنشاء وتوثيق الشريك" %}
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 2. مودال إرسال قالب سريع (Rule 8 Centered Modal) ==================== -->
+<div class="modal fade" id="quickTemplateModal" tabindex="-1" aria-labelledby="quickTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="quickTemplateModalLabel">
+                    <i class="fas fa-file-invoice text-primary me-2"></i>{% trans "إرسال قالب WhatsApp معتمد لدى Meta" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="quickTemplateForm" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-bold">{% trans "القالب المعتمد" %}</label>
+                        <select class="form-select" id="quickTemplateSelect" required>
+                            <option value="document_send_ar">{% trans "إرسال مستند مالي (document_send_ar)" %}</option>
+                            <option value="payment_receipt_ar">{% trans "إيصال سداد واستلام دفعة (payment_receipt_ar)" %}</option>
+                            <option value="order_status_ar">{% trans "تحديث حالة الطلب والجاهزية (order_status_ar)" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="alert alert-info border-0 p-3 mb-0 small">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيتم إرسال القالب الرسمي المعتمد لجهة الاتصال، وبمجرد استلام العميل للرسالة والرد عليها سيتم فتح نافذة الـ 24 ساعة للمحادثة الحرة تلقائياً." %}
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="quickTemplateSubmitBtn">
+                        <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال القالب الآن" %}
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // حالة الواجهة المركزية
+    const state = {
+        activePhone: null,
+        activeContact: null,
+        activeAccountId: document.getElementById('chatAccountSelect') ? document.getElementById('chatAccountSelect').value : 'all',
+        activeFilter: 'all',
+        searchQuery: '',
+        lastMessageId: 0,
+        pollingInterval: null,
+        conversationsPollingInterval: null,
+        windowSecondsRemaining: 0,
+        windowTimer: null,
+        isSending: false
+    };
+
+    // عناصر الـ DOM الرئيسية
+    const els = {
+        accountSelect: document.getElementById('chatAccountSelect'),
+        searchInput: document.getElementById('chatSearchInput'),
+        searchClearBtn: document.getElementById('chatSearchClearBtn'),
+        filterPills: document.getElementById('chatFilterPills'),
+        conversationsList: document.getElementById('conversationsList'),
+        noChatState: document.getElementById('noChatSelectedState'),
+        activeChatPane: document.getElementById('activeChatPane'),
+        activeAvatar: document.getElementById('activeChatAvatar'),
+        activeName: document.getElementById('activeChatName'),
+        activePhone: document.getElementById('activeChatPhone'),
+        activePartnerBadge: document.getElementById('activeChatPartnerBadge'),
+        activeAccountBadge: document.getElementById('activeChatAccountBadge'),
+        convertLeadHeaderBtn: document.getElementById('convertLeadHeaderBtn'),
+        windowBadge: document.getElementById('activeChatWindowBadge'),
+        windowCountdownText: document.getElementById('windowCountdownText'),
+        agentSelect: document.getElementById('activeChatAgentSelect'),
+        refreshBtn: document.getElementById('refreshChatBtn'),
+        collisionBanner: document.getElementById('collisionWarningBanner'),
+        collisionText: document.getElementById('collisionWarningText'),
+        dismissCollisionBtn: document.getElementById('dismissCollisionBtn'),
+        optOutBanner: document.getElementById('optOutWarningBanner'),
+        messagesContainer: document.getElementById('messagesContainer'),
+        windowExpiredArea: document.getElementById('windowExpiredArea'),
+        windowActiveInputArea: document.getElementById('windowActiveInputArea'),
+        messageInput: document.getElementById('chatMessageInput'),
+        sendBtn: document.getElementById('chatSendBtn'),
+        quickTemplateBtn: document.getElementById('chatQuickTemplateBtn'),
+        openTemplateFromExpiredBtn: document.getElementById('openTemplateModalFromExpiredBtn'),
+        unreadPillCount: document.getElementById('unreadPillCount'),
+        convertLeadModalEl: document.getElementById('convertLeadModal'),
+        convertLeadForm: document.getElementById('convertLeadForm'),
+        convertLeadPhone: document.getElementById('convertLeadPhone'),
+        convertLeadName: document.getElementById('convertLeadName'),
+        convertLeadTargetType: document.getElementById('convertLeadTargetType'),
+        convertLeadTier: document.getElementById('convertLeadTier'),
+        customerTierWrapper: document.getElementById('customerTierWrapper'),
+        convertLeadEmail: document.getElementById('convertLeadEmail'),
+        convertLeadNotes: document.getElementById('convertLeadNotes'),
+        convertLeadSubmitBtn: document.getElementById('convertLeadSubmitBtn'),
+        quickTemplateModalEl: document.getElementById('quickTemplateModal'),
+        quickTemplateForm: document.getElementById('quickTemplateForm'),
+        quickTemplateSelect: document.getElementById('quickTemplateSelect'),
+        quickTemplateSubmitBtn: document.getElementById('quickTemplateSubmitBtn'),
+    };
+
+    const convertLeadModal = els.convertLeadModalEl ? new bootstrap.Modal(els.convertLeadModalEl) : null;
+    const quickTemplateModal = els.quickTemplateModalEl ? new bootstrap.Modal(els.quickTemplateModalEl) : null;
+
+    // ==================== 1. جلب وتحديث قائمة المحادثات (Conversations Sidebar) ====================
+
+    function loadConversations(silent = false) {
+        const params = new URLSearchParams({
+            account_id: state.activeAccountId,
+            filter: state.activeFilter,
+            q: state.searchQuery
+        });
+
+        fetch(`{% url 'core:whatsapp_chat_conversations' %}?${params.toString()}`)
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().catch(() => ({ success: false, error: 'Server Error' }));
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data || !data.success) {
+                    if (data && data.error && !silent) {
+                        console.warn('Conversations fetch warning:', data.error);
+                    }
+                    return;
+                }
+                renderConversations(data.conversations);
+            })
+            .catch(err => console.error('Error fetching conversations:', err));
+    }
+
+    function renderConversations(conversations) {
+        if (!conversations || conversations.length === 0) {
+            els.conversationsList.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="far fa-comments fa-2x mb-2 d-block"></i>
+                    <span class="small">${state.searchQuery ? '{% trans "لا توجد نتائج مطابقة للبحث" %}' : '{% trans "لا توجد محادثات مسجلة" %}'}</span>
+                </div>
+            `;
+            return;
+        }
+
+        let totalUnread = 0;
+        let html = '';
+
+        conversations.forEach(c => {
+            totalUnread += c.unread_count || 0;
+            const isActive = state.activePhone === c.phone;
+            const initial = c.display_name ? c.display_name.trim().charAt(0) : '?';
+            const isOpen = c.window_status && c.window_status.is_open;
+            const dotClass = isOpen ? 'window-dot-open' : 'window-dot-closed';
+            const dotTitle = isOpen ? '{% trans "نافذة الـ 24 ساعة نشطة" %}' : '{% trans "نافذة الـ 24 ساعة منتهية" %}';
+
+            let partnerBadge = '';
+            if (c.partner_type === 'customer') {
+                partnerBadge = `<span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 px-1 font-xs">{% trans "عميل" %}</span>`;
+            } else if (c.partner_type === 'supplier') {
+                partnerBadge = `<span class="badge bg-warning-subtle text-warning border border-warning-subtle py-0 px-1 font-xs">{% trans "مورد" %}</span>`;
+            } else {
+                partnerBadge = `<span class="badge bg-light text-muted border py-0 px-1 font-xs">{% trans "محتمل" %}</span>`;
+            }
+
+            html += `
+                <div class="conversation-item ${isActive ? 'active' : ''}" data-phone="${c.phone}">
+                    <div class="chat-avatar me-2">
+                        <span>${initial}</span>
+                        <span class="window-indicator-dot ${dotClass}" title="${dotTitle}"></span>
+                    </div>
+                    <div class="flex-grow-1 overflow-hidden me-2">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="fw-bold text-dark text-truncate small">${c.display_name}</span>
+                            <span class="text-muted" style="font-size: 0.7rem;">${c.last_message ? c.last_message.time : ''}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span class="text-muted text-truncate small" style="font-size: 0.78rem;">${c.last_message ? c.last_message.snippet : ''}</span>
+                            ${c.unread_count > 0 ? `<span class="badge bg-danger rounded-pill">${c.unread_count}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        els.conversationsList.innerHTML = html;
+
+        if (totalUnread > 0) {
+            els.unreadPillCount.textContent = totalUnread;
+            els.unreadPillCount.style.display = 'inline-block';
+        } else {
+            els.unreadPillCount.style.display = 'none';
+        }
+
+        // ربط أحداث النقر على المحادثات
+        els.conversationsList.querySelectorAll('.conversation-item').forEach(item => {
+            item.addEventListener('click', function () {
+                const phone = this.getAttribute('data-phone');
+                selectConversation(phone);
+            });
+        });
+    }
+
+    // ==================== 2. فتح واسترجاع رسائل المحادثة (Active Chat Pane) ====================
+
+    function selectConversation(phone) {
+        if (state.activePhone === phone) return;
+
+        state.activePhone = phone;
+        state.lastMessageId = 0;
+
+        els.conversationsList.querySelectorAll('.conversation-item').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('data-phone') === phone);
+        });
+
+        els.noChatState.style.setProperty('display', 'none', 'important');
+        els.activeChatPane.style.setProperty('display', 'flex', 'important');
+        els.messagesContainer.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                <span>{% trans "جاري جلب المحادثة..." %}</span>
+            </div>
+        `;
+
+        fetchMessages(true);
+
+        clearInterval(state.pollingInterval);
+        state.pollingInterval = setInterval(() => {
+            fetchMessages(false);
+        }, 3500);
+    }
+
+    function fetchMessages(isInitial = false) {
+        if (!state.activePhone) return;
+
+        const params = new URLSearchParams({
+            phone: state.activePhone,
+            last_id: isInitial ? 0 : state.lastMessageId,
+            account_id: state.activeAccountId
+        });
+
+        fetch(`{% url 'core:whatsapp_chat_messages' %}?${params.toString()}`)
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().catch(() => ({ success: false, error: 'Server Error' }));
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (!data || !data.success) return;
+
+                if (isInitial) {
+                    renderInitialChat(data);
+                } else if (data.messages && data.messages.length > 0) {
+                    appendDifferentialMessages(data.messages);
+                }
+
+                if (data.max_id) {
+                    state.lastMessageId = Math.max(state.lastMessageId, data.max_id);
+                }
+
+                updateWindowStatus(data.window_status);
+                handleCollisionLock(data.collision_info);
+            })
+            .catch(err => console.error('Error fetching chat messages:', err));
+    }
+
+    function renderInitialChat(data) {
+        state.activeContact = data.contact_info;
+        const ci = data.contact_info;
+
+        els.activeName.textContent = ci.name;
+        els.activePhone.textContent = ci.phone;
+        els.activeAvatar.querySelector('span').textContent = ci.name ? ci.name.trim().charAt(0) : '?';
+
+        if (ci.partner_type === 'customer') {
+            els.activePartnerBadge.textContent = '{% trans "عميل" %}';
+            els.activePartnerBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+            els.convertLeadHeaderBtn.style.display = 'none';
+        } else if (ci.partner_type === 'supplier') {
+            els.activePartnerBadge.textContent = '{% trans "مورد" %}';
+            els.activePartnerBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+            els.convertLeadHeaderBtn.style.display = 'none';
+        } else {
+            els.activePartnerBadge.textContent = '{% trans "عميل محتمل" %}';
+            els.activePartnerBadge.className = 'badge bg-light text-muted border';
+            els.convertLeadHeaderBtn.style.display = 'inline-block';
+        }
+
+        els.optOutBanner.style.display = ci.opt_out ? 'block' : 'none';
+        els.agentSelect.value = ci.assigned_user_id || '';
+
+        els.messagesContainer.innerHTML = '';
+        if (!data.messages || data.messages.length === 0) {
+            els.messagesContainer.innerHTML = `
+                <div class="text-center py-5 text-muted">
+                    <i class="far fa-comment-dots fa-2x mb-2 d-block"></i>
+                    <span>{% trans "لا توجد رسائل سابقة مع جهة الاتصال هذه" %}</span>
+                </div>
+            `;
+            return;
+        }
+
+        data.messages.forEach(msg => {
+            appendMessageBubble(msg);
+        });
+
+        scrollToBottom();
+    }
+
+    function appendDifferentialMessages(messages) {
+        messages.forEach(msg => {
+            appendMessageBubble(msg);
+        });
+        scrollToBottom();
+    }
+
+    function appendMessageBubble(msg) {
+        const bubbleWrap = document.createElement('div');
+        bubbleWrap.className = `message-bubble-wrapper ${msg.is_inbound ? 'message-inbound' : 'message-outbound'}`;
+        bubbleWrap.setAttribute('data-msg-id', msg.id);
+
+        let statusIcon = '';
+        if (!msg.is_inbound) {
+            if (msg.status === 'READ') {
+                statusIcon = '<i class="fas fa-check-double text-info" title="{% trans "تمت القراءة 👁️" %}"></i>';
+            } else if (msg.status === 'DELIVERED') {
+                statusIcon = '<i class="fas fa-check-double text-muted" title="{% trans "تم التسليم للهاتف" %}"></i>';
+            } else if (msg.status === 'SENT') {
+                statusIcon = '<i class="fas fa-check text-muted" title="{% trans "تم الإرسال لـ Meta" %}"></i>';
+            } else if (msg.status === 'FAILED') {
+                statusIcon = '<i class="fas fa-exclamation-circle text-danger" title="{% trans "فشل الإرسال" %}"></i>';
+            } else {
+                statusIcon = '<i class="far fa-clock text-muted" title="{% trans "قيد الإرسال" %}"></i>';
+            }
+        }
+
+        let contentHtml = '';
+        if (msg.message_type === 'audio' && msg.media_url) {
+            contentHtml = `
+                <div class="audio-player-box mb-1">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <i class="fas fa-microphone text-primary"></i>
+                        <span class="small fw-bold text-dark">{% trans "تسجيل صوتي" %}</span>
+                    </div>
+                    <audio controls class="w-100" style="height: 32px;" src="${msg.media_url}"></audio>
+                </div>
+            `;
+        } else if (msg.message_type === 'image' && msg.media_url) {
+            contentHtml = `
+                <div class="mb-1">
+                    <a href="${msg.media_url}" target="_blank">
+                        <img src="${msg.media_url}" class="img-fluid rounded border" style="max-height: 220px;" alt="Image">
+                    </a>
+                    ${msg.body_text ? `<div class="mt-1">${escapeHtml(msg.body_text)}</div>` : ''}
+                </div>
+            `;
+        } else if (msg.message_type === 'document' && msg.media_url) {
+            contentHtml = `
+                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border mb-1">
+                    <i class="fas fa-file-pdf text-danger fs-3"></i>
+                    <div class="flex-grow-1 overflow-hidden">
+                        <div class="fw-bold small text-truncate text-dark">${msg.document_label || '{% trans "مستند PDF" %}'}</div>
+                        <a href="${msg.media_url}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 mt-1">
+                            <i class="fas fa-download me-1"></i>{% trans "تحميل" %}
+                        </a>
+                    </div>
+                </div>
+            `;
+        } else if (msg.template_name) {
+            contentHtml = `
+                <div class="mb-1">
+                    <div class="badge bg-light text-dark border mb-1"><i class="fas fa-file-invoice text-success me-1"></i>${msg.template_name}</div>
+                    <div>${escapeHtml(msg.body_text)}</div>
+                </div>
+            `;
+        } else {
+            contentHtml = `<div>${escapeHtml(msg.body_text)}</div>`;
+        }
+
+        bubbleWrap.innerHTML = `
+            <div class="message-bubble">
+                ${contentHtml}
+            </div>
+            <div class="message-meta">
+                <span>${msg.time}</span>
+                ${msg.created_by ? `<span>• ${msg.created_by}</span>` : ''}
+                ${statusIcon}
+            </div>
+        `;
+
+        els.messagesContainer.appendChild(bubbleWrap);
+    }
+
+    function scrollToBottom() {
+        els.messagesContainer.scrollTop = els.messagesContainer.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ==================== 3. إدارة مؤقت نافذة الـ 24 ساعة ====================
+
+    function updateWindowStatus(ws) {
+        clearInterval(state.windowTimer);
+        if (!ws) return;
+
+        if (ws.is_open) {
+            els.windowExpiredArea.style.display = 'none';
+            els.windowActiveInputArea.style.display = 'block';
+            els.windowBadge.className = 'badge bg-success-subtle text-success border border-success-subtle py-2 px-3';
+            
+            state.windowSecondsRemaining = ws.seconds_remaining;
+            renderWindowTimer();
+
+            state.windowTimer = setInterval(() => {
+                state.windowSecondsRemaining--;
+                if (state.windowSecondsRemaining <= 0) {
+                    clearInterval(state.windowTimer);
+                    updateWindowStatus({ is_open: false, formatted_remaining: '{% trans "منتهية" %}' });
+                } else {
+                    renderWindowTimer();
+                }
+            }, 1000);
+
+        } else {
+            els.windowActiveInputArea.style.display = 'none';
+            els.windowExpiredArea.style.display = 'block';
+            els.windowBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle py-2 px-3';
+            els.windowCountdownText.textContent = '{% trans "نافذة الـ 24 ساعة منتهية" %}';
+        }
+    }
+
+    function renderWindowTimer() {
+        const secs = state.windowSecondsRemaining;
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        els.windowCountdownText.textContent = `{% trans "نافذة الرد نشطة" %} (${pad(h)}:${pad(m)}:${pad(s)})`;
+    }
+
+    function handleCollisionLock(collisionInfo) {
+        if (collisionInfo) {
+            els.collisionText.textContent = `{% trans "تنبيه: المحادثة قيد المتابعة حالياً بواسطة" %} (${collisionInfo.username})`;
+            els.collisionBanner.style.display = 'flex';
+        } else {
+            els.collisionBanner.style.display = 'none';
+        }
+    }
+
+    // ==================== 4. إرسال الرسائل النصية الحرة ====================
+
+    function sendTextMessage() {
+        if (state.isSending || !state.activePhone) return;
+
+        const text = els.messageInput.value.trim();
+        if (!text) return;
+
+        state.isSending = true;
+        els.sendBtn.disabled = true;
+        els.sendBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        fetch('{% url "core:whatsapp_chat_send_text" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                phone: state.activePhone,
+                text: text,
+                account_id: state.activeAccountId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            state.isSending = false;
+            els.sendBtn.disabled = false;
+            els.sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال" %}';
+
+            if (data.success) {
+                els.messageInput.value = '';
+                fetchMessages(false);
+                loadConversations(true);
+            } else {
+                if (data.window_expired) {
+                    updateWindowStatus({ is_open: false });
+                }
+                if (window.showNotification) {
+                    window.showNotification(data.error, 'error');
+                } else {
+                    alert(data.error);
+                }
+            }
+        })
+        .catch(err => {
+            state.isSending = false;
+            els.sendBtn.disabled = false;
+            els.sendBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>{% trans "إرسال" %}';
+            console.error('Error sending message:', err);
+        });
+    }
+
+    els.sendBtn.addEventListener('click', sendTextMessage);
+    els.messageInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendTextMessage();
+        }
+    });
+
+    // ==================== 5. إسناد الموظف للمحادثة ====================
+
+    els.agentSelect.addEventListener('change', function () {
+        if (!state.activePhone) return;
+
+        const userId = this.value;
+        fetch('{% url "core:whatsapp_chat_assign_agent" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                phone: state.activePhone,
+                user_id: userId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && window.showNotification) {
+                window.showNotification(data.message, 'success');
+            }
+        });
+    });
+
+    // ==================== 6. تحويل جهة الاتصال لعميل/مورد (1-Click Lead Conversion) ====================
+
+    els.convertLeadHeaderBtn.addEventListener('click', function () {
+        if (!state.activePhone) return;
+        els.convertLeadPhone.value = state.activePhone;
+        els.convertLeadName.value = state.activeContact ? (state.activeContact.name !== '{% trans "عميل محتمل / مجهول" %}' ? state.activeContact.name : '') : '';
+        if (convertLeadModal) convertLeadModal.show();
+    });
+
+    els.convertLeadTargetType.addEventListener('change', function () {
+        els.customerTierWrapper.style.display = this.value === 'customer' ? 'block' : 'none';
+    });
+
+    els.convertLeadForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        els.convertLeadSubmitBtn.disabled = true;
+
+        const payload = {
+            phone: els.convertLeadPhone.value,
+            name: els.convertLeadName.value,
+            target_type: els.convertLeadTargetType.value,
+            tier_id: els.convertLeadTier.value,
+            email: els.convertLeadEmail.value,
+            notes: els.convertLeadNotes.value,
+        };
+
+        fetch('{% url "core:whatsapp_chat_convert_lead" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            els.convertLeadSubmitBtn.disabled = false;
+            if (data.success) {
+                if (convertLeadModal) convertLeadModal.hide();
+                if (window.showNotification) {
+                    window.showNotification(data.message, 'success');
+                }
+                fetchMessages(true);
+                loadConversations(true);
+            } else {
+                if (window.showNotification) {
+                    window.showNotification(data.error, 'error');
+                } else {
+                    alert(data.error);
+                }
+            }
+        })
+        .catch(err => {
+            els.convertLeadSubmitBtn.disabled = false;
+            console.error('Error converting lead:', err);
+        });
+    });
+
+    // ==================== 7. إرسال القالب السريع ====================
+
+    function openQuickTemplateModal() {
+        if (!state.activePhone) return;
+        if (quickTemplateModal) quickTemplateModal.show();
+    }
+
+    els.quickTemplateBtn.addEventListener('click', openQuickTemplateModal);
+    els.openTemplateFromExpiredBtn.addEventListener('click', openQuickTemplateModal);
+
+    els.quickTemplateForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        els.quickTemplateSubmitBtn.disabled = true;
+        const templateName = els.quickTemplateSelect.value;
+
+        fetch('{% url "core:whatsapp_send_test" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                phone: state.activePhone,
+                template_name: templateName,
+                account_id: state.activeAccountId
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            els.quickTemplateSubmitBtn.disabled = false;
+            if (data.success) {
+                if (quickTemplateModal) quickTemplateModal.hide();
+                if (window.showNotification) {
+                    window.showNotification('{% trans "تم إرسال القالب بنجاح ✅" %}', 'success');
+                }
+                fetchMessages(false);
+                loadConversations(true);
+            } else {
+                if (window.showNotification) {
+                    window.showNotification(data.error, 'error');
+                } else {
+                    alert(data.error);
+                }
+            }
+        })
+        .catch(err => {
+            els.quickTemplateSubmitBtn.disabled = false;
+            console.error('Error sending quick template:', err);
+        });
+    });
+
+    // ==================== 8. أحداث البحث والتصفية وتغيير الحساب ====================
+
+    els.accountSelect.addEventListener('change', function () {
+        state.activeAccountId = this.value;
+        loadConversations();
+        if (state.activePhone) {
+            fetchMessages(true);
+        }
+    });
+
+    let searchDebounce = null;
+    els.searchInput.addEventListener('input', function () {
+        state.searchQuery = this.value.trim();
+        els.searchClearBtn.style.display = state.searchQuery ? 'block' : 'none';
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+            loadConversations();
+        }, 300);
+    });
+
+    els.searchClearBtn.addEventListener('click', function () {
+        els.searchInput.value = '';
+        state.searchQuery = '';
+        this.style.display = 'none';
+        loadConversations();
+    });
+
+    els.filterPills.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', function () {
+            els.filterPills.querySelectorAll('button').forEach(b => {
+                b.classList.remove('btn-primary', 'active');
+                b.classList.add('btn-outline-secondary');
+            });
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-primary', 'active');
+            state.activeFilter = this.getAttribute('data-filter');
+            loadConversations();
+        });
+    });
+
+    els.refreshBtn.addEventListener('click', function () {
+        if (state.activePhone) fetchMessages(true);
+        loadConversations();
+    });
+
+    els.dismissCollisionBtn.addEventListener('click', function () {
+        els.collisionBanner.style.display = 'none';
+    });
+
+    // ==================== 9. بدء التشغيل والمزامنة التلقائية ====================
+
+    loadConversations();
+    state.conversationsPollingInterval = setInterval(() => {
+        loadConversations(true);
+    }, 8000);
+});
+</script>
+{% endblock %}
+
+{% block footer %}{% endblock %}

@@ -93,7 +93,7 @@ If custom_filters is available, it will be used for JSON parsing.
 
 <div class="page-header-container {{ container_class }}">
     <!-- Breadcrumb -->
-    {% if show_breadcrumb|default:True %}
+    {% if show_breadcrumb|default_if_none:True and show_breadcrumb != False and show_breadcrumb != "False" and show_breadcrumb != "false" %}
         {% if breadcrumb_items %}
             {% include "shared/breadcrumb.html" with items=breadcrumb_items %}
         {% else %}

@@ -1676,9 +1676,125 @@ class DocumentSequenceAudit(models.Model):
         ordering = ["-timestamp"]
 
 
+class WhatsAppAccount(models.Model):
+    """
+    حساب واتساب للأعمال الموحد (WhatsApp Business Account - Multi-Tenant / Multi-WABA)
+    يدعم التعايش المتوازي (Coexistence) والتسجيل المزدوج الذاتي واليدوي مع التشفير بـ AES-256
+    """
+    STATUS_CHOICES = [
+        ('CONNECTED', _('متصل ويعمل ✅')),
+        ('RESTRICTED', _('مقيد من Meta ⚠️')),
+        ('FLAGGED', _('تحذير / مهدد بالحظر 🛑')),
+        ('DISCONNECTED', _('غير متصل / ملغي ❌')),
+    ]
+
+    QUALITY_CHOICES = [
+        ('GREEN', _('عالي / ممتاز (High)')),
+        ('YELLOW', _('متوسط (Medium)')),
+        ('RED', _('منخفض / خطر (Low)')),
+        ('UNKNOWN', _('غير محدد (Unknown)')),
+    ]
+
+    LIMIT_TIER_CHOICES = [
+        ('TIER_50', _('50 محادثة / 24 ساعة (تجريبي)')),
+        ('TIER_250', _('250 محادثة / 24 ساعة (Coexistence)')),
+        ('TIER_1K', _('1,000 محادثة / 24 ساعة')),
+        ('TIER_10K', _('10,000 محادثة / 24 ساعة')),
+        ('TIER_100K', _('100,000 محادثة / 24 ساعة')),
+        ('TIER_UNLIMITED', _('غير محدود')),
+    ]
+
+    name = models.CharField(_("اسم الحساب / الفرع"), max_length=150)
+    company_name = models.CharField(_("اسم الشركة / المؤسسة"), max_length=150, blank=True, default="")
+    phone_number_id = models.CharField(_("معرف رقم الهاتف (Phone Number ID)"), max_length=50, unique=True, db_index=True)
+    waba_id = models.CharField(_("معرف حساب واتساب للأعمال (WABA ID)"), max_length=50, blank=True, default="", db_index=True)
+    display_phone_number = models.CharField(_("رقم الهاتف الظاهر"), max_length=30, blank=True, default="")
+    verified_name = models.CharField(_("الاسم المعتمد في Meta"), max_length=150, blank=True, default="")
+    encrypted_access_token = models.TextField(_("رمز الوصول المشفر (Encrypted Access Token)"), blank=True, default="")
+    app_id = models.CharField(_("معرف تطبيق Meta (App ID)"), max_length=50, blank=True, default="")
+
+    is_coexistence = models.BooleanField(_("وضع التعايش المشترك (Coexistence Mode)"), default=True)
+    is_default = models.BooleanField(_("الحساب الافتراضي للنظام"), default=False, db_index=True)
+    account_status = models.CharField(_("حالة الاتصال"), max_length=30, choices=STATUS_CHOICES, default='CONNECTED', db_index=True)
+    quality_rating = models.CharField(_("تقييم الجودة"), max_length=20, choices=QUALITY_CHOICES, default='GREEN')
+    daily_limit_tier = models.CharField(_("الشريحة اليومية"), max_length=30, choices=LIMIT_TIER_CHOICES, default='TIER_250')
+
+    notes = models.TextField(_("ملاحظات إضافية"), blank=True, default="")
+    created_at = models.DateTimeField(_("تاريخ الربط"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("آخر تحديث"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("حساب واتساب للأعمال")
+        verbose_name_plural = _("حسابات واتساب للأعمال")
+        ordering = ['-is_default', '-created_at']
+        indexes = [
+            models.Index(fields=['phone_number_id']),
+            models.Index(fields=['is_default']),
+            models.Index(fields=['account_status']),
+        ]
+        permissions = [
+            ("can_manage_whatsapp_accounts", _("يمكنه إدارة وربط حسابات الواتساب ومزود الحلول")),
+            ("can_send_whatsapp_invoice", _("يمكنه إرسال الفواتير والمستندات المالية عبر الواتساب")),
+            ("can_use_whatsapp_live_chat", _("يمكنه استخدام المحادثة المباشرة مع العملاء")),
+            ("can_broadcast_whatsapp_campaigns", _("يمكنه إرسال الحملات")),
+        ]
+
+    def __str__(self):
+        default_badge = " [الافتراضي ⭐]" if self.is_default else ""
+        coex_badge = " (تعايش متوازي 📱)" if self.is_coexistence else ""
+        return f"{self.name} - {self.display_phone_number or self.phone_number_id}{default_badge}{coex_badge}"
+
+    @property
+    def access_token(self) -> str:
+        """جلب التوكن المفكوك تلقائياً بالاستفادة من الكاش المؤقت في الذاكرة"""
+        from .services.whatsapp_crypto import get_cached_decrypted_token
+        return get_cached_decrypted_token(self.pk or 0, self.encrypted_access_token)
+
+    @property
+    def decrypted_access_token(self) -> str:
+        """مرادف آمن لجلب التوكن المفكوك"""
+        return self.access_token
+
+    @property
+    def phone_number(self) -> str:
+        """رقم الهاتف الظاهر أو معرف الرقم"""
+        return self.display_phone_number or self.phone_number_id
+
+    @property
+    def status(self) -> str:
+        """حالة الحساب المعتمدة"""
+        return self.account_status
+
+    @property
+    def is_active(self) -> bool:
+        """هل الحساب نشط وغير ملغي"""
+        return self.account_status != 'DISCONNECTED'
+
+    @access_token.setter
+    def access_token(self, value: str):
+        """تشفير التوكن النصي تلقائياً بـ AES-256 قبل الحفظ ومسح الكاش"""
+        from .services.whatsapp_crypto import encrypt_token, invalidate_token_cache
+        self.encrypted_access_token = encrypt_token(value)
+        if self.pk:
+            invalidate_token_cache(self.pk)
+
+    def save(self, *args, **kwargs):
+        # ضمان الحساب الافتراضي الواحد (Single Default Integrity Guard)
+        if self.is_default:
+            WhatsAppAccount.objects.exclude(pk=self.pk).update(is_default=False)
+        elif not WhatsAppAccount.objects.exclude(pk=self.pk).filter(is_default=True).exists():
+            self.is_default = True
+
+        super().save(*args, **kwargs)
+        if self.pk:
+            from .services.whatsapp_crypto import invalidate_token_cache
+            invalidate_token_cache(self.pk)
+
+
 class WhatsAppMessageLog(models.Model):
     """
     سجل تدقيق ومراقبة رسائل الواتساب السحابية الموحد (WhatsApp Business Cloud Message Log)
+    يدعم التعايش المشترك (Coexistence)، والرسائل الواردة، ورسائل تطبيق الموبايل
     """
     STATUS_CHOICES = [
         ('PENDING', _('قيد الإرسال')),
@@ -1699,6 +1815,23 @@ class WhatsAppMessageLog(models.Model):
         'SKIPPED': 99,
     }
 
+    DIRECTION_CHOICES = [
+        ('OUTBOUND_ERP', _('صادرة من النظام 🖥️')),
+        ('OUTBOUND_MOBILE', _('صادرة من الموبايل 📱')),
+        ('INBOUND', _('واردة من الشريك 📥')),
+    ]
+
+    MESSAGE_TYPE_CHOICES = [
+        ('template', _('قالب معتمد (Template)')),
+        ('text', _('نص حر (Free Text)')),
+        ('image', _('صورة (Image)')),
+        ('document', _('مستند (Document/PDF)')),
+        ('audio', _('صوت (Audio)')),
+        ('location', _('موقع (Location)')),
+        ('interactive', _('تفاعلي (Interactive)')),
+        ('unknown', _('غير محدد (Unknown)')),
+    ]
+
     CATEGORY_CHOICES = [
         ('UTILITY', _('خدمية (Utility)')),
         ('AUTHENTICATION', _('تحقق وأمان (Authentication)')),
@@ -1706,9 +1839,48 @@ class WhatsAppMessageLog(models.Model):
         ('SERVICE', _('خدمة عملاء (Service)')),
     ]
 
-    recipient_phone = models.CharField(_("رقم المستلم"), max_length=30, db_index=True)
-    recipient_name = models.CharField(_("اسم المستلم"), max_length=150, blank=True, default="")
+    account = models.ForeignKey(
+        'core.WhatsAppAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='message_logs',
+        verbose_name=_("حساب الواتساب"),
+        db_index=True
+    )
+    direction = models.CharField(
+        _("اتجاه ومصدر الرسالة"),
+        max_length=20,
+        choices=DIRECTION_CHOICES,
+        default='OUTBOUND_ERP',
+        db_index=True
+    )
+    sent_via = models.CharField(
+        _("وسيلة الإرسال"),
+        max_length=20,
+        default='SYSTEM',
+        choices=[('SYSTEM', _('النظام المالي')), ('MOBILE_APP', _('تطبيق الموبايل'))],
+        db_index=True
+    )
+    message_type = models.CharField(
+        _("نوع الرسالة"),
+        max_length=20,
+        choices=MESSAGE_TYPE_CHOICES,
+        default='template',
+        db_index=True
+    )
+    body_text = models.TextField(_("نص ومحتوى الرسالة"), blank=True, default="")
+    inbound_media_file = models.FileField(
+        _("ملف الوسائط الواردة محلياً"),
+        upload_to="whatsapp_inbound/%Y/%m/",
+        blank=True,
+        null=True
+    )
+
+    recipient_phone = models.CharField(_("رقم المستلم / المرسل"), max_length=30, db_index=True)
+    recipient_name = models.CharField(_("اسم المستلم / المرسل"), max_length=150, blank=True, default="")
     is_custom_phone = models.BooleanField(_("رقم مخصص يدوياً"), default=False)
+    document_sha256 = models.CharField(_("البصمة التشفيرية للمستند SHA-256"), max_length=64, blank=True, null=True, db_index=True)
 
     # دعم الشركاء المتعددين (عملاء وموردين)
     customer = models.ForeignKey(
@@ -1728,16 +1900,17 @@ class WhatsAppMessageLog(models.Model):
         verbose_name=_("المورد")
     )
 
-    # Generic Foreign Key لكافة المستندات الـ 20 المدعومة في النظام
+    # Generic Foreign Key لكافة المستندات الـ 49 المدعومة في النظام
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
     object_id = models.PositiveIntegerField(null=True, blank=True)
     document_object = GenericForeignKey('content_type', 'object_id')
 
-    template_name = models.CharField(_("اسم القالب"), max_length=100)
+    template_name = models.CharField(_("اسم القالب"), max_length=100, blank=True, default="")
     language_code = models.CharField(_("لغة القالب"), max_length=10, default='ar')
     pricing_category = models.CharField(_("فئة التسعير"), max_length=30, choices=CATEGORY_CHOICES, default='UTILITY')
 
-    message_id = models.CharField(_("معرف الرسالة (wamid)"), max_length=150, blank=True, null=True, db_index=True)
+    # قيد الـ Idempotency الصارم لمنع تكرار أي رسالة في الداتابيز
+    message_id = models.CharField(_("معرف الرسالة (wamid)"), max_length=150, blank=True, null=True, unique=True, db_index=True)
     status = models.CharField(_("حالة الرسالة"), max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
 
     has_media = models.BooleanField(_("يحتوي على مرفق PDF"), default=False)
@@ -1762,6 +1935,15 @@ class WhatsAppMessageLog(models.Model):
         related_name='sent_whatsapp_messages',
         verbose_name=_("المستخدم المنشئ")
     )
+    assigned_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_whatsapp_messages',
+        verbose_name=_("الموظف المسؤول / المستلم"),
+        db_index=True
+    )
     created_at = models.DateTimeField(_("تاريخ وتوقيت الإرسال"), auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(_("آخر تحديث"), auto_now=True)
 
@@ -1770,18 +1952,31 @@ class WhatsAppMessageLog(models.Model):
         verbose_name_plural = _("سجلات رسائل الواتساب")
         ordering = ['-created_at']
         indexes = [
+            models.Index(fields=['direction', '-created_at']),
             models.Index(fields=['content_type', 'object_id', 'status']),
             models.Index(fields=['recipient_phone', '-created_at']),
             models.Index(fields=['customer', '-created_at']),
             models.Index(fields=['supplier', '-created_at']),
             models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['assigned_user', '-created_at']),
         ]
         permissions = [
             ("can_send_whatsapp", _("يمكنه إرسال إشعارات ومستندات عبر الواتساب")),
         ]
 
+    campaign = models.ForeignKey(
+        'core.WhatsAppCampaign',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='message_logs',
+        verbose_name=_("الحملة المرتبطة"),
+        db_index=True
+    )
+
     def __str__(self):
-        return f"{self.recipient_phone} ({self.template_name}) - {self.get_status_display()}"
+        label = self.template_name or self.get_message_type_display()
+        return f"[{self.get_direction_display()}] {self.recipient_phone} ({label}) - {self.get_status_display()}"
 
     def update_status_safely(self, new_status: str, message_id: str = None, error_code: str = None, error_message: str = None):
         """تحديث آمن للحالة يمنع ارتداد الرسالة من READ إلى DELIVERED في حال وصول Webhooks متأخرة مع توثيق التوقيت القانوني"""
@@ -1832,5 +2027,164 @@ class WhatsAppMessageLog(models.Model):
         if self.content_type and self.object_id:
             return f"{self.content_type.name} #{self.object_id} (محذوف أو غير متوفر)"
         return "مستند غير محدد"
+
+
+# ==================== نماذج الحملات وخنق التدفق (Phase 5 Campaigns) ====================
+
+class WhatsAppCampaign(models.Model):
+    """
+    نموذج الحملات عبر الواتساب (WhatsApp Campaigns)
+    يدعم إرسال كشوف الحسابات الجماعية، وإشعارات التحصيل، مع خنق التدفق Throttling ودرع حماية الجودة
+    """
+    STATUS_CHOICES = [
+        ('DRAFT', _('مسودة')),
+        ('SCHEDULED', _('مجدولة')),
+        ('RUNNING', _('قيد الإرسال والتنفيذ 🚀')),
+        ('COMPLETED', _('مكتملة بنجاح ✅')),
+        ('PAUSED', _('متوقفة مؤقتاً ⏸️')),
+        ('FROZEN_QUALITY', _('مجمدة لحماية جودة الرقم 🛡️')),
+        ('FAILED', _('فشلت ❌')),
+    ]
+
+    CAMPAIGN_TYPE_CHOICES = [
+        ('STATEMENT', _('كشوف حسابات دورية (Statement of Account)')),
+        ('COLLECTION_REMINDER', _('تذكير مالي ومطالبات تحصيل')),
+        ('PROMOTIONAL', _('حملة ترويجية وإعلانية (Marketing)')),
+        ('SERVICE_ANNOUNCEMENT', _('إعلان خدمي عام (Utility/Service)')),
+    ]
+
+    AUDIENCE_TYPE_CHOICES = [
+        ('ALL_CUSTOMERS', _('جميع العملاء النشطين')),
+        ('CUSTOMERS_WITH_BALANCE', _('العملاء ذوو الأرصدة المدينة (> 0)')),
+        ('CUSTOMER_TIER', _('شريحة عملاء محددة')),
+        ('ALL_SUPPLIERS', _('جميع الموردين')),
+        ('CUSTOM_LIST', _('قائمة مخصصة')),
+    ]
+
+    name = models.CharField(_("اسم الحملة"), max_length=200)
+    campaign_type = models.CharField(_("نوع الحملة"), max_length=30, choices=CAMPAIGN_TYPE_CHOICES, default='STATEMENT')
+    audience_type = models.CharField(_("الجمهور المستهدف"), max_length=30, choices=AUDIENCE_TYPE_CHOICES, default='CUSTOMERS_WITH_BALANCE')
+    
+    account = models.ForeignKey(
+        'core.WhatsAppAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaigns',
+        verbose_name=_("حساب الواتساب المرسل")
+    )
+    
+    template_name = models.CharField(_("اسم القالب المعتمد"), max_length=100, default="order_status_ar")
+    language_code = models.CharField(_("لغة القالب"), max_length=10, default="ar")
+    custom_message = models.TextField(_("نص مخصص إضافي"), blank=True, default="")
+    
+    customer_tier = models.ForeignKey(
+        'customer.CustomerTier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='whatsapp_campaigns',
+        verbose_name=_("شريحة العملاء")
+    )
+
+    status = models.CharField(_("حالة الحملة"), max_length=30, choices=STATUS_CHOICES, default='DRAFT', db_index=True)
+    
+    # مقاييس وإحصائيات الحملة
+    total_recipients = models.PositiveIntegerField(_("إجمالي المستلمين"), default=0)
+    sent_count = models.PositiveIntegerField(_("تم الإرسال لـ Meta"), default=0)
+    delivered_count = models.PositiveIntegerField(_("تم التسليم للهواتف"), default=0)
+    read_count = models.PositiveIntegerField(_("تمت القراءة 👁️"), default=0)
+    failed_count = models.PositiveIntegerField(_("فشل الإرسال"), default=0)
+    skipped_count = models.PositiveIntegerField(_("تم التخطي (Opt-Out / أرضي)"), default=0)
+    
+    throttle_rate = models.PositiveIntegerField(_("معدل التدفق (رسالة/ثانية)"), default=15, help_text=_("الحد الأقصى للرسائل في الثانية لحماية مؤشر جودة الرقم"))
+    
+    scheduled_at = models.DateTimeField(_("موعد الإرسال المجدول"), null=True, blank=True)
+    started_at = models.DateTimeField(_("تاريخ بدء التنفيذ"), null=True, blank=True)
+    completed_at = models.DateTimeField(_("تاريخ اكتمال الحملة"), null=True, blank=True)
+    
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_whatsapp_campaigns',
+        verbose_name=_("المستخدم المنشئ")
+    )
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("آخر تحديث"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("حملة واتساب جماعية")
+        verbose_name_plural = _("حملات واتساب الجماعية")
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_status_display()})"
+
+    @property
+    def progress_percentage(self) -> int:
+        if self.total_recipients == 0:
+            return 0
+        processed = self.sent_count + self.failed_count + self.skipped_count
+        return min(100, int((processed / self.total_recipients) * 100))
+
+
+class WhatsAppCampaignRecipient(models.Model):
+    """
+    سجل مستلمي الحملة الفرديين
+    """
+    STATUS_CHOICES = [
+        ('PENDING', _('قيد الانتظار')),
+        ('SENT', _('تم الإرسال لـ Meta')),
+        ('DELIVERED', _('تم التسليم للهاتف')),
+        ('READ', _('تمت القراءة 👁️')),
+        ('FAILED', _('فشل الإرسال')),
+        ('SKIPPED', _('تم التخطي (Opt-Out / أرضي)')),
+    ]
+
+    campaign = models.ForeignKey(
+        WhatsAppCampaign,
+        on_delete=models.CASCADE,
+        related_name='recipients',
+        verbose_name=_("الحملة")
+    )
+    customer = models.ForeignKey(
+        'customer.Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaign_recipients',
+        verbose_name=_("العميل")
+    )
+    supplier = models.ForeignKey(
+        'supplier.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaign_recipients',
+        verbose_name=_("المورد")
+    )
+    recipient_phone = models.CharField(_("رقم الهاتف"), max_length=30, db_index=True)
+    recipient_name = models.CharField(_("اسم المستلم"), max_length=150, blank=True, default="")
+    
+    status = models.CharField(_("حالة الإرسال"), max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
+    error_message = models.TextField(_("رسالة الخطأ إن وجدت"), blank=True, default="")
+    
+    message_log = models.ForeignKey(
+        'core.WhatsAppMessageLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='campaign_recipient_entry',
+        verbose_name=_("سجل الرسالة المرتبط")
+    )
+    sent_at = models.DateTimeField(_("تاريخ الإرسال"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("مستلم في حملة واتساب")
+        verbose_name_plural = _("مستلمو حملات واتساب")
+        ordering = ['id']
+        unique_together = ('campaign', 'recipient_phone')
 
 

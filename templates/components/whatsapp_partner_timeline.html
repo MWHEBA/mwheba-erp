@@ -2,10 +2,18 @@
 <!-- WhatsApp Partner Communications Timeline Component (MWHEBA ERP) -->
 <div class="section-container mb-4" id="whatsappTimelineContainer" data-partner-type="{{ partner_type|default:'customer' }}" data-partner-id="{{ partner.id }}">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="section-title mb-0">
-            <i class="fab fa-whatsapp text-success me-2"></i>
-            {% trans "سجل مراسلات الواتساب السحابية" %}
-        </h5>
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="section-title mb-0">
+                <i class="fab fa-whatsapp text-success me-2"></i>
+                {% trans "سجل مراسلات الواتساب السحابية" %}
+            </h5>
+            <span id="wa24hBadge" class="badge bg-success-subtle text-success border border-success-subtle d-none" style="font-size: 0.75rem;">
+                <i class="fas fa-bolt me-1"></i> {% trans "نافذة الـ 24 ساعة مفتوحة" %}
+            </span>
+            <span id="waOptOutBadge" class="badge bg-danger-subtle text-danger border border-danger-subtle d-none" style="font-size: 0.75rem;">
+                <i class="fas fa-ban me-1"></i> {% trans "ملغي الاشتراك (Opt-Out)" %}
+            </span>
+        </div>
         <div>
             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="loadWhatsAppPartnerTimeline()">
                 <i class="fas fa-sync-alt me-1"></i> {% trans "تحديث" %}
@@ -24,7 +32,7 @@
     <!-- Empty State -->
     <div id="waTimelineEmpty" class="text-center py-4 text-muted d-none">
         <i class="fab fa-whatsapp fa-2x text-muted opacity-50 mb-2"></i>
-        <p class="mb-0 small">{% trans "لم يتم إرسال أي رسائل واتساب لهذا الشريك بعد." %}</p>
+        <p class="mb-0 small">{% trans "لم يتم تبادل أي رسائل واتساب مع هذا الشريك بعد." %}</p>
     </div>
 
     <!-- Timeline Table -->
@@ -32,11 +40,12 @@
         <table class="table table-hover table-sm align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th class="ps-3">{% trans "المستند" %}</th>
+                    <th class="ps-3" style="width: 100px;">{% trans "المصدر" %}</th>
+                    <th>{% trans "البيان / المحتوى" %}</th>
                     <th>{% trans "رقم الهاتف" %}</th>
-                    <th>{% trans "القالب" %}</th>
+                    <th>{% trans "نوع الرسالة" %}</th>
                     <th>{% trans "الحالة" %}</th>
-                    <th>{% trans "تاريخ الإرسال" %}</th>
+                    <th>{% trans "التوقيت" %}</th>
                     <th class="text-end pe-3">{% trans "المرفق" %}</th>
                 </tr>
             </thead>
@@ -60,6 +69,8 @@ function loadWhatsAppPartnerTimeline() {
     const emptyEl = document.getElementById('waTimelineEmpty');
     const contentEl = document.getElementById('waTimelineContent');
     const tbody = document.getElementById('waTimelineTableBody');
+    const badge24h = document.getElementById('wa24hBadge');
+    const badgeOptOut = document.getElementById('waOptOutBadge');
 
     loadingEl.classList.remove('d-none');
     emptyEl.classList.add('d-none');
@@ -69,30 +80,61 @@ function loadWhatsAppPartnerTimeline() {
         .then(res => res.json())
         .then(data => {
             loadingEl.classList.add('d-none');
+
+            // تحديث شارة الـ 24 ساعة والـ Opt-Out
+            if (badge24h) {
+                if (data.is_24h_window_active) {
+                    badge24h.classList.remove('d-none');
+                } else {
+                    badge24h.classList.add('d-none');
+                }
+            }
+            if (badgeOptOut) {
+                if (data.partner_opt_out) {
+                    badgeOptOut.classList.remove('d-none');
+                } else {
+                    badgeOptOut.classList.add('d-none');
+                }
+            }
+
             if (data.success && data.logs && data.logs.length > 0) {
                 tbody.innerHTML = '';
                 data.logs.forEach(log => {
                     const row = document.createElement('tr');
                     
-                    let statusBadge = `<span class="badge bg-secondary">${log.status_display}</span>`;
-                    if (log.status === 'SENT') {
-                        statusBadge = `<span class="badge bg-primary">{% trans "تم الإرسال" %}</span>`;
-                    } else if (log.status === 'DELIVERED') {
-                        statusBadge = `<span class="badge bg-success">{% trans "تم التسليم" %}</span>`;
-                    } else if (log.status === 'READ') {
-                        statusBadge = `<span class="badge bg-info text-dark">{% trans "تمت القراءة 👁️" %}</span>`;
-                    } else if (log.status === 'FAILED') {
-                        statusBadge = `<span class="badge bg-danger" title="${log.error_message}">{% trans "فشل الإرسال" %}</span>`;
-                    } else if (log.status === 'SKIPPED') {
-                        statusBadge = `<span class="badge bg-warning text-dark">{% trans "تم التخطي" %}</span>`;
+                    let directionBadge = `<span class="badge bg-light text-muted border"><i class="fas fa-desktop me-1"></i> {% trans "النظام" %}</span>`;
+                    if (log.direction === 'OUTBOUND_MOBILE') {
+                        directionBadge = `<span class="badge bg-warning-subtle text-dark border border-warning-subtle"><i class="fas fa-mobile-alt me-1 text-warning"></i> {% trans "موبايل" %}</span>`;
+                    } else if (log.direction === 'INBOUND') {
+                        directionBadge = `<span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-arrow-down me-1 text-info"></i> {% trans "وارد" %}</span>`;
                     }
 
-                    const mediaBadge = log.has_media ? 
-                        `<span class="badge bg-danger-subtle text-danger"><i class="fas fa-file-pdf me-1"></i> PDF</span>` : 
-                        `<span class="text-muted small">-</span>`;
+                    let statusBadge = `<span class="badge bg-secondary">${log.status_display}</span>`;
+                    if (log.status === 'SENT') {
+                        statusBadge = `<span class="badge bg-info-subtle text-info">{% trans "تم الإرسال" %}</span>`;
+                    } else if (log.status === 'DELIVERED') {
+                        statusBadge = `<span class="badge bg-primary-subtle text-primary">{% trans "تم التسليم" %}</span>`;
+                    } else if (log.status === 'READ') {
+                        statusBadge = `<span class="badge bg-success-subtle text-success">{% trans "تمت القراءة 👁️" %}</span>`;
+                    } else if (log.status === 'FAILED') {
+                        statusBadge = `<span class="badge bg-danger-subtle text-danger" title="${log.error_message}">{% trans "فشل الإرسال" %}</span>`;
+                    } else if (log.status === 'SKIPPED') {
+                        statusBadge = `<span class="badge bg-warning-subtle text-dark">{% trans "تم التخطي" %}</span>`;
+                    }
+
+                    let mediaBadge = `<span class="text-muted small">-</span>`;
+                    if (log.media_url) {
+                        mediaBadge = `<a href="${log.media_url}" target="_blank" class="badge bg-success-subtle text-success text-decoration-none"><i class="fas fa-paperclip me-1"></i> مرفق</a>`;
+                    } else if (log.has_media) {
+                        mediaBadge = `<span class="badge bg-danger-subtle text-danger"><i class="fas fa-file-pdf me-1"></i> PDF</span>`;
+                    }
+
+                    const displayText = log.document_label && log.document_label !== 'مستند غير محدد' ? 
+                        log.document_label : (log.body_text || '-');
 
                     row.innerHTML = `
-                        <td class="ps-3 fw-bold">${log.document_label}</td>
+                        <td class="ps-3">${directionBadge}</td>
+                        <td class="fw-bold text-dark small text-truncate" style="max-width: 200px;" title="${displayText}">${displayText}</td>
                         <td class="font-monospace small" dir="ltr">${log.recipient_phone}</td>
                         <td><span class="badge bg-light text-dark border">${log.template_name}</span></td>
                         <td>${statusBadge}</td>

@@ -384,3 +384,129 @@ class TestWhatsAppPhase3API:
         data = json.loads(response.content.decode("utf-8"))
         assert data["success"] is True
         assert "wamid." in data["message_id"]
+
+    def test_prepare_send_multi_waba_accounts_and_window_status(self):
+        """التحقق من إرجاع قائمة الحسابات النشطة ومؤشر نافذة الـ 24 ساعة"""
+        from core.models import WhatsAppAccount
+        WhatsAppAccount.objects.all().delete()
+        acc1 = WhatsAppAccount.objects.create(
+            name="الفرع الرئيسي",
+            phone_number_id="1111111111",
+            waba_id="WABA-1",
+            display_phone_number="+201011111111",
+            is_default=True,
+            is_coexistence=True
+        )
+        acc2 = WhatsAppAccount.objects.create(
+            name="فرع الإسكندرية",
+            phone_number_id="2222222222",
+            waba_id="WABA-2",
+            display_phone_number="+201022222222",
+            is_default=False,
+            is_coexistence=False
+        )
+
+        ct = ContentType.objects.get_for_model(Payroll)
+        url = f"{reverse('core:whatsapp_prepare_send')}?content_type_id={ct.id}&object_id={self.payroll.id}&partner_id={self.employee.id}&partner_type=user"
+
+        request = self.factory.get(url)
+        request.user = self.user
+
+        response = whatsapp_prepare_send(request)
+        assert response.status_code == 200
+        data = json.loads(response.content.decode("utf-8"))
+        assert data["success"] is True
+        assert len(data["accounts"]) == 2
+        assert data["accounts"][0]["name"] == "الفرع الرئيسي"
+        assert data["accounts"][0]["is_default"] is True
+        assert data["accounts"][1]["name"] == "فرع الإسكندرية"
+
+    @patch("core.services.whatsapp_service.WhatsAppService.send_template_message")
+    @patch("core.services.document_dispatcher.DocumentDispatcher.render_document_pdf_bytes")
+    def test_send_payroll_with_specific_account(self, mock_pdf, mock_send):
+        """التحقق من إرسال مستند مع تحديد account_id مخصص"""
+        from core.models import WhatsAppAccount
+        WhatsAppAccount.objects.all().delete()
+        acc = WhatsAppAccount.objects.create(
+            name="فرع المعادي",
+            phone_number_id="3333333333",
+            waba_id="WABA-3",
+            display_phone_number="+201033333333",
+            is_default=True
+        )
+
+        mock_pdf.return_value = (b"%PDF-1.4 mock", "Payslip_1.pdf")
+        mock_send.return_value = {"success": True, "message_id": "wamid.SPECIFIC_ACCOUNT_MSG", "log_id": 101}
+
+        ct = ContentType.objects.get_for_model(Payroll)
+        payload = {
+            "content_type_id": ct.id,
+            "object_id": self.payroll.id,
+            "recipient_phone": "01099887766",
+            "account_id": acc.id
+        }
+
+        request = self.factory.post(
+            reverse("core:whatsapp_send_document"),
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        request.user = self.user
+        request._dont_enforce_csrf_checks = True
+
+        response = whatsapp_send_document(request)
+        assert response.status_code == 200
+        data = json.loads(response.content.decode("utf-8"))
+        assert data["success"] is True
+        assert data["message_id"] == "wamid.SPECIFIC_ACCOUNT_MSG"
+
+    @patch("core.services.whatsapp_service.WhatsAppService.get_session")
+    def test_test_connection_api_updates_account(self, mock_get_session):
+        """التحقق من تحديث بيانات الحساب الحية عند فحص الاتصال بـ Meta"""
+        from core.models import WhatsAppAccount
+        from core.views.whatsapp_views import whatsapp_test_connection_api
+        WhatsAppAccount.objects.all().delete()
+        acc = WhatsAppAccount.objects.create(
+            name="حساب الاختبار",
+            phone_number_id="4444444444",
+            waba_id="WABA-4",
+            display_phone_number="+201044444444",
+            is_default=True
+        )
+        acc.access_token = "EAATestToken123"
+        acc.save()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "display_phone_number": "+20 104 444 4444",
+            "verified_name": "MWHEBA OFFICIAL STORE",
+            "quality_rating": "GREEN",
+            "status": "CONNECTED",
+            "messaging_limit_tier": "TIER_1K",
+            "name_status": "APPROVED",
+        }
+        mock_session = MagicMock()
+        mock_session.get.return_value = mock_resp
+        mock_get_session.return_value = mock_session
+
+        payload = {"account_id": acc.id}
+        request = self.factory.post(
+            reverse("core:whatsapp_test_connection"),
+            data=json.dumps(payload),
+            content_type="application/json"
+        )
+        request.user = self.user
+
+        response = whatsapp_test_connection_api(request)
+        assert response.status_code == 200
+        data = json.loads(response.content.decode("utf-8"))
+        assert data["success"] is True
+        assert data["verified_name"] == "MWHEBA OFFICIAL STORE"
+
+        # التحقق من حفظ البيانات المحدثة في قاعدة البيانات
+        acc.refresh_from_db()
+        assert acc.verified_name == "MWHEBA OFFICIAL STORE"
+        assert acc.quality_rating == "GREEN"
+        assert acc.account_status == "CONNECTED"
+

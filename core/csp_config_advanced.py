@@ -29,6 +29,9 @@ def get_csp_config_for_environment():
             "data:",
             "blob:",
             "https:",
+            "https://*.facebook.com",
+            "https://*.facebook.net",
+            "https://*.fbcdn.net",
         ],
         
         'CONNECT_SRC': [
@@ -36,6 +39,9 @@ def get_csp_config_for_environment():
             "https://cdn.jsdelivr.net",
             "https://cdnjs.cloudflare.com",
             "https://cloudflareinsights.com",  # Cloudflare Analytics
+            "https://*.facebook.com",          # Meta Graph API & Webhooks
+            "https://*.facebook.net",
+            "https://graph.facebook.com",
         ],
         
         'MEDIA_SRC': ["'self'"],
@@ -43,7 +49,12 @@ def get_csp_config_for_environment():
         'BASE_URI': ["'self'"],
         'FORM_ACTION': ["'self'"],
         'FRAME_ANCESTORS': ["'self'"],
-        'FRAME_SRC': ["'self'"],
+        'FRAME_SRC': [
+            "'self'",
+            "https://*.facebook.com",          # Meta Embedded Signup & Login dialogs
+            "https://*.facebook.net",
+            "https://web.facebook.com",
+        ],
         'WORKER_SRC': ["'self'"],
         'MANIFEST_SRC': ["'self'"],
         'DEFAULT_SRC': ["'self'"],
@@ -60,6 +71,9 @@ def get_csp_config_for_environment():
                 "https://cdnjs.cloudflare.com",
                 "https://code.jquery.com",
                 "https://cdn.datatables.net",
+                "https://connect.facebook.net",   # Meta / Facebook SDK
+                "https://*.facebook.com",
+                "https://*.facebook.net",
                 "localhost:*",
                 "127.0.0.1:*",
             ],
@@ -77,6 +91,9 @@ def get_csp_config_for_environment():
                 "'self'",
                 "https://cdn.jsdelivr.net",
                 "https://cdnjs.cloudflare.com",
+                "https://*.facebook.com",
+                "https://*.facebook.net",
+                "https://graph.facebook.com",
                 "localhost:*",
                 "127.0.0.1:*",
                 "ws://localhost:*",
@@ -90,11 +107,15 @@ def get_csp_config_for_environment():
             'SCRIPT_SRC': [
                 "'self'",
                 "'unsafe-inline'",  # مطلوب للـ inline scripts في الـ templates
+                "'unsafe-eval'",    # مطلوب لبعض مكتبات الجداول والتنسيق
                 "https://cdn.jsdelivr.net",
                 "https://cdnjs.cloudflare.com",
                 "https://code.jquery.com",
                 "https://cdn.datatables.net",
                 "https://static.cloudflareinsights.com",  # Cloudflare Analytics beacon
+                "https://connect.facebook.net",           # Meta / Facebook JavaScript SDK
+                "https://*.facebook.com",
+                "https://*.facebook.net",
             ],
             
             'STYLE_SRC': [

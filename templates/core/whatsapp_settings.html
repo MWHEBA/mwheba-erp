@@ -15,7 +15,12 @@
             <ul class="nav nav-tabs border-bottom mb-4" id="whatsappSettingsTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="connection-tab" data-bs-toggle="tab" data-bs-target="#connection" type="button" role="tab" aria-controls="connection" aria-selected="true">
-                        <i class="fas fa-plug me-2 text-primary"></i>{% trans "الربط والاتصال (Meta API)" %}
+                        <i class="fas fa-plug me-2 text-primary"></i>{% trans "الربط وحسابات الواتساب" %}
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="diagnostics-tab" data-bs-toggle="tab" data-bs-target="#diagnostics" type="button" role="tab" aria-controls="diagnostics" aria-selected="false">
+                        <i class="fas fa-heartbeat me-2 text-danger"></i>{% trans "الفحص والتشخيص الحي" %}
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -47,116 +52,313 @@
 
                 <div class="tab-content" id="whatsappSettingsTabContent">
                     
-                    <!-- ==================== 1. الربط والاتصال (Meta API) ==================== -->
+                    <!-- ==================== 1. الربط وحسابات الواتساب ==================== -->
                     <div class="tab-pane fade show active" id="connection" role="tabpanel" aria-labelledby="connection-tab">
-                        <div class="row g-4">
-                            <!-- Credentials Column -->
-                            <div class="col-lg-7">
-                                <div class="card border mb-4 h-100">
-                                    <div class="card-header bg-light py-3">
-                                        <h6 class="fw-bold mb-0 text-dark">
-                                            <i class="fab fa-facebook text-primary me-2"></i>{% trans "بيانات الاعتماد السحابية (Meta Cloud Credentials)" %}
-                                        </h6>
+                        
+                        <!-- Header Action Bar for Meta Tech Provider & Accounts -->
+                        <div class="card border-0 shadow-sm mb-4 bg-light">
+                            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-1">
+                                        <i class="fab fa-whatsapp text-success me-2 fs-4"></i>
+                                        {% trans "منظومة حسابات WhatsApp للأعمال (Meta Tech Provider & Coexistence)" %}
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        {% trans "إدارة وتوزيع أرقام الواتساب لكافة الفروع مع دعم الربط السحابي والتعايش المتوازي (Coexistence) مع تطبيق الموبايل." %}
+                                    </p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <!-- Main API Toggle Switch -->
+                                    <div class="form-check form-switch me-3 d-flex align-items-center gap-2 bg-white px-3 py-2 rounded border">
+                                        <input class="form-check-input fs-5 m-0" type="checkbox" role="switch"
+                                               name="whatsapp_enabled" id="whatsapp_enabled"
+                                               {% if config.enabled %}checked{% endif %}>
+                                        <label class="form-check-label fw-bold small text-dark" for="whatsapp_enabled">
+                                             {% trans "تشغيل المنظومة" %}
+                                        </label>
                                     </div>
-                                    <div class="card-body p-4">
-                                        <!-- Main Toggle Switch -->
-                                        <div class="d-flex align-items-center justify-content-between p-3 rounded mb-4 bg-light border">
-                                            <div>
-                                                <div class="fw-bold text-dark">{% trans "تفعيل منظومة WhatsApp Business API" %}</div>
-                                                <div class="form-text text-muted mb-0">{% trans "تشغيل أو إيقاف إرسال الإشعارات والمستندات لكافة فروع وعمليات النظام." %}</div>
-                                            </div>
-                                            <div class="form-check form-switch mb-0">
-                                                <input class="form-check-input fs-5" type="checkbox" role="switch"
-                                                       name="whatsapp_enabled" id="whatsapp_enabled"
-                                                       {% if config.enabled %}checked{% endif %}>
-                                            </div>
-                                        </div>
 
-                                        <!-- 1. WABA ID -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold" for="whatsapp_waba_id">
-                                                {% trans "معرف حساب واتساب للأعمال (WABA ID)" %}
-                                                <span class="text-danger">*</span>
+                                    <!-- 1-Click Embedded Signup Button -->
+                                    <button type="button" class="btn btn-success fw-bold px-3 py-2 shadow-sm" id="btnLaunchEmbeddedSignup">
+                                        <span id="embeddedSignupSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                                        <i class="fab fa-facebook me-1" id="embeddedSignupIcon"></i>
+                                        {% trans "ربط حساب WhatsApp بنقرة واحدة" %}
+                                    </button>
+
+                                    <!-- Manual Add Account Button -->
+                                    <button type="button" class="btn btn-outline-primary fw-bold px-3 py-2" id="btnAddAccountManual">
+                                        <i class="fas fa-plus me-1"></i>
+                                        {% trans "إضافة حساب يدوياً" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Embedded Signup Guidance / Missing App ID Alert (if needed) -->
+                        {% if not config.app_id %}
+                        <div class="alert alert-info py-2 px-3 mb-4 small d-flex align-items-center justify-content-between">
+                            <div>
+                                <i class="fas fa-info-circle text-primary me-2"></i>
+                                {% trans "تلميح: لتفعيل ميزة 'الربط بنقرة واحدة عبر Facebook SDK'، يرجى حفظ معرّف التطبيق (App ID) والـ Config ID في إعدادات مزود التكنولوجيا بالأسفل." %}
+                            </div>
+                            <a href="#techProviderSettings" class="text-primary fw-bold text-decoration-none" data-bs-toggle="collapse">
+                                {% trans "عرض إعدادات التطبيق" %} &darr;
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        <!-- Registered Accounts Data Table -->
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-list-alt text-primary me-2"></i>
+                                    {% trans "الحسابات والأرقام المعتمدة في النظام" %}
+                                    <span class="badge bg-primary text-white ms-2">{{ accounts|length }}</span>
+                                </h6>
+                                <span class="text-muted small">
+                                    {% trans "الحساب الافتراضي هو المستخدم تلقائياً في إرسال الفواتير والمستندات ما لم يُحدد غيره." %}
+                                </span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0" id="whatsappAccountsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="ps-3" style="width: 50px;">#</th>
+                                                <th>{% trans "اسم الحساب والفرع" %}</th>
+                                                <th>{% trans "رقم الهاتف والمعرفات" %}</th>
+                                                <th>{% trans "نوع الربط" %}</th>
+                                                <th>{% trans "تقييم الجودة" %}</th>
+                                                <th>{% trans "حالة الحساب" %}</th>
+                                                <th>{% trans "الحساب الافتراضي" %}</th>
+                                                <th class="text-center pe-3" style="width: 190px;">{% trans "الإجراءات" %}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% if accounts %}
+                                                {% for acc in accounts %}
+                                                <tr id="account-row-{{ acc.id }}" class="{% if acc.is_default %}table-success-subtle{% endif %}">
+                                                    <td class="ps-3 text-muted small font-monospace">{{ forloop.counter }}</td>
+                                                    <td>
+                                                        <div class="fw-bold text-dark">{{ acc.name }}</div>
+                                                        {% if acc.company_name %}
+                                                        <small class="text-muted"><i class="fas fa-building me-1"></i>{{ acc.company_name }}</small>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if acc.phone_number %}
+                                                        <div class="font-monospace text-dark fw-bold" dir="ltr">{{ acc.phone_number }}</div>
+                                                        {% endif %}
+                                                        <small class="text-muted font-monospace d-block" title="Phone Number ID">
+                                                            ID: {{ acc.phone_number_id|default:"-" }}
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {% if acc.is_coexistence %}
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle" title="{% trans 'يعمل بالتوازي مع تطبيق الموبايل دون انقطاع' %}">
+                                                            <i class="fas fa-mobile-alt me-1"></i>{% trans "تعايش (موبايل + ERP)" %}
+                                                        </span>
+                                                        {% else %}
+                                                        <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                                            <i class="fas fa-cloud me-1"></i>{% trans "سحابي فقط (API)" %}
+                                                        </span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if acc.quality_rating == 'GREEN' %}
+                                                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "ممتاز (Green)" %}</span>
+                                                        {% elif acc.quality_rating == 'YELLOW' %}
+                                                        <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-circle me-1"></i>{% trans "متوسط (Yellow)" %}</span>
+                                                        {% elif acc.quality_rating == 'RED' %}
+                                                        <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>{% trans "منخفض (Red)" %}</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary">{% trans "غير محدد" %}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if acc.status == 'CONNECTED' %}
+                                                        <span class="badge bg-success">{% trans "متصل ✅" %}</span>
+                                                        {% elif acc.status == 'RESTRICTED' %}
+                                                        <span class="badge bg-danger">{% trans "مقيد ⚠️" %}</span>
+                                                        {% elif acc.status == 'FLAGGED' %}
+                                                        <span class="badge bg-warning text-dark">{% trans "محذر ⚠️" %}</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary">{% trans "غير مفعل" %}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if acc.is_default %}
+                                                        <span class="badge bg-primary text-white py-2 px-3 fw-bold">
+                                                            <i class="fas fa-star text-warning me-1"></i>{% trans "الحساب الافتراضي" %}
+                                                        </span>
+                                                        {% else %}
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2 btn-set-default"
+                                                                data-account-id="{{ acc.id }}" data-account-name="{{ acc.name }}">
+                                                            <i class="far fa-star me-1"></i>{% trans "تعيين كافتراضي" %}
+                                                        </button>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td class="text-center pe-3">
+                                                        <div class="btn-group btn-group-sm" role="group">
+                                                            <button type="button" class="btn btn-outline-primary btn-edit-account"
+                                                                    data-account-id="{{ acc.id }}"
+                                                                    data-name="{{ acc.name }}"
+                                                                    data-company-name="{{ acc.company_name }}"
+                                                                    data-phone-number="{{ acc.phone_number }}"
+                                                                    data-phone-number-id="{{ acc.phone_number_id }}"
+                                                                    data-waba-id="{{ acc.waba_id }}"
+                                                                    data-app-id="{{ acc.app_id }}"
+                                                                    data-is-coexistence="{% if acc.is_coexistence %}true{% else %}false{% endif %}"
+                                                                    data-is-default="{% if acc.is_default %}true{% else %}false{% endif %}"
+                                                                    data-is-active="{% if acc.is_active %}true{% else %}false{% endif %}"
+                                                                    data-notes="{{ acc.notes }}"
+                                                                    title="{% trans 'تعديل بيانات الحساب' %}">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-outline-info btn-test-account"
+                                                                    data-account-id="{{ acc.id }}"
+                                                                    data-phone-id="{{ acc.phone_number_id }}"
+                                                                    data-waba-id="{{ acc.waba_id }}"
+                                                                    title="{% trans 'فحص اتصال هذا الحساب' %}">
+                                                                <i class="fas fa-heartbeat"></i>
+                                                            </button>
+                                                            {% if not acc.is_default %}
+                                                            <button type="button" class="btn btn-outline-danger btn-delete-account"
+                                                                    data-account-id="{{ acc.id }}"
+                                                                    data-account-name="{{ acc.name }}"
+                                                                    title="{% trans 'حذف أو فك ربط الحساب' %}">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="8" class="text-center py-5 text-muted">
+                                                        <i class="fab fa-whatsapp text-muted fa-3x mb-3 d-block"></i>
+                                                        <h6 class="fw-bold text-dark mb-1">{% trans "لا توجد حسابات WhatsApp مربوطة حالياً" %}</h6>
+                                                        <p class="small text-muted mb-3">{% trans "قم بربط حسابك الرسمي عبر نقرة واحدة بواسطة Meta SDK أو أدخل بيانات الاعتماد يدوياً." %}</p>
+                                                        <button type="button" class="btn btn-success btn-sm fw-bold px-3 py-2" onclick="document.getElementById('btnLaunchEmbeddedSignup').click()">
+                                                            <i class="fab fa-facebook me-1"></i>{% trans "ربط حساب WhatsApp الآن" %}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Level & Tech Provider App Settings (Collapsible Card) -->
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center cursor-pointer"
+                                 data-bs-toggle="collapse" data-bs-target="#techProviderSettings" aria-expanded="false">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-cogs text-secondary me-2"></i>
+                                    {% trans "إعدادات مزود التكنولوجيا وتكوين التطبيق (Tech Provider App Config)" %}
+                                </h6>
+                                <i class="fas fa-chevron-down text-muted"></i>
+                            </div>
+                            <div class="collapse {% if not accounts %}show{% endif %}" id="techProviderSettings">
+                                <div class="card-body p-4">
+                                    <div class="row g-3">
+                                        <!-- 1. Meta App ID -->
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small text-dark" for="whatsapp_app_id">
+                                                {% trans "معرف التطبيق في Meta (App ID)" %}
                                             </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="fas fa-briefcase text-muted"></i></span>
-                                                <input type="text" class="form-control font-monospace" id="whatsapp_waba_id"
-                                                       name="whatsapp_waba_id" value="{{ config.waba_id }}"
-                                                       placeholder="مثال: 109876543210987" autocomplete="off"
-                                                       data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                                                <input type="text" class="form-control font-monospace" id="whatsapp_app_id"
+                                                       name="whatsapp_app_id" value="{{ config.app_id }}"
+                                                       placeholder="مثال: 123456789012345" autocomplete="off">
                                             </div>
-                                            <div class="form-text text-muted">{% trans "تصل إليه من Meta Business Settings > Accounts > WhatsApp accounts > Account ID." %}</div>
+                                            <div class="form-text text-muted small">{% trans "مطلوب لتشغيل زر التسجيل السريع بنقرة واحدة (Embedded Signup)." %}</div>
                                         </div>
 
-                                        <!-- 2. Permanent Access Token -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold" for="whatsapp_access_token">
-                                                {% trans "رمز الوصول الدائم (System User Token)" %}
-                                                <span class="text-danger">*</span>
+                                        <!-- 2. Embedded Signup Config ID -->
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small text-dark" for="whatsapp_embedded_config_id">
+                                                {% trans "معرف التكوين المضمن (Configuration ID)" %}
                                             </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="fas fa-key text-muted"></i></span>
-                                                <input type="password" class="form-control font-monospace" id="whatsapp_access_token"
-                                                       name="whatsapp_access_token" value="{{ config.access_token }}"
-                                                       placeholder="EAAG..." autocomplete="new-password"
-                                                       data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-light"><i class="fas fa-sliders-h text-muted"></i></span>
+                                                <input type="text" class="form-control font-monospace" id="whatsapp_embedded_config_id"
+                                                       name="whatsapp_embedded_config_id" value="{{ config.config_id }}"
+                                                       placeholder="مثال: 987654321098765" autocomplete="off">
                                             </div>
-                                            <div class="form-text text-muted">{% trans "رمز وصول مستخدم النظام الدائم (System User) بصلاحيات Never Expire." %}</div>
+                                            <div class="form-text text-muted small">{% trans "معرف تدفق الـ Embedded Signup المجهز في Meta App Dashboard." %}</div>
                                         </div>
 
-                                        <!-- 3. Phone Number ID -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold" for="whatsapp_phone_number_id">
-                                                {% trans "معرف رقم الهاتف المعتمد (Phone Number ID)" %}
-                                                <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text bg-light"><i class="fas fa-phone text-muted"></i></span>
-                                                <input type="text" class="form-control font-monospace" id="whatsapp_phone_number_id"
-                                                       name="whatsapp_phone_number_id" value="{{ config.phone_number_id }}"
-                                                       placeholder="مثال: 106543219876543" autocomplete="off"
-                                                       data-lpignore="true" data-1p-ignore="true" data-form-type="other">
-                                            </div>
-                                            <div class="form-text text-muted">{% trans "المعرف الرقمي الخاص برقم الهاتف المعتمد في تطبيق Meta." %}</div>
-                                        </div>
-
-                                        <!-- 4. App Secret -->
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold" for="whatsapp_app_secret">
+                                        <!-- 3. App Secret -->
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small text-dark" for="whatsapp_app_secret">
                                                 {% trans "المفتاح السري للتطبيق (App Secret)" %}
                                             </label>
-                                            <div class="input-group">
+                                            <div class="input-group input-group-sm">
                                                 <span class="input-group-text bg-light"><i class="fas fa-shield-alt text-muted"></i></span>
                                                 <input type="password" class="form-control font-monospace" id="whatsapp_app_secret"
                                                        name="whatsapp_app_secret" value="{{ config.app_secret }}"
-                                                       placeholder="32 حرفاً سداسياً عشرياً..." autocomplete="new-password"
-                                                       data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                                                       placeholder="32 حرفاً سداسياً عشرياً..." autocomplete="new-password">
                                             </div>
-                                            <div class="form-text text-muted">{% trans "اختياري للتحقق الصارم من توقيع HMAC-SHA256 لإشعارات الـ Webhook." %}</div>
+                                            <div class="form-text text-muted small">{% trans "يستخدم للتحقق الصارم من توقيع HMAC-SHA256 لإشعارات الـ Webhook واستبدال التوكنات." %}</div>
                                         </div>
 
-                                        <!-- 5. Public Portal URL -->
-                                        <div class="mb-0">
-                                            <label class="form-label fw-bold" for="public_portal_url">
+                                        <!-- 4. Public Portal URL -->
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold small text-dark" for="public_portal_url">
                                                 {% trans "رابط بوابة العملاء العامة (Public Portal URL)" %}
                                             </label>
-                                            <div class="input-group">
+                                            <div class="input-group input-group-sm">
                                                 <span class="input-group-text bg-light"><i class="fas fa-globe text-muted"></i></span>
                                                 <input type="url" class="form-control font-monospace" id="public_portal_url"
                                                        name="public_portal_url" value="{{ config.public_portal_url }}"
-                                                       placeholder="https://mwheba.co.uk" autocomplete="off"
-                                                       data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+                                                       placeholder="https://mwheba.co.uk" autocomplete="off">
                                             </div>
-                                            <div class="form-text text-muted">{% trans "يستخدم لتوليد روابط تفاعلية لكشوف الحسابات وعروض الأسعار للعملاء." %}</div>
+                                            <div class="form-text text-muted small">{% trans "يستخدم لتوليد روابط تفاعلية لكشوف الحسابات وعروض الأسعار للعملاء." %}</div>
                                         </div>
+                                    </div>
+                                    <div class="text-end mt-3">
+                                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
+                                            <i class="fas fa-save me-1"></i>{% trans "حفظ إعدادات التطبيق" %}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- Live Health Check & Diagnostics Column -->
-                            <div class="col-lg-5">
-                                <!-- Health Check Card (Auto-Check on Load + Header Refresh Trigger) -->
-                                <div class="card border mb-4">
+                    <!-- ==================== 2. الفحص والتشخيص الحي ==================== -->
+                    <div class="tab-pane fade" id="diagnostics" role="tabpanel" aria-labelledby="diagnostics-tab">
+                        
+                        <!-- Header Banner for Diagnostics -->
+                        <div class="card border-0 shadow-sm mb-4 bg-light">
+                            <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div>
+                                    <h5 class="fw-bold text-dark mb-1">
+                                        <i class="fas fa-heartbeat text-danger me-2 fs-4"></i>
+                                        {% trans "مركز الفحص والتشخيص الحي والمحاكاة" %}
+                                    </h5>
+                                    <p class="text-muted small mb-0">
+                                        {% trans "فحص استقرار الاتصال بـ Meta، قياس زمن الاستجابة، إرسال رسائل تجريبية، ومراقبة مؤشرات Ingress SLA ومحاكي الفواتير." %}
+                                    </p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm fw-bold px-3 py-2" id="btnTriggerDiagHeader" onclick="document.getElementById('btnTestConnection').click()">
+                                        <i class="fas fa-sync-alt me-1"></i>{% trans "فحص فوري للاتصال" %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Health Check & Diagnostics Section -->
+                        <div class="row g-4 mb-4">
+                            <!-- Diagnostics Column -->
+                            <div class="col-lg-6">
+                                <div class="card border mb-0 h-100 shadow-sm">
                                     <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
                                         <h6 class="fw-bold mb-0 text-dark">
                                             <i class="fas fa-heartbeat text-danger me-2"></i>{% trans "فحص الاتصال الحي وجودة الرقم" %}
@@ -172,6 +374,20 @@
                                         </div>
                                     </div>
                                     <div class="card-body p-4">
+                                        <!-- Account Selection for Test -->
+                                        {% if accounts %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold small text-dark" for="testAccountSelect">{% trans "اختر الحساب المراد فحصه:" %}</label>
+                                            <select class="form-select form-select-sm" id="testAccountSelect">
+                                                {% for acc in accounts %}
+                                                <option value="{{ acc.id }}" {% if acc.is_default %}selected{% endif %}>
+                                                    {{ acc.name }} ({% if acc.phone_number %}{{ acc.phone_number }}{% else %}ID: {{ acc.phone_number_id }}{% endif %}) {% if acc.is_default %}[الافتراضي]{% endif %}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        {% endif %}
+
                                         <!-- Results Container -->
                                         <div id="connTestResults">
                                             <div class="card bg-light border p-3 mb-0">
@@ -218,9 +434,11 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- Live Test Message Card -->
-                                <div class="card border mb-4">
+                            <!-- Live Test Message Column -->
+                            <div class="col-lg-6">
+                                <div class="card border mb-0 h-100 shadow-sm">
                                     <div class="card-header bg-light py-3">
                                         <h6 class="fw-bold mb-0 text-dark">
                                             <i class="fas fa-paper-plane text-success me-2"></i>{% trans "إرسال رسالة تجريبية ذكية" %}
@@ -259,9 +477,90 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Phase 6: SLA & Webhook Ingress Health Widget + Meta App Review Simulator -->
+                        <div class="row g-4 mb-4">
+                            <!-- 1. مؤشر كفاءة واستقرار الـ Ingress والـ SLA (<20ms SLA Widget) -->
+                            <div class="col-lg-6">
+                                <div class="card border h-100 shadow-sm">
+                                    <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "مؤشر كفاءة استقبال Webhook Ingress (<20ms SLA)" %}
+                                        </h6>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="btnRefreshSLA" title="{% trans 'تحديث مؤشرات الـ SLA' %}">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </div>
+                                    <div class="card-body p-4">
+                                        <div class="row g-3 text-center mb-3">
+                                            <div class="col-6 col-md-3">
+                                                <div class="border rounded p-2 bg-light">
+                                                    <span class="text-muted font-xs d-block">{% trans "متوسط الاستجابة" %}</span>
+                                                    <strong class="text-primary fs-5" id="slaAvgLatency">0 ms</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="border rounded p-2 bg-light">
+                                                    <span class="text-muted font-xs d-block">{% trans "أقصى تأخير P95" %}</span>
+                                                    <strong class="text-dark fs-5" id="slaP95Latency">0 ms</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="border rounded p-2 bg-light">
+                                                    <span class="text-muted font-xs d-block">{% trans "نسبة الامتثال" %}</span>
+                                                    <strong class="text-success fs-5" id="slaCompliance">100%</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="border rounded p-2 bg-light">
+                                                    <span class="text-muted font-xs d-block">{% trans "الطلبات المستلمة" %}</span>
+                                                    <strong class="text-dark fs-5" id="slaTotalRequests">0</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center small text-muted">
+                                            <span><i class="fas fa-check-circle text-success me-1"></i>{% trans "الحد المعتمد رسمياً لـ Meta: استجابة فورية أقل من 20 مللي ثانية." %}</span>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle" id="slaStatusBadge">HEALTHY</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2. محاكي فيديو مراجعة Meta (Meta App Review Simulator) -->
+                            <div class="col-lg-6">
+                                <div class="card border h-100 shadow-sm">
+                                    <div class="card-header bg-light py-3">
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <i class="fas fa-video text-danger me-2"></i>{% trans "محاكي إرسال الفواتير لفيديو اعتماد Meta (App Review)" %}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body p-4">
+                                        <p class="text-muted small mb-3">
+                                            {% trans "يولد ويرسل فاتورة PDF تجريبية فورية بنقرة واحدة لتسجيل فيديو المراجعة لـ Meta خلال أقل من دقيقة." %}
+                                        </p>
+                                        <div class="input-group input-group-sm mb-3">
+                                            <span class="input-group-text bg-light"><i class="fas fa-phone-alt"></i></span>
+                                            <input type="tel" class="form-control font-monospace" id="simulatorPhoneInput" placeholder="2010xxxxxxxx" dir="ltr">
+                                            <button type="button" class="btn btn-danger fw-bold px-3" id="btnDispatchSimulator">
+                                                <span id="simSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+                                                <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال فاتورة تجريبية فوراً" %}
+                                            </button>
+                                        </div>
+                                        <div class="d-flex gap-3 font-xs text-muted">
+                                            <a href="{% url 'core:whatsapp_privacy_policy' %}" target="_blank" class="text-decoration-none">
+                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "سياسة الخصوصية" %}
+                                            </a>
+                                            <a href="{% url 'core:whatsapp_terms' %}" target="_blank" class="text-decoration-none">
+                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "شروط الخدمة" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- ==================== 2. قوالب الأحداث والتحكم التلقائي ==================== -->
+                    <!-- ==================== 3. قوالب الأحداث والتحكم التلقائي ==================== -->
                     <div class="tab-pane fade" id="templates" role="tabpanel" aria-labelledby="templates-tab">
                         <div class="card border mb-4">
                             <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -1615,18 +1914,181 @@
         </div>
     </div>
 </div>
+
+<!-- ==================== Centered Account Modal (Rule 8 Architecture) ==================== -->
+<div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="accountModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <!-- Modal Header -->
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="accountModalLabel">
+                    <i class="fab fa-whatsapp text-success me-2"></i>
+                    <span id="accountModalTitle">{% trans "إضافة حساب WhatsApp للأعمال" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4">
+                <form id="accountModalForm" autocomplete="off">
+                    <input type="hidden" id="modalAccountId" name="account_id" value="">
+                    
+                    <div class="row g-3">
+                        <!-- Name -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalAccountName">
+                                {% trans "اسم الحساب التعريفي" %} <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="modalAccountName" name="name" required
+                                   placeholder="مثال: رقم المبيعات الرئيسي - فرع القاهرة" autocomplete="off">
+                            <div class="form-text text-muted small">{% trans "اسم داخلي لتمييز الحساب في شاشات الإرسال والفواتير." %}</div>
+                        </div>
+
+                        <!-- Company / Branch Name -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalCompanyName">
+                                {% trans "اسم الشركة / الفرع المرتبط" %}
+                            </label>
+                            <input type="text" class="form-control form-control-sm" id="modalCompanyName" name="company_name"
+                                   placeholder="مثال: شركة موهبة للتجارة - فرع القاهرة" autocomplete="off">
+                        </div>
+
+                        <!-- Phone Number -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalPhoneNumber">
+                                {% trans "رقم الهاتف الظاهر (E.164)" %}
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="fas fa-phone text-muted"></i></span>
+                                <input type="tel" class="form-control font-monospace text-start" id="modalPhoneNumber" name="phone_number"
+                                       placeholder="+201012345678" dir="ltr" autocomplete="off">
+                            </div>
+                            <div class="form-text text-muted small">{% trans "الصيغة الدولية المباشرة مع كود الدولة (+20...)." %}</div>
+                        </div>
+
+                        <!-- Phone Number ID -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalPhoneNumberId">
+                                {% trans "معرف رقم الهاتف (Phone Number ID)" %} <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="fas fa-id-badge text-muted"></i></span>
+                                <input type="text" class="form-control font-monospace" id="modalPhoneNumberId" name="phone_number_id" required
+                                       placeholder="106543219876543" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <!-- WABA ID -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalWabaId">
+                                {% trans "معرف حساب WABA ID" %} <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="fas fa-briefcase text-muted"></i></span>
+                                <input type="text" class="form-control font-monospace" id="modalWabaId" name="waba_id" required
+                                       placeholder="109876543210987" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <!-- Access Token -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-dark" for="modalAccessToken">
+                                {% trans "رمز الوصول (System User Token)" %} <span class="text-danger" id="modalTokenRequiredStar">*</span>
+                            </label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light"><i class="fas fa-key text-muted"></i></span>
+                                <input type="password" class="form-control font-monospace" id="modalAccessToken" name="access_token"
+                                       placeholder="EAAG..." autocomplete="new-password">
+                            </div>
+                            <div class="form-text text-muted small" id="modalTokenHelpText">
+                                {% trans "رمز وصول Meta الدائم. عند التعديل، اتركه فارغاً للاحتفاظ بالتوكن الحالي." %}
+                            </div>
+                        </div>
+
+                        <!-- Switches Row -->
+                        <div class="col-12">
+                            <div class="card bg-light border p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="modalIsCoexistence" name="is_coexistence" checked>
+                                            <label class="form-check-label fw-bold small text-dark" for="modalIsCoexistence">
+                                                {% trans "وضع التعايش المتوازي (Coexistence)" %}
+                                            </label>
+                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "تشغيل نفس الرقم على الموبايل والـ ERP بالتوازي." %}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="modalIsDefault" name="is_default">
+                                            <label class="form-check-label fw-bold small text-dark" for="modalIsDefault">
+                                                {% trans "تعيين كحساب افتراضي للنظام" %}
+                                            </label>
+                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "استخدامه تلقائياً في إرسال المستندات." %}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch" id="modalIsActive" name="is_active" checked>
+                                            <label class="form-check-label fw-bold small text-dark" for="modalIsActive">
+                                                {% trans "تفعيل الحساب" %}
+                                            </label>
+                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "السماح بالإرسال والاستقبال عبر هذا الرقم." %}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold small text-dark" for="modalNotes">
+                                {% trans "ملاحظات داخلية" %}
+                            </label>
+                            <textarea class="form-control form-control-sm" id="modalNotes" name="notes" rows="2"
+                                      placeholder="{% trans 'ملاحظات حول الفرع، ساعات العمل، أو استخدام الرقم...' %}"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                    {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btnSaveAccountModal">
+                    <span id="saveAccountSpinner" class="spinner-border spinner-border-sm d-none me-1" role="status"></span>
+                    <i class="fas fa-save me-1" id="saveAccountIcon"></i>
+                    {% trans "حفظ الحساب" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Meta Facebook JavaScript SDK -->
+<script async defer crossorigin="anonymous" src="https://connect.facebook.net/en_US/sdk.js"></script>
 <script>
 /**
- * WhatsApp Settings Orchestrator & Live Diagnostics (Modernized 2026 Meta API Standard)
+ * Facebook JS SDK Initialization for 1-Click Embedded Signup
+ */
+window.fbAsyncInit = function() {
+    FB.init({
+        appId: '{{ config.app_id|default:"" }}',
+        cookie: true,
+        xfbml: true,
+        version: 'v21.0'
+    });
+};
+
+/**
+ * WhatsApp Settings Orchestrator & Multi-WABA Account Manager (MWHEBA ERP)
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. تعريف عناصر الواجهة (DOM Elements)
-    const tokenInput = document.getElementById('whatsapp_access_token');
-    const wabaInput = document.getElementById('whatsapp_waba_id');
-    const phoneIdInput = document.getElementById('whatsapp_phone_number_id');
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
     const tabInput = document.getElementById('activeTabInput');
 
     // تبديل التبويبات برمجياً
@@ -1638,8 +2100,349 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
+    // ==================== 1. محرك التسجيل المضمن بنقرة واحدة (1-Click Embedded Signup) ====================
+    const btnEmbeddedSignup = document.getElementById('btnLaunchEmbeddedSignup');
+    const embeddedSpinner = document.getElementById('embeddedSignupSpinner');
+    const embeddedIcon = document.getElementById('embeddedSignupIcon');
 
-    // 3. فحص الاتصال الحي بـ Meta وإعادة تهيئة الجلسة (Auto Background Check + Manual Trigger)
+    if (btnEmbeddedSignup) {
+        btnEmbeddedSignup.addEventListener('click', function() {
+            const appId = '{{ config.app_id|default:"" }}';
+            const configId = '{{ config.config_id|default:"" }}';
+
+            if (!appId || !configId) {
+                if (window.showNotification) {
+                    window.showNotification('{% trans "يرجى إدخال معرّف التطبيق (App ID) والـ Config ID في إعدادات مزود التكنولوجيا أدناه لتشغيل التسجيل بنقرة واحدة." %}', 'warning');
+                } else {
+                    alert('{% trans "يرجى إدخال App ID و Config ID أولاً." %}');
+                }
+                const collapseEl = document.getElementById('techProviderSettings');
+                if (collapseEl) {
+                    bootstrap.Collapse.getOrCreateInstance(collapseEl).show();
+                }
+                return;
+            }
+
+            if (typeof FB === 'undefined') {
+                if (window.showNotification) {
+                    window.showNotification('{% trans "جاري تحميل Meta SDK، يرجى المحاولة بعد لحظات..." %}', 'info');
+                }
+                return;
+            }
+
+            btnEmbeddedSignup.disabled = true;
+            embeddedSpinner.classList.remove('d-none');
+            embeddedIcon.classList.add('d-none');
+
+            // إطلاق نافذة التسجيل المضمن عبر FB.login
+            FB.login(function(response) {
+                if (response.authResponse && response.authResponse.code) {
+                    const code = response.authResponse.code;
+                    
+                    fetch('/api/whatsapp/embedded-signup/callback/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ code: code }),
+                        credentials: 'same-origin'
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnEmbeddedSignup.disabled = false;
+                        embeddedSpinner.classList.add('d-none');
+                        embeddedIcon.classList.remove('d-none');
+
+                        if (data.success) {
+                            if (window.showNotification) {
+                                window.showNotification(data.message || '{% trans "تم ربط حساب WhatsApp بنجاح! جاري التحديث..." %}', 'success');
+                            }
+                            setTimeout(() => { window.location.reload(); }, 3100);
+                        } else {
+                            if (window.showNotification) {
+                                window.showNotification(data.error || '{% trans "فشل إكمال عملية الربط" %}', 'danger');
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        btnEmbeddedSignup.disabled = false;
+                        embeddedSpinner.classList.add('d-none');
+                        embeddedIcon.classList.remove('d-none');
+                        if (window.showNotification) {
+                            window.showNotification('{% trans "حدث خطأ في الاتصال بالخادم أثناء معالجة الربط." %}', 'danger');
+                        }
+                    });
+                } else {
+                    btnEmbeddedSignup.disabled = false;
+                    embeddedSpinner.classList.add('d-none');
+                    embeddedIcon.classList.remove('d-none');
+                    if (window.showNotification) {
+                        window.showNotification('{% trans "تم إلغاء عملية الربط بواسطة المستخدم." %}', 'info');
+                    }
+                }
+            }, {
+                config_id: configId,
+                response_type: 'code',
+                override_default_response_type: true,
+                extras: {
+                    setup: {},
+                    featureType: '',
+                    sessionInfoVersion: '2'
+                }
+            });
+        });
+    }
+
+    // الاستماع لرسائل PostMessage القادمة من نافذة Meta للربط
+    window.addEventListener('message', function(event) {
+        if (!/^https:\/\/(www\.)?(facebook|meta)\.com$/.test(event.origin)) {
+            return;
+        }
+        try {
+            const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            if (data && data.type === 'WA_EMBEDDED_SIGNUP') {
+                if (data.event === 'FINISH') {
+                    if (window.showNotification) {
+                        window.showNotification('{% trans "اكتمل تدفق Meta بنجاح، جاري استيراد الحساب..." %}', 'info');
+                    }
+                } else if (data.event === 'CANCEL') {
+                    if (window.showNotification) {
+                        window.showNotification('{% trans "تم إلغاء تدفق الربط." %}', 'warning');
+                    }
+                }
+            }
+        } catch (e) {
+            // Non-JSON message from Meta frame, ignore
+        }
+    });
+
+    // ==================== 2. إدارة المودال المركزي لإضافة وتعديل الحسابات (Rule 8) ====================
+    const accountModalEl = document.getElementById('accountModal');
+    const accountModal = accountModalEl ? bootstrap.Modal.getOrCreateInstance(accountModalEl) : null;
+    const btnAddManual = document.getElementById('btnAddAccountManual');
+    const btnSaveAccount = document.getElementById('btnSaveAccountModal');
+    const saveAccountSpinner = document.getElementById('saveAccountSpinner');
+    const saveAccountIcon = document.getElementById('saveAccountIcon');
+
+    // فتح المودال لإضافة حساب جديد
+    if (btnAddManual) {
+        btnAddManual.addEventListener('click', function() {
+            document.getElementById('accountModalForm').reset();
+            document.getElementById('modalAccountId').value = '';
+            document.getElementById('accountModalTitle').textContent = '{% trans "إضافة حساب WhatsApp للأعمال" %}';
+            document.getElementById('modalAccessToken').placeholder = 'EAAG...';
+            document.getElementById('modalAccessToken').required = true;
+            document.getElementById('modalTokenRequiredStar').classList.remove('d-none');
+            document.getElementById('modalTokenHelpText').textContent = '{% trans "رمز وصول Meta الدائم (System User Token)." %}';
+            document.getElementById('modalIsCoexistence').checked = true;
+            document.getElementById('modalIsActive').checked = true;
+            document.getElementById('modalIsDefault').checked = false;
+            accountModal.show();
+        });
+    }
+
+    // فتح المودال لتعديل حساب موجود
+    document.querySelectorAll('.btn-edit-account').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const d = this.dataset;
+            document.getElementById('modalAccountId').value = d.accountId || '';
+            document.getElementById('modalAccountName').value = d.name || '';
+            document.getElementById('modalCompanyName').value = d.companyName || '';
+            document.getElementById('modalPhoneNumber').value = d.phoneNumber || '';
+            document.getElementById('modalPhoneNumberId').value = d.phoneNumberId || '';
+            document.getElementById('modalWabaId').value = d.wabaId || '';
+            document.getElementById('modalNotes').value = d.notes || '';
+            
+            // التوكن المحمي (Token Masking)
+            document.getElementById('modalAccessToken').value = '';
+            document.getElementById('modalAccessToken').placeholder = '•••••••••••••••• (محفوظ ومحمي)';
+            document.getElementById('modalAccessToken').required = false;
+            document.getElementById('modalTokenRequiredStar').classList.add('d-none');
+            document.getElementById('modalTokenHelpText').textContent = '{% trans "التوكن الحالي مشفر ومحمي. اتركه فارغاً للإبقاء عليه، أو اكتب قيمة جديدة لتحديثه." %}';
+
+            document.getElementById('modalIsCoexistence').checked = (d.isCoexistence === 'true');
+            document.getElementById('modalIsDefault').checked = (d.isDefault === 'true');
+            document.getElementById('modalIsActive').checked = (d.isActive === 'true');
+
+            document.getElementById('accountModalTitle').textContent = '{% trans "تعديل حساب:" %} ' + (d.name || '');
+            accountModal.show();
+        });
+    });
+
+    // حفظ بيانات الحساب عبر AJAX
+    if (btnSaveAccount) {
+        btnSaveAccount.addEventListener('click', function() {
+            const form = document.getElementById('accountModalForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            btnSaveAccount.disabled = true;
+            saveAccountSpinner.classList.remove('d-none');
+            saveAccountIcon.classList.add('d-none');
+
+            const payload = {
+                account_id: document.getElementById('modalAccountId').value.trim(),
+                name: document.getElementById('modalAccountName').value.trim(),
+                company_name: document.getElementById('modalCompanyName').value.trim(),
+                phone_number: document.getElementById('modalPhoneNumber').value.trim(),
+                phone_number_id: document.getElementById('modalPhoneNumberId').value.trim(),
+                waba_id: document.getElementById('modalWabaId').value.trim(),
+                access_token: document.getElementById('modalAccessToken').value.trim(),
+                notes: document.getElementById('modalNotes').value.trim(),
+                is_coexistence: document.getElementById('modalIsCoexistence').checked,
+                is_default: document.getElementById('modalIsDefault').checked,
+                is_active: document.getElementById('modalIsActive').checked
+            };
+
+            fetch('/api/whatsapp/accounts/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload),
+                credentials: 'same-origin'
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnSaveAccount.disabled = false;
+                saveAccountSpinner.classList.add('d-none');
+                saveAccountIcon.classList.remove('d-none');
+
+                if (data.success) {
+                    accountModal.hide();
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تم حفظ بيانات الحساب بنجاح! ✅" %}', 'success');
+                    }
+                    setTimeout(() => { window.location.reload(); }, 3100);
+                } else {
+                    if (window.showNotification) {
+                        window.showNotification(data.error || '{% trans "فشل حفظ بيانات الحساب" %}', 'danger');
+                    } else {
+                        alert(data.error || '{% trans "فشل حفظ بيانات الحساب" %}');
+                    }
+                }
+            })
+            .catch(err => {
+                btnSaveAccount.disabled = false;
+                saveAccountSpinner.classList.add('d-none');
+                saveAccountIcon.classList.remove('d-none');
+                if (window.showNotification) {
+                    window.showNotification('{% trans "حدث خطأ غير متوقع أثناء حفظ الحساب." %}', 'danger');
+                }
+            });
+        });
+    }
+
+    // ==================== 3. تعيين الحساب الافتراضي وحذف الحساب ====================
+    document.querySelectorAll('.btn-set-default').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const accId = this.dataset.accountId;
+            const accName = this.dataset.accountName;
+            if (!accId) return;
+
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري التعيين..." %}';
+
+            fetch(`/api/whatsapp/accounts/${accId}/set-default/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.showNotification) {
+                        window.showNotification(data.message || `{% trans "تم تعيين" %} ${accName} {% trans "كحساب افتراضي بنجاح! ⭐" %}`, 'success');
+                    }
+                    setTimeout(() => { window.location.reload(); }, 3100);
+                } else {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="far fa-star me-1"></i>{% trans "تعيين كافتراضي" %}';
+                    if (window.showNotification) {
+                        window.showNotification(data.error || '{% trans "تعذر تعيين الحساب الافتراضي" %}', 'danger');
+                    }
+                }
+            })
+            .catch(err => {
+                this.disabled = false;
+                this.innerHTML = '<i class="far fa-star me-1"></i>{% trans "تعيين كافتراضي" %}';
+                if (window.showNotification) {
+                    window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'danger');
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.btn-delete-account').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const accId = this.dataset.accountId;
+            const accName = this.dataset.accountName;
+            if (!accId) return;
+
+            if (!confirm(`{% trans "هل أنت متأكد من فك ربط وحذف حساب" %} "${accName}"؟\n\n{% trans "ملاحظة أمان: لن يتم حذف أي فواتير أو رسائل سابقة مرتبطة بهذا الحساب." %}`)) {
+                return;
+            }
+
+            this.disabled = true;
+
+            fetch(`/api/whatsapp/accounts/${accId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                credentials: 'same-origin'
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تم فك ربط الحساب بنجاح." %}', 'success');
+                    }
+                    setTimeout(() => { window.location.reload(); }, 3100);
+                } else {
+                    this.disabled = false;
+                    if (window.showNotification) {
+                        window.showNotification(data.error || '{% trans "تعذر حذف الحساب" %}', 'danger');
+                    }
+                }
+            })
+            .catch(err => {
+                this.disabled = false;
+                if (window.showNotification) {
+                    window.showNotification('{% trans "خطأ في الاتصال بالخادم." %}', 'danger');
+                }
+            });
+        });
+    });
+
+    // زر فحص حساب محدد في الجدول (الانتقال لتبويب التشخيص وتشغيل الفحص)
+    document.querySelectorAll('.btn-test-account').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const accId = this.dataset.accountId;
+            const selectEl = document.getElementById('testAccountSelect');
+            if (selectEl && accId) {
+                selectEl.value = accId;
+            }
+            window.switchToTab('diagnostics');
+            setTimeout(() => {
+                executeConnectionTest(false, false);
+                const testCard = document.getElementById('connTestResults');
+                if (testCard) {
+                    testCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 250);
+        });
+    });
+
+    // ==================== 4. فحص الاتصال الحي بـ Meta ====================
     const btnTestConn = document.getElementById('btnTestConnection');
     const btnResetSession = document.getElementById('btnResetSession');
     const testSpinner = document.getElementById('testConnSpinner');
@@ -1650,20 +2453,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const resStatus = document.getElementById('resStatus');
 
     function executeConnectionTest(resetCache = false, isAutoCheck = false) {
+        const selectAcc = document.getElementById('testAccountSelect');
+        const selectedAccId = (selectAcc && selectAcc.value) ? selectAcc.value : null;
+
+        const tokenInput = document.getElementById('whatsapp_access_token') || document.getElementById('modalAccessToken');
         const token = tokenInput ? tokenInput.value.trim() : '';
         const phoneId = document.getElementById('whatsapp_phone_number_id') ? document.getElementById('whatsapp_phone_number_id').value.trim() : '';
         const wabaId = document.getElementById('whatsapp_waba_id') ? document.getElementById('whatsapp_waba_id').value.trim() : '';
 
-        if (!token || !phoneId) {
+        // إذا لم يكن هناك توكن في الحقول النصية ولا حساب محدد في القائمة
+        if (!selectedAccId && (!token || !phoneId)) {
             if (resStatus) {
                 resStatus.className = 'badge bg-secondary';
                 resStatus.textContent = '{% trans "غير مهيأ" %}';
             }
             if (!isAutoCheck) {
                 if (window.showNotification) {
-                    window.showNotification('{% trans "يرجى إدخال Access Token و Phone Number ID أولاً للاختبار" %}', 'warning');
+                    window.showNotification('{% trans "يرجى اختيار حساب أو إدخال Access Token و Phone Number ID أولاً للاختبار" %}', 'warning');
                 } else {
-                    alert('{% trans "يرجى إدخال Access Token و Phone Number ID أولاً للاختبار" %}');
+                    alert('{% trans "يرجى اختيار حساب أو إدخال Access Token و Phone Number ID أولاً للاختبار" %}');
                 }
             }
             return;
@@ -1690,7 +2498,8 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({
                 access_token: token,
                 phone_number_id: phoneId,
-                waba_id: wabaId
+                waba_id: wabaId,
+                account_id: selectedAccId
             }),
             credentials: 'same-origin'
         })
@@ -1756,6 +2565,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (btnResetSession) {
         btnResetSession.addEventListener('click', function() { executeConnectionTest(true, false); });
+    }
+
+    const testAccSelect = document.getElementById('testAccountSelect');
+    if (testAccSelect) {
+        testAccSelect.addEventListener('change', function() { executeConnectionTest(false, false); });
     }
 
     // 4. إرسال رسالة تجريبية ذكية مع تغيير التلميح الديناميكي
@@ -2164,8 +2978,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (targetId === '#guide') {
                 checkReadinessMetrics();
-            } else if (targetId === '#connection') {
+            } else if (targetId === '#diagnostics') {
                 executeConnectionTest(false, true);
+                fetchSLAMetrics();
             }
         });
     });
@@ -2184,9 +2999,89 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // التشغيل التلقائي لفحص الاتصال والجاهزية في الخلفية عند تحميل الصفحة
+    // 12. Phase 6: استرجاع مقاييس الـ SLA لطبقة الـ Ingress
+    function fetchSLAMetrics() {
+        fetch('{% url "core:whatsapp_sla_metrics" %}')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.metrics) {
+                    const m = data.metrics;
+                    const avgEl = document.getElementById('slaAvgLatency');
+                    const p95El = document.getElementById('slaP95Latency');
+                    const compEl = document.getElementById('slaCompliance');
+                    const totalEl = document.getElementById('slaTotalRequests');
+                    const badgeEl = document.getElementById('slaStatusBadge');
+
+                    if (avgEl) avgEl.textContent = `${m.avg_latency_ms} ms`;
+                    if (p95El) p95El.textContent = `${m.p95_latency_ms} ms`;
+                    if (compEl) compEl.textContent = `${m.sla_compliance_rate}%`;
+                    if (totalEl) totalEl.textContent = m.total_requests;
+                    if (badgeEl) {
+                        badgeEl.textContent = m.status;
+                        badgeEl.className = 'badge ' + (m.status === 'HEALTHY' ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle');
+                    }
+                }
+            })
+            .catch(err => console.error('SLA Fetch error:', err));
+    }
+
+    const btnRefreshSLA = document.getElementById('btnRefreshSLA');
+    if (btnRefreshSLA) {
+        btnRefreshSLA.addEventListener('click', fetchSLAMetrics);
+    }
+
+    // 13. Phase 6: محاكي إرسال الفاتورة التجريبية لفيديو مراجعة Meta
+    const btnDispatchSim = document.getElementById('btnDispatchSimulator');
+    if (btnDispatchSim) {
+        btnDispatchSim.addEventListener('click', function() {
+            const phoneInput = document.getElementById('simulatorPhoneInput');
+            const phone = phoneInput ? phoneInput.value.trim() : '';
+            if (!phone) {
+                if (window.showNotification) window.showNotification('{% trans "يرجى إدخال رقم هاتف المستلم التجريبي" %}', 'warning');
+                else alert('{% trans "يرجى إدخال رقم هاتف المستلم التجريبي" %}');
+                return;
+            }
+
+            const spinner = document.getElementById('simSpinner');
+            btnDispatchSim.disabled = true;
+            if (spinner) spinner.classList.remove('d-none');
+
+            fetch('{% url "core:whatsapp_simulator_dispatch" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    recipient_phone: phone,
+                    invoice_number: 'INV-DEMO-2026'
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnDispatchSim.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+
+                if (data.success) {
+                    if (window.showNotification) window.showNotification(data.message || '{% trans "تم إرسال الفاتورة التجريبية بنجاح 🚀" %}', 'success');
+                    else alert(data.message);
+                } else {
+                    if (window.showNotification) window.showNotification(data.error || '{% trans "فشل الإرسال" %}', 'error');
+                    else alert(data.error);
+                }
+            })
+            .catch(err => {
+                btnDispatchSim.disabled = false;
+                if (spinner) spinner.classList.add('d-none');
+                if (window.showNotification) window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
+            });
+        });
+    }
+
+    // التشغيل التلقائي لفحص الاتصال والجاهزية ومقاييس SLA في الخلفية عند تحميل الصفحة
     executeConnectionTest(false, true);
     checkReadinessMetrics();
+    fetchSLAMetrics();
 });
 </script>
 {% endblock %}

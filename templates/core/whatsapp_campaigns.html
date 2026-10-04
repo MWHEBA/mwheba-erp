@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_name|default:"موهبة ERP" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <!-- Page Header المركزي (Rule 6) -->
+    {% include "shared/page_header.html" %}
+
+    <!-- 1. بطاقات الإحصائيات الحيوية KPI Cards (Rule 7: Never wrapped in .section-container) -->
+    <div class="row g-3 mb-4" id="whatsappCampaignsKPI">
+        <!-- Total Campaigns -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="stats-card stats-card-info h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "إجمالي الحملات" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-dark" id="kpiTotal">{{ total_campaigns|default:0 }}</h3>
+                    </div>
+                    <div class="stats-card-icon bg-info-subtle text-info p-3 rounded">
+                        <i class="fas fa-bullhorn fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Running Campaigns -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="stats-card stats-card-warning h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "حملات قيد الإرسال والتنفيذ" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-warning" id="kpiRunning">{{ running_campaigns|default:0 }}</h3>
+                    </div>
+                    <div class="stats-card-icon bg-warning-subtle text-warning p-3 rounded">
+                        <i class="fas fa-paper-plane fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completed Campaigns -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="stats-card stats-card-success h-100">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <span class="stats-card-title text-muted small d-block mb-1">{% trans "حملات مكتملة بنجاح" %}</span>
+                        <h3 class="stats-card-value fw-bold mb-0 text-success" id="kpiCompleted">{{ completed_campaigns|default:0 }}</h3>
+                    </div>
+                    <div class="stats-card-icon bg-success-subtle text-success p-3 rounded">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. قسم الفلاتر والبحث (Collapsible Filters Section - Rule 6) -->
+    <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-filter text-primary me-2"></i>
+                {% trans "خيارات البحث والتصفية المتقدمة" %}
+            </h5>
+            <i class="fas fa-chevron-down text-muted"></i>
+        </div>
+
+        <div class="collapse show mt-3" id="filterSection">
+            <form method="get" id="filterForm" class="row g-3" onsubmit="event.preventDefault(); window.doSearch();">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small text-muted">{% trans "البحث باسم الحملة:" %}</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" id="filter_q" class="form-control" value="{{ filter_q }}" placeholder="{% trans 'اسم الحملة...' %}">
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small text-muted">{% trans "نوع الحملة:" %}</label>
+                    <select name="campaign_type" id="filter_campaign_type" class="form-select form-select-sm" onchange="window.doSearch();">
+                        <option value="">{% trans "جميع الأنواع" %}</option>
+                        <option value="STATEMENT" {% if filter_campaign_type == 'STATEMENT' %}selected{% endif %}>{% trans "كشوف حسابات دورية" %}</option>
+                        <option value="COLLECTION_REMINDER" {% if filter_campaign_type == 'COLLECTION_REMINDER' %}selected{% endif %}>{% trans "تذكير تحصيل مالي" %}</option>
+                        <option value="PROMOTIONAL" {% if filter_campaign_type == 'PROMOTIONAL' %}selected{% endif %}>{% trans "حملة ترويجية" %}</option>
+                        <option value="SERVICE_ANNOUNCEMENT" {% if filter_campaign_type == 'SERVICE_ANNOUNCEMENT' %}selected{% endif %}>{% trans "إعلان خدمي عام" %}</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small text-muted">{% trans "حالة الحملة:" %}</label>
+                    <select name="status" id="filter_status" class="form-select form-select-sm" onchange="window.doSearch();">
+                        <option value="">{% trans "جميع الحالات" %}</option>
+                        <option value="DRAFT" {% if filter_status == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
+                        <option value="RUNNING" {% if filter_status == 'RUNNING' %}selected{% endif %}>{% trans "قيد التنفيذ" %}</option>
+                        <option value="COMPLETED" {% if filter_status == 'COMPLETED' %}selected{% endif %}>{% trans "مكتملة" %}</option>
+                        <option value="FROZEN_QUALITY" {% if filter_status == 'FROZEN_QUALITY' %}selected{% endif %}>{% trans "مجمدة لحماية الجودة" %}</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex justify-content-end align-items-end gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="resetFilters()" title="{% trans 'إعادة ضبط' %}">
+                        <i class="fas fa-undo me-1"></i>{% trans "إعادة ضبط" %}
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm px-3 fw-bold">
+                        <i class="fas fa-search me-1"></i>{% trans "تطبيق" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. جدول الحملات (Standardized DataTable Section - Rule 6 & 7) -->
+    <div class="section-container p-0 overflow-hidden mb-4">
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-bullhorn text-primary me-2"></i>
+                {% trans "سجل حملات الإشعارات الجماعية" %}
+            </h5>
+            <span class="text-muted small">
+                {% trans "إدارة ومتابعة بث الرسائل الجماعية عبر خنق التدفق ومراقبة الجودة" %}
+            </span>
+        </div>
+
+        <div id="whatsapp-campaigns-table-container">
+            {% include "core/partials/whatsapp_campaigns_table.html" %}
+        </div>
+    </div>
+</div>
+
+<!-- ==================== مودال إنشاء حملة جديدة (Rule 8 Centered Modal) ==================== -->
+<div class="modal fade" id="newCampaignModal" tabindex="-1" aria-labelledby="newCampaignModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="newCampaignModalLabel">
+                    <i class="fas fa-bullhorn text-primary me-2"></i>{% trans "إنشاء حملة إشعارات جماعية جديدة" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="newCampaignForm" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-8">
+                            <label class="form-label small text-muted fw-bold">{% trans "اسم الحملة" %} <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="campaignNameInput" required placeholder="{% trans 'مثال: إرسال كشوف حسابات شهر أكتوبر 2026' %}">
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label small text-muted fw-bold">{% trans "حساب الواتساب المرسل" %}</label>
+                            <select class="form-select" name="account_id" id="campaignAccountSelect">
+                                {% for acc in accounts %}
+                                <option value="{{ acc.id }}" {% if acc.is_default %}selected{% endif %}>
+                                    {{ acc.name }} ({{ acc.display_phone_number|default:acc.phone_number_id }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-muted fw-bold">{% trans "نوع الحملة" %}</label>
+                            <select class="form-select" name="campaign_type" id="campaignTypeSelect">
+                                <option value="STATEMENT" selected>{% trans "كشوف حسابات دورية (Statement)" %}</option>
+                                <option value="COLLECTION_REMINDER">{% trans "تذكير ومطالبات تحصيل مالي" %}</option>
+                                <option value="PROMOTIONAL">{% trans "حملة ترويجية وإعلانية (Marketing)" %}</option>
+                                <option value="SERVICE_ANNOUNCEMENT">{% trans "إعلان خدمي عام (Utility)" %}</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-muted fw-bold">{% trans "الجمهور المستهدف" %}</label>
+                            <select class="form-select" name="audience_type" id="audienceTypeSelect">
+                                <option value="CUSTOMERS_WITH_BALANCE" selected>{% trans "العملاء ذوو الأرصدة المدينة (> 0)" %}</option>
+                                <option value="ALL_CUSTOMERS">{% trans "جميع العملاء النشطين" %}</option>
+                                <option value="CUSTOMER_TIER">{% trans "شريحة عملاء محددة" %}</option>
+                                <option value="ALL_SUPPLIERS">{% trans "جميع الموردين النشطين" %}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="customerTierDiv" style="display:none;">
+                        <label class="form-label small text-muted fw-bold">{% trans "اختر شريحة العملاء" %}</label>
+                        <select class="form-select" name="customer_tier_id" id="customerTierSelect">
+                            {% for tier in customer_tiers %}
+                            <option value="{{ tier.id }}">{{ tier.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-muted fw-bold">{% trans "القالب المعتمد لدى Meta" %}</label>
+                            <select class="form-select" name="template_name" id="campaignTemplateSelect">
+                                <option value="order_status_ar" selected>{% trans "إشعار حالة وجاهزية (order_status_ar)" %}</option>
+                                <option value="document_send_ar">{% trans "إرسال مستند مالي (document_send_ar)" %}</option>
+                                <option value="payment_receipt_ar">{% trans "إيصال سداد واستلام دفعة (payment_receipt_ar)" %}</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small text-muted fw-bold">
+                                {% trans "معدل خنق التدفق (Rate Throttling)" %}
+                                <i class="fas fa-info-circle text-primary" title="{% trans 'يحدد عدد الرسائل في الثانية الواحدة لحماية تقييم جودة الرقم لدى Meta ومنع الحظر' %}"></i>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="throttle_rate" value="15" min="1" max="50">
+                                <span class="input-group-text bg-light small">{% trans "رسالة / ثانية" %}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label small text-muted fw-bold">{% trans "ملاحظات الحملة (اختياري)" %}</label>
+                        <textarea class="form-control" name="custom_message" rows="2" placeholder="{% trans 'ملاحظات إضافية للفريق المحاسبي...' %}"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSubmitNewCampaign">
+                        <i class="fas fa-check me-1"></i>{% trans "إنشاء وتجهيز المستلمين" %}
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/**
+ * WhatsApp Campaigns Dynamic Search, State Sync & Management
+ */
+let pollingInterval = null;
+
+function doSearch(pageUrl) {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+
+    let targetUrl = pageUrl || (window.location.pathname + '?' + params.toString());
+    if (pageUrl) {
+        const pageParams = new URL(pageUrl, window.location.origin).searchParams;
+        for (const [key, val] of pageParams.entries()) {
+            params.set(key, val);
+        }
+        targetUrl = window.location.pathname + '?' + params.toString();
+    }
+
+    const container = document.getElementById('whatsapp-campaigns-table-container');
+    if (container) container.style.opacity = '0.5';
+
+    fetch(targetUrl, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (container) container.style.opacity = '1';
+        if (data.success) {
+            if (container) container.innerHTML = data.table_html;
+
+            // تحديث بطاقات الـ KPI
+            if (data.total_campaigns !== undefined) {
+                const kpiTotal = document.getElementById('kpiTotal');
+                const kpiRunning = document.getElementById('kpiRunning');
+                const kpiCompleted = document.getElementById('kpiCompleted');
+                if (kpiTotal) kpiTotal.textContent = data.total_campaigns;
+                if (kpiRunning) kpiRunning.textContent = data.running_campaigns;
+                if (kpiCompleted) kpiCompleted.textContent = data.completed_campaigns;
+            }
+
+            // مزامنة حالة المتصفح
+            window.history.replaceState({}, '', targetUrl);
+
+            // تهيئة أشرطة التقدم والمتابعة الحية
+            initProgressBars();
+            initCampaignLivePolling();
+        }
+    })
+    .catch(err => {
+        if (container) container.style.opacity = '1';
+        console.error('Error fetching campaigns:', err);
+    });
+}
+window.doSearch = doSearch;
+
+function initProgressBars() {
+    document.querySelectorAll('.progress-bar[data-progress]').forEach(function (el) {
+        el.style.width = el.getAttribute('data-progress') + '%';
+    });
+}
+window.initProgressBars = initProgressBars;
+
+function resetFilters() {
+    const qInput = document.getElementById('filter_q');
+    const typeSelect = document.getElementById('filter_campaign_type');
+    const statusSelect = document.getElementById('filter_status');
+    if (qInput) qInput.value = '';
+    if (typeSelect) typeSelect.value = '';
+    if (statusSelect) statusSelect.value = '';
+    window.doSearch();
+}
+window.resetFilters = resetFilters;
+
+function launchCampaign(campaignId) {
+    if (!confirm('{% trans "هل أنت متأكد من إطلاق هذه الحملة وبدء الإرسال المجدول لكافة المستلمين؟" %}')) return;
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+
+    fetch(`/api/whatsapp/campaigns/${campaignId}/launch/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (window.showNotification) {
+                window.showNotification(data.message, 'success');
+            } else {
+                alert(data.message);
+            }
+            setTimeout(() => window.doSearch(), 1000);
+        } else {
+            if (window.showNotification) {
+                window.showNotification(data.error || '{% trans "تعذر إطلاق الحملة" %}', 'error');
+            } else {
+                alert(data.error || '{% trans "تعذر إطلاق الحملة" %}');
+            }
+        }
+    })
+    .catch(err => {
+        console.error('Campaign launch error:', err);
+    });
+}
+window.launchCampaign = launchCampaign;
+
+function deleteCampaign(campaignId) {
+    if (!confirm('{% trans "هل أنت متأكد من حذف هذه الحملة؟" %}')) return;
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+
+    fetch(`/api/whatsapp/campaigns/${campaignId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            if (window.showNotification) {
+                window.showNotification(data.message, 'success');
+            } else {
+                alert(data.message);
+            }
+            window.doSearch();
+        } else {
+            if (window.showNotification) {
+                window.showNotification(data.error || '{% trans "تعذر حذف الحملة" %}', 'error');
+            } else {
+                alert(data.error || '{% trans "تعذر حذف الحملة" %}');
+            }
+        }
+    })
+    .catch(err => {
+        console.error('Campaign deletion error:', err);
+    });
+}
+window.deleteCampaign = deleteCampaign;
+
+function initCampaignLivePolling() {
+    if (pollingInterval) clearInterval(pollingInterval);
+
+    const runningRows = document.querySelectorAll('tr[id^="campaignRow_"]');
+    const runningCampaignIds = [];
+    runningRows.forEach(row => {
+        const id = row.id.replace('campaignRow_', '');
+        const badge = document.getElementById(`statusBadge_${id}`);
+        if (badge && (badge.textContent.includes('قيد') || badge.textContent.includes('RUNNING'))) {
+            runningCampaignIds.push(id);
+        }
+    });
+
+    if (runningCampaignIds.length > 0) {
+        pollingInterval = setInterval(() => {
+            runningCampaignIds.forEach(id => {
+                fetch(`/api/whatsapp/campaigns/${id}/status/`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) return;
+                        const pBar = document.getElementById(`progressBar_${id}`);
+                        const pText = document.getElementById(`progressText_${id}`);
+                        const sCount = document.getElementById(`sentCount_${id}`);
+                        const sBadge = document.getElementById(`statusBadge_${id}`);
+
+                        if (pBar) pBar.style.width = `${data.progress_percentage}%`;
+                        if (pText) pText.textContent = `${data.progress_percentage}%`;
+                        if (sCount) sCount.textContent = data.sent_count;
+                        if (sBadge) sBadge.textContent = data.status_display;
+
+                        if (data.status === 'COMPLETED') {
+                            if (pBar) pBar.className = 'progress-bar bg-success';
+                            if (sBadge) {
+                                sBadge.className = 'badge bg-success-subtle text-success border border-success-subtle py-1 px-2';
+                            }
+                        }
+                    })
+                    .catch(err => console.error('Status poll error:', err));
+            });
+        }, 3500);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const audienceSelect = document.getElementById('audienceTypeSelect');
+    const tierDiv = document.getElementById('customerTierDiv');
+    const newCampaignModalEl = document.getElementById('newCampaignModal');
+    const newCampaignModal = newCampaignModalEl ? new bootstrap.Modal(newCampaignModalEl) : null;
+    const newCampaignForm = document.getElementById('newCampaignForm');
+    const submitBtn = document.getElementById('btnSubmitNewCampaign');
+
+    if (audienceSelect && tierDiv) {
+        audienceSelect.addEventListener('change', function () {
+            tierDiv.style.display = this.value === 'CUSTOMER_TIER' ? 'block' : 'none';
+        });
+    }
+
+    // معالجة إنشاء الحملة
+    if (newCampaignForm) {
+        newCampaignForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> {% trans "جاري التجهيز..." %}';
+            }
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            fetch('{% url "core:whatsapp_campaign_create" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "إنشاء وتجهيز المستلمين" %}';
+                }
+
+                if (res.success) {
+                    if (newCampaignModal) newCampaignModal.hide();
+                    newCampaignForm.reset();
+                    if (window.showNotification) {
+                        window.showNotification(res.message, 'success');
+                    }
+                    setTimeout(() => window.location.reload(), 3100);
+                } else {
+                    if (window.showNotification) {
+                        window.showNotification(res.error, 'error');
+                    } else {
+                        alert(res.error);
+                    }
+                }
+            })
+            .catch(err => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> {% trans "إنشاء وتجهيز المستلمين" %}';
+                }
+                console.error('Campaign creation error:', err);
+            });
+        });
+    }
+
+    // تهيئة أشرطة التقدم وبدء المتابعة الحية
+    initProgressBars();
+    initCampaignLivePolling();
+});
+</script>
+{% endblock %}
