@@ -312,12 +312,32 @@ class WhatsAppService:
         return clean[:80]
 
     @classmethod
+    def _format_num_clean(cls, val: Any) -> str:
+        """تنسيق الأرقام مع إزالة العلامة العشرية للأرقام الصحيحة تماماً وفواصل الآلاف"""
+        if val is None or val == "":
+            return "0"
+        try:
+            d = Decimal(str(val))
+            if d == d.to_integral():
+                return f"{int(d):,}"
+            else:
+                # إذا كان به كسور فعلية تظهر بمنزلتين
+                return f"{d:,.2f}"
+        except Exception:
+            return str(val)
+
+    @classmethod
     def format_currency_amount(cls, amount: Decimal, currency_symbol: str = "ج.م",
                                foreign_amount: Decimal = None, foreign_currency_symbol: str = None) -> str:
-        """تنسيق المبالغ المالية مع العملات الأجنبية بالقرش الواحد لمطابقة دفتر الأستاذ (Rule 3)"""
+        """تنسيق المبالغ المالية بحيث لا يحتوي أي رقم صحيح على أي علامة عشرية نهائياً"""
+        if amount is None:
+            amount = Decimal("0")
+        
+        main_str = cls._format_num_clean(amount)
         if foreign_amount and foreign_currency_symbol and foreign_currency_symbol != currency_symbol:
-            return f"{foreign_amount:,.2f} {foreign_currency_symbol} (ما يعادل {amount:,.2f} {currency_symbol})"
-        return f"{amount:,.2f} {currency_symbol}"
+            foreign_str = cls._format_num_clean(foreign_amount)
+            return f"{foreign_str} {foreign_currency_symbol} (ما يعادل {main_str} {currency_symbol})"
+        return f"{main_str} {currency_symbol}"
 
     @classmethod
     def get_partner_contact_options(cls, partner: Any) -> List[Dict[str, str]]:
@@ -521,10 +541,10 @@ class WhatsAppService:
             "type": "template",
             "template": {
                 "name": template_name,
-                "language": {"code": language_code},
+                "language": {"code": "en_US" if template_name == "hello_world" else language_code},
             }
         }
-        if payload_components:
+        if payload_components and template_name != "hello_world":
             payload["template"]["components"] = payload_components
 
         # استخراج المرجع النصي الدائم للمستند
@@ -569,6 +589,20 @@ class WhatsAppService:
             response = session.post(url, headers=headers, json=payload, timeout=10)
             resp_json = response.json()
 
+            # إذا فشل الإرسال بسبب عدم تطابق الهيدر (132001 أو 100)، نعيد المحاولة تلقائياً بدون مكون الهيدر
+            if response.status_code not in (200, 201) and has_media and any(c.get('type') == 'header' for c in payload_components):
+                logger.warning("إعادة محاولة إرسال القالب بدون مكون Header لتفادي عدم تطابق بنية القالب في Meta...")
+                body_only_components = [c for c in payload_components if c.get('type') != 'header']
+                fallback_payload = dict(payload)
+                if body_only_components:
+                    fallback_payload["template"]["components"] = body_only_components
+                else:
+                    fallback_payload["template"].pop("components", None)
+                retry_resp = session.post(url, headers=headers, json=fallback_payload, timeout=10)
+                if retry_resp.status_code in (200, 201):
+                    response = retry_resp
+                    resp_json = retry_resp.json()
+
             if response.status_code in (200, 201) and "messages" in resp_json:
                 msg_info = resp_json["messages"][0]
                 wamid = msg_info.get("id")
@@ -576,6 +610,24 @@ class WhatsAppService:
                 # تحديث السجل بنجاح الإرسال لـ Meta
                 log.update_status_safely('SENT', message_id=wamid)
                 logger.info(f"✅ تم تسليم رسالة القالب '{template_name}' لـ Meta بنجاح -> wamid: {wamid}")
+
+                # إرسال ملف PDF الثنائي كرسالة وسائط منفصلة لضمان استلام المستند
+                if has_media and header_media_id:
+                    try:
+                        doc_payload = {
+                            "messaging_product": "whatsapp",
+                            "recipient_type": "individual",
+                            "to": normalized_phone,
+                            "type": "document",
+                            "document": {
+                                "id": header_media_id,
+                                "filename": cls.sanitize_filename(header_filename)
+                            }
+                        }
+                        session.post(url, headers=headers, json=doc_payload, timeout=10)
+                    except Exception as doc_err:
+                        logger.warning(f"تعذر إرسال مرفق الـ PDF المنفصل: {doc_err}")
+
                 return {"success": True, "message_id": wamid, "log_id": log.id}
 
             # استخراج ومعالجة الخطأ
@@ -811,18 +863,18 @@ class WhatsAppService:
         إرسال رسالة اختبارية لحظية عبر WhatsApp Business Cloud API
         """
         from ..models import SystemSetting
-        target_template = template_name or "document_send_ar"
+        target_template = template_name or "document_share_ar"
         site_name = SystemSetting.get_site_name()
 
         # بناء المعاملات بناءً على نوع القالب
         components = []
-        if target_template in ("document_send_ar", "document_send_en"):
+        if target_template in ("document_share_ar", "document_send_ar", "document_send_en", "document_share_en"):
             components = [{
                 "type": "body",
                 "parameters": [
                     {"type": "text", "text": "عميلنا التجريبي"},
                     {"type": "text", "text": "INV-TEST-001"},
-                    {"type": "text", "text": "100.00 ج.م"},
+                    {"type": "text", "text": "100 ج.م"},
                     {"type": "text", "text": site_name[:50]},
                 ]
             }]
@@ -831,7 +883,7 @@ class WhatsAppService:
                 "type": "body",
                 "parameters": [
                     {"type": "text", "text": "عميلنا التجريبي"},
-                    {"type": "text", "text": "100.00 ج.م"},
+                    {"type": "text", "text": "100 ج.م"},
                     {"type": "text", "text": "REC-TEST-001"},
                     {"type": "text", "text": "الرصيد المتبقي: صفر ج.م"},
                     {"type": "text", "text": site_name[:50]},
@@ -999,7 +1051,7 @@ class WhatsAppService:
 
     SYSTEM_DEFAULT_TEMPLATES = [
         {
-            "name": "document_send_ar",
+            "name": "document_share_ar",
             "status": "APPROVED",
             "category": "UTILITY",
             "language": "ar",
@@ -1014,6 +1066,7 @@ class WhatsAppService:
             "category": "UTILITY",
             "language": "ar",
             "components": [
+                {"type": "HEADER", "format": "DOCUMENT"},
                 {"type": "BODY", "text": "مرحباً بك أ/ {{1}}، تم استلام وتسجيل دفعة مالية بقيمة {{2}} بموجب سند رقم {{3}}، ورصيدكم المتبقي {{4}}. شكراً لتعاملكم مع {{5}} ويسعدنا خدمتكم."},
             ]
         },
@@ -1110,6 +1163,74 @@ class WhatsAppService:
             }
 
     @classmethod
+    def get_resumable_upload_handle(cls, file_bytes: bytes, filename: str = "sample.pdf", mime_type: str = "application/pdf") -> Optional[str]:
+        """
+        رفع عينة مستند إلى Meta Resumable Upload API للحصول على header_handle لاعتماد القوالب ذات المرفقات
+        POST /v21.0/{app_id}/uploads -> POST /v21.0/{upload_id} -> returns "h" handle
+        """
+        config = cls.get_config()
+        token = config.get("access_token")
+        app_id = config.get("app_id")
+        if not token:
+            return None
+
+        # استخراج app_id آلياً إذا لم يكن مسجلاً
+        if not app_id:
+            try:
+                debug_res = cls.get_session().get(
+                    f"{cls.GRAPH_API_BASE}/debug_token",
+                    params={"input_token": token, "access_token": token},
+                    timeout=10
+                )
+                if debug_res.status_code == 200:
+                    app_id = debug_res.json().get("data", {}).get("app_id")
+            except Exception:
+                pass
+
+        if not app_id:
+            logger.warning("Meta Resumable Upload: تعذر تحديد App ID لاستخراج Header Handle")
+            return None
+
+        try:
+            session = cls.get_session()
+            session_url = f"{cls.GRAPH_API_BASE}/{app_id}/uploads"
+            init_res = session.post(
+                session_url,
+                params={
+                    "file_length": len(file_bytes),
+                    "file_type": mime_type,
+                    "access_token": token
+                },
+                timeout=15
+            )
+            if init_res.status_code != 200:
+                logger.warning(f"Meta Upload Session init failed ({init_res.status_code}): {init_res.text}")
+                return None
+
+            upload_session_id = init_res.json().get("id")
+            if not upload_session_id:
+                return None
+
+            upload_url = f"{cls.GRAPH_API_BASE}/{upload_session_id}"
+            upload_headers = {
+                "Authorization": f"OAuth {token}",
+                "file_offset": "0",
+                "Content-Type": "application/octet-stream"
+            }
+            upload_res = session.post(upload_url, headers=upload_headers, data=file_bytes, timeout=30)
+            if upload_res.status_code == 200:
+                handle = upload_res.json().get("h")
+                logger.info(f"✅ تم استخراج Meta Header Handle بنجاح: {handle}")
+                return handle
+            else:
+                logger.warning(f"Meta Upload binary chunk failed: {upload_res.text}")
+                return None
+
+        except Exception as e:
+            logger.exception(f"Exception during Meta Resumable Upload: {e}")
+            return None
+
+    @classmethod
     def create_system_templates_on_meta(cls) -> Dict[str, Any]:
         """
         إنشاء واعتماد القوالب الأساسية للنظام مباشرة على خوادم Meta Graph API بضغطة واحدة:
@@ -1131,19 +1252,33 @@ class WhatsAppService:
             "Content-Type": "application/json"
         }
 
+        # توليد عينة PDF صغيرة واستخراج handle لها من Meta
+        sample_pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF"
+        header_handle = cls.get_resumable_upload_handle(sample_pdf, filename="Document_Sample.pdf")
+
+        header_component = {
+            "type": "HEADER",
+            "format": "DOCUMENT"
+        }
+        if header_handle:
+            header_component["example"] = {
+                "header_handle": [header_handle]
+            }
+
         templates_payload = [
             {
-                "name": "document_send_ar",
+                "name": "document_share_ar",
                 "language": "ar",
                 "category": "UTILITY",
                 "allow_category_change": True,
                 "components": [
+                    header_component,
                     {
                         "type": "BODY",
                         "text": "مرحباً بك أ/ {{1}}، تم إصدار مستند جديد لحسابكم وهو {{2}} بقيمة {{3}}، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {{4}} ويسعدنا دائماً خدمتكم.",
                         "example": {
                             "body_text": [
-                                ["أحمد علي", "فاتورة مبيعات INV-2026-001", "1500 ج.م", "MEGroup"]
+                                ["أحمد علي", "فاتورة مبيعات INV-2026-001", "1500 ج.م", "موهبة"]
                             ]
                         }
                     }
@@ -1155,6 +1290,7 @@ class WhatsAppService:
                 "category": "UTILITY",
                 "allow_category_change": True,
                 "components": [
+                    header_component,
                     {
                         "type": "BODY",
                         "text": "مرحباً بك أ/ {{1}}، تم استلام وتسجيل دفعة مالية بقيمة {{2}} بموجب سند رقم {{3}}، ورصيدكم المتبقي {{4}}. شكراً لتعاملكم مع {{5}} ويسعدنا خدمتكم.",
@@ -1188,10 +1324,10 @@ class WhatsAppService:
         results = []
         session = cls.get_session()
 
-        # جلب القوالب الحالية المسجلة في Meta لمعرفة معرفاتها وحالاتها
+        # جلب القوالب الحالية المسجلة في Meta لمعرفة معرفاتها وحالاتها وهيكلها
         existing_map = {}
         try:
-            get_res = session.get(url, headers=headers, params={"fields": "id,name,status,language", "limit": 100}, timeout=10)
+            get_res = session.get(url, headers=headers, params={"fields": "id,name,status,language,components", "limit": 100}, timeout=10)
             if get_res.status_code == 200:
                 for t in get_res.json().get("data", []):
                     if t.get("language") == "ar":
@@ -1203,35 +1339,41 @@ class WhatsAppService:
             name = tpl["name"]
             existing_tpl = existing_map.get(name)
 
-            # إذا كان القالب مسجلاً بالفعل في Meta، نحاول تحديث مكوناته بصياغته الجديدة
+            # فحص إذا كان القالب الحالي في Meta ينقصه الـ Header Document المطلوب
+            needs_recreate = False
             if existing_tpl:
+                has_req_header = any(c.get("type") == "HEADER" for c in tpl.get("components", []))
+                existing_has_header = any(c.get("type") == "HEADER" for c in existing_tpl.get("components", []))
+                if has_req_header and not existing_has_header:
+                    # القالب مسجل قديماً كنص فقط بدون هيدر ملف، نقوم بحذفه وإعادة إنشائه بالهيدر المعتمد
+                    logger.info(f"إعادة بناء القالب {name} على Meta لإضافة رأس المستند (Header Document)...")
+                    try:
+                        del_res = session.delete(url, headers=headers, params={"name": name}, timeout=10)
+                        logger.info(f"Meta delete old template {name}: {del_res.status_code}")
+                    except Exception as del_err:
+                        logger.warning(f"Failed to delete old template {name}: {del_err}")
+                    needs_recreate = True
+
+            # إذا كان القالب مسجلاً بالفعل ومطابق للهيكل
+            if existing_tpl and not needs_recreate:
                 tpl_id = existing_tpl.get("id")
                 tpl_status = existing_tpl.get("status", "APPROVED")
-                try:
-                    update_url = f"{cls.GRAPH_API_BASE}/{tpl_id}"
-                    update_res = session.post(update_url, headers=headers, json={"components": tpl["components"]}, timeout=12)
-                    if update_res.status_code in (200, 201) and update_res.json().get("success"):
-                        results.append({"name": name, "success": True, "id": tpl_id, "status": tpl_status, "message": "تم تحديث صياغة القالب بنجاح على Meta ✅"})
-                    else:
-                        results.append({"name": name, "success": True, "already_exists": True, "id": tpl_id, "status": tpl_status, "message": f"مسجل ومتاح بالفعل في Meta بحالة ({tpl_status}) 👍"})
-                except Exception:
-                    results.append({"name": name, "success": True, "already_exists": True, "id": tpl_id, "status": tpl_status, "message": f"مسجل ومتاح بالفعل في Meta بحالة ({tpl_status}) 👍"})
+                results.append({"name": name, "success": True, "already_exists": True, "id": tpl_id, "status": tpl_status, "message": f"مسجل ومطابق في Meta بحالة ({tpl_status}) 👍"})
                 continue
 
-            # إذا لم يكن مسجلاً، ننشئه جديداً
+            # إنشاء القالب الجديد بهيكله المعتمد
             try:
-                res = session.post(url, headers=headers, json=tpl, timeout=12)
+                res = session.post(url, headers=headers, json=tpl, timeout=15)
                 res_data = res.json()
                 if res.status_code in (200, 201):
                     tpl_id = res_data.get("id")
                     tpl_status = res_data.get("status", "APPROVED")
-                    results.append({"name": name, "success": True, "id": tpl_id, "status": tpl_status, "message": "تم إنشاء القالب وتسجيله في Meta بنجاح ✅"})
+                    results.append({"name": name, "success": True, "id": tpl_id, "status": tpl_status, "message": "تم إنشاء واعتماد القالب مع رأس المستند على Meta بنجاح ✅"})
                 else:
                     err_info = res_data.get("error", {})
                     err_msg = err_info.get("error_user_msg") or err_info.get("message", "فشل الإنشاء")
                     err_code = err_info.get("code")
                     err_subcode = err_info.get("error_subcode")
-                    # معالجة القوالب المسجلة مسبقاً كنجاح وتخطي نظيف بدون أخطاء
                     if any(w in err_msg.lower() for w in ("already", "exist", "duplicate")) or err_subcode in (2388024, 2388017, 2388040):
                         results.append({"name": name, "success": True, "already_exists": True, "message": "مسجل بالفعل في حساب Meta وجاهز للاستخدام 👍"})
                     else:
@@ -1266,7 +1408,7 @@ class WhatsAppService:
         if template_name:
             candidates = [template_name]
         else:
-            candidates = ["welcome_new_customer", "document_send_ar", "visit", "hello_world"]
+            candidates = ["welcome_new_customer", "document_share_ar", "document_send_ar", "payment_receipt_ar", "visit", "hello_world"]
 
         last_res = None
         for tpl_name in candidates:
@@ -1422,9 +1564,9 @@ class WhatsAppService:
         doc_title = doc_display.strip() if doc_display else "مستند معتمد"
 
         # تفصيل النصوص الواقعية حسب نوع القالب والمستند المحدد
-        if template_name in ("document_send_ar", "document_send_en"):
+        if template_name in ("document_share_ar", "document_send_ar", "document_send_en", "document_share_en"):
             raw_text = "مرحباً بك أ/ {{1}}، تم إصدار مستند جديد لحسابكم وهو {{2}} بقيمة {{3}}، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {{4}} ويسعدنا دائماً خدمتكم."
-            mock_text = f"مرحباً بك أ/ شركة الأمل للتجارة والمقاولات، تم إصدار مستند جديد لحسابكم وهو {doc_title} برقم INV-2026-0042 بقيمة 15,450.00 ج.م، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {site_name} ويسعدنا دائماً خدمتكم."
+            mock_text = f"مرحباً بك أ/ شركة الأمل للتجارة والمقاولات، تم إصدار مستند جديد لحسابكم وهو {doc_title} برقم INV-2026-0042 بقيمة 15,450 ج.م، وتجدون كافة التفاصيل بالملف المرفق. شكراً لتعاملكم مع {site_name} ويسعدنا دائماً خدمتكم."
             return {
                 "title": f"معاينة {doc_title}",
                 "template_name": template_name,
@@ -1438,14 +1580,14 @@ class WhatsAppService:
                 "variables": [
                     {"code": "{{1}}", "name": "اسم الشريك / المستلم", "example": "شركة الأمل للتجارة والمقاولات"},
                     {"code": "{{2}}", "name": "نوع ورقم المستند", "example": f"{doc_title} برقم INV-2026-0042"},
-                    {"code": "{{3}}", "name": "القيمة الإجمالية", "example": "15,450.00 ج.م"},
+                    {"code": "{{3}}", "name": "القيمة الإجمالية", "example": "15,450 ج.م"},
                     {"code": "{{4}}", "name": "اسم المنشأة", "example": site_name},
                 ]
             }
 
         elif template_name in ("payment_receipt_ar", "payment_receipt_en"):
             raw_text = "مرحباً بك أ/ {{1}}، تم استلام وتسجيل دفعة مالية بقيمة {{2}} بموجب سند رقم {{3}}، ورصيدكم المتبقي {{4}}. شكراً لتعاملكم مع {{5}} ويسعدنا خدمتكم."
-            mock_text = f"مرحباً بك أ/ م. محمود عبد العزيز، تم تسجيل {doc_title} بقيمة 5,000.00 ج.م بموجب إيصال رقم REC-2026-0089، ورصيدكم المتبقي 10,450.00 ج.م. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم."
+            mock_text = f"مرحباً بك أ/ م. محمود عبد العزيز، تم تسجيل {doc_title} بقيمة 5,000 ج.م بموجب إيصال رقم REC-2026-0089، ورصيدكم المتبقي 10,450 ج.م. شكراً لتعاملكم مع {site_name} ويسعدنا خدمتكم."
             return {
                 "title": f"معاينة {doc_title}",
                 "template_name": template_name,
@@ -1457,9 +1599,9 @@ class WhatsAppService:
                 "rendered_text": mock_text,
                 "variables": [
                     {"code": "{{1}}", "name": "اسم الشريك / المستلم", "example": "م. محمود عبد العزيز"},
-                    {"code": "{{2}}", "name": "المبلغ المالي", "example": "5,000.00 ج.م"},
+                    {"code": "{{2}}", "name": "المبلغ المالي", "example": "5,000 ج.م"},
                     {"code": "{{3}}", "name": "رقم السند / الإيصال", "example": "REC-2026-0089"},
-                    {"code": "{{4}}", "name": "الرصيد المتبقي بعد الحركة", "example": "10,450.00 ج.م"},
+                    {"code": "{{4}}", "name": "الرصيد المتبقي بعد الحركة", "example": "10,450 ج.م"},
                     {"code": "{{5}}", "name": "اسم المنشأة", "example": site_name},
                 ]
             }

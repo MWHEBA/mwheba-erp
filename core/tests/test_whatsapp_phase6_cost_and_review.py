@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
 """
-مصفوفة الاختبارات الآلية الشاملة للمرحلة السادسة (Phase 6: Cost Ledger, SLA Health, Simulator & Meta Compliance)
+مصفوفة الاختبارات الآلية الشاملة للمرحلة السادسة (Phase 6: Cost Ledger, SLA Health & Meta Compliance)
 MWHEBA ERP — WhatsApp Phase 6 Pytest Matrix
 """
 import json
@@ -13,7 +12,6 @@ from django.contrib.auth import get_user_model
 from core.models import WhatsAppAccount, WhatsAppMessageLog, WhatsAppCampaign
 from core.services.whatsapp_cost_service import WhatsAppCostService
 from core.services.whatsapp_metrics_service import WhatsAppMetricsService
-from core.services.whatsapp_simulator_service import WhatsAppSimulatorService
 
 User = get_user_model()
 
@@ -102,21 +100,8 @@ class TestWhatsAppPhase6CostAndReview:
         assert sla['sla_compliance_rate'] == 100.0
         assert sla['status'] == 'HEALTHY'
 
-    def test_simulator_service_invoice_generation_and_dispatch(self):
-        """3. اختبار محاكي إرسال الفواتير لفيديو اعتماد Meta"""
-        pdf_bytes = WhatsAppSimulatorService.generate_demo_invoice_pdf("INV-DEMO-2026", "Test Customer", 500.0)
-        assert pdf_bytes.startswith(b"%PDF")
-
-        res = WhatsAppSimulatorService.send_simulator_test_invoice(
-            recipient_phone="201012345678",
-            account_id=self.account.id,
-            invoice_number="INV-DEMO-2026"
-        )
-        assert res['success'] is True
-        assert 'INV-DEMO-2026' in res.get('message', '') or 'wamid' in res.get('message_id', '')
-
     def test_phase6_apis(self):
-        """4. اختبار مسارات الـ API لمقاييس الـ SLA وتحليلات التكلفة والمحاكي"""
+        """3. اختبار مسارات الـ API لمقاييس الـ SLA وتحليلات التكلفة"""
         # SLA API
         res_sla = self.client.get(reverse('core:whatsapp_sla_metrics'))
         assert res_sla.status_code == 200
@@ -130,16 +115,6 @@ class TestWhatsAppPhase6CostAndReview:
         data_cost = json.loads(res_cost.content)
         assert data_cost['success'] is True
         assert 'summary' in data_cost
-
-        # Simulator Dispatch API
-        res_sim = self.client.post(
-            reverse('core:whatsapp_simulator_dispatch'),
-            data=json.dumps({'recipient_phone': '201099887766', 'invoice_number': 'INV-TEST-001'}),
-            content_type='application/json'
-        )
-        assert res_sim.status_code == 200
-        data_sim = json.loads(res_sim.content)
-        assert data_sim['success'] is True
 
     def test_meta_compliance_pages_and_data_deletion_callback(self):
         """5. اختبار صفحات الامتثال ومسار حذف البيانات المعتمد لـ Meta للزوار والمراجعين بدون تسجيل دخول (Public Access)"""

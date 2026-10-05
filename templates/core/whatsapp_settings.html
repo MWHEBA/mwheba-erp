@@ -20,7 +20,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="diagnostics-tab" data-bs-toggle="tab" data-bs-target="#diagnostics" type="button" role="tab" aria-controls="diagnostics" aria-selected="false">
-                        <i class="fas fa-heartbeat me-2 text-danger"></i>{% trans "الفحص والتشخيص الحي" %}
+                        <i class="fas fa-heartbeat me-2 text-danger"></i>{% trans "الفحص الحي" %}
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -35,7 +35,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="tiers-tab" data-bs-toggle="tab" data-bs-target="#tiers" type="button" role="tab" aria-controls="tiers" aria-selected="false">
-                        <i class="fas fa-chart-line me-2 text-info"></i>{% trans "جودة الرقم وسقف التراسل والترقي" %}
+                        <i class="fas fa-chart-line me-2 text-info"></i>{% trans "جودة الرقم" %}
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -340,10 +340,10 @@
                                 <div>
                                     <h5 class="fw-bold text-dark mb-1">
                                         <i class="fas fa-heartbeat text-danger me-2 fs-4"></i>
-                                        {% trans "مركز الفحص والتشخيص الحي والمحاكاة" %}
+                                        {% trans "مركز الفحص والتشخيص" %}
                                     </h5>
                                     <p class="text-muted small mb-0">
-                                        {% trans "فحص استقرار الاتصال بـ Meta، قياس زمن الاستجابة، إرسال رسائل تجريبية، ومراقبة مؤشرات Ingress SLA ومحاكي الفواتير." %}
+                                        {% trans "فحص استقرار الاتصال بـ Meta، قياس زمن الاستجابة، إرسال رسائل تجريبية، ومراقبة مؤشرات Ingress SLA." %}
                                     </p>
                                 </div>
                                 <div class="d-flex align-items-center gap-2">
@@ -448,8 +448,8 @@
                                         <div class="mb-3">
                                             <label class="form-label fw-bold small text-dark" for="testTemplateSelect">{% trans "نوع القالب التجريبي:" %}</label>
                                             <select class="form-select form-select-sm font-monospace" id="testTemplateSelect">
-                                                <option value="document_send_ar" selected>{% trans "فاتورة مبيعات معتمدة (document_send_ar)" %}</option>
-                                                <option value="payment_receipt_ar">{% trans "سند قبض مالي (payment_receipt_ar)" %}</option>
+                                                <option value="document_share_ar" selected>{% trans "إرسال مستند مالي مع ملف PDF (document_share_ar)" %}</option>
+                                                <option value="payment_receipt_ar">{% trans "سند قبض مالي مع ملف PDF (payment_receipt_ar)" %}</option>
                                                 <option value="order_status_ar">{% trans "تحديث حالة طلب (order_status_ar)" %}</option>
                                                 <option value="welcome_new_customer">{% trans "ترحيب بالعميل الجديد (welcome_new_customer)" %}</option>
                                                 <option value="otp_code">{% trans "رمز التحقق OTP (otp_code)" %}</option>
@@ -478,18 +478,26 @@
                             </div>
                         </div>
 
-                        <!-- Phase 6: SLA & Webhook Ingress Health Widget + Meta App Review Simulator -->
+                        <!-- Phase 6: SLA & Webhook Ingress Health Widget -->
                         <div class="row g-4 mb-4">
-                            <!-- 1. مؤشر كفاءة واستقرار الـ Ingress والـ SLA (<20ms SLA Widget) -->
-                            <div class="col-lg-6">
+                            <!-- مؤشر كفاءة واستقرار الـ Ingress والـ SLA (<20ms SLA Widget) -->
+                            <div class="col-12">
                                 <div class="card border h-100 shadow-sm">
                                     <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
                                         <h6 class="fw-bold mb-0 text-dark">
-                                            <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "مؤشر كفاءة استقبال Webhook Ingress (<20ms SLA)" %}
+                                            <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "مؤشر كفاءة واستقرار استقبال Webhook Ingress (<20ms SLA)" %}
                                         </h6>
-                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="btnRefreshSLA" title="{% trans 'تحديث مؤشرات الـ SLA' %}">
-                                            <i class="fas fa-sync-alt"></i>
-                                        </button>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <a href="{% url 'core:whatsapp_privacy_policy' %}" target="_blank" class="text-decoration-none font-xs text-muted">
+                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "سياسة الخصوصية" %}
+                                            </a>
+                                            <a href="{% url 'core:whatsapp_terms' %}" target="_blank" class="text-decoration-none font-xs text-muted">
+                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "شروط الخدمة" %}
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="btnRefreshSLA" title="{% trans 'تحديث مؤشرات الـ SLA' %}">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="card-body p-4">
                                         <div class="row g-3 text-center mb-3">
@@ -521,38 +529,6 @@
                                         <div class="d-flex justify-content-between align-items-center small text-muted">
                                             <span><i class="fas fa-check-circle text-success me-1"></i>{% trans "الحد المعتمد رسمياً لـ Meta: استجابة فورية أقل من 20 مللي ثانية." %}</span>
                                             <span class="badge bg-success-subtle text-success border border-success-subtle" id="slaStatusBadge">HEALTHY</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 2. محاكي فيديو مراجعة Meta (Meta App Review Simulator) -->
-                            <div class="col-lg-6">
-                                <div class="card border h-100 shadow-sm">
-                                    <div class="card-header bg-light py-3">
-                                        <h6 class="fw-bold mb-0 text-dark">
-                                            <i class="fas fa-video text-danger me-2"></i>{% trans "محاكي إرسال الفواتير لفيديو اعتماد Meta (App Review)" %}
-                                        </h6>
-                                    </div>
-                                    <div class="card-body p-4">
-                                        <p class="text-muted small mb-3">
-                                            {% trans "يولد ويرسل فاتورة PDF تجريبية فورية بنقرة واحدة لتسجيل فيديو المراجعة لـ Meta خلال أقل من دقيقة." %}
-                                        </p>
-                                        <div class="input-group input-group-sm mb-3">
-                                            <span class="input-group-text bg-light"><i class="fas fa-phone-alt"></i></span>
-                                            <input type="tel" class="form-control font-monospace" id="simulatorPhoneInput" placeholder="2010xxxxxxxx" dir="ltr">
-                                            <button type="button" class="btn btn-danger fw-bold px-3" id="btnDispatchSimulator">
-                                                <span id="simSpinner" class="spinner-border spinner-border-sm d-none me-1"></span>
-                                                <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال فاتورة تجريبية فوراً" %}
-                                            </button>
-                                        </div>
-                                        <div class="d-flex gap-3 font-xs text-muted">
-                                            <a href="{% url 'core:whatsapp_privacy_policy' %}" target="_blank" class="text-decoration-none">
-                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "سياسة الخصوصية" %}
-                                            </a>
-                                            <a href="{% url 'core:whatsapp_terms' %}" target="_blank" class="text-decoration-none">
-                                                <i class="fas fa-external-link-alt me-1"></i>{% trans "شروط الخدمة" %}
-                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -2008,26 +1984,17 @@
                         <!-- Switches Row -->
                         <div class="col-12">
                             <div class="card bg-light border p-3">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" role="switch" id="modalIsCoexistence" name="is_coexistence" checked>
-                                            <label class="form-check-label fw-bold small text-dark" for="modalIsCoexistence">
-                                                {% trans "وضع التعايش المتوازي (Coexistence)" %}
-                                            </label>
-                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "تشغيل نفس الرقم على الموبايل والـ ERP بالتوازي." %}</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
+                                <div class="row g-3 align-items-center">
+                                    <div class="col-md-6">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="modalIsDefault" name="is_default">
                                             <label class="form-check-label fw-bold small text-dark" for="modalIsDefault">
                                                 {% trans "تعيين كحساب افتراضي للنظام" %}
                                             </label>
-                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "استخدامه تلقائياً في إرسال المستندات." %}</div>
+                                            <div class="text-muted" style="font-size: 0.75rem;">{% trans "استخدامه تلقائياً في إرسال الفواتير والمستندات." %}</div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" role="switch" id="modalIsActive" name="is_active" checked>
                                             <label class="form-check-label fw-bold small text-dark" for="modalIsActive">
@@ -2235,7 +2202,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalAccessToken').required = true;
             document.getElementById('modalTokenRequiredStar').classList.remove('d-none');
             document.getElementById('modalTokenHelpText').textContent = '{% trans "رمز وصول Meta الدائم (System User Token)." %}';
-            document.getElementById('modalIsCoexistence').checked = true;
             document.getElementById('modalIsActive').checked = true;
             document.getElementById('modalIsDefault').checked = false;
             accountModal.show();
@@ -2259,9 +2225,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modalAccessToken').placeholder = '•••••••••••••••• (محفوظ ومحمي)';
             document.getElementById('modalAccessToken').required = false;
             document.getElementById('modalTokenRequiredStar').classList.add('d-none');
-            document.getElementById('modalTokenHelpText').textContent = '{% trans "التوكن الحالي مشفر ومحمي. اتركه فارغاً للإبقاء عليه، أو اكتب قيمة جديدة لتحديثه." %}';
+            document.getElementById('modalTokenHelpText').textContent = '{% trans "التوكن الحالي مشفر ومحمياتركه فارغاً للإبقاء عليه، أو اكتب قيمة جديدة لتحديثه." %}';
 
-            document.getElementById('modalIsCoexistence').checked = (d.isCoexistence === 'true');
             document.getElementById('modalIsDefault').checked = (d.isDefault === 'true');
             document.getElementById('modalIsActive').checked = (d.isActive === 'true');
 
@@ -2292,7 +2257,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 waba_id: document.getElementById('modalWabaId').value.trim(),
                 access_token: document.getElementById('modalAccessToken').value.trim(),
                 notes: document.getElementById('modalNotes').value.trim(),
-                is_coexistence: document.getElementById('modalIsCoexistence').checked,
                 is_default: document.getElementById('modalIsDefault').checked,
                 is_active: document.getElementById('modalIsActive').checked
             };
@@ -2576,8 +2540,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const testTemplateSelect = document.getElementById('testTemplateSelect');
     const testTemplateHint = document.getElementById('testTemplateHint');
     const hintsMap = {
+        'document_share_ar': '{% trans "يرسل فاتورة أو مستند تجريبي مع رأس ملف PDF معتمد لـ Meta." %}',
         'document_send_ar': '{% trans "يرسل فاتورة تجريبية برقم اختباري وإجمالي معتمد لـ Meta." %}',
-        'payment_receipt_ar': '{% trans "يرسل سند قبض مالي بمبلغ تجريبي وتحديث للرصيد." %}',
+        'payment_receipt_ar': '{% trans "يرسل سند قبض مالي بمبلغ تجريبي ورأس ملف PDF وتحديث للرصيد." %}',
         'order_status_ar': '{% trans "يرسل تحديث حالة طلبية وتأكيد جاهزية التسليم." %}',
         'welcome_new_customer': '{% trans "يرسل رسالة ترحيبية بالاسم المسجل في المنشأة." %}',
         'otp_code': '{% trans "يرسل رمز تحقق أمني مؤقت مكون من 6 أرقام مع زر نسخ آلي." %}'
@@ -2597,7 +2562,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnSendTest && testPhoneInput) {
         btnSendTest.addEventListener('click', function() {
             const phone = testPhoneInput.value.trim();
-            const template = testTemplateSelect ? testTemplateSelect.value : 'document_send_ar';
+            const template = testTemplateSelect ? testTemplateSelect.value : 'document_share_ar';
 
             if (!phone) {
                 if (window.showNotification) {
@@ -3030,53 +2995,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btnRefreshSLA.addEventListener('click', fetchSLAMetrics);
     }
 
-    // 13. Phase 6: محاكي إرسال الفاتورة التجريبية لفيديو مراجعة Meta
-    const btnDispatchSim = document.getElementById('btnDispatchSimulator');
-    if (btnDispatchSim) {
-        btnDispatchSim.addEventListener('click', function() {
-            const phoneInput = document.getElementById('simulatorPhoneInput');
-            const phone = phoneInput ? phoneInput.value.trim() : '';
-            if (!phone) {
-                if (window.showNotification) window.showNotification('{% trans "يرجى إدخال رقم هاتف المستلم التجريبي" %}', 'warning');
-                else alert('{% trans "يرجى إدخال رقم هاتف المستلم التجريبي" %}');
-                return;
-            }
-
-            const spinner = document.getElementById('simSpinner');
-            btnDispatchSim.disabled = true;
-            if (spinner) spinner.classList.remove('d-none');
-
-            fetch('{% url "core:whatsapp_simulator_dispatch" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({
-                    recipient_phone: phone,
-                    invoice_number: 'INV-DEMO-2026'
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                btnDispatchSim.disabled = false;
-                if (spinner) spinner.classList.add('d-none');
-
-                if (data.success) {
-                    if (window.showNotification) window.showNotification(data.message || '{% trans "تم إرسال الفاتورة التجريبية بنجاح 🚀" %}', 'success');
-                    else alert(data.message);
-                } else {
-                    if (window.showNotification) window.showNotification(data.error || '{% trans "فشل الإرسال" %}', 'error');
-                    else alert(data.error);
-                }
-            })
-            .catch(err => {
-                btnDispatchSim.disabled = false;
-                if (spinner) spinner.classList.add('d-none');
-                if (window.showNotification) window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
-            });
-        });
-    }
 
     // التشغيل التلقائي لفحص الاتصال والجاهزية ومقاييس SLA في الخلفية عند تحميل الصفحة
     executeConnectionTest(false, true);

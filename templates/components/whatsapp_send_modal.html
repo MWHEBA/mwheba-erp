@@ -88,6 +88,7 @@
                         <div class="form-text text-muted small">{% trans "اختر رقم وحساب المنشأة المرسل منه المستند." %}</div>
                     </div>
 
+
                     <!-- Recipient Selection -->
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-dark mb-2">
@@ -95,6 +96,12 @@
                             {% trans "اختر رقم المستلم:" %}
                         </label>
                         
+                        <!-- No Phone Recorded Notice -->
+                        <div id="waNoPhoneRecordedHint" class="alert alert-warning py-2 px-3 mb-2 d-none small">
+                            <i class="fas fa-info-circle text-warning me-1"></i>
+                            {% trans "لا يوجد رقم هاتف مسجل لهذا الطرف. يرجى كتابة الرقم بالأسفل لتفعيل الإرسال." %}
+                        </div>
+
                         <!-- Contact Options Select -->
                         <div id="waPhoneSelectWrapper" class="mb-2">
                             <select id="waPhoneSelect" class="form-select form-select-sm" dir="rtl">
@@ -193,6 +200,7 @@
     const elCustomWrap = document.getElementById('waCustomPhoneWrapper');
     const elCustomInput = document.getElementById('waCustomPhoneInput');
     const elLandlineWarn = document.getElementById('waLandlineWarning');
+    const elNoPhoneHint = document.getElementById('waNoPhoneRecordedHint');
     const elOptOut = document.getElementById('waOptOutAlert');
     const elSubmitBtn = document.getElementById('waSubmitBtn');
     const elBtnSpinner = document.getElementById('waBtnSpinner');
@@ -356,9 +364,14 @@
                     elAccountSelectWrap.classList.add('d-none');
                 }
 
+                if (data.template_name) {
+                    currentPayload.templateName = data.template_name;
+                }
+
                 // تعبئة أرقام الهاتف
                 elPhoneSelect.innerHTML = '';
                 if (data.phone_options && data.phone_options.length > 0) {
+                    if (elNoPhoneHint) elNoPhoneHint.classList.add('d-none');
                     data.phone_options.forEach((opt) => {
                         const optEl = document.createElement('option');
                         optEl.value = opt.phone;
@@ -369,6 +382,7 @@
                     const firstIsLand = data.phone_options[0].is_landline;
                     elLandlineWarn.classList.toggle('d-none', !firstIsLand);
                 } else {
+                    if (elNoPhoneHint) elNoPhoneHint.classList.remove('d-none');
                     const emptyOpt = document.createElement('option');
                     emptyOpt.value = '';
                     emptyOpt.textContent = '{% trans "لا توجد أرقام مسجلة — أدخل يدوياً" %}';
@@ -377,17 +391,14 @@
                         elCustomCheck.checked = true;
                         elCustomWrap.classList.remove('d-none');
                         elPhoneSelectWrap.classList.add('d-none');
+                        setTimeout(() => elCustomInput && elCustomInput.focus(), 250);
                     }
                 }
 
-                if (!data.can_send) {
-                    elSubmitBtn.disabled = true;
-                    if (data.cannot_send_reason) {
-                        elError.classList.remove('d-none');
-                        elErrorMsg.textContent = data.cannot_send_reason;
-                    }
-                } else {
-                    elSubmitBtn.disabled = false;
+                updateSubmitButtonState(data.can_send);
+                if (!data.can_send && data.cannot_send_reason) {
+                    elError.classList.remove('d-none');
+                    elErrorMsg.textContent = data.cannot_send_reason;
                 }
             })
             .catch(err => {
@@ -396,6 +407,27 @@
                 elErrorMsg.textContent = '{% trans "فشل الاتصال بالخادم، يرجى إعادة المحاولة." %}';
             });
     };
+
+    function updateSubmitButtonState(backendCanSend = true) {
+        if (!elSubmitBtn) return;
+        let hasPhone = false;
+        if (elCustomCheck && elCustomCheck.checked) {
+            hasPhone = Boolean(elCustomInput && elCustomInput.value.trim().length >= 7);
+        } else {
+            hasPhone = Boolean(elPhoneSelect && elPhoneSelect.value && elPhoneSelect.value.trim().length >= 7);
+        }
+        elSubmitBtn.disabled = !backendCanSend || !hasPhone;
+    }
+
+    if (elPhoneSelect) {
+        elPhoneSelect.addEventListener('change', () => updateSubmitButtonState(true));
+    }
+    if (elCustomInput) {
+        elCustomInput.addEventListener('input', () => updateSubmitButtonState(true));
+    }
+    if (elCustomCheck) {
+        elCustomCheck.addEventListener('change', () => updateSubmitButtonState(true));
+    }
 
     /**
      * إرسال الرسالة إلى السيرفر
@@ -421,6 +453,7 @@
             }
 
             const selectedAccountId = elAccountSelect ? elAccountSelect.value : null;
+            const selectedTemplate = currentPayload.templateName || null;
 
             // تفعيل حالة التحميل والقفل لمنع التكرار (Debounce)
             isSending = true;
@@ -440,7 +473,7 @@
                 partner_type: currentPayload.partnerType,
                 phone: targetPhone,
                 is_custom_phone: isCustom,
-                template_name: currentPayload.templateName,
+                template_name: selectedTemplate,
                 from_date: currentPayload.fromDate,
                 to_date: currentPayload.toDate,
                 account_id: selectedAccountId

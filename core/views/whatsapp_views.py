@@ -511,56 +511,68 @@ def whatsapp_send_document(request):
     POST /api/whatsapp/send/
     """
     try:
-        data = json.loads(request.body) if request.body else request.POST
-    except Exception:
-        data = request.POST
+        try:
+            data = json.loads(request.body) if request.body else request.POST
+        except Exception:
+            data = request.POST
 
-    ct_id = data.get('content_type_id')
-    obj_id = data.get('object_id')
-    phone = data.get('phone', data.get('recipient_phone', '')).strip()
-    is_custom_phone = bool(data.get('is_custom_phone', False))
-    template_name = data.get('template_name', '').strip() or None
-    partner_id = data.get('partner_id')
-    partner_type = data.get('partner_type', 'customer')
-    account_id = data.get('account_id')
-
-    if not ct_id or not obj_id or not phone:
-        return JsonResponse({'success': False, 'error': _('البيانات غير مكتملة (رقم الهاتف والمستند مطلوبان)')}, status=400)
-
-    try:
-        content_type = ContentType.objects.get(id=ct_id)
-        model_class = content_type.model_class()
-        content_object = model_class.objects.get(pk=obj_id)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': f'{_("المستند غير موجود")}: {e}'}, status=404)
-
-    if not _check_whatsapp_permission(request.user, content_object):
-        return JsonResponse({'success': False, 'error': _('ليس لديك الصلاحية لإرسال هذا المستند عبر الواتساب')}, status=403)
-
-    partner = None
-    if partner_id:
-        if partner_type == 'supplier':
-            partner = Supplier.objects.filter(pk=partner_id).first()
+        ct_id = data.get('content_type_id')
+        obj_id = data.get('object_id')
+        raw_phone = data.get('phone') or data.get('recipient_phone') or ''
+        phone = str(raw_phone).strip() if raw_phone else ''
+        is_custom_phone = str(data.get('is_custom_phone', '')).lower() in ('true', '1') or bool(data.get('is_custom_phone', False))
+        template_name = str(data.get('template_name', '')).strip() or None
+        partner_id = data.get('partner_id')
+        partner_type = str(data.get('partner_type', 'customer')).strip().lower()
+        account_id = data.get('account_id')
+        if account_id and str(account_id).isdigit():
+            account_id = int(account_id)
         else:
-            partner = Customer.objects.filter(pk=partner_id).first()
+            account_id = None
 
-    extra_params = {
-        'from_date': data.get('from_date', ''),
-        'to_date': data.get('to_date', ''),
-    }
+        if not ct_id or not obj_id or not phone:
+            return JsonResponse({'success': False, 'error': _('البيانات غير مكتملة (رقم الهاتف والمستند مطلوبان)')}, status=400)
 
-    res = DocumentDispatcher.dispatch(
-        content_object=content_object,
-        recipient_phone=phone,
-        template_name=template_name,
-        partner=partner,
-        created_by=request.user,
-        is_custom_phone=is_custom_phone,
-        extra_params=extra_params,
-        account_id=account_id
-    )
+        try:
+            content_type = ContentType.objects.get(id=ct_id)
+            model_class = content_type.model_class()
+            content_object = model_class.objects.get(pk=obj_id)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'{_("المستند غير موجود")}: {e}'}, status=404)
 
-    return JsonResponse(res)
+        if not _check_whatsapp_permission(request.user, content_object):
+            return JsonResponse({'success': False, 'error': _('ليس لديك الصلاحية لإرسال هذا المستند عبر الواتساب')}, status=403)
+
+        partner = None
+        if partner_id:
+            try:
+                if partner_type == 'supplier':
+                    partner = Supplier.objects.filter(pk=partner_id).first()
+                else:
+                    partner = Customer.objects.filter(pk=partner_id).first()
+            except Exception:
+                partner = None
+
+        extra_params = {
+            'from_date': data.get('from_date', ''),
+            'to_date': data.get('to_date', ''),
+        }
+
+        res = DocumentDispatcher.dispatch(
+            content_object=content_object,
+            recipient_phone=phone,
+            template_name=template_name,
+            partner=partner,
+            created_by=request.user,
+            is_custom_phone=is_custom_phone,
+            extra_params=extra_params,
+            account_id=account_id
+        )
+
+        return JsonResponse(res)
+    except Exception as exc:
+        logger.exception(f"Unexpected error in whatsapp_send_document: {exc}")
+        return JsonResponse({'success': False, 'error': f"حدث خطأ أثناء الإرسال: {str(exc)}"}, status=500)
 
 
 @login_required
@@ -979,16 +991,39 @@ def whatsapp_account_save_api(request):
     if not request.user.is_superuser and not request.user.has_perm('core.can_manage_whatsapp_accounts'):
         return JsonResponse({'success': False, 'error': _('غير مصرح لك بإدارة حسابات الواتساب')}, status=403)
 
-    account_id = request.POST.get('account_id')
-    name = request.POST.get('name', '').strip()
-    company_name = request.POST.get('company_name', '').strip()
-    phone_number_id = request.POST.get('phone_number_id', '').strip()
-    waba_id = request.POST.get('waba_id', '').strip()
-    app_id = request.POST.get('app_id', '').strip()
-    raw_token = request.POST.get('access_token', '').strip()
-    is_coexistence = request.POST.get('is_coexistence') == 'on' or request.POST.get('is_coexistence') == 'true'
-    is_default = request.POST.get('is_default') == 'on' or request.POST.get('is_default') == 'true'
-    notes = request.POST.get('notes', '').strip()
+    data = {}
+    if request.content_type == 'application/json' or (request.body and request.body.startswith(b'{')):
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except Exception:
+            data = {}
+
+    account_id = data.get('account_id') or request.POST.get('account_id')
+    name = (data.get('name') if 'name' in data else request.POST.get('name', '')).strip()
+    company_name = (data.get('company_name') if 'company_name' in data else request.POST.get('company_name', '')).strip()
+    phone_number_id = (data.get('phone_number_id') if 'phone_number_id' in data else request.POST.get('phone_number_id', '')).strip()
+    phone_number = (data.get('phone_number') if 'phone_number' in data else request.POST.get('phone_number', '')).strip()
+    waba_id = (data.get('waba_id') if 'waba_id' in data else request.POST.get('waba_id', '')).strip()
+    app_id = (data.get('app_id') if 'app_id' in data else request.POST.get('app_id', '')).strip()
+    raw_token = (data.get('access_token') if 'access_token' in data else request.POST.get('access_token', '')).strip()
+    notes = (data.get('notes') if 'notes' in data else request.POST.get('notes', '')).strip()
+
+    if 'is_coexistence' in data:
+        is_coexistence = bool(data.get('is_coexistence'))
+    elif 'is_coexistence' in request.POST:
+        is_coexistence = request.POST.get('is_coexistence') in ('on', 'true', '1')
+    else:
+        is_coexistence = None
+
+    if 'is_default' in data:
+        is_default = bool(data.get('is_default'))
+    else:
+        is_default = request.POST.get('is_default') in ('on', 'true', '1')
+
+    if 'is_active' in data:
+        is_active = bool(data.get('is_active'))
+    else:
+        is_active = request.POST.get('is_active') in ('on', 'true', '1') if 'is_active' in request.POST else True
 
     if not phone_number_id:
         return JsonResponse({'success': False, 'error': _('معرف رقم الهاتف (Phone Number ID) إلزامي')})
@@ -996,41 +1031,49 @@ def whatsapp_account_save_api(request):
     from ..models import WhatsAppAccount
     from ..services.whatsapp_embedded_signup_service import WhatsAppEmbeddedSignupService
 
-    if account_id:
-        account = get_object_or_404(WhatsAppAccount, pk=account_id)
-        account.name = name or account.name
-        account.company_name = company_name
-        account.phone_number_id = phone_number_id
-        account.waba_id = waba_id
-        account.app_id = app_id
-        account.is_coexistence = is_coexistence
-        account.notes = notes
-        if raw_token:
-            account.access_token = raw_token
-        if is_default:
-            account.is_default = True
-        account.save()
-        message = _("تم تحديث حساب الواتساب بنجاح ✅")
-    else:
-        if not raw_token:
-            return JsonResponse({'success': False, 'error': _('رمز الوصول (Access Token) إلزامي للحساب الجديد')})
-        res = WhatsAppEmbeddedSignupService.complete_onboarding(
-            phone_number_id=phone_number_id,
-            access_token=raw_token,
-            waba_id=waba_id,
-            app_id=app_id,
-            account_name=name,
-            company_name=company_name,
-            is_coexistence=is_coexistence,
-            is_default=is_default,
-            notes=notes
-        )
-        if not res.get("success"):
-            return JsonResponse(res)
-        message = _("تم ربط وتشفير حساب الواتساب بنجاح ✅")
+    try:
+        if account_id:
+            account = get_object_or_404(WhatsAppAccount, pk=account_id)
+            account.name = name or account.name
+            account.company_name = company_name
+            account.phone_number_id = phone_number_id
+            if phone_number:
+                account.display_phone_number = phone_number
+            account.waba_id = waba_id
+            account.app_id = app_id
+            if is_coexistence is not None:
+                account.is_coexistence = is_coexistence
+            account.account_status = 'CONNECTED' if is_active else 'DISCONNECTED'
+            account.notes = notes
+            if raw_token:
+                account.access_token = raw_token
+            if is_default:
+                account.is_default = True
+            account.save()
+            message = _("تم تحديث حساب الواتساب بنجاح ✅")
+        else:
+            if not raw_token:
+                return JsonResponse({'success': False, 'error': _('رمز الوصول (Access Token) إلزامي للحساب الجديد')})
+            res = WhatsAppEmbeddedSignupService.complete_onboarding(
+                phone_number_id=phone_number_id,
+                access_token=raw_token,
+                waba_id=waba_id,
+                app_id=app_id,
+                account_name=name,
+                company_name=company_name,
+                is_coexistence=is_coexistence,
+                is_default=is_default,
+                notes=notes
+            )
+            if not res.get("success"):
+                return JsonResponse({'success': False, 'error': res.get('error', _('فشل ربط الحساب'))})
+            message = _("تم ربط وتشفير حساب الواتساب بنجاح ✅")
 
-    WhatsAppService.reset_session()
-    return JsonResponse({'success': True, 'message': message})
+        WhatsAppService.reset_session()
+        return JsonResponse({'success': True, 'message': message})
+    except Exception as exc:
+        logger.exception("Error saving WhatsApp account")
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
 
 @login_required
@@ -1871,7 +1914,7 @@ def whatsapp_campaign_delete_api(request, campaign_id):
     return JsonResponse({'success': True, 'message': _('تم حذف الحملة بنجاح 🗑️')})
 
 
-# ==================== 10. المرحلة السادسة: سجل التكاليف، مقاييس SLA، ومحاكي مراجعة Meta ====================
+# ==================== 10. المرحلة السادسة: سجل التكاليف ومقاييس SLA ====================
 
 @login_required
 @require_GET
@@ -1905,40 +1948,6 @@ def whatsapp_cost_analytics_api(request):
     summary = WhatsAppCostService.get_cost_analytics_summary(account_id=int(account_id) if account_id else None, days=days)
     return JsonResponse({'success': True, 'summary': summary})
 
-
-@login_required
-@require_POST
-@csrf_protect
-def whatsapp_simulator_dispatch_api(request):
-    """
-    محاكي إرسال فاتورة تجريبية فورية لبروتوكول فيديو مراجعة Meta (Meta App Review Protocol)
-    POST /api/whatsapp/simulator/dispatch/
-    Body: {"recipient_phone": "2010...", "account_id": 1, "invoice_number": "INV-DEMO-2026"}
-    """
-    if not request.user.is_superuser and not request.user.has_perm('core.can_send_whatsapp'):
-        return JsonResponse({'success': False, 'error': _('غير مصرح')}, status=403)
-
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        return JsonResponse({'success': False, 'error': _('بيانات الطلب غير صالحة')}, status=400)
-
-    recipient_phone = data.get('recipient_phone', '').strip()
-    account_id = data.get('account_id')
-    invoice_number = data.get('invoice_number', 'INV-DEMO-2026').strip()
-
-    if not recipient_phone:
-        return JsonResponse({'success': False, 'error': _('يرجى إدخال رقم هاتف المستلم التجريبي')}, status=400)
-
-    from core.services.whatsapp_simulator_service import WhatsAppSimulatorService
-    res = WhatsAppSimulatorService.send_simulator_test_invoice(
-        recipient_phone=recipient_phone,
-        account_id=int(account_id) if account_id else None,
-        invoice_number=invoice_number,
-        user=request.user
-    )
-
-    return JsonResponse(res)
 
 
 # ==================== 11. صفحات الامتثال والخصوصية ومسار حذف البيانات المعتمد لـ Meta ====================

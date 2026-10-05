@@ -69,7 +69,7 @@ class DocumentDispatcher:
             "cannot_send_reason": "",
             "has_pdf": True,
             "pdf_filename": "Document.pdf",
-            "template_name": "document_send_ar",
+            "template_name": "document_share_ar",
             "language_code": "ar",
             "financial_summary": "",
             "components": [],
@@ -117,7 +117,7 @@ class DocumentDispatcher:
             currency_code = getattr(getattr(content_object, "currency", None), "symbol", "ج.م")
 
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, currency_code)} | المتبقي: {WhatsAppService.format_currency_amount(remaining, currency_code)}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 2. عرض أسعار (Quotation)
@@ -138,7 +138,7 @@ class DocumentDispatcher:
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             currency_code = getattr(getattr(content_object, "currency", None), "symbol", "ج.م")
             info["financial_summary"] = f"إجمالي العرض: {WhatsAppService.format_currency_amount(grand_total, currency_code)}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 3. أمر بيع / طلبية (SalesOrder)
@@ -154,7 +154,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "grand_total", getattr(content_object, "total", 0))) or 0))
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 4. إذن تسليم بضاعة (DeliveryNote)
@@ -168,7 +168,7 @@ class DocumentDispatcher:
             info["status_display"] = getattr(content_object, "get_status_display", lambda: info["status"])()
             info["pdf_filename"] = f"DeliveryNote_{info['doc_number']}.pdf"
             info["financial_summary"] = "إذن تسليم واستلام بضاعة معتمد"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 5. مرتجع مبيعات (SaleReturn)
@@ -188,7 +188,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"إجمالي المرتجع: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 6. إشعار دائن (CreditNote)
@@ -204,7 +204,7 @@ class DocumentDispatcher:
 
             amount = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "amount", 0)) or 0))
             info["financial_summary"] = f"مبلغ الإشعار الدائن: {WhatsAppService.format_currency_amount(amount, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 7. كشف حساب عميل (Customer Statement)
@@ -221,7 +221,7 @@ class DocumentDispatcher:
 
             bal = Decimal(str(getattr(content_object, "balance", 0) or 0))
             info["financial_summary"] = f"الرصيد الحالي: {WhatsAppService.format_currency_amount(bal, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 8 & 9. سندات القبض والدفع (Payment Vouchers / Receipts)
@@ -255,7 +255,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"DebitNote_{info['doc_number']}.pdf"
             amount = Decimal(str(getattr(content_object, "amount", 0) or 0))
             info["financial_summary"] = f"مبلغ الإشعار المدين: {WhatsAppService.format_currency_amount(amount, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 10.b قيد يومية معتمد (JournalEntry)
@@ -267,7 +267,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"JV_{info['doc_number']}.pdf"
             total_dr = Decimal(str(getattr(content_object, "total_debit", 0) or 0))
             info["financial_summary"] = f"إجمالي القيد: {WhatsAppService.format_currency_amount(total_dr, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 10.c مناقلات الخزائن والعهد (CustodyTransfer)
@@ -299,7 +299,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "grand_total", getattr(content_object, "total", 0))) or 0))
             info["financial_summary"] = f"إجمالي أمر الشراء: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 12. إذن استلام بضاعة بالمخزن (GoodsReceivedNote / GRN)
@@ -313,7 +313,7 @@ class DocumentDispatcher:
             info["status_display"] = getattr(content_object, "get_status_display", lambda: info["status"])()
             info["pdf_filename"] = f"GRN_{info['doc_number']}.pdf"
             info["financial_summary"] = "إذن استلام بضاعة معتمد بالمخزن"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 12.b فاتورة مشتريات / مطالبة مورد (Purchase / SupplierBill)
@@ -329,7 +329,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 13. مرتجع مشتريات (PurchaseReturn)
@@ -345,7 +345,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"إجمالي المرتجع: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 14. كشف حساب مورد (Supplier Statement)
@@ -362,7 +362,7 @@ class DocumentDispatcher:
 
             bal = Decimal(str(getattr(content_object, "balance", 0) or 0))
             info["financial_summary"] = f"الرصيد الحالي: {WhatsAppService.format_currency_amount(bal, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 15. أمر شغل تصنيع وإنتاج (WorkOrder)
@@ -377,7 +377,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"WorkOrder_{info['doc_number']}.pdf"
             cost = Decimal(str(getattr(content_object, "estimated_cost", 0) or 0))
             info["financial_summary"] = f"الحالة: {info['status_display']} | التكلفة التقديرية: {WhatsAppService.format_currency_amount(cost, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 16. عرض تسعير مطبوعات (PrintingOrder)
@@ -391,7 +391,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "final_price", getattr(content_object, "grand_total", getattr(content_object, "total_price", 0))) or 0))
             info["financial_summary"] = f"إجمالي العرض: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 17. إذن تحويل بين المخازن (StockTransfer)
@@ -404,7 +404,7 @@ class DocumentDispatcher:
             product_name = getattr(getattr(content_object, "product", None), "name", "")
             qty = getattr(content_object, "quantity", 0)
             info["financial_summary"] = f"تحويل: {product_name} (كمية: {qty})" if product_name else "إذن تحويل مخزني معتمد"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 18. سلفة / عهدة مالية (EmployeeAdvance / EmployeeCustodyAdvance / Advance)
@@ -432,7 +432,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"Payslip_{slip_no}.pdf"
             net_salary = Decimal(str(getattr(content_object, "net_salary", 0) or 0))
             info["financial_summary"] = f"صافي الراتب: {WhatsAppService.format_currency_amount(net_salary, 'ج.م')}"
-            info["template_name"] = "document_send_ar"
+            info["template_name"] = "document_share_ar"
 
         # ----------------------------------------------------
         # 20. إشعار الموافقة على طلب إجازة (LeaveRequest / Leave)
@@ -647,14 +647,14 @@ class DocumentDispatcher:
         """
         بناء مصفوفة معاملات القالب بمطابقة 100% لعقد Meta البرمجي الصارم
         """
-        template_name = info.get("template_name", "document_send_ar")
+        template_name = info.get("template_name", "document_share_ar")
         recipient_name = info.get("partner_name") or "عميلنا العزيز"
         doc_label = info.get("doc_number_bidi") or WhatsAppService.isolate_bidi(info.get("doc_number", ""))
         financial_sum = info.get("financial_summary") or "مستند صادر معتمد"
         site_name = info.get("site_name") or SystemSetting.get_site_name()
 
-        # 1. قالب إرسال المستندات (document_send_ar / document_send_en)
-        if template_name in ("document_send_ar", "document_send_en"):
+        # 1. قالب إرسال المستندات (document_share_ar / document_send_ar / document_send_en)
+        if template_name in ("document_share_ar", "document_send_ar", "document_send_en", "document_share_en"):
             if template_name.endswith("_en") and recipient_name == "عميلنا العزيز":
                 recipient_name = "Valued Customer"
             return [{
@@ -729,9 +729,56 @@ class DocumentDispatcher:
                 ]
             }]
 
+        # 6. قالب الاختبار العام المعتمد من Meta (hello_world)
+        elif template_name == "hello_world":
+            return []
+
         return []
 
     # ==================== 3. توليد ملفات الـ PDF الثنائية في الذاكرة ====================
+
+    @classmethod
+    def _build_full_document_context(cls, content_object: Any, extra_params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        بناء سياق طباعة موحد وكامل متضمناً شعار وهوية الشركة وبيانات الفوتر والترويسة
+        لكافة المستندات لإنتاج ملف PDF رسمي فائق الجودة مطابق للواجهة 100%
+        """
+        from ..models import SystemSetting
+        settings_dict = SystemSetting._get_all_settings_dict()
+
+        company_name = settings_dict.get("company_name") or "مؤسسة موهبة"
+        company_address = settings_dict.get("company_address", "")
+        company_phone = settings_dict.get("company_phone", "")
+        company_tax_number = settings_dict.get("company_tax_number", "")
+        company_logo = settings_dict.get("company_logo", "")
+        company_stamp = settings_dict.get("company_stamp", "")
+        company_email = settings_dict.get("company_email", "")
+        company_website = settings_dict.get("company_website", "")
+
+        currency_symbol = getattr(getattr(content_object, "currency", None), "symbol", None) or settings_dict.get("currency_symbol", "ج.م")
+
+        base_ctx = {
+            "settings": settings_dict,
+            "company_name": company_name,
+            "company_address": company_address,
+            "company_phone": company_phone,
+            "company_tax_number": company_tax_number,
+            "company_logo": company_logo,
+            "company_stamp": company_stamp,
+            "company_email": company_email,
+            "company_website": company_website,
+            "currency_symbol_active": currency_symbol,
+            "currency_symbol": currency_symbol,
+            "print_lang": "ar",
+            "print_dir": "rtl",
+            "is_english": False,
+            "is_bilingual": False,
+        }
+
+        if extra_params:
+            base_ctx.update(extra_params)
+
+        return base_ctx
 
     @classmethod
     def render_document_pdf_bytes(cls, content_object: Any, extra_params: Dict[str, Any] = None) -> Tuple[Optional[bytes], str]:
@@ -743,14 +790,22 @@ class DocumentDispatcher:
 
         model_name = content_object.__class__.__name__
         from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
+        from ..models import SystemSetting
 
         # 1. فاتورة مبيعات
         if model_name == "Sale":
-            from sale.views import get_sale_print_context
             try:
-                _, context = get_sale_print_context(None, content_object.pk)
-                html = render_to_string("sale/sale_print.html", context)
-                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="sale", context=context)
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                items = content_object.items.all().select_related('product', 'product__unit', 'product__category')
+                ctx.update({
+                    "sale": content_object,
+                    "items": items,
+                    "title": f"فاتورة مبيعات - {content_object.number}",
+                    "document_title": "فاتورة مبيعات",
+                    "default_notes": SystemSetting.get_setting('default_sale_invoice_notes', ''),
+                })
+                html = render_to_string("sale/sale_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="sale", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Invoice_{content_object.number}.pdf"
             except Exception as e:
@@ -760,11 +815,21 @@ class DocumentDispatcher:
 
         # 2. عرض أسعار
         elif model_name == "Quotation":
-            from sale.quotation_views import get_quotation_print_context
             try:
-                _, context = get_quotation_print_context(None, content_object.pk)
-                html = render_to_string("sale/quotation_print.html", context)
-                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="quotation", context=context)
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                items = content_object.items.all().select_related('product', 'product__unit', 'product__category')
+                ctx.update({
+                    "quotation": content_object,
+                    "items": items,
+                    "title": f"عرض سعر - {content_object.number}",
+                    "document_title": "عرض سعر",
+                    "translated_status": content_object.get_status_display() if hasattr(content_object, 'get_status_display') else "معتمد",
+                    "default_notes": SystemSetting.get_setting('default_quotation_notes', ''),
+                    "has_item_discounts": getattr(content_object, 'has_item_discounts', False),
+                    "salesman_name": getattr(content_object, 'salesman_display_name', ''),
+                })
+                html = render_to_string("sale/quotation_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="quotation", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Quotation_{content_object.number}.pdf"
             except Exception as e:
@@ -776,14 +841,15 @@ class DocumentDispatcher:
         elif model_name == "SalesOrder":
             order_no = getattr(content_object, "order_number", content_object.pk)
             try:
-                html = render_to_string("sale/sales_order_print.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "so": content_object,
                     "items": content_object.items.all(),
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"أمر بيع - {order_no}",
+                    "document_title": "أمر بيع",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="sales_order")
+                html = render_to_string("sale/sales_order_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="sales_order", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"SalesOrder_{order_no}.pdf"
             except Exception as e:
@@ -795,14 +861,15 @@ class DocumentDispatcher:
         elif model_name == "DeliveryNote":
             dn_no = getattr(content_object, "delivery_number", content_object.pk)
             try:
-                html = render_to_string("sale/delivery_note_print.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "dn": content_object,
                     "items": content_object.items.all(),
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"إذن تسليم بضاعة - {dn_no}",
+                    "document_title": "إذن تسليم بضاعة",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{dn_no}.pdf", doc_type="delivery_note")
+                html = render_to_string("sale/delivery_note_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{dn_no}.pdf", doc_type="delivery_note", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"DeliveryNote_{dn_no}.pdf"
             except Exception as e:
@@ -814,14 +881,15 @@ class DocumentDispatcher:
         elif model_name == "SaleReturn":
             ret_no = getattr(content_object, "number", getattr(content_object, "pk", ""))
             try:
-                html = render_to_string("sale/sale_return.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "sale_return": content_object,
                     "items": content_object.items.all(),
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"مرتجع مبيعات - {ret_no}",
+                    "document_title": "مرتجع مبيعات",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{ret_no}.pdf", doc_type="sale_return")
+                html = render_to_string("sale/sale_return.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{ret_no}.pdf", doc_type="sale_return", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"SaleReturn_{ret_no}.pdf"
             except Exception as e:
@@ -833,7 +901,9 @@ class DocumentDispatcher:
         elif model_name == "CreditNote":
             cn_no = getattr(content_object, "credit_note_number", getattr(content_object, "number", content_object.pk))
             try:
-                resp = generate_guaranteed_pdf_response("credit_note", {"credit_note": content_object}, filename=f"{cn_no}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"credit_note": content_object})
+                resp = generate_guaranteed_pdf_response("credit_note", ctx, filename=f"{cn_no}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"CreditNote_{cn_no}.pdf"
             except Exception as e:
@@ -844,7 +914,9 @@ class DocumentDispatcher:
         elif model_name == "Customer":
             cust_code = getattr(content_object, "code", content_object.pk)
             try:
-                resp = generate_guaranteed_pdf_response("statement", {"customer": content_object}, filename=f"Statement_{cust_code}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"customer": content_object})
+                resp = generate_guaranteed_pdf_response("statement", ctx, filename=f"Statement_{cust_code}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Statement_{cust_code}.pdf"
             except Exception as e:
@@ -853,12 +925,18 @@ class DocumentDispatcher:
 
         # 8. أمر شراء للمورد (PurchaseOrder)
         elif model_name == "PurchaseOrder":
-            from purchase.views.po_views import get_po_print_context
+            order_no = getattr(content_object, 'order_number', content_object.pk)
             try:
-                _, context = get_po_print_context(None, content_object.pk)
-                html = render_to_string("purchase/po_print.html", context)
-                order_no = getattr(content_object, 'order_number', content_object.pk)
-                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="po", context=context)
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                items = content_object.items.all().select_related('product', 'product__unit')
+                ctx.update({
+                    "order": content_object,
+                    "items": items,
+                    "title": f"أمر شراء - {order_no}",
+                    "document_title": "أمر شراء",
+                })
+                html = render_to_string("purchase/po_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="po", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"PO_{order_no}.pdf"
             except Exception as e:
@@ -870,14 +948,15 @@ class DocumentDispatcher:
         elif model_name in ("GoodsReceivedNote", "GoodsReceiptNote"):
             grn_no = getattr(content_object, "grn_number", getattr(content_object, "number", content_object.pk))
             try:
-                html = render_to_string("purchase/grn_print.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "grn": content_object,
                     "items": content_object.items.all(),
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"إذن استلام بضاعة - {grn_no}",
+                    "document_title": "إذن استلام بضاعة",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{grn_no}.pdf", doc_type="grn")
+                html = render_to_string("purchase/grn_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{grn_no}.pdf", doc_type="grn", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"GRN_{grn_no}.pdf"
             except Exception as e:
@@ -887,11 +966,17 @@ class DocumentDispatcher:
 
         # 10. فاتورة مشتريات (Purchase)
         elif model_name in ("Purchase", "SupplierBill"):
-            from purchase.views.purchase_views import get_purchase_print_context
             try:
-                _, context = get_purchase_print_context(None, content_object.pk)
-                html = render_to_string("purchase/purchase_print.html", context)
-                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="purchase", context=context)
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                items = content_object.items.all().select_related('product', 'product__unit')
+                ctx.update({
+                    "purchase": content_object,
+                    "items": items,
+                    "title": f"فاتورة مشتريات - {content_object.number}",
+                    "document_title": "فاتورة مشتريات",
+                })
+                html = render_to_string("purchase/purchase_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="purchase", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Purchase_{content_object.number}.pdf"
             except Exception as e:
@@ -903,14 +988,15 @@ class DocumentDispatcher:
         elif model_name == "PurchaseReturn":
             ret_no = getattr(content_object, "number", getattr(content_object, "pk", ""))
             try:
-                html = render_to_string("purchase/purchase_return_print.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "purchase_return": content_object,
                     "items": content_object.items.all(),
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"مرتجع مشتريات - {ret_no}",
+                    "document_title": "مرتجع مشتريات",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{ret_no}.pdf", doc_type="purchase_return")
+                html = render_to_string("purchase/purchase_return_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{ret_no}.pdf", doc_type="purchase_return", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"PurchaseReturn_{ret_no}.pdf"
             except Exception as e:
@@ -922,7 +1008,9 @@ class DocumentDispatcher:
         elif model_name == "Supplier":
             supp_code = getattr(content_object, "code", content_object.pk)
             try:
-                resp = generate_guaranteed_pdf_response("supplier_statement", {"supplier": content_object}, filename=f"Supplier_Statement_{supp_code}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"supplier": content_object})
+                resp = generate_guaranteed_pdf_response("supplier_statement", ctx, filename=f"Supplier_Statement_{supp_code}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Supplier_Statement_{supp_code}.pdf"
             except Exception as e:
@@ -933,13 +1021,14 @@ class DocumentDispatcher:
         elif model_name == "WorkOrder":
             wo_no = getattr(content_object, "number", content_object.pk)
             try:
-                html = render_to_string("work_order/work_order_print.html", {
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({
                     "work_order": content_object,
-                    "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-                    "print_lang": "ar",
-                    "print_dir": "rtl",
+                    "title": f"أمر شغل تصنيع - {wo_no}",
+                    "document_title": "أمر شغل تصنيع وإنتاج",
                 })
-                resp = generate_pdf_from_html(html, None, filename=f"{wo_no}.pdf", doc_type="work_order")
+                html = render_to_string("work_order/work_order_print.html", ctx)
+                resp = generate_pdf_from_html(html, None, filename=f"{wo_no}.pdf", doc_type="work_order", context=ctx)
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"WorkOrder_{wo_no}.pdf"
             except Exception as e:
@@ -951,7 +1040,9 @@ class DocumentDispatcher:
         elif model_name == "PrintingOrder":
             po_no = getattr(content_object, "order_number", getattr(content_object, "number", content_object.pk))
             try:
-                resp = generate_guaranteed_pdf_response("printing_order", {"order": content_object}, filename=f"PrintingOrder_{po_no}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"order": content_object})
+                resp = generate_guaranteed_pdf_response("printing_order", ctx, filename=f"PrintingOrder_{po_no}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"PrintingOrder_{po_no}.pdf"
             except Exception as e:
@@ -962,7 +1053,9 @@ class DocumentDispatcher:
         elif model_name in ("StockTransfer", "StockTransferVoucher"):
             tr_no = getattr(content_object, "transfer_number", getattr(content_object, "number", content_object.pk))
             try:
-                resp = generate_guaranteed_pdf_response("stock_transfer", {"transfer": content_object}, filename=f"StockTransfer_{tr_no}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"transfer": content_object})
+                resp = generate_guaranteed_pdf_response("stock_transfer", ctx, filename=f"StockTransfer_{tr_no}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"StockTransfer_{tr_no}.pdf"
             except Exception as e:
@@ -973,7 +1066,9 @@ class DocumentDispatcher:
         elif model_name in ("Payroll", "PayrollSlip", "PayrollLine", "SalarySlip"):
             slip_no = getattr(content_object, "number", getattr(content_object, "id", content_object.pk))
             try:
-                resp = generate_guaranteed_pdf_response("payroll_slip", {"payroll": content_object}, filename=f"Payslip_{slip_no}.pdf")
+                ctx = cls._build_full_document_context(content_object, extra_params)
+                ctx.update({"payroll": content_object})
+                resp = generate_guaranteed_pdf_response("payroll_slip", ctx, filename=f"Payslip_{slip_no}.pdf")
                 if resp and hasattr(resp, 'content') and resp.content:
                     return resp.content, f"Payslip_{slip_no}.pdf"
             except Exception as e:
@@ -981,7 +1076,9 @@ class DocumentDispatcher:
             return getattr(resp, 'content', None), f"Payslip_{slip_no}.pdf"
 
         # Fallback عام ومضمون
-        resp = generate_guaranteed_pdf_response("generic", {"document": content_object}, filename="Document.pdf")
+        ctx = cls._build_full_document_context(content_object, extra_params)
+        ctx.update({"document": content_object})
+        resp = generate_guaranteed_pdf_response("generic", ctx, filename="Document.pdf")
         return getattr(resp, 'content', None), "Document.pdf"
 
     # ==================== 4. كاش الميديا الزمني (Timestamp Media Cache) ====================
@@ -1052,23 +1149,28 @@ class DocumentDispatcher:
         target_template = template_name or info["template_name"]
         components = custom_components or info["components"]
 
-        # 2. رفع أو جلب مرفق الـ PDF إذا كان القالب يدعم المرفقات
-        header_media_id = None
-        header_filename = None
-        if info["has_pdf"] and target_template == "document_send_ar":
-            pdf_bytes, filename = cls.render_document_pdf_bytes(content_object, extra_params=extra_params)
-            if pdf_bytes:
-                header_filename = filename
-                header_media_id = cls.get_or_upload_media_id(content_object, pdf_bytes, filename)
-                if not header_media_id:
-                    # في حال فشل رفع المرفق، يمكن التحول للوضع النصي أو إشعار المستخدم
-                    logger.warning("تعذر رفع مرفق الـ PDF لـ Meta، سيتم محاولة الإرسال بدون مرفق")
+        if target_template == "hello_world":
+            components = []
+            header_media_id = None
+            header_filename = None
+        else:
+            # 2. رفع أو جلب مرفق الـ PDF إذا كان القالب يدعم المرفقات
+            header_media_id = None
+            header_filename = None
+            if info["has_pdf"] and target_template in ("document_share_ar", "document_send_ar", "payment_receipt_ar"):
+                pdf_bytes, filename = cls.render_document_pdf_bytes(content_object, extra_params=extra_params)
+                if pdf_bytes:
+                    header_filename = filename
+                    header_media_id = cls.get_or_upload_media_id(content_object, pdf_bytes, filename)
+                    if not header_media_id:
+                        # في حال فشل رفع المرفق، يمكن التحول للوضع النصي أو إشعار المستخدم
+                        logger.warning("تعذر رفع مرفق الـ PDF لـ Meta، سيتم محاولة الإرسال بدون مرفق")
 
         # 3. تفويض الإرسال لـ WhatsAppService
         res = WhatsAppService.send_template_message(
             phone=recipient_phone,
             template_name=target_template,
-            language_code=info.get("language_code", "ar"),
+            language_code="en_US" if target_template == "hello_world" else info.get("language_code", "ar"),
             components=components,
             header_media_id=header_media_id,
             header_filename=header_filename,

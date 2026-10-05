@@ -403,22 +403,17 @@
                         {% if settings.invoice_product_code_display == 'sku' %}
                         كود: {{ item.product.code|default:item.product.sku|default:"-" }}
                         {% elif settings.invoice_product_code_display == 'barcode' %}
-                        باركود: {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-"
-                        }}
+                        باركود: {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
                         {% elif settings.invoice_product_code_display == 'both' %}
-                        {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{%
-                        endif %}
-                        {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{
-                        item.product.barcode }}{% endif %}
+                        {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{% endif %}
+                        {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{ item.product.barcode }}{% endif %}
                         {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                         {% endif %}
                     </span>
                     {% endif %}
                 </div>
                 <div class="item-details">
-                    <span class="item-calc">{{ item.quantity|remove_trailing_zeros }}{% if item.product.unit %} {{
-                        item.product.unit.symbol|default:item.product.unit.name }}{% endif %} × {{
-                        item.unit_price|currency }}</span>
+                    <span class="item-calc">{{ item.quantity|remove_trailing_zeros }}{% if item.product.unit %} {{ item.product.unit.symbol|default:item.product.unit.name }}{% endif %} × {{ item.unit_price|currency }}</span>
                     <span class="item-total">{{ item.total|currency }}</span>
                 </div>
             </div>
@@ -464,11 +459,8 @@
             {% for field in sale.custom_fields %}
             {% if field.show_on_thermal and field.value %}
             <div class="meta-row" style="display: flex; justify-content: space-between; font-size: 11px;">
-                <span class="meta-label" style="font-weight: bold;">{% if is_english %}{{
-                    field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}:</span>
-                <span class="meta-value">{% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{%
-                    elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value
-                    }}{% endif %}</span>
+                <span class="meta-label" style="font-weight: bold;">{% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}:</span>
+                <span class="meta-value">{% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}</span>
             </div>
             {% endif %}
             {% endfor %}

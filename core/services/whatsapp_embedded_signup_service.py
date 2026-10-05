@@ -105,7 +105,7 @@ class WhatsAppEmbeddedSignupService:
         url = f"{WhatsAppService.GRAPH_API_BASE}/{phone_number_id}"
         headers = {"Authorization": f"Bearer {access_token}"}
         params = {
-            "fields": "display_phone_number,verified_name,quality_rating,code_verification_status,status"
+            "fields": "display_phone_number,verified_name,quality_rating,code_verification_status,status,platform_type,throughput"
         }
 
         try:
@@ -114,12 +114,20 @@ class WhatsAppEmbeddedSignupService:
             data = response.json()
 
             if response.status_code == 200:
+                platform_type = data.get("platform_type", "")
+                is_coex_detected = (
+                    platform_type.upper() == "SMB" or
+                    data.get("is_coexistence") is True or
+                    data.get("account_mode") == "COEXISTENCE"
+                )
                 return {
                     "success": True,
                     "display_phone_number": data.get("display_phone_number", ""),
                     "verified_name": data.get("verified_name", ""),
                     "quality_rating": data.get("quality_rating", "GREEN"),
                     "status": data.get("status", "CONNECTED"),
+                    "platform_type": platform_type,
+                    "is_coexistence_detected": is_coex_detected,
                     "data": data
                 }
             else:
@@ -172,27 +180,36 @@ class WhatsAppEmbeddedSignupService:
     @transaction.atomic
     def complete_onboarding(cls, phone_number_id: str, access_token: str, waba_id: str = "",
                             app_id: str = "", account_name: str = "", company_name: str = "",
-                            is_coexistence: bool = True, is_default: bool = False,
+                            is_coexistence: bool = None, is_default: bool = False,
                             notes: str = "") -> Dict[str, Any]:
         """
         إكمال عملية الربط الشاملة وحفظ حساب WhatsAppAccount مشفراً في قاعدة البيانات
-        مع مزامنة تفاصيل الرقم من Meta والاشتراك في أحداث الـ Webhook
+        مع الكشف الذكي التلقائي عن وضع التعايش (Coexistence) ومزامنة تفاصيل الرقم من Meta
         """
         if not phone_number_id or not access_token:
             return {"success": False, "error": "معرف رقم الهاتف ورمز الوصول مطلوبان"}
 
-        # 1. الاستعلام عن تفاصيل الرقم من Meta
+        # 1. الاستعلام الذكي عن تفاصيل الرقم وكشف وضع التعايش من Meta تلقائياً
         phone_meta = cls.get_phone_number_details(phone_number_id, access_token)
         display_phone = phone_meta.get("display_phone_number", "")
         verified_name = phone_meta.get("verified_name", "")
         quality_rating = phone_meta.get("quality_rating", "GREEN")
         account_status = 'CONNECTED' if phone_meta.get("success") else 'CONNECTED'
 
+        # الكشف التلقائي الذكي: إذا حددته Meta أو إذا كان افتراضياً للحماية
+        if is_coexistence is None:
+            if phone_meta.get("success"):
+                is_coexistence = phone_meta.get("is_coexistence_detected", True)
+            else:
+                is_coexistence = True  # افتراضي آمن لحماية جلسة الموبايل
+        elif phone_meta.get("success") and phone_meta.get("is_coexistence_detected"):
+            is_coexistence = True
+
         # 2. الاشتراك في أحداث Webhooks للـ WABA إن توفر
         if waba_id:
             cls.subscribe_app_to_waba(waba_id, access_token)
 
-        # 3. التحقق والتسجيل الآمن
+        # 3. التحقق والتسجيل الآمن (مع تخطي الـ PIN لحسابات التعايش)
         cls.register_phone_number_safely(phone_number_id, access_token, is_coexistence=is_coexistence)
 
         # 4. حفظ أو تحديث الحساب مشفراً بـ AES-256
@@ -241,6 +258,7 @@ class WhatsAppEmbeddedSignupService:
             "success": True,
             "created": created,
             "account_id": account.id,
-            "account": account,
+            "account_name": account.name,
+            "phone_number": account.display_phone_number or account.phone_number_id,
             "message": "تم ربط وتشفير حساب الواتساب بنجاح"
         }

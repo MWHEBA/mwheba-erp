@@ -20,8 +20,8 @@ from .views import (
     whatsapp_chat_send_text_api, whatsapp_chat_assign_agent_api, whatsapp_chat_convert_lead_api,
     whatsapp_campaigns_list_view, whatsapp_campaign_create_api, whatsapp_campaign_launch_api,
     whatsapp_campaign_status_api, whatsapp_campaign_delete_api,
-    # Phase 6 views (SLA, Costs, Simulator, Privacy, Terms, Data Deletion)
-    whatsapp_sla_metrics_api, whatsapp_cost_analytics_api, whatsapp_simulator_dispatch_api,
+    # Phase 6 views (SLA, Costs, Privacy, Terms, Data Deletion)
+    whatsapp_sla_metrics_api, whatsapp_cost_analytics_api,
     whatsapp_privacy_policy_view, whatsapp_terms_view,
     whatsapp_data_deletion_callback_api, whatsapp_data_deletion_status_view,
     # Backup views
@@ -112,10 +112,9 @@ urlpatterns = [
     path("api/whatsapp/campaigns/<int:campaign_id>/status/", whatsapp_campaign_status_api, name="whatsapp_campaign_status"),
     path("api/whatsapp/campaigns/<int:campaign_id>/delete/", whatsapp_campaign_delete_api, name="whatsapp_campaign_delete"),
     
-    # مسارات المرحلة السادسة: سجل التكاليف، مقاييس SLA، محاكي الاعتماد وصفحات الامتثال (Phase 6) ✅
+    # مسارات المرحلة السادسة: سجل التكاليف، مقاييس SLA وصفحات الامتثال (Phase 6) ✅
     path("api/whatsapp/metrics/sla/", whatsapp_sla_metrics_api, name="whatsapp_sla_metrics"),
     path("api/whatsapp/analytics/costs/", whatsapp_cost_analytics_api, name="whatsapp_cost_analytics"),
-    path("api/whatsapp/simulator/dispatch/", whatsapp_simulator_dispatch_api, name="whatsapp_simulator_dispatch"),
     path("whatsapp/privacy/", whatsapp_privacy_policy_view, name="whatsapp_privacy_policy"),
     path("whatsapp/terms/", whatsapp_terms_view, name="whatsapp_terms"),
     path("api/whatsapp/data-deletion/", whatsapp_data_deletion_callback_api, name="whatsapp_data_deletion_callback"),
