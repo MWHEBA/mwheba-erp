@@ -82,7 +82,7 @@ def advance_list_view(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    employees = Employee.objects.filter(is_active=True).order_by("name")
+    employees = Employee.objects.active().order_by("name")
 
     context = {
         "page_title": "إدارة عهد وسلف الموظفين",
@@ -174,7 +174,7 @@ def advance_create_view(request):
         messages.success(request, f"تم تسجيل وصرف العهدة النقدية بنجاح برقم {adv_number}")
         return redirect("financial:custody_advance_list")
 
-    employees = Employee.objects.filter(is_active=True).order_by("name")
+    employees = Employee.objects.active().order_by("name")
     treasuries = ChartOfAccounts.objects.filter(is_cash_account=True, is_active=True).order_by("code")
     currencies = Currency.objects.filter(is_active=True).order_by("-is_functional")
     locations = WorkLocation.objects.all()
@@ -363,7 +363,7 @@ def settlement_create_view(request):
 
         return redirect("financial:custody_settlement_list")
 
-    employees = Employee.objects.filter(is_active=True).order_by("name")
+    employees = Employee.objects.active().order_by("name")
     advances = EmployeeCustodyAdvance.objects.filter(status__in=[CustodyAdvanceStatus.ACTIVE, CustodyAdvanceStatus.PARTIALLY_SETTLED])
     expense_accounts = ChartOfAccounts.objects.filter(account_type__category="expense", is_active=True).order_by("code")
     cost_centers = CostCenter.objects.filter(is_active=True).order_by("code")
@@ -477,7 +477,7 @@ def transfer_create_view(request):
         messages.success(request, f"تم اعتماد مناقلة العهدة بنجاح برقم {trf_num}")
         return redirect("financial:custody_transfer_list")
 
-    employees = Employee.objects.filter(is_active=True).order_by("name")
+    employees = Employee.objects.active().order_by("name")
     context = {
         "page_title": "مناقلة عهدة نقدية بين موظفين",
         "page_subtitle": "تحويل مسؤولية العهدة المالية من موظف لآخر مع إثبات القيد المحاسبي",
@@ -575,7 +575,7 @@ def count_create_view(request):
         messages.success(request, f"تم حفظ محضر الجرد الفعلي بنجاح برقم {count_num} (النتيجة: {count_obj.get_variance_type_display()})")
         return redirect("financial:custody_count_list")
 
-    employees = Employee.objects.filter(is_active=True).order_by("name")
+    employees = Employee.objects.active().order_by("name")
     custody_accounts = ChartOfAccounts.objects.filter(is_custody_account=True, is_active=True).order_by("code")
 
     context = {

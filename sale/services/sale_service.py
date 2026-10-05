@@ -78,7 +78,8 @@ class SaleService:
             sys_rate = Decimal("1.000000")
             if currency_obj and not currency_obj.is_functional:
                 from financial.services.exchange_rate_service import ExchangeRateService
-                sys_rate = Decimal(str(ExchangeRateService.get_exchange_rate(currency_obj) or 1.0))
+                sale_date = data.get('date')
+                sys_rate = Decimal(str(ExchangeRateService.get_exchange_rate(currency_obj, date=sale_date) or 1.0))
 
             # التدقيق السعري والائتماني والحوكمة في طبقة الخدمات
             from customer.models import Customer

@@ -260,48 +260,63 @@ class BatchVoucherService:
         
         # الحساب المقابل
         if batch_voucher.voucher_type == 'transfer':
-            # للتحويل: لا يوجد قيد محاسبي (حركة داخلية)
-            return None
+            target_inventory_account = get_inventory_account(warehouse=batch_voucher.target_warehouse)
+            if not target_inventory_account or inventory_account.id == target_inventory_account.id or batch_voucher.total_value <= Decimal('0'):
+                return None
+            lines = [
+                JournalEntryLineData(
+                    account_code=target_inventory_account.code,
+                    debit=batch_voucher.total_value,
+                    credit=Decimal('0.00'),
+                    description=f'تحويل مخزني جماعي إلى {batch_voucher.target_warehouse.name} - {batch_voucher.total_items} صنف'
+                ),
+                JournalEntryLineData(
+                    account_code=inventory_account.code,
+                    debit=Decimal('0.00'),
+                    credit=batch_voucher.total_value,
+                    description=f'تحويل مخزني جماعي من {batch_voucher.warehouse.name} - {batch_voucher.total_items} صنف'
+                )
+            ]
+        else:
+            # الحصول على الحساب المقابل حسب الغرض
+            contra_account = get_contra_account(batch_voucher.purpose_type, is_receipt=(batch_voucher.voucher_type == 'receipt'))
+            if batch_voucher.total_value <= Decimal('0'):
+                return None
+            
+            if batch_voucher.voucher_type == 'receipt':
+                # إذن استلام: مدين المخزون / دائن الحساب المقابل
+                lines = [
+                    JournalEntryLineData(
+                        account_code=inventory_account.code,
+                        debit=batch_voucher.total_value,
+                        credit=Decimal('0.00'),
+                        description=f'إذن استلام جماعي - {batch_voucher.total_items} صنف'
+                    ),
+                    JournalEntryLineData(
+                        account_code=contra_account.code,
+                        debit=Decimal('0.00'),
+                        credit=batch_voucher.total_value,
+                        description=f'{batch_voucher.get_purpose_type_display()}'
+                    )
+                ]
+            else:  # issue
+                # إذن صرف: مدين الحساب المقابل / دائن المخزون
+                lines = [
+                    JournalEntryLineData(
+                        account_code=contra_account.code,
+                        debit=batch_voucher.total_value,
+                        credit=Decimal('0.00'),
+                        description=f'{batch_voucher.get_purpose_type_display()}'
+                    ),
+                    JournalEntryLineData(
+                        account_code=inventory_account.code,
+                        debit=Decimal('0.00'),
+                        credit=batch_voucher.total_value,
+                        description=f'إذن صرف جماعي - {batch_voucher.total_items} صنف'
+                    )
+                ]
         
-        # الحصول على الحساب المقابل حسب الغرض
-        contra_account = get_contra_account(batch_voucher.purpose_type, is_receipt=(batch_voucher.voucher_type == 'receipt'))
-        
-        # إعداد بيانات القيد
         gateway = AccountingGateway()
-        
-        if batch_voucher.voucher_type == 'receipt':
-            # إذن استلام: مدين المخزون / دائن الحساب المقابل
-            lines = [
-                JournalEntryLineData(
-                    account_code=inventory_account.code,
-                    debit=batch_voucher.total_value,
-                    credit=Decimal('0.00'),
-                    description=f'إذن استلام جماعي - {batch_voucher.total_items} صنف'
-                ),
-                JournalEntryLineData(
-                    account_code=contra_account.code,
-                    debit=Decimal('0.00'),
-                    credit=batch_voucher.total_value,
-                    description=f'{batch_voucher.get_purpose_type_display()}'
-                )
-            ]
-        else:  # issue
-            # إذن صرف: مدين الحساب المقابل / دائن المخزون
-            lines = [
-                JournalEntryLineData(
-                    account_code=contra_account.code,
-                    debit=batch_voucher.total_value,
-                    credit=Decimal('0.00'),
-                    description=f'{batch_voucher.get_purpose_type_display()}'
-                ),
-                JournalEntryLineData(
-                    account_code=inventory_account.code,
-                    debit=Decimal('0.00'),
-                    credit=batch_voucher.total_value,
-                    description=f'إذن صرف جماعي - {batch_voucher.total_items} صنف'
-                )
-            ]
-        
         entry = gateway.create_journal_entry(
             source_module='product',
             source_model='BatchVoucher',
@@ -345,8 +360,7 @@ class BatchVoucherService:
             self._create_inventory_movements(batch_voucher, user)
             
             # 3. إنشاء القيد المحاسبي الموحد
-            if batch_voucher.voucher_type != 'transfer':
-                self._create_batch_accounting_entry(batch_voucher, user)
+            self._create_batch_accounting_entry(batch_voucher, user)
             
             # 4. تحديث حالة الإذن
             batch_voucher.status = 'approved'

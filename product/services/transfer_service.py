@@ -90,6 +90,25 @@ class TransferService:
         
         try:
             with transaction.atomic():
+                # قفل المخزن المصدر وفحص الرصيد المتاح الفعلي داخل المعاملة الذرية
+                try:
+                    source_stock = Stock.objects.select_for_update().get(
+                        product=product,
+                        warehouse=from_warehouse
+                    )
+                except Stock.DoesNotExist:
+                    raise ValueError(f'المنتج غير متوفر في {from_warehouse.name}')
+
+                if source_stock.available_quantity < quantity:
+                    raise ValueError(
+                        f'الكمية المتاحة للصرف في {from_warehouse.name} هي {source_stock.available_quantity} فقط '
+                        f'(الرصيد الفعلي {source_stock.quantity} — المحجوز {source_stock.reserved_quantity}). لا يمكن تحويل {quantity}.'
+                    )
+
+                # حجز الكمية في المخزن المصدر لمنع صرفها أثناء وجود المسودة
+                source_stock.reserve_quantity(quantity)
+                unit_cost = source_stock.average_cost or product.cost_price or Decimal('0')
+
                 # 1. إنشاء حركة الخروج من المخزن المصدر
                 movement_out = self._create_transfer_out(
                     product=product,
@@ -238,6 +257,12 @@ class TransferService:
         
         try:
             with transaction.atomic():
+                # قفل أرصدة المخزنين بترتيب محدد لمنع Deadlocks
+                Stock.objects.select_for_update().filter(
+                    product=movement_out.product,
+                    warehouse_id__in=sorted([movement_out.warehouse_id, movement_in.warehouse_id])
+                ).order_by('id')
+
                 # 1. اعتماد حركة الخروج
                 logger.info(f"Approving transfer_out movement {movement_out.id}")
                 if not movement_out.approve(user):
@@ -299,6 +324,13 @@ class TransferService:
             
             # حساب القيمة الإجمالية
             total_value = movement_out.total_cost
+            if not total_value or total_value <= Decimal('0'):
+                logger.info(f"Transfer {movement_out.document_number} total value is 0 or negative. Skipping journal entry.")
+                return
+
+            if source_inventory_account and target_inventory_account and source_inventory_account.id == target_inventory_account.id:
+                logger.info(f"Transfer {movement_out.document_number} source and target accounts are identical ({source_inventory_account.code}). Skipping journal entry.")
+                return
             
             # إنشاء القيد عبر الجسر المحاسبي المحوكم
             lines_data = [

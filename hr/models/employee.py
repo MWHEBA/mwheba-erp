@@ -8,8 +8,16 @@ from django.core.validators import RegexValidator, MinLengthValidator
 User = get_user_model()
 
 
+class EmployeeManager(models.Manager):
+    """مدير مخصص لنموذج الموظف يدعم استعلامات الموظفين النشطين"""
+    def active(self):
+        return self.filter(status='active')
+
+
 class Employee(models.Model):
     """نموذج الموظف الشامل"""
+    
+    objects = EmployeeManager()
     
     GENDER_CHOICES = [
         ('male', 'ذكر'),

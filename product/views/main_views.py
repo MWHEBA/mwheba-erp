@@ -3925,9 +3925,8 @@ def add_stock_movement(request):
             message = _("تم تعديل مخزون {} من {} إلى {}").format(
                 product.name, old_quantity, quantity
             )
-
         elif movement_type == "transfer":
-            # تحويل مخزون بين المخازن
+            # تحويل مخزون بين المخازن باستخدام TransferService الموحد
             destination_warehouse_id = request.POST.get("destination_warehouse")
 
             if not destination_warehouse_id:
@@ -3935,7 +3934,7 @@ def add_stock_movement(request):
                     {"success": False, "error": _("يجب تحديد المخزن المستلم للتحويل")}
                 )
 
-            if destination_warehouse_id == warehouse_id:
+            if str(destination_warehouse_id) == str(warehouse_id):
                 return JsonResponse(
                     {"success": False, "error": _("لا يمكن التحويل إلى نفس المخزن")}
                 )
@@ -3949,33 +3948,33 @@ def add_stock_movement(request):
                     {"success": False, "error": _("المخزن المستلم غير موجود")}
                 )
 
-            # التحقق من كفاية المخزون
-            if stock.quantity < Decimal(quantity):
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "error": _(
-                            "الكمية غير كافية للتحويل. المتاح حالياً: {}"
-                        ).format(stock.quantity),
-                    }
+            from product.services.transfer_service import TransferService
+            transfer_service = TransferService()
+            try:
+                movement_out, movement_in = transfer_service.create_transfer(
+                    product=product,
+                    from_warehouse=warehouse,
+                    to_warehouse=destination_warehouse,
+                    quantity=int(quantity),
+                    user=request.user,
+                    reference_document=request.POST.get("reference_number", ""),
+                    notes=request.POST.get("notes", "")
                 )
+                transfer_service.approve_transfer(movement_out, request.user)
+            except Exception as e:
+                return JsonResponse({"success": False, "error": str(e)})
 
-            # خصم من المخزن المصدر
-            stock.quantity -= Decimal(quantity)
-
-            # إضافة إلى المخزن المستلم
-            dest_stock, created = Stock.objects.get_or_create(
-                product=product,
-                warehouse=destination_warehouse,
-                defaults={"quantity": Decimal("0")},
-            )
-
-            dest_before = dest_stock.quantity
-            dest_stock.quantity += Decimal(quantity)
-            dest_stock.save()
-
+            stock.refresh_from_db()
             message = _("تم تحويل {} وحدة من {} من {} إلى {}").format(
                 quantity, product.name, warehouse.name, destination_warehouse.name
+            )
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": message,
+                    "movement_id": movement_out.id,
+                    "current_stock": stock.quantity,
+                }
             )
 
         # حفظ التغييرات
@@ -4247,12 +4246,15 @@ def export_warehouse_inventory(request, warehouse_id=None):
     )
 
     for stock in stocks:
+        min_limit = stock.min_stock_level if stock.min_stock_level else getattr(stock.product, 'min_stock', 0)
+        max_limit = stock.max_stock_level or 0
+
         # تحديد حالة المخزون
         if stock.quantity <= 0:
             status = "نفذ من المخزون"
-        elif stock.quantity < stock.product.min_stock:
+        elif min_limit > 0 and stock.quantity < min_limit:
             status = "مخزون منخفض"
-        elif stock.quantity > stock.product.max_stock:
+        elif max_limit > 0 and stock.quantity > max_limit:
             status = "مخزون زائد"
         else:
             status = "مخزون جيد"
@@ -4264,8 +4266,8 @@ def export_warehouse_inventory(request, warehouse_id=None):
                 stock.product.sku,
                 stock.product.category.name if stock.product.category else "",
                 stock.quantity,
-                stock.product.min_stock,
-                stock.product.max_stock,
+                min_limit,
+                max_limit,
                 status,
             ]
         )

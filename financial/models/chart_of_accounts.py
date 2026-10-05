@@ -373,7 +373,13 @@ class ChartOfAccounts(models.Model):
     @property
     def current_balance(self):
         """الرصيد الحالي من القيود المرحلة (مع الرصيد الافتتاحي)"""
+        if hasattr(self, '_current_balance') and self._current_balance is not None:
+            return self._current_balance
         return self.get_balance(include_opening=True)
+
+    @current_balance.setter
+    def current_balance(self, value):
+        self._current_balance = value
 
     def get_balance(self, date_from=None, date_to=None, include_opening=True):
         """

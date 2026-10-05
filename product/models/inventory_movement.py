@@ -260,7 +260,8 @@ class InventoryMovement(models.Model):
         if not self.movement_number:
             from core.services.sequence_service import SequenceService
             from core.enums.document_types import DocumentType
-            doc_type = DocumentType.STOCK_RECEIPT if getattr(self, 'movement_type', '') in ['in', 'receipt'] else DocumentType.STOCK_ISSUE
+            inbound_types = ['in', 'receipt', 'transfer_in', 'adjustment_in', 'return_in', 'found']
+            doc_type = DocumentType.STOCK_RECEIPT if getattr(self, 'movement_type', '') in inbound_types else DocumentType.STOCK_ISSUE
             self.movement_number = SequenceService.get_next_number(doc_type, warehouse=getattr(self, 'warehouse', None), date=getattr(self, 'date', None))
 
         # حساب التكلفة الإجمالية
@@ -306,9 +307,8 @@ class InventoryMovement(models.Model):
                 "return_in",
                 "found",
             ]:
-                # حركة وارد - زيادة المخزون
-                if self.movement_type == "in":
-                    # تحديث متوسط التكلفة للوارد الجديد
+                # حركة وارد - زيادة المخزون واحتساب متوسط التكلفة للوارد والتحويل
+                if self.movement_type in ["in", "transfer_in"] and (self.unit_cost or Decimal("0.00")) > Decimal("0.00"):
                     stock.update_average_cost(self.quantity, self.unit_cost)
                 else:
                     stock.quantity += self.quantity
@@ -327,6 +327,9 @@ class InventoryMovement(models.Model):
                 # حركة صادر - تقليل المخزون
                 if stock.quantity >= self.quantity:
                     stock.quantity -= self.quantity
+                    # فك حجز الرصيد المحجوز لمنع بقاء أرصدة محجوزة شبح بعد الاعتماد
+                    if self.movement_type == "transfer_out" and hasattr(stock, 'reserved_quantity') and stock.reserved_quantity >= self.quantity:
+                        stock.reserved_quantity -= self.quantity
                     stock.last_movement_date = timezone.now()
                     stock.save()
                 else:

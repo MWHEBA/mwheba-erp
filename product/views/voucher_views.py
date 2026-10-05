@@ -24,7 +24,7 @@ from financial.models.chart_of_accounts import ChartOfAccounts
 
 
 class GetProductWarehousesView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
-    """الحصول على المخازن المتاحة للمنتج"""
+    """الحصول على المخازن المتاحة للمنتج وفقاً للصلاحيات والرصيد المتاح"""
     permission_required = 'product.view_inventorymovement'
     
     def get(self, request):
@@ -37,19 +37,34 @@ class GetProductWarehousesView(LoginRequiredMixin, SmartPermissionRequiredMixin,
             product = Product.objects.get(id=product_id)
             unit_name = product.unit.name if product.unit else 'وحدة'
             
-            # جلب المخازن التي يتوفر فيها المنتج فقط (كمية > 0)
+            # عزل المخازن بحسب صلاحيات المستخدم
+            user = request.user
+            is_global = (
+                user.is_superuser or 
+                getattr(user, 'is_admin', False) or 
+                user.has_perm('product.view_all_warehouses')
+            )
+            
             stocks = Stock.objects.filter(
                 product_id=product_id,
-                quantity__gt=0
-            ).select_related('warehouse').order_by('-quantity')
+                is_active=True
+            ).select_related('warehouse')
+
+            if not is_global:
+                managed_warehouses = DataScopingService.get_managed_warehouses(user)
+                stocks = stocks.filter(warehouse__in=managed_warehouses)
             
             warehouses = [
                 {
                     'id': stock.warehouse.id,
                     'name': stock.warehouse.name,
-                    'quantity': stock.quantity
+                    'quantity': float(stock.available_quantity),          # للتوافق الكامل مع الواجهة الأمامية
+                    'available_quantity': float(stock.available_quantity), # الرصيد المتاح الدقيق
+                    'physical_quantity': float(stock.quantity),
+                    'reserved_quantity': float(stock.reserved_quantity),
                 }
-                for stock in stocks
+                for stock in stocks.order_by('-quantity')
+                if stock.available_quantity > 0 or stock.quantity > 0
             ]
             
             return JsonResponse({'warehouses': warehouses, 'unit': unit_name})
@@ -60,17 +75,24 @@ class GetProductWarehousesView(LoginRequiredMixin, SmartPermissionRequiredMixin,
 
 
 class GetAvailableProductsView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
-    """الحصول على المنتجات المتاحة (التي لها stock)"""
+    """الحصول على المنتجات المتاحة (التي لها stock متاح في مخازن المستخدم)"""
     permission_required = 'product.view_inventorymovement'
     
     def get(self, request):
         try:
-            # جلب المنتجات التي لها stock متاح
-            products_with_stock = Stock.objects.filter(
-                quantity__gt=0
-            ).values('product_id').distinct()
+            user = request.user
+            is_global = (
+                user.is_superuser or 
+                getattr(user, 'is_admin', False) or 
+                user.has_perm('product.view_all_warehouses')
+            )
             
-            product_ids = [item['product_id'] for item in products_with_stock]
+            stock_filter = Stock.objects.filter(quantity__gt=0, is_active=True)
+            if not is_global:
+                managed_warehouses = DataScopingService.get_managed_warehouses(user)
+                stock_filter = stock_filter.filter(warehouse__in=managed_warehouses)
+
+            product_ids = list(stock_filter.values_list('product_id', flat=True).distinct())
             
             products = Product.objects.filter(
                 id__in=product_ids,
@@ -81,13 +103,12 @@ class GetAvailableProductsView(LoginRequiredMixin, SmartPermissionRequiredMixin,
                 {
                     'id': product.id,
                     'name': product.name,
-                    'code': product.code,
+                    'code': getattr(product, 'sku', '') or getattr(product, 'code', ''),
                     'category': product.category.name if product.category else '',
                     'unit': product.unit.name if product.unit else 'وحدة',
-                    'total_stock': sum(
-                        Stock.objects.filter(product=product, quantity__gt=0)
-                        .values_list('quantity', flat=True)
-                    )
+                    'total_stock': float(sum(
+                        stock_filter.filter(product=product).values_list('quantity', flat=True)
+                    ))
                 }
                 for product in products
             ]

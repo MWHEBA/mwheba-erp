@@ -790,9 +790,14 @@ class TransferVoucherForm(forms.Form):
         from product.models.stock_management import Stock
         from users.services.data_scoping_service import DataScopingService
 
-        products_with_stock = Stock.objects.filter(
-            quantity__gt=0
-        ).values_list('product_id', flat=True).distinct()
+        from_warehouses = DataScopingService.get_managed_warehouses(user) if user else Warehouse.objects.filter(is_active=True).order_by('name')
+        to_warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+
+        products_stock_filter = Stock.objects.filter(quantity__gt=0, is_active=True)
+        if user and not (user.is_superuser or getattr(user, 'is_admin', False) or user.has_perm('product.view_all_warehouses')):
+            products_stock_filter = products_stock_filter.filter(warehouse__in=from_warehouses)
+
+        products_with_stock = products_stock_filter.values_list('product_id', flat=True).distinct()
 
         self.fields['product'].queryset = Product.objects.filter(
             id__in=products_with_stock,
@@ -800,8 +805,6 @@ class TransferVoucherForm(forms.Form):
         ).order_by('name')
         self.fields['product'].empty_label = 'اختر المنتج'
 
-        from_warehouses = DataScopingService.get_managed_warehouses(user) if user else Warehouse.objects.filter(is_active=True).order_by('name')
-        to_warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
         self.fields['from_warehouse'].queryset = from_warehouses
         self.fields['from_warehouse'].empty_label = 'اختر المخزن المصدر'
         self.fields['to_warehouse'].queryset = to_warehouses
@@ -811,8 +814,23 @@ class TransferVoucherForm(forms.Form):
         cleaned_data = super().clean()
         from_warehouse = cleaned_data.get('from_warehouse')
         to_warehouse = cleaned_data.get('to_warehouse')
+        product = cleaned_data.get('product')
+        quantity = cleaned_data.get('quantity')
+
         if from_warehouse and to_warehouse and from_warehouse == to_warehouse:
             raise forms.ValidationError('لا يمكن التحويل من وإلى نفس المخزن')
+
+        if from_warehouse and product and quantity:
+            from product.models.stock_management import Stock
+            stock = Stock.objects.filter(product=product, warehouse=from_warehouse).first()
+            available = stock.available_quantity if stock else 0
+            if quantity > available:
+                actual_qty = stock.quantity if stock else 0
+                reserved_qty = stock.reserved_quantity if stock else 0
+                raise forms.ValidationError(
+                    f'الكمية المتاحة للصرف في {from_warehouse.name} هي {available} فقط '
+                    f'(الرصيد الفعلي {actual_qty} — المحجوز {reserved_qty}). لا يمكن تحويل {quantity}.'
+                )
         return cleaned_data
 
 

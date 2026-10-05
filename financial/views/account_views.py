@@ -698,7 +698,7 @@ def cash_and_bank_accounts_list(request):
         ca.current_balance = c_bal
         total_custody_balance += c_bal
 
-    active_employees = list(Employee.objects.filter(is_active=True).order_by("name"))
+    active_employees = list(Employee.objects.active().order_by("name"))
     currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
     cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 

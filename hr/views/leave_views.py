@@ -72,6 +72,7 @@ def leave_list(request):
     
     # جلب الموظفين وأنواع الإجازات للفلاتر
     employees = Employee.objects.filter(status='active', is_insurance_only=False)
+    leave_types = LeaveType.objects.filter(is_active=True)
     # Pagination SSR
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(leaves, request, default_per_page=50)

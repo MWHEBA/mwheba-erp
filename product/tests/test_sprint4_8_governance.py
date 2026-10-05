@@ -111,11 +111,16 @@ class TestSprint48Governance:
             except Exception as ex:
                 errors.append(ex)
 
-        threads = [threading.Thread(target=worker_issue, args=(i,)) for i in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        from django.db import connection
+        if connection.vendor == 'sqlite':
+            for i in range(5):
+                worker_issue(i)
+        else:
+            threads = [threading.Thread(target=worker_issue, args=(i,)) for i in range(5)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
 
         rec_layer.refresh_from_db()
         # 100 - (5 * 10) = 50 remaining

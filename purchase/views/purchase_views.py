@@ -1054,6 +1054,41 @@ def purchase_update(request, pk):
                         # حفظ الكمية وسعر الوحدة الجديدة في القاموس
                         new_items[product.id] = (quantity, unit_price)
 
+                    # التحقق المسبق من كفاية الرصيد قبل إنقاص أو حذف أي بند من بنود المشتريات
+                    from product.models import Stock
+                    insufficient_stock_errors = []
+                    target_warehouse = updated_purchase.warehouse
+
+                    # 1. فحص البنود المعدلة بالإنقاص
+                    for p_id, (new_qty, p_price) in new_items.items():
+                        orig_qty = original_items.get(p_id, Decimal('0'))
+                        diff = Decimal(str(new_qty)) - Decimal(str(orig_qty))
+                        if diff < Decimal('0'):
+                            prod_obj = Product.objects.filter(id=p_id).first()
+                            if prod_obj and not prod_obj.is_service:
+                                stock_obj = Stock.objects.filter(product=prod_obj, warehouse=target_warehouse).first()
+                                avail = stock_obj.quantity if stock_obj else Decimal('0')
+                                needed = abs(diff)
+                                if avail < needed:
+                                    insufficient_stock_errors.append(
+                                        f"الصنف «{prod_obj.name}»: الرصيد المتوفر في المخزن ({avail}) أقل من الكمية المطلوب إنقاصها ({needed})."
+                                    )
+
+                    # 2. فحص البنود المحذوفة
+                    for p_id, orig_qty in original_items.items():
+                        if p_id not in new_items:
+                            prod_obj = Product.objects.filter(id=p_id).first()
+                            if prod_obj and not prod_obj.is_service:
+                                stock_obj = Stock.objects.filter(product=prod_obj, warehouse=target_warehouse).first()
+                                avail = stock_obj.quantity if stock_obj else Decimal('0')
+                                if avail < Decimal(str(orig_qty)):
+                                    insufficient_stock_errors.append(
+                                        f"الصنف «{prod_obj.name}»: لا يمكن حذف البند لأن الرصيد المتوفر في المخزن ({avail}) أقل من كمية الشراء السابقة ({orig_qty})."
+                                    )
+
+                    if insufficient_stock_errors:
+                        raise ValidationError("لا يمكن تعديل فاتورة المشتريات لعدم كفاية الرصيد في المخزن: " + " | ".join(insufficient_stock_errors))
+
                     # حذف البنود الغير موجودة في النموذج
                     PurchaseItem.objects.filter(purchase=purchase).exclude(
                         id__in=saved_item_ids

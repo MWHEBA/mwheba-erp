@@ -192,6 +192,9 @@
 <form id="approve-form" method="post" action="{% url 'product:transfer_voucher_approve' voucher.pk %}" style="display: none;">
     {% csrf_token %}
 </form>
+<form id="delete-form" method="post" action="{% url 'product:transfer_voucher_delete' voucher.pk %}" style="display: none;">
+    {% csrf_token %}
+</form>
 {% endif %}
 {% endblock %}
 
@@ -201,13 +204,28 @@ function confirmApprove() {
     Swal.fire({
         title: 'اعتماد إذن التحويل؟',
         text: 'سيتم تحديث المخزون في المخزنين وإنشاء القيد المحاسبي.',
-        icon: 'warning',
+        icon: 'question',
         showCancelButton: true,
         confirmButtonText: 'نعم، اعتماد',
         cancelButtonText: 'إلغاء'
     }).then((result) => {
         if (result.isConfirmed) {
             document.getElementById('approve-form').submit();
+        }
+    });
+}
+
+function confirmDelete() {
+    Swal.fire({
+        title: 'حذف إذن التحويل وفك الحجز؟',
+        text: 'سيتم حذف مسودة التحويل وإلغاء حجز الكمية في المخزن المصدر نهائياً.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، حذف وفك الحجز',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('delete-form').submit();
         }
     });
 }

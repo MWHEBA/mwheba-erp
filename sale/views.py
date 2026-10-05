@@ -1194,6 +1194,7 @@ def get_sale_print_context(request, pk):
     company_stamp = SystemSetting.objects.filter(key="company_stamp").values_list("value", flat=True).first() or ""
     company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
     company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
+    default_notes = ""
 
     if is_english:
         company_name_active = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or company_name
@@ -2141,6 +2142,11 @@ def sale_duplicate(request, pk):
         "financial_category": financial_category_id,
     }, user=request.user)
 
+    from financial.models import Currency
+    from sale.models.pricing import PriceList
+    currencies_qs = Currency.objects.filter(is_active=True).order_by("code")
+    price_lists_qs = PriceList.objects.filter(is_active=True).order_by("name")
+
     context = {
         "form": form,
         "products": products,
@@ -2148,6 +2154,10 @@ def sale_duplicate(request, pk):
         "allowed_item_types": allowed_item_types,
         "customers": customers,
         "warehouses": warehouses,
+        "currencies": currencies_qs,
+        "active_currencies": currencies_qs,
+        "price_lists": price_lists_qs,
+        "currency_symbol": original.currency_symbol,
         "next_sale_number": next_sale_number,
         "selected_customer": original.customer,
         "default_warehouse": original.warehouse or (warehouses.first() if warehouses.exists() else None),

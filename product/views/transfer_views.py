@@ -83,6 +83,8 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
         from product.forms import TransferVoucherForm
         form = TransferVoucherForm(user=self.request.user)
         
+        object_list = context.get('page_obj') if context.get('page_obj') is not None else context.get('vouchers')
+        
         context.update({
             'active_menu': 'product',
             'title': 'أذون التحويل المخزني',
@@ -103,7 +105,7 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
             'warehouses': DataScopingService.get_managed_warehouses(self.request.user),
             'form': form,
             'table_headers': self._get_table_headers(),
-            'table_data': self._prepare_table_data(),
+            'table_data': self._prepare_table_data(object_list),
             'primary_key': 'id',
         })
         return context
@@ -121,28 +123,37 @@ class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permis
             {'key': 'actions', 'label': 'الإجراءات', 'width': '10%', 'class': 'text-center'}
         ]
     
-    def _prepare_table_data(self):
-        from django.template.defaultfilters import floatformat
+    def _prepare_table_data(self, object_list=None):
         from utils.templatetags.utils_extras import smart_float
+        from django.utils.formats import date_format
         
+        if object_list is None:
+            object_list = self.get_queryset()[:self.paginate_by]
+
         table_data = []
-        for voucher in self.get_queryset()[:self.paginate_by]:
+        for voucher in object_list:
             actions = [
                 {'url': reverse('product:transfer_voucher_detail', args=[voucher.pk]), 
                  'icon': 'fas fa-eye', 'label': 'عرض', 'class': 'btn-outline-info btn-sm'}
             ]
             
-            if not voucher.is_approved and self.request.user.has_perm('product.change_inventorymovement'):
-                actions.append({
-                    'url': reverse('product:transfer_voucher_approve', args=[voucher.pk]),
-                    'icon': 'fas fa-check', 'label': 'اعتماد', 'class': 'btn-outline-success btn-sm'
-                })
+            if not voucher.is_approved:
+                if self.request.user.has_perm('product.change_inventorymovement'):
+                    actions.append({
+                        'url': reverse('product:transfer_voucher_approve', args=[voucher.pk]),
+                        'icon': 'fas fa-check', 'label': 'اعتماد', 'class': 'btn-outline-success btn-sm'
+                    })
+                if self.request.user.has_perm('product.delete_inventorymovement'):
+                    actions.append({
+                        'url': reverse('product:transfer_voucher_delete', args=[voucher.pk]),
+                        'icon': 'fas fa-trash', 'label': 'حذف', 'class': 'btn-outline-danger btn-sm',
+                        'is_delete': True
+                    })
             
             # الحصول على المخزن الهدف من الحركة المرتبطة
             to_warehouse_name = voucher.reference_movement.warehouse.name if voucher.reference_movement else '-'
             
             # تنسيق التاريخ والوقت على سطرين
-            from django.utils.formats import date_format
             date_part = date_format(voucher.movement_date, 'Y-m-d')
             time_part = date_format(voucher.movement_date, 'h:i A')
             formatted_date = f'{date_part}<br><small class="text-muted">{time_part}</small>'
@@ -284,13 +295,21 @@ class TransferVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Det
              'text': 'العودة', 'class': 'btn-outline-secondary'}
         ]
         
-        if not voucher.is_approved and self.request.user.has_perm('product.change_inventorymovement'):
-            header_buttons.insert(0, {
-                'onclick': 'confirmApprove()',
-                'icon': 'fa-check', 
-                'text': 'اعتماد', 
-                'class': 'btn-success'
-            })
+        if not voucher.is_approved:
+            if self.request.user.has_perm('product.delete_inventorymovement'):
+                header_buttons.insert(0, {
+                    'onclick': 'confirmDelete()',
+                    'icon': 'fa-trash',
+                    'text': 'حذف وفك الحجز',
+                    'class': 'btn-outline-danger'
+                })
+            if self.request.user.has_perm('product.change_inventorymovement'):
+                header_buttons.insert(0, {
+                    'onclick': 'confirmApprove()',
+                    'icon': 'fa-check', 
+                    'text': 'اعتماد', 
+                    'class': 'btn-success'
+                })
         
         # الحصول على حركة الدخول المرتبطة
         movement_in = voucher.reference_movement
@@ -316,6 +335,10 @@ class TransferVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vi
     permission_required = 'product.change_inventorymovement'
     
     def post(self, request, pk):
+        is_ajax = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.POST.get('format') == 'json'
+        )
         voucher = get_object_or_404(
             InventoryMovement, 
             pk=pk, 
@@ -324,6 +347,8 @@ class TransferVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         )
         
         if voucher.is_approved:
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': 'الإذن معتمد مسبقاً'}, status=400)
             messages.warning(request, 'الإذن معتمد مسبقاً')
             return redirect('product:transfer_voucher_detail', pk=pk)
         
@@ -334,17 +359,87 @@ class TransferVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             logger.info(f"Starting transfer approval for voucher {pk}")
             
             if transfer_service.approve_transfer(voucher, request.user):
-                messages.success(request, 'تم اعتماد إذن التحويل بنجاح')
+                msg = 'تم اعتماد إذن التحويل بنجاح'
+                if is_ajax:
+                    return JsonResponse({'success': True, 'message': msg})
+                messages.success(request, msg)
             else:
-                messages.error(request, 'فشل اعتماد الإذن - تحقق من توفر الكمية في المخزن المصدر')
+                msg = 'فشل اعتماد الإذن - تحقق من توفر الكمية في المخزن المصدر'
+                if is_ajax:
+                    return JsonResponse({'success': False, 'message': msg}, status=400)
+                messages.error(request, msg)
                 
         except ValueError as e:
             logger.error(f"ValueError in transfer approval: {str(e)}")
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': str(e)}, status=400)
             messages.error(request, f'خطأ في البيانات: {str(e)}')
         except Exception as e:
             logger.error(f"Exception in transfer approval: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': f'حدث خطأ: {str(e)}'}, status=500)
             messages.error(request, f'حدث خطأ: {str(e)}')
         
         return redirect('product:transfer_voucher_detail', pk=pk)
+
+
+class TransferVoucherDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """حذف إذن تحويل مخزني غير معتمد وإلغاء حجز الكمية"""
+    permission_required = 'product.delete_inventorymovement'
+
+    def post(self, request, pk):
+        is_ajax = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+            request.POST.get('format') == 'json'
+        )
+        voucher = get_object_or_404(
+            InventoryMovement,
+            pk=pk,
+            movement_type='transfer_out',
+            document_type='transfer'
+        )
+
+        if voucher.is_approved:
+            msg = 'لا يمكن حذف إذن تحويل معتمد'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': msg}, status=400)
+            messages.error(request, msg)
+            return redirect('product:transfer_voucher_detail', pk=pk)
+
+        try:
+            with transaction.atomic():
+                # تحرير الكمية المحجوزة في المخزن المصدر
+                try:
+                    source_stock = Stock.objects.select_for_update().get(
+                        product=voucher.product,
+                        warehouse=voucher.warehouse
+                    )
+                    source_stock.release_quantity(voucher.quantity)
+                except Stock.DoesNotExist:
+                    pass
+
+                # حذف حركة الدخول التابعة إن وجدت
+                if voucher.reference_movement:
+                    ref_mov = voucher.reference_movement
+                    voucher.reference_movement = None
+                    voucher.save(update_fields=['reference_movement'])
+                    ref_mov.delete()
+
+                # حذف إذن الخروج
+                voucher.delete()
+
+            msg = 'تم حذف إذن التحويل وإلغاء الحجز بنجاح'
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': msg})
+            messages.success(request, msg)
+            return redirect('product:transfer_voucher_list')
+
+        except Exception as e:
+            logger.error(f"Error deleting transfer voucher {pk}: {str(e)}")
+            msg = f'حدث خطأ أثناء الحذف: {str(e)}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': msg}, status=500)
+            messages.error(request, msg)
+            return redirect('product:transfer_voucher_detail', pk=pk)

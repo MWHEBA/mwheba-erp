@@ -199,6 +199,7 @@ urlpatterns = [
     path("vouchers/transfer/create/", transfer_views.TransferVoucherCreateView.as_view(), name="transfer_voucher_create"),
     path("vouchers/transfer/<int:pk>/", transfer_views.TransferVoucherDetailView.as_view(), name="transfer_voucher_detail"),
     path("vouchers/transfer/<int:pk>/approve/", transfer_views.TransferVoucherApproveView.as_view(), name="transfer_voucher_approve"),
+    path("vouchers/transfer/<int:pk>/delete/", transfer_views.TransferVoucherDeleteView.as_view(), name="transfer_voucher_delete"),
 
     # الأذون الجماعية (Batch Vouchers)
     path("vouchers/batch/", batch_voucher_views.BatchVoucherListView.as_view(), name="batch_voucher_list"),

@@ -10,6 +10,7 @@ from django.db.models import Sum, Q
 from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
+from django.contrib.contenttypes.models import ContentType
 import logging
 
 logger = logging.getLogger(__name__)

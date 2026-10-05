@@ -10,10 +10,12 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
 from core.utils import UnifiedPaginationMixin
-from product.models import BatchVoucher, BatchVoucherItem, Product
-from product.models import Category
+from product.models import BatchVoucher, BatchVoucherItem, Product, Category, Warehouse
+import logging
 from product.forms import BatchVoucherForm
 from product.services.batch_voucher_service import BatchVoucherService
+
+logger = logging.getLogger(__name__)
 
 
 class BatchVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -412,9 +414,17 @@ class BatchVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View)
             messages.success(request, msg)
             return redirect('product:batch_voucher_detail', pk=pk)
         except ValueError as e:
+            logger.error(f"BatchVoucher approval failed with ValueError: {str(e)}", exc_info=True)
             err_msg = f'فشل الاعتماد: {str(e)}'
             if is_ajax:
                 return JsonResponse({'success': False, 'error': err_msg}, status=400)
+            messages.error(request, err_msg)
+            return redirect('product:batch_voucher_detail', pk=pk)
+        except Exception as e:
+            logger.error(f"BatchVoucher approval failed with unexpected Exception: {str(e)}", exc_info=True)
+            err_msg = f'حدث خطأ غير متوقع: {str(e)}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': err_msg}, status=500)
             messages.error(request, err_msg)
             return redirect('product:batch_voucher_detail', pk=pk)
 
