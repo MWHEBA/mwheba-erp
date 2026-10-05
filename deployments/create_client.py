@@ -389,6 +389,10 @@ def create_client():
     print()
     print("── 1. Basic Information ────────────────────────────")
     client_id   = ask("Client ID (English, no spaces)").lower().replace(' ', '_')
+    reserved_ids = {'system', 'admin', 'app', 'api', 'mail', 'root', 'portal', 'test'}
+    if client_id in reserved_ids and not client_id == 'test':
+        print(f"\n❌ '{client_id}' is a reserved system identifier and cannot be used as a client ID.")
+        return False
     client_name = ask("Client name", default=client_id)
     domain      = ask("Domain (e.g. mwheba.co.uk)")
     description = ask("Short description", default=f"ERP system for {client_name}", required=False)
