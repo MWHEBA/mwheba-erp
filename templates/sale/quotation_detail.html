@@ -684,9 +684,10 @@
                   <div class="col-md-8 text-start">
                     <label class="form-label small text-muted fw-bold">{% trans "مخزن الصرف المعتمد لتحويل الفاتورة:" %}
                       <span class="text-danger">*</span></label>
-                    <select name="warehouse" class="form-select form-select-sm" required>
+                    <select name="warehouse" class="form-select form-select-sm">
+                      <option value="auto" selected>{% trans "تخصيص ذكي تلقائي حسب توفر المخزون" %}</option>
                       {% for wh in warehouses %}
-                      <option value="{{ wh.id }}" {% if forloop.first %}selected{% endif %}>{{ wh.name }}</option>
+                      <option value="{{ wh.id }}">{{ wh.name }}</option>
                       {% endfor %}
                     </select>
                   </div>
@@ -799,9 +800,10 @@
           <p class="text-muted mb-3">{% trans "يرجى اختيار المخزن الذي سيتم صرف البضاعة وخصم المخزون منه لإصدار الفاتورة:" %}</p>
           <div class="mb-3">
             <label for="modal-warehouse" class="form-label fw-bold">{% trans "المخزن المنفذ" %}</label>
-            <select class="form-select" id="modal-warehouse" name="warehouse" required>
+            <select class="form-select" id="modal-warehouse" name="warehouse">
+              <option value="auto" selected>{% trans "تخصيص ذكي تلقائي حسب توفر المخزون" %}</option>
               {% for w in warehouses %}
-              <option value="{{ w.id }}" {% if quotation.warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>
+              <option value="{{ w.id }}">{{ w.name }}</option>
               {% endfor %}
             </select>
           </div>

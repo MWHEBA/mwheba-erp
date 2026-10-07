@@ -82,6 +82,9 @@ def _extract_posted_items(request):
                         item_cost_centers = request.POST.getlist("item_cost_center[]")
                         item_cc = int(item_cost_centers[i]) if (i < len(item_cost_centers) and item_cost_centers[i] and str(item_cost_centers[i]).isdigit()) else ""
                         
+                        item_warehouses = request.POST.getlist("warehouse[]") or request.POST.getlist("item_warehouse[]")
+                        item_wh = int(item_warehouses[i]) if (i < len(item_warehouses) and item_warehouses[i] and str(item_warehouses[i]).isdigit()) else None
+
                         # استخراج نسبة الضريبة
                         if i < len(tax_rates) and tax_rates[i] is not None and tax_rates[i] != '':
                             try:
@@ -106,6 +109,7 @@ def _extract_posted_items(request):
                             "is_taxable": (not is_exempt) and (eff_tax > 0),
                             "is_tax_exempt": is_exempt,
                             "cost_center": item_cc,
+                            "warehouse_id": item_wh,
                             "is_service": prod_obj.is_service,
                             "unit": prod_obj.unit.name if prod_obj.unit else "",
                         })
@@ -234,7 +238,7 @@ def sale_create(request, customer_id=None):
                 sale_data = {
                     'date': form.cleaned_data['date'],
                     'customer_id': form.cleaned_data['customer'].id,
-                    'warehouse_id': form.cleaned_data['warehouse'].id,
+                    'warehouse_id': form.cleaned_data['warehouse'].id if form.cleaned_data.get('warehouse') else None,
                     'salesman': form.cleaned_data.get('salesman'),
                     'cost_center_id': form.cleaned_data.get('cost_center').id if form.cleaned_data.get('cost_center') else (request.POST.get('cost_center') or None),
                     'discount': discount_amount,
@@ -279,6 +283,7 @@ def sale_create(request, customer_id=None):
                 unit_prices = request.POST.getlist("unit_price[]")
                 discounts = request.POST.getlist("discount[]")
                 cost_centers = request.POST.getlist("item_cost_center[]")
+                warehouses = request.POST.getlist("warehouse[]") or request.POST.getlist("item_warehouse[]")
                 
                 # التحقق من أن المستخدم لديه صلاحية تغيير أسعار المنتجات
                 if not request.user.has_perm('sale.change_unit_price'):
@@ -293,12 +298,14 @@ def sale_create(request, customer_id=None):
                 for i in range(len(product_ids)):
                     if product_ids[i]:
                         item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
+                        item_wh = int(warehouses[i]) if (i < len(warehouses) and warehouses[i] and str(warehouses[i]).isdigit()) else sale_data.get('warehouse_id')
                         sale_data['items'].append({
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                             'cost_center_id': item_cc,
+                            'warehouse_id': item_wh,
                         })
                 
                 # إنشاء الفاتورة مع معالجة الدفعة في وحدة تزامنية قواعد بيانات (Atomic Transaction)
@@ -932,7 +939,9 @@ def sale_list(request):
     # تصفية حسب المخزن
     warehouse = request.GET.get("warehouse")
     if warehouse:
-        sales_query = sales_query.filter(warehouse_id=warehouse)
+        sales_query = sales_query.filter(
+            models.Q(warehouse_id=warehouse) | models.Q(items__warehouse_id=warehouse)
+        ).distinct()
 
     # تصفية حسب مسؤول المبيعات
     salesman_filter = request.GET.get("salesman")
@@ -1043,8 +1052,9 @@ def sale_list(request):
             })
         
         # Build items badges
-        items = sale.items.select_related('product').all()
+        items = sale.items.select_related('product', 'warehouse').all()
         badges = []
+        item_wh_names = []
         for it in items:
             p_name = it.product.name if it.product else 'منتج'
             badges.append(
@@ -1052,7 +1062,16 @@ def sale_list(request):
                 f'<i class="fas fa-box text-primary me-1"></i>{p_name}'
                 f'</span>'
             )
+            if it.warehouse and it.warehouse.name not in item_wh_names:
+                item_wh_names.append(it.warehouse.name)
         items_summary = "".join(badges) if badges else '<span class="text-muted">-</span>'
+        
+        if item_wh_names:
+            wh_display = ", ".join(item_wh_names)
+        elif sale.warehouse:
+            wh_display = sale.warehouse.name
+        else:
+            wh_display = '-'
         
         sales_data.append({
             'id': sale.id,
@@ -1061,7 +1080,7 @@ def sale_list(request):
             'customer': sale.customer.name if sale.customer else '-',
             'items_summary': items_summary,
             'salesman': sale.salesman_display_name,
-            'warehouse': sale.warehouse.name if sale.warehouse else '-',
+            'warehouse': wh_display,
             'total': sale.total,
             'amount_paid': sale.amount_paid,
             'amount_due': sale.amount_due,
@@ -1437,7 +1456,7 @@ def sale_edit(request, pk):
                 sale_data = {
                     'date': form.cleaned_data.get('date', sale.date),
                     'customer_id': form.cleaned_data['customer'].pk,
-                    'warehouse_id': form.cleaned_data['warehouse'].pk,
+                    'warehouse_id': form.cleaned_data['warehouse'].pk if form.cleaned_data.get('warehouse') else None,
                     'cost_center_id': form.cleaned_data.get('cost_center').id if form.cleaned_data.get('cost_center') else (request.POST.get('cost_center') or None),
                     'discount': form.cleaned_data.get('discount', 0) or Decimal('0'),
                     'discount_type': form.cleaned_data.get('discount_type', 'fixed'),
@@ -1459,16 +1478,19 @@ def sale_edit(request, pk):
                 unit_prices = request.POST.getlist("unit_price[]")
                 discounts = request.POST.getlist("discount[]")
                 cost_centers = request.POST.getlist("item_cost_center[]")
+                warehouses = request.POST.getlist("warehouse[]") or request.POST.getlist("item_warehouse[]")
 
                 for i in range(len(product_ids)):
                     if product_ids[i]:
                         item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
+                        item_wh = int(warehouses[i]) if (i < len(warehouses) and warehouses[i] and str(warehouses[i]).isdigit()) else sale_data.get('warehouse_id')
                         sale_data['items'].append({
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                             'cost_center_id': item_cc,
+                            'warehouse_id': item_wh,
                         })
 
                 updated_sale = SaleService.update_sale(sale=sale, data=sale_data, user=request.user)
@@ -1502,6 +1524,7 @@ def sale_edit(request, pk):
             "is_taxable": bool(item.is_taxable),
             "is_tax_exempt": is_exempt,
             "cost_center": item.cost_center_id or "",
+            "warehouse_id": item.warehouse_id,
             "is_service": item.product.is_service,
             "unit": item.product.unit.name if item.product.unit else "",
         })
@@ -2120,6 +2143,7 @@ def sale_duplicate(request, pk):
             "is_tax_exempt": bool(getattr(item.product, 'is_tax_exempt', False)),
             "total": float(item.total),
             "cost_center": item.cost_center_id or "",
+            "warehouse_id": item.warehouse_id,
             "is_service": item.product.is_service,
         }
         for item in original.items.all().select_related('product', 'product__tax_code', 'product__unit')

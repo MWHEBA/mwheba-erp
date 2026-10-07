@@ -20,7 +20,7 @@
                     <tr><th class="text-center">رقم الفاتورة</th><td class="text-center">{{ sale.number }}</td></tr>
                     <tr><th class="text-center">التاريخ</th><td class="text-center">{{ sale.date }}</td></tr>
                     <tr><th class="text-center">العميل</th><td class="text-center">{{ sale.customer.name }}</td></tr>
-                    <tr><th class="text-center">المخزن</th><td class="text-center">{{ sale.warehouse.name }}</td></tr>
+                    {% if sale.warehouse %}<tr><th class="text-center">المخزن</th><td class="text-center">{{ sale.warehouse.name }}</td></tr>{% endif %}
                     <tr><th class="text-center">الإجمالي</th><td class="text-center">{{ sale.total|smart_float }} {{ currency_symbol }}</td></tr>
                 </table>
             </div>
@@ -49,6 +49,17 @@
                                     <td class="text-center">
                                         <input type="hidden" name="sale_item[]" value="{{ item.id }}">
                                         {{ item.product.name }}
+                                        {% if not item.product.is_service %}
+                                            {% if item.warehouse %}
+                                                <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                    <i class="fas fa-warehouse me-1 text-muted"></i>{{ item.warehouse.name }}
+                                                </span>
+                                            {% elif sale.warehouse %}
+                                                <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                    <i class="fas fa-warehouse me-1 text-muted"></i>{{ sale.warehouse.name }}
+                                                </span>
+                                            {% endif %}
+                                        {% endif %}
                                     </td>
                                     <td class="text-center">{{ item.quantity|smart_float }}</td>
                                     <td class="text-center">

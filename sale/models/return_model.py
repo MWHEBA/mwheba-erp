@@ -28,6 +28,8 @@ class SaleReturn(models.Model):
         on_delete=models.PROTECT,
         verbose_name=_("المخزن"),
         related_name="sale_returns",
+        null=True,
+        blank=True,
     )
     subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2)
     discount = models.DecimalField(
@@ -105,6 +107,14 @@ class SaleReturnItem(models.Model):
         on_delete=models.PROTECT,
         verbose_name=_("المنتج"),
         related_name="sale_return_items",
+    )
+    warehouse = models.ForeignKey(
+        "product.Warehouse",
+        on_delete=models.PROTECT,
+        verbose_name=_("المخزن"),
+        related_name="sale_return_items",
+        null=True,
+        blank=True,
     )
     quantity = models.PositiveIntegerField(_("الكمية"))
     unit_price = models.DecimalField(_("سعر الوحدة"), max_digits=12, decimal_places=2)

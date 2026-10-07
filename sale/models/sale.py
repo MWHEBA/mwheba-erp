@@ -45,6 +45,8 @@ class Sale(models.Model):
         on_delete=models.PROTECT,
         verbose_name=_("المخزن"),
         related_name="sales",
+        null=True,
+        blank=True,
     )
     subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2)
     discount = models.DecimalField(

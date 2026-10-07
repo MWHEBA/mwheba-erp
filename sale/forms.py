@@ -21,7 +21,7 @@ class SaleForm(forms.ModelForm):
     )
 
     warehouse = forms.ModelChoiceField(
-        queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
+        queryset=Warehouse.objects.filter(is_active=True), label="المخزن", required=False
     )
 
     # نوع الفاتورة

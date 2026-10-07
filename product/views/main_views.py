@@ -4762,7 +4762,17 @@ def get_products_for_invoice(request):
                 qs = qs.filter(id__in=product_ids_with_stock)
 
         products = []
+        from product.services.stock_allocation_service import StockAllocationService
+        target_pids = [p.id for p in qs if not p.is_service]
+        wh_stocks_map = StockAllocationService.bulk_get_warehouse_stocks_for_products(
+            target_pids,
+            user=request.user,
+            preferred_warehouse_id=int(warehouse_id) if warehouse_id and str(warehouse_id).isdigit() else None
+        )
+
         for p in qs.select_related('category').order_by("name"):
+            p_stocks = wh_stocks_map.get(p.id, [])
+            best_wh = next((w for w in p_stocks if w["available_quantity"] > 0), None) or (p_stocks[0] if p_stocks else None)
             products.append({
                 "id": p.id,
                 "name": p.name,
@@ -4774,6 +4784,10 @@ def get_products_for_invoice(request):
                 "is_service": p.is_service,
                 "category_id": p.category_id,
                 "category_name": p.category.name if p.category else "",
+                "warehouse_stocks": p_stocks,
+                "suggested_warehouse_id": best_wh["warehouse_id"] if best_wh else None,
+                "suggested_warehouse_name": best_wh["warehouse_name"] if best_wh else "",
+                "suggested_warehouse_stock": best_wh["available_quantity"] if best_wh else 0,
             })
 
         return JsonResponse({"products": products})

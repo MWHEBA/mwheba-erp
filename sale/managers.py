@@ -20,7 +20,7 @@ class SaleQuerySet(models.QuerySet):
         ).prefetch_related(
             models.Prefetch(
                 'items',
-                queryset=SaleItem.objects.select_related('product', 'product__unit')
+                queryset=SaleItem.objects.select_related('product', 'product__unit', 'warehouse')
             ),
             models.Prefetch(
                 'payments',
@@ -28,7 +28,7 @@ class SaleQuerySet(models.QuerySet):
             ),
             models.Prefetch(
                 'returns',
-                queryset=SaleReturn.objects.filter(status='confirmed').prefetch_related('items__sale_item')
+                queryset=SaleReturn.objects.filter(status='confirmed').prefetch_related('items__sale_item', 'items__warehouse', 'warehouse')
             ),
         )
 

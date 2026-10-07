@@ -401,7 +401,21 @@ def invoice_product_lookup(request):
                     v_item["selling_price"] = mv_sell if product_type != "purchase" else base_item["selling_price"]
                     raw_results.append(v_item)
 
-            raw_results.append(base_item)
+        # إلحاق تفاصيل أرصدة المخازن والمخزن المقترح دفعة واحدة لكل صنف
+        target_product_ids = list({item["id"] for item in raw_results if not item.get("is_service")})
+        from product.services.stock_allocation_service import StockAllocationService
+        wh_stocks_map = StockAllocationService.bulk_get_warehouse_stocks_for_products(
+            target_product_ids,
+            user=request.user,
+            preferred_warehouse_id=int(warehouse_id) if warehouse_id and str(warehouse_id).isdigit() else None
+        )
+        for item in raw_results:
+            p_stocks = wh_stocks_map.get(item["id"], [])
+            item["warehouse_stocks"] = p_stocks
+            best_wh = next((w for w in p_stocks if w["available_quantity"] > 0), None) or (p_stocks[0] if p_stocks else None)
+            item["suggested_warehouse_id"] = best_wh["warehouse_id"] if best_wh else None
+            item["suggested_warehouse_name"] = best_wh["warehouse_name"] if best_wh else ""
+            item["suggested_warehouse_stock"] = best_wh["available_quantity"] if best_wh else 0
 
         # ترتيب النتائج: المنتجات المسعرة بالعملة أولاً، ثم المنتجات غير المسعرة ثانياً
         if is_foreign:

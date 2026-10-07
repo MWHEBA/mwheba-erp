@@ -36,6 +36,15 @@ class SaleItem(models.Model):
         verbose_name=_("مركز التكلفة"),
         related_name="sale_items",
     )
+    warehouse = models.ForeignKey(
+        "product.Warehouse",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("المخزن المنصرف منه"),
+        related_name="sale_items",
+        help_text=_("المخزن الفعلي المعتمد لصرف هذا البند"),
+    )
     price_snapshot = models.JSONField(
         _("لقطة تفاصيل السعر والخصم"),
         default=dict,
@@ -80,6 +89,7 @@ class SaleItem(models.Model):
         verbose_name_plural = _("بنود الفاتورة")
         indexes = [
             models.Index(fields=["sale", "product"]),
+            models.Index(fields=["warehouse"]),
         ]
 
     def __str__(self):

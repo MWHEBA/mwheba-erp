@@ -610,7 +610,20 @@
                                             {% endif %}
                                         </td>
                                         {% endif %}
-                                        <td class="fw-bold">{{ item.product.name }}</td>
+                                        <td class="fw-bold">
+                                            {{ item.product.name }}
+                                            {% if not item.product.is_service %}
+                                                {% if item.warehouse %}
+                                                    <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                        <i class="fas fa-warehouse me-1 text-muted"></i>{{ item.warehouse.name }}
+                                                    </span>
+                                                {% elif sale.warehouse %}
+                                                    <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                        <i class="fas fa-warehouse me-1 text-muted"></i>{{ sale.warehouse.name }}
+                                                    </span>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {% if item.cost_center %}
                                                 <span class="badge bg-light text-dark border">{{ item.cost_center.name }}</span>

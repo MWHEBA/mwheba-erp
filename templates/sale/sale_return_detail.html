@@ -108,12 +108,14 @@
                             </a>
                         </dd>
                         
+                        {% if sale_return.warehouse %}
                         <dt class="col-sm-5">{% trans "المخزن" %}</dt>
                         <dd class="col-sm-7">
                             <a href="{% url 'product:warehouse_detail' sale_return.warehouse.pk %}">
                                 {{ sale_return.warehouse.name }}
                             </a>
                         </dd>
+                        {% endif %}
                         
                         <dt class="col-sm-5">{% trans "تاريخ الإنشاء" %}</dt>
                         <dd class="col-sm-7">{{ sale_return.created_at|date:"d-m-Y H:i" }}</dd>
@@ -215,6 +217,17 @@
                                         <a href="{% url 'product:product_detail' item.product.pk %}">
                                             {{ item.product.name }}
                                         </a>
+                                        {% if not item.product.is_service %}
+                                            {% if item.warehouse %}
+                                                <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                    <i class="fas fa-warehouse me-1 text-muted"></i>{{ item.warehouse.name }}
+                                                </span>
+                                            {% elif sale_return.warehouse %}
+                                                <span class="badge bg-light text-secondary border ms-1 fw-normal" style="font-size: 0.72rem;">
+                                                    <i class="fas fa-warehouse me-1 text-muted"></i>{{ sale_return.warehouse.name }}
+                                                </span>
+                                            {% endif %}
+                                        {% endif %}
                                         <br>
                                         <small class="text-muted">{{ item.product.sku }}</small>
                                     </td>

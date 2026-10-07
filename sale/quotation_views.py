@@ -1066,35 +1066,50 @@ def quotation_convert_to_sale(request, pk):
         with transaction.atomic():
             # تحضير بيانات الفاتورة مع تدقيق المخازن المصرح بها
             valid_warehouses = DataScopingService.get_transaction_warehouses(request.user)
-            warehouse_id = request.POST.get('warehouse')
-            if not warehouse_id:
-                active_wh = valid_warehouses.first()
-                warehouse_id = active_wh.id if active_wh else None
-            else:
+            raw_warehouse_id = request.POST.get('warehouse')
+            preferred_warehouse_id = None
+            if raw_warehouse_id and raw_warehouse_id != 'auto':
                 try:
-                    if not valid_warehouses.filter(id=int(warehouse_id)).exists():
-                        raise ValueError(_("المخزن المحدد غير متاح أو ليس لديك صلاحية صرف منه."))
+                    p_id = int(raw_warehouse_id)
+                    if valid_warehouses.filter(id=p_id).exists():
+                        preferred_warehouse_id = p_id
                 except (ValueError, TypeError):
-                    raise ValueError(_("المخزن المحدد غير صالح."))
-            
-            if not warehouse_id:
-                raise ValueError(_("يرجى تحديد المخزن لإصدار الفاتورة."))
+                    pass
 
-            # التحقق الفعلي من توفر الرصيد المخزني لجميع البنود قبل التحويل
+            # التحقق الفعلي وتخصيص المخازن لكل بند
             from product.models import Stock
+            from product.services.stock_allocation_service import StockAllocationService
+
             insufficient_items = []
+            allocated_item_warehouses = {}
+
             for item in quotation.items.all():
                 if not item.product.is_service and not item.product.is_bundle:
-                    stock_rec = Stock.objects.filter(product_id=item.product.id, warehouse_id=int(warehouse_id)).first()
-                    current_stock = stock_rec.quantity if stock_rec else Decimal("0")
-                    if current_stock < item.quantity:
+                    best_wh = StockAllocationService.get_best_warehouse_for_product(
+                        product_id=item.product.id,
+                        quantity=item.quantity,
+                        preferred_warehouse_id=preferred_warehouse_id
+                    )
+                    
+                    if best_wh:
+                        allocated_item_warehouses[item.id] = best_wh.id
+                    else:
+                        available_stocks = Stock.objects.filter(
+                            product_id=item.product.id,
+                            warehouse__in=valid_warehouses
+                        ).select_related('warehouse')
+                        
+                        stocks_desc = ", ".join([f"{st.warehouse.name}: {st.quantity:.0f}" for st in available_stocks if st.quantity > 0])
                         req_val = item.quantity
                         req_fmt = f"{req_val:.0f}" if req_val % 1 == 0 else f"{req_val:.2f}"
-                        curr_fmt = f"{current_stock:.0f}" if current_stock % 1 == 0 else f"{current_stock:.2f}"
-                        insufficient_items.append(f"• {item.product.name} (المطلوب: {req_fmt} | المتوفر: {curr_fmt})")
+                        
+                        if stocks_desc:
+                            insufficient_items.append(f"• {item.product.name} (المطلوب: {req_fmt} | المتاح: {stocks_desc})")
+                        else:
+                            insufficient_items.append(f"• {item.product.name} (المطلوب: {req_fmt} | رصيد المخازن: 0)")
             
             if insufficient_items:
-                msg_body = "تعذر تحويل عرض السعر لفاتورة: الكمية المتاحة في المخزن المحدد لا تكفي لتغطية الكميات المطلوبة في الفاتورة.<br>يرجى اختيار مخزن آخر به كميات كافية أو إضافة رصيد مخزني أولاً.<br><br><b>البنود التي بها عجز:</b><br>" + "<br>".join(insufficient_items)
+                msg_body = "تعذر تحويل عرض السعر لفاتورة: الكميات المتاحة في المخازن لا تكفي لتغطية البنود المطلوبة.<br><b>البنود التي بها عجز:</b><br>" + "<br>".join(insufficient_items)
                 messages.error(request, msg_body)
                 return redirect("sale:quotation_detail", pk=quotation.pk)
 
@@ -1106,7 +1121,7 @@ def quotation_convert_to_sale(request, pk):
             sale_data = {
                 'date': timezone.now().date(),
                 'customer_id': quotation.customer.id,
-                'warehouse_id': int(warehouse_id),
+                'warehouse_id': preferred_warehouse_id,
                 'salesman': quotation.salesman or quotation.created_by,
                 'discount': quotation.discount,
                 'adjustment_name': getattr(quotation, 'adjustment_name', ''),
@@ -1136,6 +1151,7 @@ def quotation_convert_to_sale(request, pk):
 
                 sale_data['items'].append({
                     'product_id': item.product.id,
+                    'warehouse_id': allocated_item_warehouses.get(item.id),
                     'quantity': item.quantity,
                     'unit_price': item.unit_price,
                     'discount': item.discount,

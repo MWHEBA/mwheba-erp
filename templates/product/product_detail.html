@@ -1386,7 +1386,14 @@
                                 <tbody>
                                     {% for sale_item in sales_stats.last_sales %}
                                     <tr>
-                                        <td class="fw-bold text-primary">{{ sale_item.sale.number }}</td>
+                                        <td class="fw-bold text-primary">
+                                            {{ sale_item.sale.number }}
+                                            {% if sale_item.warehouse %}
+                                                <span class="badge bg-light text-muted border ms-1" style="font-size: 0.7rem;"><i class="fas fa-warehouse me-1"></i>{{ sale_item.warehouse.name }}</span>
+                                            {% elif sale_item.sale.warehouse %}
+                                                <span class="badge bg-light text-muted border ms-1" style="font-size: 0.7rem;"><i class="fas fa-warehouse me-1"></i>{{ sale_item.sale.warehouse.name }}</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ sale_item.sale.customer.name }}</td>
                                         <td class="text-center small text-muted">{{ sale_item.sale.date|date:"Y-m-d" }}</td>
                                         <td class="text-center fw-bold">{{ sale_item.quantity|smart_float }}</td>

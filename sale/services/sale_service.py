@@ -56,13 +56,22 @@ class SaleService:
                     raise ValidationError('لا يمكن بيع البند بكمية صفر أو أقل (Negative/Zero quantity is rejected)')
                 if Decimal(str(item.get('unit_price', 0))) <= Decimal('0'):
                     raise ValidationError('لا يمكن بيع البند بسعر صفر أو أقل (Zero price is rejected)')
-            # 0. قفل المنتجات والمخزون والعميل بترتيب منظم لمنع الـ Deadlocks وسباق التزامن
-            product_ids = sorted([int(item['product_id']) for item in items_data if item.get('product_id')])
+            # 0. قفل المنتجات والمخزون والعميل بترتيب تصاعدي حتمي لمنع الـ Deadlocks وسباق التزامن
+            product_ids = sorted(list({int(item['product_id']) for item in items_data if item.get('product_id')}))
             if product_ids:
                 from product.models import Product, Stock
                 list(Product.objects.filter(id__in=product_ids).order_by('id').select_for_update())
-                if data.get('warehouse_id'):
-                    list(Stock.objects.filter(product_id__in=product_ids, warehouse_id=data['warehouse_id']).order_by('id').select_for_update())
+                
+                stock_pairs = set()
+                for it in items_data:
+                    p_id = it.get('product_id')
+                    w_id = it.get('warehouse_id') or it.get('warehouse') or data.get('warehouse_id') or data.get('warehouse')
+                    if p_id and w_id:
+                        stock_pairs.add((int(p_id), int(w_id)))
+                
+                sorted_stock_pairs = sorted(list(stock_pairs), key=lambda x: (x[0], x[1]))
+                for p_id, w_id in sorted_stock_pairs:
+                    list(Stock.objects.filter(product_id=p_id, warehouse_id=w_id).select_for_update())
             
             if data.get('customer_id'):
                 from customer.models import Customer
@@ -115,7 +124,7 @@ class SaleService:
             sale = Sale.objects.create(
                 date=data.get('date', timezone.now().date()),
                 customer_id=data['customer_id'],
-                warehouse_id=data['warehouse_id'],
+                warehouse_id=data.get('warehouse_id') or data.get('warehouse'),
                 price_list_id=data.get('price_list_id') or data.get('price_list'),
                 currency=currency_obj,
                 exchange_rate=sys_rate,
@@ -243,9 +252,24 @@ class SaleService:
         unit_p = Decimal(str(item_data['unit_price']))
         disc = Decimal(str(item_data.get('discount', 0)))
 
+        # تحديد مخزن البند الفعلي
+        item_warehouse_id = item_data.get('warehouse_id') or item_data.get('warehouse')
+        if not item_warehouse_id and prod and not prod.is_service:
+            from product.services.stock_allocation_service import StockAllocationService
+            best_wh = StockAllocationService.get_best_warehouse_for_product(
+                product_id=prod.id,
+                quantity=qty,
+                preferred_warehouse_id=getattr(sale, 'warehouse_id', None)
+            )
+            if best_wh:
+                item_warehouse_id = best_wh.id
+        elif not item_warehouse_id and getattr(sale, 'warehouse_id', None):
+            item_warehouse_id = sale.warehouse_id
+
         item = SaleItem.objects.create(
             sale=sale,
             product_id=item_data['product_id'],
+            warehouse_id=item_warehouse_id,
             quantity=qty,
             unit_price=unit_p,
             discount=disc,
@@ -370,6 +394,23 @@ class SaleService:
         if not items_data:
             raise ValidationError("يجب أن تحتوي الفاتورة على بند واحد على الأقل")
 
+        # 0.2 قفل المنتجات والمخزون والعميل تصاعدياً لمنع الـ Deadlocks
+        product_ids = sorted(list({int(it['product_id']) for it in items_data if it.get('product_id')}))
+        if product_ids:
+            from product.models import Product, Stock
+            list(Product.objects.filter(id__in=product_ids).order_by('id').select_for_update())
+            
+            stock_pairs = set()
+            for it in items_data:
+                p_id = it.get('product_id')
+                w_id = it.get('warehouse_id') or it.get('warehouse') or data.get('warehouse_id') or data.get('warehouse') or sale.warehouse_id
+                if p_id and w_id:
+                    stock_pairs.add((int(p_id), int(w_id)))
+            
+            sorted_stock_pairs = sorted(list(stock_pairs), key=lambda x: (x[0], x[1]))
+            for p_id, w_id in sorted_stock_pairs:
+                list(Stock.objects.filter(product_id=p_id, warehouse_id=w_id).select_for_update())
+
         # 0.3 التدقيق السعري وحوكمة الخصومات في التعديل
         subtotal_approx = sum(
             (Decimal(str(it.get('quantity', 0))) * Decimal(str(it.get('unit_price', 0)))) - Decimal(str(it.get('discount', 0)))
@@ -389,10 +430,20 @@ class SaleService:
             doc_type='sale'
         )
 
-        # 1. إلغاء حركات المخزن القديمة للبنود الفيزيائية
+        # 1. إلغاء حركات المخزن القديمة للبنود الفيزيائية بدقة على مخزن كل بند
         movement_service = MovementService()
         for item in sale.items.all():
             if not item.product.is_service:
+                wh_id = item.warehouse_id or sale.warehouse_id
+                item_unit_cost = None
+                if wh_id:
+                    from product.models import Stock
+                    st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                    if st and st.average_cost and st.average_cost > Decimal('0.00'):
+                        item_unit_cost = st.average_cost
+                if item_unit_cost is None:
+                    item_unit_cost = item.product.cost_price
+
                 try:
                     movement_service.process_movement(
                         product_id=item.product.id,
@@ -401,10 +452,10 @@ class SaleService:
                         source_reference=f"SALE_EDIT_RESTORE_{item.id}",
                         idempotency_key=f'sale_{sale.id}_item_{item.id}_restore_{int(timezone.now().timestamp())}',
                         user=user,
-                        unit_cost=item.product.cost_price,
+                        unit_cost=item_unit_cost,
                         notes=f'تعديل فاتورة رقم {sale.number} - استرجاع كمية سابقة',
                         movement_date=sale.date,
-                        warehouse_id=sale.warehouse_id
+                        warehouse_id=wh_id
                     )
                 except Exception as e:
                     logger.warning(f"⚠️ يتعذر استرجاع حركات مخزن البند {item.id}: {e}")
@@ -545,14 +596,23 @@ class SaleService:
             logger.info(f"✅ استخدام حساب العميل للمديونية: {debit_account.code} - {debit_account.name}")
 
             
-            # حساب تكلفة البضاعة المباعة (فقط للمنتجات المادية)
+            # حساب تكلفة البضاعة المباعة (فقط للمنتجات المادية) بناءً على متوسط تكلفة مخزن كل سطر
             cost_of_goods_sold = Decimal('0')
             for item in sale.items.all():
                 if item.product.is_service:
                     continue
-                if not item.product.cost_price or item.product.cost_price == 0:
+                item_unit_cost = None
+                wh_id = item.warehouse_id or sale.warehouse_id
+                if wh_id:
+                    from product.models import Stock
+                    st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                    if st and st.average_cost and st.average_cost > Decimal('0.00'):
+                        item_unit_cost = st.average_cost
+                if item_unit_cost is None:
+                    item_unit_cost = item.product.cost_price or Decimal('0')
+                if item_unit_cost == Decimal('0'):
                     logger.warning(f"⚠️ المنتج '{item.product.name}' ليس له سعر تكلفة - سيتم استخدام 0")
-                cost_of_goods_sold += (item.product.cost_price or Decimal('0')) * item.quantity
+                cost_of_goods_sold += item_unit_cost * item.quantity
             
             logger.info(f"   - تكلفة البضاعة المباعة: {cost_of_goods_sold}")
             
@@ -615,9 +675,19 @@ class SaleService:
                     rev_code = services_revenue_account.code
                 else:
                     rev_code = sales_revenue_account.code
-                    # حساب تكلفة البضاعة المباعة للبند
-                    if item.product.cost_price and item.product.cost_price > Decimal('0'):
-                        item_cogs = (item.product.cost_price * item.quantity).quantize(Decimal('0.01'))
+                    # حساب تكلفة البضاعة المباعة للبند بناءً على مخزن البند الفعلي
+                    item_unit_cost = None
+                    wh_id = item.warehouse_id or sale.warehouse_id
+                    if wh_id:
+                        from product.models import Stock
+                        st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                        if st and st.average_cost and st.average_cost > Decimal('0.00'):
+                            item_unit_cost = st.average_cost
+                    if item_unit_cost is None:
+                        item_unit_cost = item.product.cost_price or Decimal('0')
+
+                    if item_unit_cost > Decimal('0'):
+                        item_cogs = (item_unit_cost * item.quantity).quantize(Decimal('0.01'))
                         cogs_groups[effective_cc_id] = cogs_groups.get(effective_cc_id, Decimal('0')) + item_cogs
                         total_cogs += item_cogs
                 
@@ -815,6 +885,16 @@ class SaleService:
                 if item.product.is_service:
                     logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة المخزون")
                     continue
+                wh_id = item.warehouse_id or sale.warehouse_id
+                item_unit_cost = None
+                if wh_id:
+                    from product.models import Stock
+                    st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                    if st and st.average_cost and st.average_cost > Decimal('0.00'):
+                        item_unit_cost = st.average_cost
+                if item_unit_cost is None:
+                    item_unit_cost = item.product.cost_price
+
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
                 item_idem_key = AccountingGateway.generate_idempotency_key('product', 'StockMovement', item.id, f'sale_{sale.id}_out' if not version_stamp else f'sale_{sale.id}_v{version_stamp}')
                 movement = movement_service.process_movement(
@@ -824,11 +904,11 @@ class SaleService:
                     source_reference=f"SALE_ITEM_{item.id}",
                     idempotency_key=item_idem_key,
                     user=user,
-                    unit_cost=item.product.cost_price,
+                    unit_cost=item_unit_cost,
                     document_number=sale.number,
                     notes=f'مبيعات - فاتورة رقم {sale.number}',
                     movement_date=sale.date,
-                    warehouse_id=sale.warehouse_id if sale.warehouse_id else None
+                    warehouse_id=wh_id if wh_id else None
                 )
                 
                 logger.info(f"✅ تم إنشاء حركة مخزون: {movement.id} للبند: {item.product.name}")
@@ -1053,10 +1133,15 @@ class SaleService:
             # Support both 'date' and 'return_date' for backward compatibility
             return_date = return_data.get('date') or return_data.get('return_date', timezone.now().date())
             
+            return_wh = return_data.get('warehouse') or return_data.get('warehouse_id') or getattr(sale, 'warehouse', None)
+            if isinstance(return_wh, (int, str)) and str(return_wh).isdigit():
+                from product.models import Warehouse
+                return_wh = Warehouse.objects.filter(id=int(return_wh)).first()
+
             sale_return = SaleReturn.objects.create(
                 sale=sale,
                 date=return_date,
-                warehouse=sale.warehouse,
+                warehouse=return_wh,
                 subtotal=Decimal('0'),
                 discount=Decimal('0'),
                 tax=Decimal('0'),
@@ -1112,10 +1197,16 @@ class SaleService:
         item_is_taxable = sale_item.is_taxable
         item_tax_amount = (qty * (sale_item.tax_amount / sale_item.quantity)) if (sale_item.quantity and sale_item.quantity > 0) else Decimal('0')
         
+        # استنتاج مخزن بند الإرجاع
+        item_warehouse_id = item_data.get('warehouse_id') or item_data.get('warehouse')
+        if not item_warehouse_id:
+            item_warehouse_id = getattr(sale_item, 'warehouse_id', None) or getattr(sale_return, 'warehouse_id', None) or getattr(sale_return.sale, 'warehouse_id', None)
+
         item = SaleReturnItem.objects.create(
             sale_return=sale_return,
             sale_item=sale_item,
             product=sale_item.product,
+            warehouse_id=item_warehouse_id,
             quantity=qty,
             unit_price=Decimal(str(item_data['unit_price'])),
             discount=Decimal(str(item_data.get('discount', 0))),
@@ -1169,12 +1260,21 @@ class SaleService:
                     credit_account_code = '10300'  # حساب العملاء الرئيسي
                     logger.warning(f"استخدام حساب العملاء الرئيسي للعميل {sale.customer.name}")
             
-            # حساب تكلفة البضاعة المرتجعة (فقط للمنتجات المادية)
-            cost_of_goods_returned = sum(
-                item.product.cost_price * item.quantity
-                for item in sale_return.items.all()
-                if not item.product.is_service
-            )
+            # حساب تكلفة البضاعة المرتجعة (فقط للمنتجات المادية) بناءً على متوسط تكلفة مخزن كل بند
+            cost_of_goods_returned = Decimal('0')
+            for item in sale_return.items.all():
+                if item.product.is_service:
+                    continue
+                wh_id = item.warehouse_id or (item.sale_item.warehouse_id if item.sale_item else None) or sale_return.warehouse_id or (sale_return.sale.warehouse_id if sale_return.sale else None)
+                item_unit_cost = None
+                if wh_id:
+                    from product.models import Stock
+                    st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                    if st and st.average_cost and st.average_cost > Decimal('0.00'):
+                        item_unit_cost = st.average_cost
+                if item_unit_cost is None:
+                    item_unit_cost = item.product.cost_price or Decimal('0')
+                cost_of_goods_returned += item_unit_cost * item.quantity
             
             # تقسيم الإرجاع بالتناسب بين المنتجات والخدمات
             physical_return = Decimal('0')
@@ -1297,6 +1397,10 @@ class SaleService:
                 if item.product.is_service:
                     logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة إرجاع المخزون")
                     continue
+                
+                # تحديد المخزن المستهدف للإرجاع
+                target_wh_id = item.warehouse_id or (item.sale_item.warehouse_id if item.sale_item else None) or sale_return.warehouse_id or (sale_return.sale.warehouse_id if sale_return.sale else None)
+                
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
                 movement = movement_service.process_movement(
                     product_id=item.product.id,
@@ -1309,7 +1413,7 @@ class SaleService:
                     document_number=None,
                     notes=f'مرتجع مبيعات - فاتورة {sale_return.sale.number}',
                     movement_date=sale_return.date,
-                    warehouse_id=sale_return.sale.warehouse_id if sale_return.sale.warehouse_id else None
+                    warehouse_id=target_wh_id
                 )
                 
                 logger.info(f"✅ تم إنشاء حركة مخزون (إرجاع): {movement.id}")

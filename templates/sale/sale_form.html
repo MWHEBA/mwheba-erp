@@ -47,6 +47,14 @@
       {% if custom_fields_json %}{{ custom_fields_json|safe }}{% else %}[]{% endif %}
     </script>
 
+    <script type="application/json" id="warehouses-data-json">
+      [
+        {% for w in warehouses %}
+        {"id": {{ w.id }}, "name": "{{ w.name|escapejs }}"}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
+    </script>
+
     {% include "shared/page_header.html" %}
 
     {% if is_duplicate %}
@@ -144,14 +152,14 @@
                                                 </select>
                                             </div>
 
-                                            <!-- المخزن -->
-                                            <div class="col-12 col-md-6" id="warehouse-container">
-                                                <label class="form-label">المخزن <span class="text-danger">*</span></label>
+                                            <!-- المخزن الرئيسي (مخفي، الاعتماد بالكامل على مستوى البنود) -->
+                                            <div class="col-12 col-md-6 d-none" id="warehouse-container">
+                                                <label class="form-label">المخزن</label>
                                                 {% if sale.id %}
                                                     <input type="text" class="form-control bg-light" value="{{ sale.warehouse.name }}" readonly>
                                                     <input type="hidden" name="warehouse" value="{{ sale.warehouse.id }}">
                                                 {% else %}
-                                                    <select name="warehouse" id="id_warehouse" class="form-control" required>
+                                                    <select name="warehouse" id="id_warehouse" class="form-control">
                                                         <option value="">اختر المخزن</option>
                                                         {% for warehouse in warehouses %}
                                                             <option value="{{ warehouse.id }}" {% if form.warehouse.value == warehouse.id|stringformat:'s' or default_warehouse.id == warehouse.id %}selected{% endif %}>
@@ -330,7 +338,7 @@
                 <div class="section-container mb-4">
                     <div class="section-title d-flex align-items-center justify-content-between">
                         <div><i class="fas fa-list me-2"></i>بنود الفاتورة</div>
-                        <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
+                        <div class="form-check form-switch mb-0" title="إظهار كافة المنتجات">
                             <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
                             <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">إظهار المنتجات بدون مخزون</label>
                         </div>
@@ -345,7 +353,7 @@
                                     <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
                                 </div>
                                 <div class="col-12 col-md-3">
-                                    <div class="product-header-row d-flex align-items-center mb-2">
+                                    <div class="product-header-row d-flex align-items-center mb-1">
                                         <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
                                         <span class="stock-info"></span>
                                     </div>
@@ -353,6 +361,18 @@
                                         <span class="selected-text">{{ item.product.name }}</span>
                                         <i class="fas fa-th-large text-muted small"></i>
                                     </button>
+                                    <div class="warehouse-select-wrapper mt-1 d-flex align-items-center gap-1 {% if item.product.is_service %}d-none{% endif %}">
+                                        <i class="fas fa-warehouse text-muted" style="font-size: 0.72rem;" title="المخزن"></i>
+                                        <select name="warehouse[]" class="form-select form-select-sm item-warehouse-select" tabindex="-1" style="font-size: 0.75rem; padding: 1px 4px; height: 24px; border-radius: 4px;">
+                                            {% for w in warehouses %}
+                                                <option value="{{ w.id }}" {% if item.warehouse_id == w.id or not item.warehouse_id and default_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <span class="item-wh-stock badge bg-light text-dark border" style="font-size: 0.68rem;" title="الرصيد المتاح بالمخزن"></span>
+                                        <button type="button" class="btn btn-xs btn-outline-warning btn-split-item d-none" tabindex="-1" title="توزيع الكمية على المخازن" style="font-size: 0.65rem; padding: 1px 4px; white-space: nowrap;">
+                                            <i class="fas fa-code-branch"></i> تقسيم
+                                        </button>
+                                    </div>
                                     <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-cost-base="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-cost="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" required>
                                 </div>
                                 <div class="col-6 col-md-1">
@@ -391,7 +411,7 @@
                                 <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
                             </div>
                             <div class="col-12 col-md-3">
-                                <div class="product-header-row d-flex align-items-center mb-2">
+                                <div class="product-header-row d-flex align-items-center mb-1">
                                     <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
                                     <span class="stock-info"></span>
                                 </div>
@@ -399,6 +419,18 @@
                                     <span class="placeholder-text">{% if allowed_item_types == 'services' %}اختر الخدمة{% elif allowed_item_types == 'products' %}اختر المنتج{% else %}اختر المنتج / الخدمة{% endif %}</span>
                                     <i class="fas fa-th-large text-muted small"></i>
                                 </button>
+                                <div class="warehouse-select-wrapper mt-1 d-flex align-items-center gap-1">
+                                    <i class="fas fa-warehouse text-muted" style="font-size: 0.72rem;" title="المخزن"></i>
+                                    <select name="warehouse[]" class="form-select form-select-sm item-warehouse-select" tabindex="-1" style="font-size: 0.75rem; padding: 1px 4px; height: 24px; border-radius: 4px;">
+                                        {% for w in warehouses %}
+                                            <option value="{{ w.id }}" {% if default_warehouse.id == w.id %}selected{% endif %}>{{ w.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <span class="item-wh-stock badge bg-light text-dark border" style="font-size: 0.68rem;" title="الرصيد المتاح بالمخزن"></span>
+                                    <button type="button" class="btn btn-xs btn-outline-warning btn-split-item d-none" tabindex="-1" title="توزيع الكمية على المخازن" style="font-size: 0.65rem; padding: 1px 4px; white-space: nowrap;">
+                                        <i class="fas fa-code-branch"></i> تقسيم
+                                    </button>
+                                </div>
                                 <input type="hidden" name="product[]" class="product-id-input" required>
                             </div>
                             <div class="col-6 col-md-1">
@@ -1046,6 +1078,14 @@
             updatePaymentFieldsState();
         })();
 
+        // ===== تحميل بيانات المخازن للاستخدام بالأسطر =====
+        try {
+            var rawWh = $('#warehouses-data-json').text();
+            if (rawWh) window._transactionWarehouses = JSON.parse(rawWh);
+        } catch(e) {
+            window._transactionWarehouses = [];
+        }
+
         // ===== فحص فوري للتكلفة بالعملة الأجنبية =====
         var canViewProfitMargin = '{{ can_view_profit_margin|yesno:"true,false" }}' === 'true';
         function checkRowCostWarning($row) {
@@ -1090,6 +1130,138 @@
             });
         }
 
+        // ===== إدارة اختيار المخازن على مستوى كل بند وفحص التوزيع التلقائي =====
+        function renderLineWarehouseBadge($row, product) {
+            var $whSelect = $row.find('.item-warehouse-select');
+            var $whWrapper = $row.find('.warehouse-select-wrapper');
+            var $splitBtn = $row.find('.btn-split-item');
+            var $stockBadge = $row.find('.item-wh-stock');
+
+            if (!product || product.is_service) {
+                $whWrapper.addClass('d-none');
+                $splitBtn.addClass('d-none');
+                return;
+            }
+
+            $whWrapper.removeClass('d-none');
+            $row.data('warehouse-stocks', product.warehouse_stocks || []);
+
+            if (product.warehouse_stocks && product.warehouse_stocks.length > 0) {
+                var currentWhVal = $whSelect.val();
+                var targetWhId = product.suggested_warehouse_id || currentWhVal;
+                
+                $whSelect.empty();
+                product.warehouse_stocks.forEach(function(ws) {
+                    var isSel = (String(ws.warehouse_id) === String(targetWhId));
+                    var stockLabel = ws.available_quantity > 0 ? (' (رصيد: ' + ws.available_quantity + ')') : ' (رصيد: 0)';
+                    $whSelect.append('<option value="' + ws.warehouse_id + '" data-stock="' + ws.available_quantity + '" ' + (isSel ? 'selected' : '') + '>' + ws.warehouse_name + stockLabel + '</option>');
+                });
+
+                var selectedWhStock = parseFloat($whSelect.find('option:selected').data('stock') || 0);
+                $stockBadge.text('متاح: ' + selectedWhStock);
+                $row.find('.product-id-input').attr('data-stock', selectedWhStock);
+            }
+
+            checkItemSplitEligibility($row);
+        }
+
+        function checkItemSplitEligibility($row) {
+            var $splitBtn = $row.find('.btn-split-item');
+            var prodInput = $row.find('.product-id-input');
+            var isService = prodInput.attr('data-is-service') === 'true' || prodInput.data('is-service') === true;
+            if (isService || !prodInput.val()) {
+                $splitBtn.addClass('d-none');
+                return;
+            }
+
+            var qty = parseFloat($row.find('.quantity').val()) || 1;
+            var currentWhStock = parseFloat($row.find('.item-warehouse-select option:selected').data('stock') || prodInput.attr('data-stock') || 0);
+            var whStocks = $row.data('warehouse-stocks') || [];
+
+            if (qty > currentWhStock && currentWhStock > 0) {
+                var otherWhWithStock = whStocks.filter(function(ws) {
+                    return String(ws.warehouse_id) !== String($row.find('.item-warehouse-select').val()) && ws.available_quantity > 0;
+                });
+                if (otherWhWithStock.length > 0) {
+                    $splitBtn.removeClass('d-none');
+                    return;
+                }
+            }
+            $splitBtn.addClass('d-none');
+        }
+
+        $(document).on('change', '.item-warehouse-select', function() {
+            var $row = $(this).closest('.item-row');
+            var selectedOpt = $(this).find('option:selected');
+            var stock = parseFloat(selectedOpt.data('stock') || 0);
+            $row.find('.item-wh-stock').text('متاح: ' + stock);
+            $row.find('.product-id-input').attr('data-stock', stock);
+            
+            var qty = parseFloat($row.find('.quantity').val()) || 1;
+            var isService = $row.find('.product-id-input').attr('data-is-service') === 'true';
+            if (typeof window.renderStockState === 'function') {
+                window.renderStockState($row, { stock: stock, is_service: isService, quantity: qty }, 'sale');
+            }
+            checkItemSplitEligibility($row);
+        });
+
+        $(document).on('click', '.btn-split-item', function(e) {
+            e.preventDefault();
+            var $row = $(this).closest('.item-row');
+            var $whSelect = $row.find('.item-warehouse-select');
+            var currentWhId = $whSelect.val();
+            var currentWhStock = parseFloat($whSelect.find('option:selected').data('stock') || 0);
+            var totalQty = parseFloat($row.find('.quantity').val()) || 1;
+            
+            if (totalQty <= currentWhStock || currentWhStock <= 0) return;
+
+            var remainingQty = totalQty - currentWhStock;
+            var whStocks = $row.data('warehouse-stocks') || [];
+            var nextWh = whStocks.find(function(ws) {
+                return String(ws.warehouse_id) !== String(currentWhId) && ws.available_quantity > 0;
+            });
+
+            if (!nextWh) return;
+
+            $row.find('.quantity').val(currentWhStock).trigger('input');
+
+            var cloneItemData = {
+                product_id: $row.find('.product-id-input').val(),
+                name: $row.find('.product-picker-btn .selected-text').text(),
+                code: $row.find('.product-code-input').val(),
+                quantity: Math.min(remainingQty, nextWh.available_quantity),
+                unit_price: parseFloat(String($row.find('.unit-price').val() || '0').replace(/,/g, '')),
+                discount: 0,
+                warehouse_id: nextWh.warehouse_id,
+                stock: nextWh.available_quantity,
+                is_service: false,
+                tax_rate: parseFloat($row.find('.item-tax-rate').val() || 14),
+                is_taxable: $row.find('.item-is-taxable').val() === 'true'
+            };
+
+            if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderRow === 'function') {
+                var $newRow = ProductPicker.renderRow(cloneItemData, { showRemoveButton: true });
+                $row.after($newRow);
+                
+                $newRow.data('warehouse-stocks', whStocks);
+                var $newWhSelect = $newRow.find('.item-warehouse-select');
+                $newWhSelect.empty();
+                whStocks.forEach(function(ws) {
+                    var isSel = (String(ws.warehouse_id) === String(nextWh.warehouse_id));
+                    var stockLabel = ws.available_quantity > 0 ? (' (رصيد: ' + ws.available_quantity + ')') : ' (رصيد: 0)';
+                    $newWhSelect.append('<option value="' + ws.warehouse_id + '" data-stock="' + ws.available_quantity + '" ' + (isSel ? 'selected' : '') + '>' + ws.warehouse_name + stockLabel + '</option>');
+                });
+                $newRow.find('.item-wh-stock').text('متاح: ' + nextWh.available_quantity);
+                $newRow.find('.product-id-input').attr('data-stock', nextWh.available_quantity);
+
+                if (typeof window.bindEventHandlers === 'function') window.bindEventHandlers();
+                if (typeof window.calculateRowTotal === 'function') window.calculateRowTotal($newRow);
+                if (typeof window.calculateTotals === 'function') window.calculateTotals();
+
+                toastr.info('تم تقسيم الكمية بنجاح على المخازن المتوفرة');
+            }
+        });
+
         // ===== تهيئة مكون اختيار المنتجات والبحث الموحد =====
         ProductPicker.init({
             type: 'sale',
@@ -1100,6 +1272,7 @@
             getPriceListId: function() { return $('#id_price_list').val() || ''; },
             getInvoiceId: function() { return $('#django-sales-form-data').data('sale-id') || '0'; },
             onProductSelect: function($row, product, matchType) {
+                renderLineWarehouseBadge($row, product);
                 calculateRowTotal($row);
                 checkRowCostWarning($row);
             }
@@ -1125,6 +1298,7 @@
                     } else if (typeof window.renderStockInfo === 'function') {
                         window.renderStockInfo(row, stock);
                     }
+                    checkItemSplitEligibility(row);
                 }
             });
 

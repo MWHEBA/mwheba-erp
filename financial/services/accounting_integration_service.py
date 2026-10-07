@@ -1723,13 +1723,23 @@ class AccountingIntegrationService:
 
     @classmethod
     def _get_item_cost(cls, item) -> Decimal:
-        """حساب تكلفة بند واحد"""
+        """حساب تكلفة بند واحد مع مراعاة متوسط تكلفة مخزن البند الفعلي"""
         try:
-            if not hasattr(item.product, "cost_price") or item.product.cost_price is None:
+            if getattr(item.product, 'is_service', False):
                 return Decimal("0.00")
-            
-            return item.product.cost_price * item.quantity
-            
+
+            wh_id = getattr(item, 'warehouse_id', None) or getattr(getattr(item, 'sale', None), 'warehouse_id', None)
+            if wh_id:
+                from product.models import Stock
+                st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+                if st and st.average_cost and st.average_cost > Decimal("0.00"):
+                    return st.average_cost * item.quantity
+
+            if hasattr(item.product, "cost_price") and item.product.cost_price is not None:
+                return item.product.cost_price * item.quantity
+
+            return Decimal("0.00")
+
         except Exception as e:
             logger.error(f"خطأ في حساب تكلفة البند: {str(e)}")
             return Decimal("0.00")

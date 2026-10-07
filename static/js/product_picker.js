@@ -176,6 +176,29 @@
                     removeBtn +
                 '</div>');
             } else {
+                var whId = itemData.warehouse_id || itemData.warehouse || '';
+                var whList = window._transactionWarehouses || [];
+                var whOptionsHtml = '';
+                if (whList && whList.length > 0) {
+                    whList.forEach(function(wh) {
+                        var isSel = (String(wh.id) === String(whId)) ? 'selected' : '';
+                        whOptionsHtml += '<option value="' + wh.id + '" ' + isSel + '>' + wh.name + '</option>';
+                    });
+                }
+
+                var whSelectHtml = (!isPurchase && !isServiceType) ? (
+                    '<div class="warehouse-select-wrapper mt-1 d-flex align-items-center gap-1 ' + (isService ? 'd-none' : '') + '">' +
+                        '<i class="fas fa-warehouse text-muted" style="font-size: 0.72rem;" title="المخزن"></i>' +
+                        '<select name="warehouse[]" class="form-select form-select-sm item-warehouse-select" tabindex="-1" style="font-size: 0.75rem; padding: 1px 4px; height: 24px; border-radius: 4px;">' +
+                            whOptionsHtml +
+                        '</select>' +
+                        '<span class="item-wh-stock badge bg-light text-dark border" style="font-size: 0.68rem;" title="الرصيد المتاح بالمخزن"></span>' +
+                        '<button type="button" class="btn btn-xs btn-outline-warning btn-split-item d-none" tabindex="-1" title="توزيع الكمية على المخازن" style="font-size: 0.65rem; padding: 1px 4px; white-space: nowrap;">' +
+                            '<i class="fas fa-code-branch"></i> تقسيم' +
+                        '</button>' +
+                    '</div>'
+                ) : '';
+
                 $row = $('<div class="item-row row g-2 align-items-center">' +
                     '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
                     '<input type="hidden" name="tax_rate[]" class="item-tax-rate" value="' + taxRate + '">' +
@@ -190,6 +213,7 @@
                             '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                        whSelectHtml +
                         '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" data-cost-base="' + costPriceBase + '" data-cost="' + costPrice + '" data-uom-factor="' + uomFactor + '" required>' +
                         '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
                         '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
