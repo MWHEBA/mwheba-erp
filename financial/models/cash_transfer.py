@@ -80,7 +80,7 @@ class CashTransfer(models.Model):
         null=True,
         blank=True,
         related_name="transfers_in_transit",
-        verbose_name=_("حساب نقدية في الطريق (11190)")
+        verbose_name=_("حساب نقدية في الطريق (11150)")
     )
 
     from_work_location = models.ForeignKey(
@@ -205,7 +205,7 @@ class CashTransfer(models.Model):
         null=True,
         blank=True,
         related_name="+",
-        verbose_name=_("حساب المصاريف البنكية (50200)")
+        verbose_name=_("حساب المصاريف والعمولات البنكية (54100)")
     )
     is_fee_vat_inclusive = models.BooleanField(
         default=False,
@@ -221,7 +221,7 @@ class CashTransfer(models.Model):
         max_digits=18,
         decimal_places=2,
         default=Decimal("0.00"),
-        verbose_name=_("مبلغ ضريبة القيمة المضافة على العمولة (11350)")
+        verbose_name=_("مبلغ ضريبة القيمة المضافة على العمولة (11510)")
     )
 
     # 5. البيانات المصرفية الرسمية والمطابقة
@@ -429,8 +429,14 @@ class CashTransfer(models.Model):
         if self.from_account_id and self.to_account_id and self.from_account_id == self.to_account_id:
             raise ValidationError({"to_account": _("لا يمكن التحويل لنفس الحساب المصدر.")})
 
-        if self.source_amount and self.source_amount <= Decimal("0.00"):
+        if self.source_amount is not None and self.source_amount <= Decimal("0.00"):
             raise ValidationError({"source_amount": _("مبلغ التحويل يجب أن يكون أكبر من صفر.")})
+
+        if self.transfer_fee is not None and self.transfer_fee < Decimal("0.00"):
+            raise ValidationError({"transfer_fee": _("قيمة العمولة لا يمكن أن تكون سالبة.")})
+
+        if self.fee_vat_amount is not None and self.fee_vat_amount < Decimal("0.00"):
+            raise ValidationError({"fee_vat_amount": _("مبلغ ضريبة العمولة لا يمكن أن يكون سالباً.")})
 
     def generate_verification_hash(self) -> str:
         """

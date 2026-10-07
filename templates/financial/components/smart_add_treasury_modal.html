@@ -2,11 +2,11 @@
 {% load i18n %}
 
 <style>
-/* ستايل بطاقات اختيار نوع الحساب - أفقي متناسق ومريح متوافق 100% مع نظام التصميم الموحد */
+/* ستايل بطاقات اختيار نوع الحساب - متناسق وأنيق متوافق 100% مع نظام التصميم الموحد */
 .smart-add-modal .account-type-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    gap: 10px;
 }
 @media (max-width: 768px) {
     .smart-add-modal .account-type-grid {
@@ -20,8 +20,8 @@
     align-items: center !important;
     justify-content: flex-start !important;
     text-align: right !important;
-    gap: 12px !important;
-    padding: 10px 14px 10px 36px !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
     background-color: var(--light-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
@@ -41,14 +41,14 @@
     box-shadow: 0 0 0 1px var(--primary-color);
 }
 .smart-add-modal .account-type-card .icon-box {
-    width: 38px !important;
-    height: 38px !important;
-    min-width: 38px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
     border-radius: 8px;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 1.1rem;
+    font-size: 1rem;
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
     color: var(--text-muted);
@@ -71,9 +71,9 @@
 }
 .smart-add-modal .account-type-card .card-title-text {
     color: var(--text-dark);
-    font-size: 0.88rem !important;
+    font-size: 0.85rem !important;
     font-weight: 700 !important;
-    line-height: 1.3 !important;
+    line-height: 1.2 !important;
     margin-bottom: 2px !important;
 }
 .smart-add-modal .account-type-radio:checked + .account-type-card .card-title-text {
@@ -81,15 +81,14 @@
 }
 .smart-add-modal .account-type-card .card-desc-text {
     color: var(--text-muted);
-    font-size: 0.75rem !important;
-    line-height: 1.3 !important;
+    font-size: 0.72rem !important;
+    line-height: 1.2 !important;
 }
 .smart-add-modal .account-type-card .check-indicator {
     position: absolute !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    left: 12px !important;
-    font-size: 0.9rem;
+    top: 6px !important;
+    left: 6px !important;
+    font-size: 0.75rem;
     color: var(--primary-color);
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -197,7 +196,7 @@
                                     <label class="form-label fw-bold small text-dark mb-1">
                                         {% trans "اسم الحساب / الخزينة" %} <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" name="name" id="modal_account_name" class="form-control form-control-sm" placeholder="{% trans 'مثال: الخزينة الفرعية - التجمع، أو بنك مصر - جاري' %}" required>
+                                    <input type="text" name="name" id="modal_account_name" class="form-control" placeholder="{% trans 'مثال: الخزينة الفرعية، أو بنك مصر - جاري' %}" required>
                                 </div>
                             </div>
                         </div>
@@ -210,22 +209,13 @@
                         </div>
                         <div class="p-3">
                             <div class="row g-3">
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "فرع الشركة / الموقع" %}</label>
-                                    <select name="work_location_id" id="modal_work_location" class="form-select form-select-sm">
-                                        <option value="">-- {% trans "بدون تخصيص فرع" %} --</option>
-                                        {% for loc in work_locations %}
-                                            <option value="{{ loc.id }}">{{ loc.name }}</option>
-                                        {% endfor %}
-                                    </select>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">{% trans "سقف التأمين على النقدية" %}</label>
+                                    <input type="number" name="max_holding_limit" step="0.01" min="0" class="form-control" placeholder="{% trans 'الحد الأقصى للسيولة المسموح بها' %}">
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "سقف التأمين على النقدية" %}</label>
-                                    <input type="number" name="max_holding_limit" step="0.01" min="0" class="form-control form-control-sm" placeholder="{% trans 'الحد الأقصى للسيولة' %}">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "حد الأمان الأدنى" %}</label>
-                                    <input type="number" name="minimum_balance" step="0.01" min="0" class="form-control form-control-sm" placeholder="{% trans 'الحد الأدنى' %}">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">{% trans "حد الأمان الأدنى" %}</label>
+                                    <input type="number" name="minimum_balance" step="0.01" min="0" class="form-control" placeholder="{% trans 'الحد الأدنى للنقدية بالخزينة' %}">
                                 </div>
                             </div>
                         </div>
@@ -242,21 +232,21 @@
                                     <label class="form-label small text-dark fw-bold mb-1">
                                         {% trans "اسم البنك" %} <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" name="bank_name" id="modal_bank_name" class="form-control form-control-sm" placeholder="{% trans 'مثال: البنك الأهلي المصري، CIB' %}">
+                                    <input type="text" name="bank_name" id="modal_bank_name" class="form-control" placeholder="{% trans 'مثال: البنك الأهلي المصري، CIB' %}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-dark fw-bold mb-1">
                                         {% trans "رقم الحساب البنكي" %} <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" name="account_number" id="modal_account_number" class="form-control form-control-sm" placeholder="{% trans 'رقم الحساب لدى البنك' %}">
+                                    <input type="text" name="account_number" id="modal_account_number" class="form-control" placeholder="{% trans 'رقم الحساب لدى البنك' %}">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted mb-1">{% trans "رقم الآيبان (IBAN)" %}</label>
-                                    <input type="text" name="iban" class="form-control form-control-sm" placeholder="EG...">
+                                    <input type="text" name="iban" class="form-control" placeholder="EG...">
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label small text-muted mb-1">{% trans "كود السويفت (SWIFT / BIC)" %}</label>
-                                    <input type="text" name="swift_code" class="form-control form-control-sm" placeholder="SWIFT CODE">
+                                    <input type="text" name="swift_code" class="form-control" placeholder="SWIFT CODE">
                                 </div>
                             </div>
                         </div>
@@ -273,24 +263,26 @@
                                     <label class="form-label small text-dark fw-bold mb-1">
                                         {% trans "الموظف المسؤول عن العهدة" %} <span class="text-danger">*</span>
                                     </label>
-                                    <select name="employee_id" id="modal_custody_employee" class="form-select form-select-sm">
+                                    <select name="employee_id" id="modal_custody_employee" class="form-select select2-modal">
                                         <option value="">-- {% trans "اختر الموظف المسؤول" %} --</option>
                                         {% for emp in employees %}
                                             <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }}) - {{ emp.job_title.title_ar|default:'' }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
-                                <div class="col-md-3">
-                                    <label class="form-label small text-muted mb-1">{% trans "نوع العهدة" %}</label>
-                                    <select name="custody_type" id="modal_custody_type" class="form-select form-select-sm">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">
+                                        {% trans "نوع العهدة" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="custody_type" id="modal_custody_type" class="form-select select2-modal">
                                         <option value="permanent">{% trans "عهدة مستديمة" %}</option>
                                         <option value="temporary">{% trans "عهدة مؤقتة" %}</option>
                                         <option value="card">{% trans "بطاقة مشتريات بنكية" %}</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3" id="custodyCardNumberWrapper" style="display: none;">
-                                    <label class="form-label small text-muted mb-1">{% trans "رقم البطاقة المقنع" %}</label>
-                                    <input type="text" name="card_masked_number" class="form-control form-control-sm" placeholder="**** 1234">
+                                <div class="col-md-12" id="custodyCardNumberWrapper" style="display: none;">
+                                    <label class="form-label small text-dark fw-bold mb-1">{% trans "رقم البطاقة المقنع" %}</label>
+                                    <input type="text" name="card_masked_number" class="form-control" placeholder="**** 1234">
                                 </div>
                             </div>
                         </div>
@@ -307,21 +299,21 @@
                                     <label class="form-label small text-dark fw-bold mb-1">
                                         {% trans "العملة" %} <span class="text-danger">*</span>
                                     </label>
-                                    <select name="currency_id" id="modal_currency_select" class="form-select form-select-sm" required>
+                                    <select name="currency_id" id="modal_currency_select" class="form-select" required>
                                         {% for cur in currencies %}
                                             <option value="{{ cur.id }}" data-code="{{ cur.code }}" data-is-func="{% if cur.is_functional %}1{% else %}0{% endif %}" {% if cur.is_functional %}selected{% endif %}>
-                                                {{ cur.name }} ({{ cur.code }}) {% if cur.is_functional %}- {% trans "العملة الرئيسية" %}{% endif %}
+                                                {{ cur.name }} ({{ cur.code }})
                                             </option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small text-dark fw-bold mb-1">{% trans "الرصيد الافتتاحي" %}</label>
-                                    <input type="number" name="opening_balance" id="modal_opening_balance" step="0.01" class="form-control form-control-sm" value="0.00">
+                                    <input type="number" name="opening_balance" id="modal_opening_balance" step="0.01" class="form-control" value="0.00">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small text-muted mb-1">{% trans "تاريخ الرصيد الافتتاحي" %}</label>
-                                    <input type="date" name="opening_balance_date" id="modal_opening_balance_date" class="form-control form-control-sm" value="{{ current_date|date:'Y-m-d'|default:'' }}">
+                                    <input type="date" name="opening_balance_date" id="modal_opening_balance_date" class="form-control" value="{{ current_date|date:'Y-m-d'|default:'' }}">
                                 </div>
                             </div>
 
@@ -332,11 +324,11 @@
                                         <label class="form-label small text-muted mb-1">
                                             <i class="fas fa-exchange-alt me-1 text-primary"></i>{% trans "سعر الصرف اللحظي مقابل" %} {{ base_currency_code }}
                                         </label>
-                                        <input type="number" name="exchange_rate" id="modal_exchange_rate" step="0.000001" min="0.000001" class="form-control form-control-sm text-center" placeholder="1.000000">
+                                        <input type="number" name="exchange_rate" id="modal_exchange_rate" step="0.000001" min="0.000001" class="form-control text-center" placeholder="1.000000">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small text-muted mb-1">{% trans "المعادل التقريبي بالعملة المحلية" %}</label>
-                                        <div id="modal_base_equiv_preview" class="form-control form-control-sm bg-white text-center fw-bold text-success">0.00 {{ base_currency_symbol }}</div>
+                                        <div id="modal_base_equiv_preview" class="form-control bg-white text-center fw-bold text-success">0.00 {{ base_currency_symbol }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -346,7 +338,7 @@
                     <!-- 7. ملاحظات وبيان -->
                     <div>
                         <label class="form-label small text-muted mb-1">{% trans "بيان وملاحظات إضافية" %}</label>
-                        <textarea name="description" class="form-control form-control-sm" rows="1" placeholder="{% trans 'ملاحظات تعريف الحساب، أسباب التأسيس...' %}"></textarea>
+                        <textarea name="description" class="form-control" rows="1" placeholder="{% trans 'ملاحظات تعريف الحساب، أسباب التأسيس...' %}"></textarea>
                     </div>
 
                 </div>
@@ -486,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateCurrencyFx();
 
-    // تهيئة Select2 داخل المودال
+    // تهيئة Select2 داخل المودال لتوحيد مظهر القوائم المنسدلة 100%
     if (typeof jQuery !== 'undefined' && $.fn.select2) {
         $('#modal_custody_employee').select2({
             dropdownParent: $('#quickAddModal'),
@@ -496,6 +488,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         $('#modal_custody_employee').on('change', function() {
             if (empSelect) empSelect.value = $(this).val();
+        });
+
+        $('#modal_custody_type').select2({
+            dropdownParent: $('#quickAddModal'),
+            minimumResultsForSearch: Infinity,
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+        $('#modal_custody_type').on('change', function() {
+            var val = $(this).val();
+            $('#custodyCardNumberWrapper').toggle(val === 'card');
+        });
+
+        $('#modal_currency_select').select2({
+            dropdownParent: $('#quickAddModal'),
+            minimumResultsForSearch: Infinity,
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+        $('#modal_currency_select').on('change', function() {
+            updateCurrencyFx();
         });
     }
 

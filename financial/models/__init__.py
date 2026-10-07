@@ -116,6 +116,7 @@ from .cash_transfer import (
     TransferType,
     TransferStatus,
 )
+from .account_role import FinancialAccountRole
 
 __all__ = [
     # النماذج الأساسية
@@ -195,4 +196,6 @@ __all__ = [
     "CashTransfer",
     "TransferType",
     "TransferStatus",
+    # نماذج أدوار الحسابات المالية
+    "FinancialAccountRole",
 ]

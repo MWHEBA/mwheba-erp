@@ -27,15 +27,15 @@
  </td>
  <td>
  {% if log.direction == 'OUTBOUND_MOBILE' %}
- <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="{% trans 'صادرة من تطبيق الموبايل (Coexistence)' %}">
+ <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="{% trans 'صادر من تطبيق الموبايل (Coexistence)' %}">
  <i class="fas fa-mobile-alt me-1 text-warning"></i> {% trans "موبايل" %}
  </span>
  {% elif log.direction == 'INBOUND' %}
- <span class="badge bg-info-subtle text-info border border-info-subtle" title="{% trans 'واردة من الشريك' %}">
+ <span class="badge bg-info-subtle text-info border border-info-subtle" title="{% trans 'وارد من الشريك' %}">
  <i class="fas fa-arrow-down me-1 text-info"></i> {% trans "وارد" %}
  </span>
  {% else %}
- <span class="badge bg-light text-muted border" title="{% trans 'صادرة من النظام' %}">
+ <span class="badge bg-light text-muted border" title="{% trans 'صادر من النظام' %}">
  <i class="fas fa-desktop me-1 text-secondary"></i> {% trans "النظام" %}
  </span>
  {% endif %}

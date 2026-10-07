@@ -296,7 +296,28 @@ class ChartOfAccounts(models.Model):
                         _("لا يمكن إلغاء تنشيط حساب رصيده غير صفري (الرصيد الحالي: {}). يجب تسوية وتصفية رصيد الحساب أولاً.").format(bal)
                     )
 
+        # منع تكرار اسم الخزنة والحساب البنكي
+        if self.name:
+            trimmed_name = self.name.strip()
+            if self.is_cash_account:
+                qs = ChartOfAccounts.objects.filter(is_cash_account=True, name__iexact=trimmed_name)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({
+                        "name": _("اسم الخزنة '{}' مستخدم بالفعل. يرجى اختيار اسم فريد للخزنة.").format(trimmed_name)
+                    })
+            elif self.is_bank_account:
+                qs = ChartOfAccounts.objects.filter(is_bank_account=True, name__iexact=trimmed_name)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+                if qs.exists():
+                    raise ValidationError({
+                        "name": _("اسم الحساب البنكي '{}' مستخدم بالفعل. يرجى اختيار اسم فريد للحساب.").format(trimmed_name)
+                    })
+
     def save(self, *args, **kwargs):
+        self.clean()
         # حساب الرصيد الافتتاحي بالعملة المحلية تلقائياً عند إدخال رصيد أجنبي
         if self.opening_balance_foreign and self.opening_balance_foreign != Decimal("0.00"):
             rate = self.opening_balance_rate or Decimal("1.000000")

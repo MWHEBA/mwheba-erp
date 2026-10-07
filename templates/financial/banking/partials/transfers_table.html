@@ -14,7 +14,7 @@
  <th>{% trans "إلى خزينة / حساب" %}</th>
  <th class="text-end">{% trans "المبلغ المحول" %}</th>
  <th class="text-center" style="width: 120px;">{% trans "الحالة" %}</th>
- <th>{% trans "المسؤول / المندوب" %}</th>
+ <th>{% trans "المسؤول" %}</th>
  <th class="text-center col-actions" style="width: 130px;">{% trans "الإجراءات" %}</th>
  </tr>
  </thead>
@@ -52,11 +52,9 @@
  </td>
  <td>
  <div class="fw-semibold text-dark">{{ t.from_account.name }}</div>
- <small class="text-muted">{{ t.from_account.code }}</small>
  </td>
  <td>
  <div class="fw-semibold text-dark">{{ t.to_account.name }}</div>
- <small class="text-muted">{{ t.to_account.code }}</small>
  </td>
  <td class="text-end">
  <div class="fw-bold text-success fs-6">

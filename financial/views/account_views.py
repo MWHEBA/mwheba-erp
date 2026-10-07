@@ -428,8 +428,28 @@ def quick_add_cash_bank_account(request):
                 "error": f"لم يتم العثور على الحساب الرقابي الرئيسي لـ {account_type} في دليل الحسابات."
             }, status=400)
 
+        # منع تكرار اسم الخزنة / الحساب البنكي / صندوق العهدة
+        if account_type == "cash":
+            if ChartOfAccounts.objects.filter(is_cash_account=True, name__iexact=name).exists():
+                return JsonResponse({
+                    "success": False,
+                    "error": f"يوجد خزينة مسجلة مسبقاً بنفس الاسم '{name}'. يرجى اختيار اسم فريد للخزنة."
+                }, status=400)
+        elif account_type == "bank":
+            if ChartOfAccounts.objects.filter(is_bank_account=True, name__iexact=name).exists():
+                return JsonResponse({
+                    "success": False,
+                    "error": f"يوجد حساب بنكي مسجل مسبقاً بنفس الاسم '{name}'. يرجى اختيار اسم فريد للحساب البنكي."
+                }, status=400)
+        elif account_type == "custody":
+            if ChartOfAccounts.objects.filter(is_custody_account=True, name__iexact=name).exists():
+                return JsonResponse({
+                    "success": False,
+                    "error": f"يوجد صندوق عهدة مسجل مسبقاً بنفس الاسم '{name}'. يرجى اختيار اسم فريد لصندوق العهدة."
+                }, status=400)
+
         # منع تكرار اسم الحساب تحت نفس الحساب الأب
-        if ChartOfAccounts.objects.filter(parent=parent_account, name=name, is_active=True).exists():
+        if ChartOfAccounts.objects.filter(parent=parent_account, name__iexact=name, is_active=True).exists():
             return JsonResponse({
                 "success": False,
                 "error": f"يوجد حساب آخر مسجل مسبقاً بنفس الاسم '{name}' تحت نفس التصنيف."
@@ -3016,6 +3036,9 @@ def cash_account_movements(request, pk):
         or TreasurySecurityService.can_user_disburse(request.user, account.id)[0]
     )
 
+    current_bal_val = current_foreign_balance if account.is_foreign_currency else current_base_balance
+    is_zero_balance = abs(current_bal_val) <= Decimal("0.005")
+
     # إذا كانت الخزينة نشطة: تظهر كافة أزرار الإجراءات والمعاملات المالية المصرح بها
     if account.is_active:
         if account.is_bank_account and (request.user.is_superuser or request.user.has_perm('financial.view_bankreconciliation')):
@@ -3059,22 +3082,14 @@ def cash_account_movements(request, pk):
 
         if can_manage_treasury:
             header_buttons.append({
-                "url": reverse("financial:cash_account_edit", args=[account.pk]),
-                "icon": "fa-edit",
-                "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
-                "class": "btn-outline-primary me-2"
-            })
-            header_buttons.append({
-                "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
-                "icon": "fa-user-shield",
-                "text": "إسناد الخزينة",
-                "class": "btn-outline-info me-2"
-            })
-            header_buttons.append({
-                "onclick": f"confirmToggleCashAccount('{account.id}', false)",
-                "icon": "fa-ban",
-                "text": "تعطيل الخزينة",
-                "class": "btn-outline-warning"
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+                "title": "خيارات وإجراءات إضافية",
             })
 
         header_badges = [
@@ -3085,35 +3100,16 @@ def cash_account_movements(request, pk):
             }
         ]
     else:
-        current_bal_val = current_foreign_balance if account.is_foreign_currency else current_base_balance
-        is_zero_balance = abs(current_bal_val) <= Decimal("0.005")
-
         if can_manage_treasury:
             header_buttons.append({
-                "url": reverse("financial:cash_account_edit", args=[account.pk]),
-                "icon": "fa-edit",
-                "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
-                "class": "btn-outline-secondary me-2"
-            })
-            header_buttons.append({
-                "url": f"{reverse('financial:treasury_assignments_list')}?treasury={account.id}",
-                "icon": "fa-user-shield",
-                "text": "إسناد الخزينة",
-                "class": "btn-outline-info me-2"
-            })
-            header_buttons.append({
-                "onclick": f"confirmToggleCashAccount('{account.id}', true)",
-                "icon": "fa-check-circle",
-                "text": "تفعيل الخزينة",
-                "class": "btn-success fw-bold" + (" me-2" if is_zero_balance and can_delete_treasury else "")
-            })
-
-        if is_zero_balance and can_delete_treasury:
-            header_buttons.append({
-                "onclick": f"confirmDeleteCashAccount('{account.id}')",
-                "icon": "fa-trash-alt",
-                "text": "حذف الخزينة",
-                "class": "btn-outline-danger"
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+                "title": "خيارات وإجراءات إضافية",
             })
 
         header_badges = [
@@ -3149,7 +3145,10 @@ def cash_account_movements(request, pk):
         "can_deposit": can_deposit,
         "can_disburse": can_disburse,
         "can_transfer": can_transfer,
+        "accounts": TreasurySecurityService.get_user_accessible_treasuries(request.user, action="any"),
         "can_manage_treasury": can_manage_treasury,
+        "can_delete_treasury": can_delete_treasury,
+        "is_zero_balance": is_zero_balance,
         "can_view_journal_entry": (request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm('financial.view_journalentry')),
         "title": f"حركات {account.name}",
         "subtitle": f"{account_type} - {'نشطة' if account.is_active else 'معطلة'}",
@@ -3211,6 +3210,16 @@ def cash_account_edit(request, pk):
             if not name:
                 messages.error(request, "يرجى إدخال اسم الخزينة / الحساب البنكي.")
                 return redirect("financial:cash_account_edit", pk=account.pk)
+
+            # التحقق من عدم تكرار اسم الخزنة أو الحساب البنكي
+            if account_type_choice == "bank":
+                if ChartOfAccounts.objects.exclude(pk=account.pk).filter(is_bank_account=True, name__iexact=name).exists():
+                    messages.error(request, f"اسم الحساب البنكي '{name}' مستخدم بالفعل لحساب آخر. يرجى اختيار اسم فريد.")
+                    return redirect("financial:cash_account_edit", pk=account.pk)
+            else:
+                if ChartOfAccounts.objects.exclude(pk=account.pk).filter(is_cash_account=True, name__iexact=name).exists():
+                    messages.error(request, f"اسم الخزنة '{name}' مستخدم بالفعل لخزينة أخرى. يرجى اختيار اسم فريد.")
+                    return redirect("financial:cash_account_edit", pk=account.pk)
 
             # التحقق من تكرار الكود
             if code and ChartOfAccounts.objects.exclude(pk=account.pk).filter(code=code).exists():

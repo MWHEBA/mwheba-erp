@@ -248,12 +248,24 @@
  <div class="p-3">
  <div class="row g-3 align-items-center">
  <div class="col-md-6">
- <label class="form-label small text-muted mb-1">{% trans "سعر الصرف المباشر" %}</label>
- <input type="number" name="exchange_rate" id="trf_exchange_rate" step="0.000001" min="0.000001" class="form-control form-control-sm text-center" placeholder="1">
+ <label class="form-label small text-dark fw-bold mb-1">
+ <i class="fas fa-exchange-alt text-primary me-1"></i>{% trans "سعر الصرف المباشر" %}
+ </label>
+ <div class="input-group input-group-sm">
+ <input type="number" name="exchange_rate" id="trf_exchange_rate" step="any" min="0.000001" class="form-control text-center fw-bold" placeholder="1.000000">
+ <span class="input-group-text bg-light text-muted small" id="trf_rate_pair_label">{% trans "سعر الصرف" %}</span>
+ </div>
+ <div class="form-text text-muted small mt-1" style="font-size: 11px;">{% trans "أدخل سعر الصرف لحساب القيمة تلقائياً" %}</div>
  </div>
  <div class="col-md-6">
- <label class="form-label small text-muted mb-1">{% trans "المبلغ المستلم المعادل" %}</label>
- <input type="text" id="trf_dest_amount_preview" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+ <label class="form-label small text-dark fw-bold mb-1">
+ <i class="fas fa-hand-holding-usd text-success me-1"></i>{% trans "المبلغ المستلم المعادل" %}
+ </label>
+ <div class="input-group input-group-sm">
+ <input type="number" name="destination_amount_input" id="trf_dest_amount" step="any" min="0.01" class="form-control text-center fw-bold text-success" placeholder="0.00">
+ <span class="input-group-text bg-light fw-bold text-muted" id="trf_dest_currency_symbol">ج.م</span>
+ </div>
+ <div class="form-text text-muted small mt-1" style="font-size: 11px;">{% trans "أو أدخل المبلغ المعادل لحساب سعر الصرف التقريبي" %}</div>
  </div>
  </div>
  </div>
@@ -261,8 +273,11 @@
 
  <!-- 4. تفاصيل العمليات البنكية (تظهر إذا كان أحد الطرفين حساباً بنكياً) -->
  <div id="bankDetailsSection" class="inner-section-card mb-3" style="display: none;">
- <div class="inner-section-header">
- <i class="fas fa-university text-primary me-2"></i>{% trans "بيانات المعاملة والمصاريف البنكية" %}
+ <div class="inner-section-header d-flex align-items-center justify-content-between">
+ <span><i class="fas fa-university text-primary me-2"></i>{% trans "بيانات المعاملة والمصاريف البنكية" %}</span>
+ <span class="badge bg-light text-primary border" style="font-size: 11px;">
+ <i class="fas fa-arrow-circle-up text-danger me-1"></i>{% trans "المصاريف تُخصم من الحساب المصدر (المرسل)" %}
+ </span>
  </div>
  <div class="p-3">
  <div class="row g-3 mb-3">
@@ -276,20 +291,16 @@
  </div>
  </div>
  <div class="row g-3">
- <div class="col-md-4">
- <label class="form-label small text-muted mb-1">{% trans "العمولة / المصاريف البنكية" %}</label>
- <input type="number" name="bank_fee" id="trf_bank_fee" step="any" min="0" class="form-control form-control-sm" placeholder="0" value="0">
- </div>
- <div class="col-md-4">
- <label class="form-label small text-muted mb-1">{% trans "ضريبة القيمة المضافة (14%)" %}</label>
- <input type="number" name="vat_on_fee" id="trf_vat_on_fee" step="any" min="0" class="form-control form-control-sm" placeholder="0" value="0">
- </div>
- <div class="col-md-4 d-flex align-items-center pt-3">
- <div class="form-check">
- <input class="form-check-input" type="checkbox" name="is_fee_vat_inclusive" id="trf_fee_inclusive" value="1">
- <label class="form-check-label small" for="trf_fee_inclusive">
- {% trans "العمولة شاملة الضريبة" %}
+ <div class="col-md-6">
+ <label class="form-label small text-dark fw-bold mb-1">
+ <i class="fas fa-receipt text-primary me-1"></i>{% trans "العمولة / المصاريف البنكية" %}
  </label>
+ <div class="input-group input-group-sm">
+ <input type="number" name="bank_fee" id="trf_bank_fee" step="any" min="0" class="form-control fw-bold" placeholder="0" value="0">
+ <span class="input-group-text bg-light fw-bold text-muted trf_fee_currency_symbol">ج.م</span>
+ </div>
+ <div class="form-text text-muted small mt-1" style="font-size: 11px;">
+ <i class="fas fa-info-circle text-primary me-1"></i>{% trans "تُخصم مباشرة من الحساب المرسل" %} (<strong class="trf_from_acc_name_preview text-dark">المصدر</strong>)
  </div>
  </div>
  </div>
@@ -397,216 +408,323 @@
 <script>
 // دالة لتنسيق الأرقام بدون علامة عشرية للأرقام الصحيحة ومع فواصل الآلاف
 function formatSmartAmount(val) {
- if (val === null || val === undefined || val === '') return '0';
- var num = parseFloat(val);
- if (isNaN(num)) return val;
- if (num % 1 === 0) {
- return num.toLocaleString('en-US');
- }
- // للأرقام التي تحتوي على كسور فعلية: عرض الكسور بدون أصفار زائدة
- var formatted = parseFloat(num.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
- return formatted;
+	if (val === null || val === undefined || val === '') return '0';
+	var num = parseFloat(val);
+	if (isNaN(num)) return val;
+	if (num % 1 === 0) {
+		return num.toLocaleString('en-US');
+	}
+	// للأرقام التي تحتوي على كسور فعلية: عرض الكسور بدون أصفار زائدة
+	var formatted = parseFloat(num.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+	return formatted;
 }
 
 window.initSmartCashTransferModal = function() {
- var $modal = $('#smartCashTransferModal');
- var $form = $('#smartCashTransferForm');
- var previewTimeout = null;
+	var $modal = $('#smartCashTransferModal');
+	var $form = $('#smartCashTransferForm');
+	var previewTimeout = null;
+	var isSyncingFx = false;
 
- if ($.fn.select2) {
- $modal.find('.select2-modal').select2({
- dropdownParent: $modal,
- dir: 'rtl',
- language: 'ar',
- width: '100%'
- });
- }
+	if ($.fn.select2) {
+		$modal.find('.select2-modal').select2({
+			dropdownParent: $modal,
+			dir: 'rtl',
+			language: 'ar',
+			width: '100%'
+		});
+	}
 
- // تبديل نمط التحويل (مباشر vs مرحلي)
- $('input[name="transfer_type"]').on('change', function() {
- var isTransit = $(this).val() === 'in_transit';
- $('#courierDetailsSection').toggle(isTransit);
- triggerPreview();
- });
+	// تبديل نمط التحويل (مباشر vs مرحلي)
+	$('input[name="transfer_type"]').on('change', function() {
+		var isTransit = $(this).val() === 'in_transit';
+		$('#courierDetailsSection').toggle(isTransit);
+		triggerPreview();
+	});
 
- // مراقبة الحسابات المختارة
- $('#trf_from_account, #trf_to_account').on('change', function() {
- var $fromOpt = $('#trf_from_account').find(':selected');
- var $toOpt = $('#trf_to_account').find(':selected');
+	// مراقبة الحسابات المختارة
+	$('#trf_from_account, #trf_to_account').on('change', function() {
+		var $fromOpt = $('#trf_from_account').find(':selected');
+		var $toOpt = $('#trf_to_account').find(':selected');
 
- var fromBalance = $fromOpt.data('balance') || 0;
- var fromSymbol = $fromOpt.data('currency-symbol') || 'ج.م';
- var fromCode = $fromOpt.data('currency-code') || '';
- var toCode = $toOpt.data('currency-code') || '';
- var isFromBank = $fromOpt.data('is-bank') == '1';
- var isToBank = $toOpt.data('is-bank') == '1';
+		var fromBalance = $fromOpt.data('balance') || 0;
+		var fromSymbol = $fromOpt.data('currency-symbol') || 'ج.م';
+		var toSymbol = $toOpt.data('currency-symbol') || 'ج.م';
+		var fromCode = $fromOpt.data('currency-code') || '';
+		var toCode = $toOpt.data('currency-code') || '';
+		var isFromBank = $fromOpt.data('is-bank') == '1';
+		var isToBank = $toOpt.data('is-bank') == '1';
 
- $('#trf_from_balance').text(formatSmartAmount(fromBalance) + ' ' + fromSymbol);
- $('#trf_source_currency_symbol').text(fromSymbol);
+		$('#trf_from_balance').text(formatSmartAmount(fromBalance) + ' ' + fromSymbol);
+		$('#trf_source_currency_symbol').text(fromSymbol);
+		$('#trf_dest_currency_symbol').text(toSymbol);
+		$('.trf_fee_currency_symbol').text(fromSymbol);
+		var fromAccName = $fromOpt.text().split('-')[0].trim() || 'المصدر';
+		$('.trf_from_acc_name_preview').text(fromAccName);
 
- // إظهار كارت العملات المتعددة إذا اختلفت العملتان
- if (fromCode && toCode && fromCode !== toCode) {
- $('#crossCurrencyCard').slideDown(200);
- } else {
- $('#crossCurrencyCard').slideUp(200);
- }
+		if (fromCode && toCode) {
+			$('#trf_rate_pair_label').text('1 ' + fromCode + ' = ? ' + toCode);
+		} else {
+			$('#trf_rate_pair_label').text('{% trans "سعر الصرف" %}');
+		}
 
- // إظهار قسم البنك إذا كان أحدهما حساباً بنكياً
- if (isFromBank || isToBank) {
- $('#bankDetailsSection').slideDown(200);
- } else {
- $('#bankDetailsSection').slideUp(200);
- }
+		// إظهار كارت العملات المتعددة إذا اختلفت العملتان
+		if (fromCode && toCode && fromCode !== toCode) {
+			$('#crossCurrencyCard').slideDown(200);
+		} else {
+			$('#crossCurrencyCard').slideUp(200);
+			$('#trf_exchange_rate').val('');
+			$('#trf_dest_amount').val($('#trf_amount').val() || '');
+		}
 
- triggerPreview();
- });
+		// إظهار قسم البنك إذا كان أحدهما حساباً بنكياً
+		if (isFromBank || isToBank) {
+			$('#bankDetailsSection').slideDown(200);
+		} else {
+			$('#bankDetailsSection').slideUp(200);
+		}
 
- // مراقبة المدخلات الرقمية للمعاينة
- $('#trf_amount, #trf_exchange_rate, #trf_bank_fee, #trf_vat_on_fee, #trf_date, #trf_fee_inclusive').on('input change', function() {
- triggerPreview();
- });
+		triggerPreview();
+		updateDenominationsCalculation();
+	});
 
- function triggerPreview() {
- clearTimeout(previewTimeout);
- previewTimeout = setTimeout(executeLivePreview, 300);
- }
+	// مزامنة اتجاهين: عند تعديل المبلغ المحول
+	$('#trf_amount').on('input change', function() {
+		if (isSyncingFx) return;
+		var srcAmt = parseFloat($(this).val()) || 0;
+		var isCross = $('#crossCurrencyCard').is(':visible');
+		var rate = parseFloat($('#trf_exchange_rate').val()) || 0;
 
- function executeLivePreview() {
- var fromId = $('#trf_from_account').val();
- var toId = $('#trf_to_account').val();
- var amount = $('#trf_amount').val();
- if (!fromId || !toId || !amount || parseFloat(amount) <= 0) {
- return;
- }
+		if (isCross) {
+			if (rate > 0 && srcAmt > 0) {
+				isSyncingFx = true;
+				var calculatedDest = parseFloat((srcAmt * rate).toFixed(2));
+				$('#trf_dest_amount').val(calculatedDest);
+				isSyncingFx = false;
+			}
+		} else {
+			$('#trf_dest_amount').val(srcAmt > 0 ? srcAmt : '');
+		}
+		triggerPreview();
+		updateDenominationsCalculation();
+	});
 
- var formData = {
- from_account: fromId,
- to_account: toId,
- amount: amount,
- exchange_rate: $('#trf_exchange_rate').val(),
- bank_fee: $('#trf_bank_fee').val(),
- vat_on_fee: $('#trf_vat_on_fee').val(),
- transfer_type: $('input[name="transfer_type"]:checked').val(),
- transfer_date: $('#trf_date').val(),
- csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
- };
+	// مزامنة اتجاهين: عند إدخال سعر الصرف يحدد القيمة المستلمة
+	$('#trf_exchange_rate').on('input change', function() {
+		if (isSyncingFx) return;
+		var rate = parseFloat($(this).val()) || 0;
+		var srcAmt = parseFloat($('#trf_amount').val()) || 0;
 
- $.ajax({
- url: '{% url "financial:transfer_preview_api" %}',
- type: 'POST',
- data: formData,
- success: function(res) {
- if (res.success && res.preview) {
- var p = res.preview;
- $('#trf_dest_amount_preview').val(formatSmartAmount(p.destination_amount) + ' ' + p.destination_currency);
- if (!$('#trf_exchange_rate').val() || $('#trf_exchange_rate').val() == '1' || $('#trf_exchange_rate').val() == '1.000000') {
- $('#trf_exchange_rate').val(formatSmartAmount(p.effective_exchange_rate));
- }
+		if (rate > 0 && srcAmt > 0) {
+			isSyncingFx = true;
+			var calculatedDest = parseFloat((srcAmt * rate).toFixed(2));
+			$('#trf_dest_amount').val(calculatedDest);
+			isSyncingFx = false;
+		}
+		triggerPreview();
+		updateDenominationsCalculation();
+	});
 
- // شارة الفروق
- if (p.fx_type === 'gain') {
- $('#trf_fx_badge').removeClass('bg-secondary bg-danger').addClass('bg-success').text('+' + formatSmartAmount(p.fx_gain_loss) + ' ج.م (أرباح صرافة)');
- } else if (p.fx_type === 'loss') {
- $('#trf_fx_badge').removeClass('bg-secondary bg-success').addClass('bg-danger').text(formatSmartAmount(p.fx_gain_loss) + ' ج.م (خسائر صرافة)');
- } else if (p.penny_difference !== 0) {
- $('#trf_fx_badge').removeClass('bg-success bg-danger').addClass('bg-info').text(formatSmartAmount(p.penny_difference) + ' ج.م (فروق تقريب)');
- } else {
- $('#trf_fx_badge').removeClass('bg-success bg-danger bg-info').addClass('bg-secondary').text('متطابق تماماً');
- }
+	// مزامنة اتجاهين: عند إدخال القيمة المستلمة يحسب تقريبي سعر الصرف
+	$('#trf_dest_amount').on('input change', function() {
+		if (isSyncingFx) return;
+		var destAmt = parseFloat($(this).val()) || 0;
+		var srcAmt = parseFloat($('#trf_amount').val()) || 0;
 
- // التفقيط
- $('#trf_tafqeet_text').text(p.amount_in_words);
+		if (destAmt > 0 && srcAmt > 0) {
+			isSyncingFx = true;
+			var approxRate = destAmt / srcAmt;
+			var cleanRate = parseFloat(approxRate.toFixed(6));
+			$('#trf_exchange_rate').val(cleanRate);
+			isSyncingFx = false;
+		}
+		triggerPreview();
+		updateDenominationsCalculation();
+	});
 
- 
- }
- }
- });
- }
+	// استدعاء المعاينة عند إدخال العمولة البنكية أو تاريخ التحويل
+	$('#trf_bank_fee, #trf_date').on('input change', function() {
+		triggerPreview();
+	});
 
- // حساب فئات النقدية
- $('.denom-input').on('input', function() {
- var breakdown = {};
- var total = 0;
- $('.denom-input').each(function() {
- var d = $(this).data('denom');
- var qty = parseInt($(this).val(), 10) || 0;
- if (qty > 0) {
- breakdown[d] = qty;
- total += (d * qty);
- }
- });
- $('#trf_denominations_json').val(JSON.stringify(breakdown));
- $('#denomCalculatedTotal, #denomSummaryBadge').text(formatSmartAmount(total) + ' ج.م');
+	function triggerPreview() {
+		clearTimeout(previewTimeout);
+		previewTimeout = setTimeout(executeLivePreview, 300);
+	}
 
- var transferAmt = parseFloat($('#trf_amount').val()) || 0;
- if (total > 0 && Math.abs(total - transferAmt) < 0.01) {
- $('#denomMatchStatus').removeClass('bg-secondary bg-danger').addClass('bg-success').text('متطابق تماماً مع المبلغ');
- } else if (total > 0) {
- $('#denomMatchStatus').removeClass('bg-secondary bg-success').addClass('bg-danger').text('غير متطابق (فارق: ' + formatSmartAmount(Math.abs(transferAmt - total)) + ')');
- } else {
- $('#denomMatchStatus').removeClass('bg-success bg-danger').addClass('bg-secondary').text('غير محدد');
- }
- });
+	function executeLivePreview() {
+		var fromId = $('#trf_from_account').val();
+		var toId = $('#trf_to_account').val();
+		var amount = $('#trf_amount').val();
+		if (!fromId || !toId || !amount || parseFloat(amount) <= 0) {
+			return;
+		}
 
- // إرسال الفورم وحفظ السند
- $form.on('submit', function(e) {
- e.preventDefault();
- var $btn = $('#smartTransferSubmitBtn');
- var origText = $btn.html();
- $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الترحيل والحفظ...');
+		var formData = {
+			from_account: fromId,
+			to_account: toId,
+			amount: amount,
+			exchange_rate: $('#trf_exchange_rate').val(),
+			bank_fee: $('#trf_bank_fee').val(),
+			transfer_type: $('input[name="transfer_type"]:checked').val(),
+			transfer_date: $('#trf_date').val(),
+			csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+		};
 
- var formData = new FormData(this);
+		$.ajax({
+			url: '{% url "financial:transfer_preview_api" %}',
+			type: 'POST',
+			data: formData,
+			success: function(res) {
+				if (res.success && res.preview) {
+					var p = res.preview;
+					var isCross = $('#crossCurrencyCard').is(':visible');
 
- $.ajax({
- url: '{% url "financial:transfer_create_api" %}',
- type: 'POST',
- data: formData,
- processData: false,
- contentType: false,
- success: function(res) {
- if (res.success) {
- $modal.modal('hide');
- if (window.showNotification) {
- window.showNotification(res.message, 'success', 'تم الترحيل بنجاح');
- }
- setTimeout(function() {
- if (res.redirect_url) {
- window.location.href = res.redirect_url;
- } else {
- location.reload();
- }
- }, 3100);
- } else {
- if (window.showNotification) {
- window.showNotification(res.error, 'error');
- }
- $btn.prop('disabled', false).html(origText);
- }
- },
- error: function(xhr) {
- var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تنفيذ سند التحويل';
- if (window.showNotification) {
- window.showNotification(errorMsg, 'error');
- }
- $btn.prop('disabled', false).html(origText);
- }
- });
- });
+					if (!isSyncingFx) {
+						var currRateVal = $('#trf_exchange_rate').val();
+						if ((!currRateVal || currRateVal == '1' || currRateVal == '1.000000') && isCross) {
+							if (p.effective_exchange_rate) {
+								$('#trf_exchange_rate').val(parseFloat(parseFloat(p.effective_exchange_rate).toFixed(6)));
+							}
+						}
+						if (!$('#trf_dest_amount').is(':focus') && isCross) {
+							if (p.destination_amount) {
+								$('#trf_dest_amount').val(parseFloat(p.destination_amount).toFixed(2));
+							}
+						}
+					}
+
+					// شارة الفروق
+					if (p.fx_type === 'gain') {
+						$('#trf_fx_badge').removeClass('bg-secondary bg-danger bg-info').addClass('bg-success').text('+' + formatSmartAmount(p.fx_gain_loss) + ' ج.م (أرباح صرافة)');
+					} else if (p.fx_type === 'loss') {
+						$('#trf_fx_badge').removeClass('bg-secondary bg-success bg-info').addClass('bg-danger').text(formatSmartAmount(p.fx_gain_loss) + ' ج.م (خسائر صرافة)');
+					} else if (p.penny_difference !== 0) {
+						$('#trf_fx_badge').removeClass('bg-success bg-danger').addClass('bg-info').text(formatSmartAmount(p.penny_difference) + ' ج.م (فروق تقريب)');
+					} else {
+						$('#trf_fx_badge').removeClass('bg-success bg-danger bg-info').addClass('bg-secondary').text('متطابق تماماً');
+					}
+
+					// التفقيط
+					$('#trf_tafqeet_text').text(p.amount_in_words);
+
+					// تحديث مطابقة الفئات النقدية تلقائياً
+					updateDenominationsCalculation();
+				}
+			}
+		});
+	}
+
+	// حساب ومطابقة فئات النقدية المسلمة بدقة تامة
+	function updateDenominationsCalculation() {
+		var breakdown = {};
+		var total = 0;
+		$('.denom-input').each(function() {
+			var d = $(this).data('denom');
+			var qty = parseInt($(this).val(), 10) || 0;
+			if (qty > 0) {
+				breakdown[d] = qty;
+				total += (d * qty);
+			}
+		});
+		$('#trf_denominations_json').val(JSON.stringify(breakdown));
+		$('#denomCalculatedTotal, #denomSummaryBadge').text(formatSmartAmount(total) + ' ج.م');
+
+		var fromCode = $('#trf_from_account').find(':selected').data('currency-code') || '';
+		var toCode = $('#trf_to_account').find(':selected').data('currency-code') || '';
+		var sourceAmt = parseFloat($('#trf_amount').val()) || 0;
+		var destAmt = parseFloat($('#trf_dest_amount').val()) || 0;
+		var rate = parseFloat($('#trf_exchange_rate').val()) || 1;
+
+		var targetExpectedAmt = 0;
+		if (fromCode && toCode && fromCode !== toCode) {
+			// تحويل متعدد العملات
+			if (toCode === 'EGP' || !toCode) {
+				targetExpectedAmt = destAmt > 0 ? destAmt : (sourceAmt * rate);
+			} else if (fromCode === 'EGP') {
+				targetExpectedAmt = sourceAmt;
+			} else {
+				targetExpectedAmt = destAmt > 0 ? destAmt : sourceAmt;
+			}
+		} else {
+			// تحويل بنفس العملة
+			targetExpectedAmt = sourceAmt;
+		}
+
+		if (total > 0) {
+			var diff = Math.abs(total - targetExpectedAmt);
+			if (diff < 0.01) {
+				$('#denomMatchStatus').removeClass('bg-secondary bg-danger bg-warning').addClass('bg-success').text('متطابق تماماً مع المبلغ (' + formatSmartAmount(targetExpectedAmt) + ' ج.م)');
+			} else {
+				$('#denomMatchStatus').removeClass('bg-secondary bg-success bg-warning').addClass('bg-danger').text('غير متطابق (فارق: ' + formatSmartAmount(diff) + ' ج.م)');
+			}
+		} else {
+			$('#denomMatchStatus').removeClass('bg-success bg-danger bg-warning').addClass('bg-secondary').text('غير محدد');
+		}
+	}
+
+	$('.denom-input').on('input change', function() {
+		updateDenominationsCalculation();
+	});
+
+	// إرسال الفورم وحفظ السند
+	$form.on('submit', function(e) {
+		e.preventDefault();
+		var $btn = $('#smartTransferSubmitBtn');
+		var origText = $btn.html();
+		$btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الترحيل والحفظ...');
+
+		var formData = new FormData(this);
+
+		$.ajax({
+			url: '{% url "financial:transfer_create_api" %}',
+			type: 'POST',
+			data: formData,
+			processData: false,
+			contentType: false,
+			success: function(res) {
+				if (res.success) {
+					$modal.modal('hide');
+					if (window.showNotification) {
+						window.showNotification(res.message, 'success', 'تم الترحيل بنجاح');
+					}
+					setTimeout(function() {
+						if (res.redirect_url) {
+							window.location.href = res.redirect_url;
+						} else {
+							location.reload();
+						}
+					}, 3100);
+				} else {
+					if (window.showNotification) {
+						window.showNotification(res.error, 'error');
+					}
+					$btn.prop('disabled', false).html(origText);
+				}
+			},
+			error: function(xhr) {
+				var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تنفيذ سند التحويل';
+				if (window.showNotification) {
+					window.showNotification(errorMsg, 'error');
+				}
+				$btn.prop('disabled', false).html(origText);
+			}
+		});
+	});
 };
 
 window.openSmartTransferModalFor = function(accountId) {
- if (typeof jQuery !== 'undefined') {
- var $modal = $('#smartCashTransferModal');
- if (accountId) {
- $('#trf_from_account').val(accountId).trigger('change');
- }
- $modal.modal('show');
- }
+	if (typeof jQuery !== 'undefined') {
+		var $modal = $('#smartCashTransferModal');
+		if (accountId) {
+			$('#trf_from_account').val(accountId).trigger('change');
+		}
+		$modal.modal('show');
+	}
 };
 
 document.addEventListener('DOMContentLoaded', function() {
- if (typeof jQuery !== 'undefined' && typeof window.initSmartCashTransferModal === 'function') {
- window.initSmartCashTransferModal();
- }
+	if (typeof jQuery !== 'undefined' && typeof window.initSmartCashTransferModal === 'function') {
+		window.initSmartCashTransferModal();
+	}
 });
 </script>

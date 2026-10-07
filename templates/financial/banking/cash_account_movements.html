@@ -377,7 +377,14 @@
               <tbody>
                 {% for movement in movements %}
                 <tr class="movement-row {% if can_view_journal_entry %}clickable-row{% endif %}" {% if can_view_journal_entry %}data-journal-entry-id="{{ movement.journal_entry.id }}" style="cursor: pointer;" title="{% trans 'اضغط لعرض تفاصيل القيد المحاسبي' %}"{% else %}style="cursor: default;"{% endif %}>
-                  <td class="text-center">{{ movement.journal_entry.date|date:"Y-m-d" }}</td>
+                  <td class="text-center text-nowrap">
+                    <div>{{ movement.journal_entry.date|date:"Y-m-d" }}</div>
+                    {% if movement.journal_entry.created_at %}
+                      <div class="text-muted small" style="font-size: 11px;">
+                        {{ movement.journal_entry.created_at|date:"h:i" }} {% if movement.journal_entry.created_at|date:"A" == "AM" %}ص{% else %}م{% endif %}
+                      </div>
+                    {% endif %}
+                  </td>
                   <td class="text-center">
                     <span class="badge" style="background-color: var(--gray-600); color: var(--white);">{{ movement.journal_entry.reference|default:movement.journal_entry.number }}</span>
                     {% if movement.journal_entry.entry_type == 'opening' %}
@@ -390,9 +397,15 @@
                   </td>
                   <td class="text-center">
                     <div>
-                      <strong>{{ movement.journal_entry.description }}</strong>
-                      {% if movement.description and movement.description != movement.journal_entry.description %}
-                        <br><small class="text-muted">{{ movement.description }}</small>
+                      {% if movement.description and "عمولات ومصاريف" in movement.description %}
+                        <strong>{{ movement.description }}</strong>
+                      {% elif movement.description and "تحويل نقدي" in movement.description %}
+                        <strong>{{ movement.description }}</strong>
+                      {% else %}
+                        <strong>{{ movement.description|default:movement.journal_entry.description }}</strong>
+                        {% if movement.description and movement.journal_entry.description and movement.description != movement.journal_entry.description and not "سند تحويل" in movement.journal_entry.description %}
+                          <br><small class="text-muted">{{ movement.journal_entry.description }}</small>
+                        {% endif %}
                       {% endif %}
                     </div>
                   </td>
@@ -481,6 +494,115 @@
           </div>
         {% endif %}
       </div>
+  </div>
+<!-- Actions Modal (خيارات وإجراءات إضافية) -->
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="actionsModalLabel">
+          <i class="fas fa-cog text-primary me-2"></i>{% trans "خيارات وإجراءات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- معلومات الحالة والرصيد -->
+        <div class="p-3 bg-light rounded border mb-3">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <span class="text-muted small d-block mb-1">{% trans "الرصيد الصافي الحالي" %}</span>
+              <h5 class="fw-bold mb-0 {% if current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ current_balance|smart_float }} <small class="small text-muted">{{ account_currency_symbol }}</small>
+              </h5>
+            </div>
+            <div>
+              {% if account.is_active %}
+                <span class="badge bg-success text-white px-3 py-2 fw-bold"><i class="fas fa-check-circle me-1"></i>{% trans "نشطة" %}</span>
+              {% else %}
+                <span class="badge bg-danger text-white px-3 py-2 fw-bold"><i class="fas fa-ban me-1"></i>{% trans "معطلة" %}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- قائمة الإجراءات المتاحة -->
+        <div class="list-group shadow-sm border rounded">
+          <!-- 1. تعديل بيانات الخزينة / الحساب -->
+          {% if can_manage_treasury %}
+          <a href="{% url 'financial:cash_account_edit' account.pk %}"
+            class="list-group-item list-group-item-action d-flex align-items-center p-3">
+            <div class="me-3">
+              <i class="fas fa-edit fa-2x text-warning"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% if account.is_cash_account %}{% trans "تعديل بيانات الخزينة" %}{% else %}{% trans "تعديل بيانات الحساب" %}{% endif %}</div>
+              <small class="text-muted">{% trans "تعديل الاسم والعملة والخصائص الأساسية" %}</small>
+            </div>
+          </a>
+          {% endif %}
+
+          <!-- 2. إسناد الخزينة والصلاحيات -->
+          {% if can_manage_treasury %}
+          <a href="{% url 'financial:treasury_assignments_list' %}?treasury={{ account.id }}"
+            class="list-group-item list-group-item-action d-flex align-items-center p-3">
+            <div class="me-3">
+              <i class="fas fa-user-shield fa-2x text-info"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "إسناد الخزينة والصلاحيات" %}</div>
+              <small class="text-muted">{% trans "تحديد أمناء الصندوق والمستخدمين المصرح لهم بالصرف والإيداع" %}</small>
+            </div>
+          </a>
+          {% endif %}
+
+          <!-- 3. تعطيل / تفعيل الخزينة -->
+          {% if can_manage_treasury %}
+            {% if account.is_active %}
+            <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmToggleCashAccount('{{ account.id }}', false);"
+              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger">
+              <div class="me-3">
+                <i class="fas fa-ban fa-2x text-danger"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-danger">{% trans "تعطيل الخزينة" %}</div>
+                <small class="text-muted">{% trans "إيقاف إجراء أي معاملات جديدة على هذه الخزينة مؤقتاً" %}</small>
+              </div>
+            </a>
+            {% else %}
+            <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmToggleCashAccount('{{ account.id }}', true);"
+              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-success">
+              <div class="me-3">
+                <i class="fas fa-check-circle fa-2x text-success"></i>
+              </div>
+              <div>
+                <div class="fw-bold text-success">{% trans "تفعيل الخزينة" %}</div>
+                <small class="text-muted">{% trans "إعادة تنشيط الخزينة والسماح بالمعاملات المالية عليها" %}</small>
+              </div>
+            </a>
+            {% endif %}
+          {% endif %}
+
+          <!-- 4. حذف الخزينة (إذا كانت معطلة ورصيدها صفراً) -->
+          {% if is_zero_balance and can_delete_treasury and not account.is_active %}
+          <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmDeleteCashAccount('{{ account.id }}');"
+            class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger">
+            <div class="me-3">
+              <i class="fas fa-trash-alt fa-2x text-danger"></i>
+            </div>
+            <div>
+              <div class="fw-bold text-danger">{% trans "حذف الخزينة نهائياً" %}</div>
+              <small class="text-muted">{% trans "حذف سجل الخزينة المصفّرة والمعطلة نهائياً من النظام" %}</small>
+            </div>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>{% trans "إغلاق" %}
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -631,68 +753,7 @@
 {% endif %}
 
 {% if can_transfer %}
-<!-- مودال تحويل المبالغ -->
-<div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="transferModalLabel">
-          <i class="fas fa-exchange-alt me-2"></i>تحويل مبلغ من {{ account.name }}
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="transferForm">
-        {% csrf_token %}
-        <input type="hidden" name="from_account" value="{{ account.id }}">
-        <div class="modal-body">
-          <!-- الرصيد الحالي -->
-          <div class="alert alert-info">
-            <div class="d-flex justify-content-between align-items-center">
-              <span><i class="fas fa-wallet me-2"></i>الرصيد المتاح:</span>
-              <strong class="fs-5">{{ current_balance|smart_float }} {{ account_currency_symbol }}</strong>
-            </div>
-          </div>
-          
-          <!-- الحساب المستهدف -->
-          <div class="mb-3">
-            <label for="to_account" class="form-label">التحويل إلى <span class="text-danger">*</span></label>
-            <select class="form-select" id="to_account" name="to_account" required>
-              <option value="">اختر الحساب المستهدف</option>
-            </select>
-            <small class="text-muted">اختر الخزنة أو البنك المراد التحويل إليه</small>
-          </div>
-          
-          <!-- المبلغ -->
-          <div class="mb-3">
-            <label for="amount" class="form-label">المبلغ <span class="text-danger">*</span></label>
-            <input type="number" class="form-control" id="amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
-            <small class="text-muted">أدخل المبلغ المراد تحويله</small>
-          </div>
-          
-          <!-- التاريخ -->
-          <div class="mb-3">
-            <label for="transfer_date" class="form-label">تاريخ التحويل <span class="text-danger">*</span></label>
-            <input type="date" class="form-control" id="transfer_date" name="transfer_date" value="{% now 'Y-m-d' %}" required>
-          </div>
-          
-          <!-- الوصف -->
-          <div class="mb-3">
-            <label for="description" class="form-label">الوصف</label>
-            <textarea class="form-control" id="description" name="description" rows="2" placeholder="وصف اختياري للتحويل"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>إلغاء
-          </button>
-          <button type="submit" class="btn btn-success">
-            <i class="fas fa-check me-2"></i>تأكيد التحويل
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+{% include "financial/components/smart_cash_transfer_modal.html" %}
 {% endif %}
 
 {% if can_view_journal_entry %}
@@ -767,11 +828,13 @@
     loadFinancialCategories('expense');
   }
   
-  // فتح مودال التحويل
+  // فتح مودال التحويل الذكي الموحد
   function openTransferModal() {
-    $('#transferModal').modal('show');
-    $('#transfer_date').val(getTodayLocalDate());
-    loadAvailableAccounts();
+    if (typeof window.openSmartTransferModalFor === 'function') {
+      window.openSmartTransferModalFor('{{ account.id }}');
+    } else {
+      $('#smartCashTransferModal').modal('show');
+    }
   }
   
   // تحميل التصنيفات المالية
@@ -843,51 +906,10 @@
     return category.text.replace('└─ ', '');
   }
   
-  // تحميل الحسابات المتاحة للتحويل
-  function loadAvailableAccounts() {
-    var currentAccountId = parseInt("{{ account.id|default:0 }}", 10);
-    var toAccountSelect = $('#to_account');
-    
-    toAccountSelect.html('<option value="">جاري التحميل...</option>');
-    
-    $.ajax({
-      url: '/financial/api/cash-bank-accounts/',
-      method: 'GET',
-      success: function(response) {
-        toAccountSelect.html('<option value="">اختر الحساب المستهدف</option>');
-        
-        if (response.accounts && response.accounts.length > 0) {
-          response.accounts.forEach(function(account) {
-            // استبعاد الحساب الحالي
-            if (account.id != currentAccountId) {
-              var icon = account.is_cash ? 'fa-money-bill-wave' : 'fa-university';
-              var type = account.is_cash ? 'نقدي' : 'بنكي';
-              toAccountSelect.append(
-                `<option value="${account.id}">
-                  ${account.name} (${type})
-                </option>`
-              );
-            }
-          });
-        } else {
-          toAccountSelect.html('<option value="">لا توجد حسابات متاحة</option>');
-        }
-      },
-      error: function() {
-        toAccountSelect.html('<option value="">خطأ في التحميل</option>');
-      }
-    });
-  }
-  
   $(document).ready(function() {
     var todayStr = getTodayLocalDate();
-    $('#transfer_date').val(todayStr);
     $('#expense_date').val(todayStr);
     $('#income_date').val(todayStr);
-
-    $('#transferModal').on('show.bs.modal shown.bs.modal', function() {
-      $('#transfer_date').val(getTodayLocalDate());
-    });
 
     $('#incomeModal').on('show.bs.modal shown.bs.modal', function() {
       $('#income_date').val(getTodayLocalDate());
@@ -1012,80 +1034,6 @@
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       $('#date_from').val(lastMonth.toISOString().split('T')[0]);
     }
-    
-    // معالجة إرسال فورم التحويل
-    $('#transferForm').on('submit', function(e) {
-      e.preventDefault();
-      
-      var amount = parseFloat($('#amount').val());
-      var currentBalance = parseFloat("{{ current_balance|default:0 }}") || 0;
-      
-      // التحقق من الرصيد
-      if (amount > currentBalance) {
-        Swal.fire({
-          icon: 'error',
-          title: 'رصيد غير كافٍ',
-          text: 'المبلغ المطلوب تحويله أكبر من الرصيد المتاح!',
-          confirmButtonText: 'حسناً'
-        });
-        return;
-      }
-      
-      var submitBtn = $(this).find('button[type="submit"]');
-      var originalText = submitBtn.html();
-      
-      // تعطيل الزر وعرض loading
-      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التحويل...');
-      
-      $.ajax({
-        url: '/financial/api/transfer-between-accounts/',
-        method: 'POST',
-        data: $(this).serialize(),
-        success: function(response) {
-          if (response.success) {
-            // إغلاق المودال
-            $('#transferModal').modal('hide');
-            
-            // عرض رسالة نجاح
-            Swal.fire({
-              icon: 'success',
-              title: 'تم التحويل بنجاح',
-              text: response.message,
-              confirmButtonText: 'حسناً'
-            }).then(function() {
-              // إعادة تحميل الصفحة
-              location.reload();
-            });
-          } else {
-            Swal.fire({
-              icon: 'error',
-              title: 'خطأ',
-              text: response.error,
-              confirmButtonText: 'حسناً'
-            });
-            submitBtn.prop('disabled', false).html(originalText);
-          }
-        },
-        error: function(xhr) {
-          var errorMsg = 'حدث خطأ أثناء التحويل';
-          if (xhr.responseJSON && xhr.responseJSON.error) {
-            errorMsg = xhr.responseJSON.error;
-          }
-          Swal.fire({
-            icon: 'error',
-            title: 'خطأ',
-            text: errorMsg,
-            confirmButtonText: 'حسناً'
-          });
-          submitBtn.prop('disabled', false).html(originalText);
-        }
-      });
-    });
-    
-    // إعادة تعيين الفورم عند إغلاق المودال
-    $('#transferModal').on('hidden.bs.modal', function() {
-      $('#transferForm')[0].reset();
-    });
     
     $('#incomeModal').on('hidden.bs.modal', function() {
       $('#incomeForm')[0].reset();

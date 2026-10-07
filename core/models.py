@@ -1816,9 +1816,9 @@ class WhatsAppMessageLog(models.Model):
     }
 
     DIRECTION_CHOICES = [
-        ('OUTBOUND_ERP', _('صادرة من النظام 🖥️')),
-        ('OUTBOUND_MOBILE', _('صادرة من الموبايل 📱')),
-        ('INBOUND', _('واردة من الشريك 📥')),
+        ('OUTBOUND_ERP', _('صادر من النظام 🖥️')),
+        ('OUTBOUND_MOBILE', _('صادر من الموبايل 📱')),
+        ('INBOUND', _('وارد من الشريك 📥')),
     ]
 
     MESSAGE_TYPE_CHOICES = [

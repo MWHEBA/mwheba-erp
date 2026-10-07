@@ -408,8 +408,10 @@
  <th>{% trans "المرجع البنكي" %}</th>
  {% endif %}
  {% if transfer.transfer_fee > 0 %}
- <th>{% trans "عمولة البنك" %}</th>
+ <th>{% trans "العمولة / المصاريف البنكية" %}</th>
+ {% if transfer.fee_vat_amount > 0 %}
  <th>{% trans "ضريبة العمولة (14%)" %}</th>
+ {% endif %}
  {% endif %}
  </tr>
  </thead>
@@ -424,44 +426,16 @@
  <td class="">{{ transfer.bank_reference }}</td>
  {% endif %}
  {% if transfer.transfer_fee > 0 %}
- <td>{{ transfer.transfer_fee|smart_float }} {{ base_currency_symbol }}</td>
- <td>{{ transfer.fee_vat_amount|smart_float }} {{ base_currency_symbol }}</td>
+ <td>{{ transfer.transfer_fee|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}</td>
+ {% if transfer.fee_vat_amount > 0 %}
+ <td>{{ transfer.fee_vat_amount|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}</td>
+ {% endif %}
  {% endif %}
  </tr>
  </tbody>
  </table>
  {% endif %}
 
- <!-- Balanced Accounting Journal Entry -->
- {% if journal_lines %}
- <div style="margin-top: 20px;">
- <div style="font-weight: bold; font-size: 13px; margin-bottom: 8px;">
- {% trans "القيد المحاسبي المتوازن لدفتر اليومية العام (سند رقم #" %}{{ transfer.journal_entry.number }})
- </div>
- <table class="print-table">
- <thead>
- <tr>
- <th style="width: 120px;">{% trans "كود الحساب" %}</th>
- <th>{% trans "اسم الحساب" %}</th>
- <th style="width: 110px;">{% trans "مدين (EGP)" %}</th>
- <th style="width: 110px;">{% trans "دائن (EGP)" %}</th>
- <th>{% trans "البيان المحاسبي" %}</th>
- </tr>
- </thead>
- <tbody>
- {% for line in journal_lines %}
- <tr>
- <td class="">{{ line.account.code }}</td>
- <td style="text-align: right;">{{ line.account.name }}</td>
- <td style="text-align: left; font-weight: bold;">{% if line.debit > 0 %}{{ line.debit|smart_float }}{% else %}-{% endif %}</td>
- <td style="text-align: left; font-weight: bold;">{% if line.credit > 0 %}{{ line.credit|smart_float }}{% else %}-{% endif %}</td>
- <td style="text-align: right; color: var(--secondary-color);">{{ line.description }}</td>
- </tr>
- {% endfor %}
- </tbody>
- </table>
- </div>
- {% endif %}
 
  <!-- Cash Denominations (if any) -->
  {% if transfer.denominations_breakdown %}

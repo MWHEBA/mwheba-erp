@@ -3,8 +3,8 @@
 FIN-CORE-025: Central CashTransferService
 خدمة تحويل الأموال والرقابة المركزية بين الخزائن النقدية والحسابات البنكية وصناديق العهد
 مع الحوكمة الكاملة للعملات المتعددة، التحويل المباشر والمرحلي (In-Transit)،
-تصفية فروق العملة المحققة (Realized FX Gain/Loss)، فروق التقريب (Penny Diff 54400)،
-وفصل وتوجيه ضريبة القيمة المضافة على المصاريف البنكية (11350 و 52200).
+تصفية فروق العملة المحققة (Realized FX Gain/Loss 43100/54300)، فروق التقريب (Penny Diff 54400)،
+وفصل وتوجيه ضريبة القيمة المضافة على المصاريف البنكية (11510 و 54100).
 """
 import logging
 from decimal import Decimal, ROUND_HALF_UP
@@ -22,7 +22,7 @@ from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.models.currency import Currency
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.services.period_control_service import PeriodControlService
-from financial.services.role_registry import AccountRoleRegistry
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 from financial.services.treasury_security_service import TreasurySecurityService
 from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
 from utils.arabic_numbers import amount_to_arabic_words
@@ -49,15 +49,20 @@ class CashTransferService:
         exchange_rate: Optional[Decimal] = None,
         bank_fee: Decimal = Decimal("0.00"),
         vat_on_fee: Decimal = Decimal("0.00"),
+        is_fee_vat_inclusive: bool = False,
+        fee_vat_rate: Decimal = STANDARD_VAT_RATE,
         transfer_type: str = TransferType.DIRECT,
         transfer_date: Optional[date] = None,
+        from_cost_center_id: Optional[int] = None,
+        to_cost_center_id: Optional[int] = None,
+        fee_cost_center_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         حساب محاكاة فورية (Live Preview) لعملية التحويل المالي:
         - مبالغ العملة المحلية والأجنبية وأسعار الصرف
         - فروق أسعار الصرف المحققة (FX Gain/Loss) وفروق التقريب (Penny Diff)
-        - تفصيل الرسوم البنكية وضريبة القيمة المضافة (14%)
-        - محاكاة أسطر قيد اليومية المتوازن
+        - تفصيل الرسوم البنكية وضريبة القيمة المضافة (قانون 67 لسنة 2016)
+        - محاكاة أسطر قيد اليومية المتوازن مع ربط مراكز التكلفة
         """
         if isinstance(from_account, (int, str)):
             from_acc = ChartOfAccounts.objects.get(pk=int(from_account))
@@ -73,6 +78,7 @@ class CashTransferService:
         source_amount = Decimal(str(source_amount or 0)).quantize(Decimal("0.01"))
         bank_fee = Decimal(str(bank_fee or 0)).quantize(Decimal("0.01"))
         vat_on_fee = Decimal(str(vat_on_fee or 0)).quantize(Decimal("0.01"))
+        fee_vat_rate = Decimal(str(fee_vat_rate if fee_vat_rate is not None else STANDARD_VAT_RATE)).quantize(Decimal("0.01"))
 
         func_curr = ExchangeRateService.get_functional_currency()
         func_code = func_curr.code if func_curr else "EGP"
@@ -120,16 +126,30 @@ class CashTransferService:
                 fx_gain_loss = base_diff
                 penny_difference = Decimal("0.00")
 
-        # 5. حساب الضريبة على العمولة البنكية إن وجدت
-        total_fee = (bank_fee + vat_on_fee).quantize(Decimal("0.01"))
-        fee_base_amount = (total_fee * from_rate).quantize(Decimal("0.01"))
+        # 5. حساب العمولة البنكية وضريبة القيمة المضافة (قانون 67 لسنة 2016)
+        if bank_fee > Decimal("0.00"):
+            if is_fee_vat_inclusive:
+                net_bank_fee = (bank_fee / (Decimal("1.00") + (fee_vat_rate / Decimal("100.00")))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                fee_vat_amount = (bank_fee - net_bank_fee).quantize(Decimal("0.01"))
+                total_fee = bank_fee
+            else:
+                net_bank_fee = bank_fee
+                if vat_on_fee > Decimal("0.00"):
+                    fee_vat_amount = vat_on_fee.quantize(Decimal("0.01"))
+                else:
+                    fee_vat_amount = Decimal("0.00")
+                total_fee = (net_bank_fee + fee_vat_amount).quantize(Decimal("0.01"))
+        else:
+            net_bank_fee = Decimal("0.00")
+            fee_vat_amount = Decimal("0.00")
+            total_fee = Decimal("0.00")
+
+        total_source_deduction = (source_amount + total_fee).quantize(Decimal("0.01"))
 
         # 6. محاكاة أسطر القيد المحاسبي
         simulated_lines = []
 
-        # سطر دائن المصدر (المبلغ المحول + الرسوم)
-        total_source_deduction = source_amount + total_fee
-        total_source_base = (total_source_deduction * from_rate).quantize(Decimal("0.01"))
+        # سطر دائن المصدر (المبلغ المحول الأساسي)
         simulated_lines.append({
             "account_code": from_acc.code,
             "account_name": from_acc.name,
@@ -138,7 +158,9 @@ class CashTransferService:
             "currency": from_curr_code,
             "exchange_rate": from_rate,
             "foreign_amount": source_amount,
-            "description": f"تحويل نقدي صادرة إلى {to_acc.name}"
+            "description": f"تحويل نقدي من {from_acc.name} إلى {to_acc.name}",
+            "cost_center": from_cost_center_id,
+            "line_type": "source_credit"
         })
 
         if transfer_type == TransferType.IN_TRANSIT:
@@ -151,7 +173,9 @@ class CashTransferService:
                 "currency": func_code,
                 "exchange_rate": Decimal("1.000000"),
                 "foreign_amount": source_base_amount,
-                "description": f"إرسال نقدية بالطريق إلى {to_acc.name}"
+                "description": f"إرسال نقدية بالطريق من {from_acc.name} إلى {to_acc.name}",
+                "cost_center": to_cost_center_id or from_cost_center_id,
+                "line_type": "transit_debit"
             })
         else:
             # سطر مدين المستلم
@@ -163,13 +187,15 @@ class CashTransferService:
                 "currency": to_curr_code,
                 "exchange_rate": to_rate,
                 "foreign_amount": destination_amount,
-                "description": f"تحويل نقدي وارد من {from_acc.name}"
+                "description": f"تحويل نقدي من {from_acc.name} إلى {to_acc.name}",
+                "cost_center": to_cost_center_id,
+                "line_type": "destination_debit"
             })
 
             # معالجة فروق الصرف المحققة
             if fx_gain_loss != Decimal("0.00"):
                 if fx_gain_loss > Decimal("0.00"):
-                    # أرباح فروق عملة محققة (دائن 42300)
+                    # أرباح فروق عملة محققة (دائن 43100)
                     gain_acc = cls._get_fx_gain_account()
                     simulated_lines.append({
                         "account_code": gain_acc.code,
@@ -179,10 +205,12 @@ class CashTransferService:
                         "currency": func_code,
                         "exchange_rate": Decimal("1.000000"),
                         "foreign_amount": fx_gain_loss,
-                        "description": f"أرباح فروق تحويل عملات ({from_curr_code} -> {to_curr_code})"
+                        "description": f"أرباح فروق تحويل عملات ({from_curr_code} -> {to_curr_code})",
+                        "cost_center": from_cost_center_id,
+                        "line_type": "fx_gain"
                     })
                 else:
-                    # خسائر فروق عملة محققة (مدين 52300)
+                    # خسائر فروق عملة محققة (مدين 54300)
                     loss_acc = cls._get_fx_loss_account()
                     simulated_lines.append({
                         "account_code": loss_acc.code,
@@ -192,7 +220,9 @@ class CashTransferService:
                         "currency": func_code,
                         "exchange_rate": Decimal("1.000000"),
                         "foreign_amount": abs(fx_gain_loss),
-                        "description": f"خسائر فروق تحويل عملات ({from_curr_code} -> {to_curr_code})"
+                        "description": f"خسائر فروق تحويل عملات ({from_curr_code} -> {to_curr_code})",
+                        "cost_center": from_cost_center_id,
+                        "line_type": "fx_loss"
                     })
 
             # معالجة فروق التقريب (54400)
@@ -207,7 +237,9 @@ class CashTransferService:
                         "currency": func_code,
                         "exchange_rate": Decimal("1.000000"),
                         "foreign_amount": penny_difference,
-                        "description": "فروق تقريب محاسبي ناتجة عن التحويل"
+                        "description": "فروق تقريب محاسبي ناتجة عن التحويل",
+                        "cost_center": None,
+                        "line_type": "rounding_credit"
                     })
                 else:
                     simulated_lines.append({
@@ -218,40 +250,52 @@ class CashTransferService:
                         "currency": func_code,
                         "exchange_rate": Decimal("1.000000"),
                         "foreign_amount": abs(penny_difference),
-                        "description": "فروق تقريب محاسبي ناتجة عن التحويل"
+                        "description": "فروق تقريب محاسبي ناتجة عن التحويل",
+                        "cost_center": None,
+                        "line_type": "rounding_debit"
                     })
 
-        # معالجة الرسوم البنكية وضريبة القيمة المضافة
+        # معالجة الرسوم والعمولات البنكية وضريبة القيمة المضافة (11510 و 54100)
         if total_fee > Decimal("0.00"):
-            fee_base = (bank_fee * from_rate).quantize(Decimal("0.01"))
-            vat_base = (vat_on_fee * from_rate).quantize(Decimal("0.01"))
+            total_fee_base = (total_fee * from_rate).quantize(Decimal("0.01"))
+            fee_curr_sym = from_acc.currency.symbol if getattr(from_acc, "currency", None) and getattr(from_acc.currency, "symbol", None) else from_curr_code
+            formatted_fee = f"{total_fee:0.2f}".rstrip('0').rstrip('.') if '.' in f"{total_fee:0.2f}" else f"{total_fee}"
+            fee_desc = f"خصم عمولات ومصاريف تحويل {formatted_fee} {fee_curr_sym} من {from_acc.name} إلى {to_acc.name}"
 
-            # سطر دائن الرسوم من حساب المصدر
+            # سطر دائن إجمالي الرسوم من حساب المصدر
             simulated_lines.append({
                 "account_code": from_acc.code,
                 "account_name": from_acc.name,
                 "debit": Decimal("0.00"),
-                "credit": fee_base_amount,
+                "credit": total_fee_base,
                 "currency": from_curr_code,
                 "exchange_rate": from_rate,
                 "foreign_amount": total_fee,
-                "description": f"خصم عمولات ومصاريف تحويل إلى {to_acc.name}"
+                "description": fee_desc,
+                "cost_center": from_cost_center_id,
+                "line_type": "fee_source_credit"
             })
 
-            if bank_fee > Decimal("0.00"):
+            # سطر مدين المصاريف والعمولات البنكية (54100)
+            if net_bank_fee > Decimal("0.00"):
+                net_fee_base = (net_bank_fee * from_rate).quantize(Decimal("0.01"))
                 fee_acc = cls._get_bank_charges_account()
                 simulated_lines.append({
                     "account_code": fee_acc.code,
                     "account_name": fee_acc.name,
-                    "debit": fee_base,
+                    "debit": net_fee_base,
                     "credit": Decimal("0.00"),
                     "currency": func_code,
                     "exchange_rate": Decimal("1.000000"),
-                    "foreign_amount": fee_base,
-                    "description": f"مصاريف وعمولات بنكية - سند تحويل إلى {to_acc.name}"
+                    "foreign_amount": net_fee_base,
+                    "description": f"عمولات ومصاريف تحويل بنكي لسند تحويل من {from_acc.name} إلى {to_acc.name}",
+                    "cost_center": fee_cost_center_id or from_cost_center_id,
+                    "line_type": "bank_fee_debit"
                 })
 
-            if vat_on_fee > Decimal("0.00"):
+            # سطر مدين ضريبة القيمة المضافة على المدخلات (11510)
+            if fee_vat_amount > Decimal("0.00"):
+                vat_base = (total_fee_base - net_fee_base).quantize(Decimal("0.01")) if net_bank_fee > Decimal("0.00") else (fee_vat_amount * from_rate).quantize(Decimal("0.01"))
                 vat_acc = cls._get_input_vat_account()
                 simulated_lines.append({
                     "account_code": vat_acc.code,
@@ -261,7 +305,9 @@ class CashTransferService:
                     "currency": func_code,
                     "exchange_rate": Decimal("1.000000"),
                     "foreign_amount": vat_base,
-                    "description": f"ضريبة القيمة المضافة على المصاريف البنكية (14%)"
+                    "description": f"ضريبة القيمة المضافة مدخلات على عمولة تحويل بنكي من {from_acc.name}",
+                    "cost_center": fee_cost_center_id or from_cost_center_id,
+                    "line_type": "vat_fee_debit"
                 })
 
         return {
@@ -277,8 +323,12 @@ class CashTransferService:
             "fx_gain_loss": fx_gain_loss,
             "fx_type": "gain" if fx_gain_loss > Decimal("0.00") else ("loss" if fx_gain_loss < Decimal("0.00") else "none"),
             "penny_difference": penny_difference,
-            "bank_fee": bank_fee,
-            "vat_on_fee": vat_on_fee,
+            "bank_fee": net_bank_fee,
+            "net_bank_fee": net_bank_fee,
+            "is_fee_vat_inclusive": is_fee_vat_inclusive,
+            "fee_vat_rate": fee_vat_rate,
+            "vat_on_fee": fee_vat_amount,
+            "fee_vat_amount": fee_vat_amount,
             "total_fee": total_fee,
             "total_source_deduction": total_source_deduction,
             "amount_in_words": amount_to_arabic_words(source_amount, from_curr_code),
@@ -367,19 +417,7 @@ class CashTransferService:
 
         # 4. حساب المعاينة والقيم الرقمية
         bank_fee = Decimal(str(bank_fee or 0)).quantize(Decimal("0.01"))
-        
-        # حساب ضريبة القيمة المضافة على العمولة
-        if fee_vat_amount is not None and Decimal(str(fee_vat_amount)) > Decimal("0.00"):
-            vat_on_fee = Decimal(str(fee_vat_amount)).quantize(Decimal("0.01"))
-        elif bank_fee > Decimal("0.00"):
-            if is_fee_vat_inclusive:
-                net_fee = (bank_fee / (Decimal("1.00") + (STANDARD_VAT_RATE / Decimal("100")))).quantize(Decimal("0.01"))
-                vat_on_fee = (bank_fee - net_fee).quantize(Decimal("0.01"))
-                bank_fee = net_fee
-            else:
-                vat_on_fee = ((bank_fee * STANDARD_VAT_RATE) / Decimal("100")).quantize(Decimal("0.01"))
-        else:
-            vat_on_fee = Decimal("0.00")
+        vat_fee_param = Decimal(str(fee_vat_amount or 0)).quantize(Decimal("0.01")) if fee_vat_amount is not None else Decimal("0.00")
 
         preview = cls.calculate_transfer_preview(
             from_account=from_acc,
@@ -387,9 +425,13 @@ class CashTransferService:
             source_amount=source_amount,
             exchange_rate=exchange_rate,
             bank_fee=bank_fee,
-            vat_on_fee=vat_on_fee,
+            vat_on_fee=vat_fee_param,
+            is_fee_vat_inclusive=is_fee_vat_inclusive,
             transfer_type=transfer_type,
-            transfer_date=transfer_date
+            transfer_date=transfer_date,
+            from_cost_center_id=from_cost_center_id,
+            to_cost_center_id=to_cost_center_id,
+            fee_cost_center_id=fee_cost_center_id,
         )
 
         # 5. توليد رقم السند التسلسلي الذري
@@ -435,11 +477,11 @@ class CashTransferService:
         transfer.fx_gain_loss_amount = preview["fx_gain_loss"]
         transfer.rounding_difference = preview["penny_difference"]
 
-        transfer.transfer_fee = preview["bank_fee"]
+        transfer.transfer_fee = preview["net_bank_fee"]
         transfer.is_fee_vat_inclusive = is_fee_vat_inclusive
-        transfer.fee_vat_rate = STANDARD_VAT_RATE if preview["bank_fee"] > 0 else Decimal("0.00")
-        transfer.fee_vat_amount = preview["vat_on_fee"]
-        if preview["bank_fee"] > 0:
+        transfer.fee_vat_rate = preview["fee_vat_rate"]
+        transfer.fee_vat_amount = preview["fee_vat_amount"]
+        if preview["total_fee"] > Decimal("0.00"):
             transfer.fee_account = cls._get_bank_charges_account()
 
         transfer.bank_name = bank_name or from_acc.bank_name or to_acc.bank_name or ""
@@ -468,6 +510,7 @@ class CashTransferService:
             desc = line["description"]
             if bank_reference:
                 desc = f"{desc} | مرجع: {bank_reference}"
+            cc_val = str(line["cost_center"]) if line.get("cost_center") else None
             lines_data.append(JournalEntryLineData(
                 account_code=line["account_code"],
                 debit=line["debit"],
@@ -476,7 +519,8 @@ class CashTransferService:
                 currency=line["currency"],
                 exchange_rate=line["exchange_rate"],
                 foreign_debit=line["foreign_amount"] if line["debit"] > Decimal("0.00") else Decimal("0.00"),
-                foreign_credit=line["foreign_amount"] if line["credit"] > Decimal("0.00") else Decimal("0.00")
+                foreign_credit=line["foreign_amount"] if line["credit"] > Decimal("0.00") else Decimal("0.00"),
+                cost_center=cc_val
             ))
 
         op_name = "dispatch" if transfer_type == TransferType.IN_TRANSIT else "direct"
@@ -486,9 +530,10 @@ class CashTransferService:
             source_model="CashTransfer",
             source_id=transfer.id,
             date=transfer_date,
-            description=f"سند تحويل مالي {transfer.transfer_number}: من {from_acc.name} إلى {to_acc.name} ({transfer.source_amount} {from_acc.currency_code})",
+            description=f"تحويل نقدي من {from_acc.name} إلى {to_acc.name}",
             reference=transfer.transfer_number,
             lines=lines_data,
+            financial_category=transfer.financial_category,
             idempotency_key=f"JE:financial:CashTransfer:{transfer.id}:{op_name}",
             user=user
         )
@@ -881,72 +926,50 @@ class CashTransferService:
 
     @classmethod
     def _get_transit_account(cls) -> ChartOfAccounts:
-        """جلب حساب النقدية في الطريق والتحويلات الوسيطة (11150)"""
-        acc = ChartOfAccounts.objects.filter(code="11150", is_active=True).first()
+        """جلب حساب النقدية في الطريق والتحويلات الوسيطة (11150) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.CASH_IN_TRANSIT_CONTROL)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("CASH_IN_TRANSIT_CONTROL")
+            acc = AccountRoleRegistry.get_account_by_role("CASH_IN_TRANSIT")
         if not acc:
-            acc = ChartOfAccounts.objects.filter(code="11150").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'نقدية بالطريق وتحويلات وسيطة (11150)' في شجرة الحسابات."))
+            raise ValidationError(_("لم يتم العثور على حساب 'نقدية بالطريق وتحويلات وسيطة (11150)' في سجل الأدوار المحاسبية."))
         return acc
 
     @classmethod
     def _get_fx_gain_account(cls) -> ChartOfAccounts:
-        """جلب حساب أرباح فروق تقييم وتحويل العملة (42300)"""
-        acc = ChartOfAccounts.objects.filter(code="42300", is_active=True).first()
+        """جلب حساب أرباح فروق تقييم وتحويل العملة (43100) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_GAIN)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("FX_REALIZED_GAIN")
-        if not acc:
-            acc = ChartOfAccounts.objects.filter(code="42300").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'أرباح فروق العملة المحققة (42300)'."))
+            raise ValidationError(_("لم يتم العثور على حساب 'أرباح فروق العملة المحققة (43100)' في سجل الأدوار المحاسبية."))
         return acc
 
     @classmethod
     def _get_fx_loss_account(cls) -> ChartOfAccounts:
-        """جلب حساب خسائر فروق تقييم وتحويل العملة (52300)"""
-        acc = ChartOfAccounts.objects.filter(code="52300", is_active=True).first()
+        """جلب حساب خسائر فروق تقييم وتحويل العملة (54300) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_LOSS)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("FX_REALIZED_LOSS")
-        if not acc:
-            acc = ChartOfAccounts.objects.filter(code="52300").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'خسائر فروق العملة المحققة (52300)'."))
+            raise ValidationError(_("لم يتم العثور على حساب 'خسائر فروق العملة المحققة (54300)' في سجل الأدوار المحاسبية."))
         return acc
 
     @classmethod
     def _get_rounding_account(cls) -> ChartOfAccounts:
-        """جلب حساب فروق التقريب المحاسبي (54400)"""
-        acc = ChartOfAccounts.objects.filter(code="54400", is_active=True).first()
+        """جلب حساب فروق التقريب المحاسبي (54400) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("ROUNDING_DIFFERENCE_ACCOUNT")
-        if not acc:
-            acc = ChartOfAccounts.objects.filter(code="54400").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'فروق التقريب المحاسبي (54400)'."))
+            raise ValidationError(_("لم يتم العثور على حساب 'فروق التقريب المحاسبي (54400)' في سجل الأدوار المحاسبية."))
         return acc
 
     @classmethod
     def _get_bank_charges_account(cls) -> ChartOfAccounts:
-        """جلب حساب المصاريف والعمولات البنكية (52200)"""
-        acc = ChartOfAccounts.objects.filter(code="52200", is_active=True).first()
+        """جلب حساب المصاريف والعمولات البنكية (54100) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.BANK_CHARGES_EXPENSE)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("BANK_CHARGES_EXPENSE")
-        if not acc:
-            acc = ChartOfAccounts.objects.filter(code="52200").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'المصاريف والعمولات البنكية (52200)'."))
+            raise ValidationError(_("لم يتم العثور على حساب 'المصاريف والعمولات البنكية (54100)' في سجل الأدوار المحاسبية."))
         return acc
 
     @classmethod
     def _get_input_vat_account(cls) -> ChartOfAccounts:
-        """جلب حساب ضريبة القيمة المضافة على المدخلات (11350)"""
-        acc = ChartOfAccounts.objects.filter(code="11350", is_active=True).first()
+        """جلب حساب ضريبة القيمة المضافة على المدخلات (11510) عبر سجل الأدوار المحاسبية"""
+        acc = AccountRoleRegistry.get_account_by_role(AccountRoleNames.VAT_INPUT)
         if not acc:
-            acc = AccountRoleRegistry.get_account_by_role("VAT_INPUT")
-        if not acc:
-            acc = ChartOfAccounts.objects.filter(code="11350").first()
-        if not acc:
-            raise ValidationError(_("لم يتم العثور على حساب 'ضريبة القيمة المضافة على المدخلات (11350)'."))
+            raise ValidationError(_("لم يتم العثور على حساب 'ضريبة القيمة المضافة على المدخلات (11510)' في سجل الأدوار المحاسبية."))
         return acc

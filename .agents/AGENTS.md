@@ -89,4 +89,12 @@
 - **System Toast Notification Helper**: For AJAX notifications and dynamic feedback, views MUST use the system unified helper `window.showNotification(message, type, title)` (or `window.showToastr(message, type)`).
 - **Toast Delay & Animation Completion**: When initiating a page reload after a Toast notification, `setTimeout` MUST wait at least `3100ms` (3.1 seconds) to allow Toastr's 3-second progress bar animation to complete 100% to the end smoothly before reloading.
 
+## 11. Code Modification & Scripting Safety Directive
+- **Strict Prohibition on Scripted Edits**: Modifying codebase files using custom automated scripts (e.g., ad-hoc Python scripts, mass regex string replacements) is strictly prohibited. Standard granular file editing tools (`replace_file_content`, `multi_replace_file_content`) MUST be used for all code modifications.
+- **Exception for High-Volume Batch Operations**: Scripted file modifications are ONLY permitted when the number of target files is exceptionally large (e.g., cross-module mass refactoring across dozens of templates/files), and ONLY after:
+  1. Ensuring 100% operation safety with zero risk of syntax corruption, context loss, or breaking existing logic.
+  2. Running precise safety checks/dry-runs prior to execution.
+  3. Fully verifying the integrity of all modified files with `pytest` and Django check immediately afterwards.
+
+
 

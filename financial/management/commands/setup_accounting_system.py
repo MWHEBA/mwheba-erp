@@ -24,6 +24,7 @@ from financial.models import (
     CostCenter,
     FinancialCategory,
     FinancialSubcategory,
+    FinancialAccountRole,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,9 @@ class Command(BaseCommand):
 
                 # 7. إنشاء السنة المالية والفترات المحاسبية الـ 12
                 self.setup_fiscal_structure(year)
+
+                # 8. زراعة وتثبيت أدوار الحسابات المالية (Priority 1 DB Account Roles)
+                self.setup_account_roles(account_map, force)
 
                 self.stdout.write(self.style.SUCCESS("\n[+] Enterprise Accounting & Tax Setup COMPLETED SUCCESSFULLY (100%)!"))
 
@@ -236,6 +240,7 @@ class Command(BaseCommand):
             ("11160001", "الحساب البنكي الرئيسي (جاري محلي)", "11160", "ASSET", 5, True, False, True),
             ("11170", "الحسابات الجارية بالبنوك - أجنبي", "111", "ASSET", 4, False, False, False),
             ("11180", "ودائع نقدية قصيرة الأجل وتحت الطلب", "111", "ASSET", 4, True, False, False),
+            ("11150", "نقدية بالطريق وتحويلات وسيطة", "111", "ASSET", 4, True, False, False),
             ("11190", "نقدية في الطريق وشيكات برسم التحصيل", "111", "ASSET", 4, True, False, False),
             ("11210", "العملاء", "112", "ASSET", 4, False, False, False),
             ("11220", "أوراق القبض (كمبيالات وشيكات آجلة)", "112", "ASSET", 4, True, False, False),
@@ -603,3 +608,71 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(f"  [+] Fiscal Year FY{year} and 12 Monthly Periods verified (Status: OPEN)")
+
+    def setup_account_roles(self, account_map, force=False):
+        """زراعة وتثبيت أدوار الحسابات المالية (Priority 1 DB Account Roles)"""
+        self.stdout.write("[*] Setting up Standard Financial Account Roles (Priority 1 DB Mapping)...")
+
+        ROLES_DATA = [
+            # النقدية والبنوك
+            ("default_cash_drawer", "11110", "الخزينة النقدية الرئيسية الافتراضية"),
+            ("default_bank_account", "11160001", "الحساب البنكي الجاري الافتراضي"),
+            ("cash_in_transit_control", "11150", "حساب وسيط نقدية بالطريق وتحويلات وسيطة"),
+
+            # العملاء والموردين
+            ("customer_receivable_control", "11210", "حساب مراقبة مديني العملاء"),
+            ("customer_advance_liability", "21510", "دفعات مقدمة من العملاء"),
+            ("supplier_payable_control", "21110", "حساب مراقبة دائني الموردين"),
+            ("supplier_advance_asset", "11410", "دفعات مقدمة للموردين"),
+            ("grni_clearing", "21210", "بضاعة مستلمة غير مفوترة (GRNI)"),
+
+            # المبيعات والمشتريات والمخزون
+            ("general_sales_revenue", "41100", "إيرادات المبيعات العامة"),
+            ("sales_revenue", "41100", "إيرادات المبيعات الرئيسية"),
+            ("sales_returns", "41910", "مردودات ومسموحات المبيعات"),
+            ("sales_discounts", "41930", "الخصم المسموح به للعملاء"),
+            ("purchase_discounts", "51930", "الخصم المكتسب من الموردين"),
+            ("purchase_returns", "51910", "مردودات ومسموحات المشتريات"),
+            ("cogs_expense", "51100", "تكلفة البضاعة المباعة / المشتريات"),
+            ("inventory_general", "11310", "مخزون البضائع التامة والجاهزة"),
+
+            # الضرائب
+            ("vat_output", "21310", "ضريبة القيمة المضافة - مخرجات (مبيعات)"),
+            ("vat_input", "11510", "ضريبة القيمة المضافة - مدخلات (مشتريات)"),
+            ("withholding_tax_payable", "21330", "ضرائب مخصومة للغير (خصم وإضافة)"),
+            ("withholding_tax_receivable", "11520", "ضرائب مخصومة ومحجوزة لدى الغير"),
+            ("income_tax", "21320", "ضريبة كسب العمل المستحقة"),
+
+            # فروق العملة والمصروفات البنكية وفروق التقريب
+            ("fx_realized_gain", "43100", "أرباح فروق العملة المحققة"),
+            ("fx_realized_loss", "54300", "خسائر فروق العملة المحققة"),
+            ("bank_charges_expense", "54100", "عمولات ومصاريف بنكية"),
+            ("rounding_difference_account", "54400", "فروق تقريب كسور العملات"),
+
+            # الرواتب والتأمينات
+            ("salary_expense", "52100", "مصروف الرواتب والأجور"),
+            ("social_insurance", "21420", "تأمينات اجتماعية مستحقة"),
+            ("salary_payables", "21410", "رواتب وأجور مستحقة"),
+            ("employee_advance", "11230", "سلف وعهد الموظفين"),
+        ]
+
+        seeded_count = 0
+        for role_name, code, desc in ROLES_DATA:
+            acc = account_map.get(code) or ChartOfAccounts.objects.filter(code=code).first()
+            if acc:
+                role_obj, created = FinancialAccountRole.objects.get_or_create(
+                    role_name=role_name,
+                    defaults={
+                        "account": acc,
+                        "description": desc,
+                        "is_active": True,
+                    }
+                )
+                if not created and force:
+                    role_obj.account = acc
+                    role_obj.description = desc
+                    role_obj.is_active = True
+                    role_obj.save()
+                seeded_count += 1
+
+        self.stdout.write(f"  [+] {seeded_count} Financial Account Roles seeded into DB (Priority 1 Active)")

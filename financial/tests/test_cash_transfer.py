@@ -682,24 +682,23 @@ class TestCashTransferPhase3AccountingService:
         assert preview["penny_difference"] == Decimal("0.00")
         assert len(preview["simulated_lines"]) == 2
 
-    def test_calculate_transfer_preview_with_bank_fee_and_vat(self):
-        """التحقق من حساب المعاينة مع المصاريف البنكية وتفصيل ضريبة القيمة المضافة 14%"""
+    def test_calculate_transfer_preview_with_bank_fee(self):
+        """التحقق من حساب المعاينة مع المصاريف والعمولات البنكية المباشرة"""
         from financial.services.cash_transfer_service import CashTransferService
 
         preview = CashTransferService.calculate_transfer_preview(
             from_account=self.treasury_cairo,
             to_account=self.treasury_alex,
             source_amount=Decimal("10000.00"),
-            bank_fee=Decimal("100.00"),
-            vat_on_fee=Decimal("14.00")
+            bank_fee=Decimal("100.00")
         )
 
         assert preview["bank_fee"] == Decimal("100.00")
-        assert preview["vat_on_fee"] == Decimal("14.00")
-        assert preview["total_fee"] == Decimal("114.00")
-        assert preview["total_source_deduction"] == Decimal("10114.00")
-        # خطوط القيد: دائن الخزينة المصدر (10000 + 114)، مدين المستلم (10000)، مدين المصاريف (100)، مدين الضريبة (14)
-        assert len(preview["simulated_lines"]) == 5
+        assert preview["vat_on_fee"] == Decimal("0.00")
+        assert preview["total_fee"] == Decimal("100.00")
+        assert preview["total_source_deduction"] == Decimal("10100.00")
+        # خطوط القيد: دائن الخزينة المصدر (10000)، مدين المستلم (10000)، دائن المصدر بالعمولة (100)، مدين المصاريف البنكية (100)
+        assert len(preview["simulated_lines"]) == 4
 
     def test_calculate_transfer_preview_cross_currency(self):
         """التحقق من حساب المعاينة للتحويل متعدد العملات (USD -> EGP)"""
@@ -1688,6 +1687,321 @@ class TestCashTransferPhase7EnterpriseMatrixAndEdgeCases:
         # التأكد من التراجع الكامل وعدم حفظ أي سجل
         final_transfers_count = CashTransfer.objects.count()
         assert final_transfers_count == initial_transfers_count
+
+
+@pytest.mark.django_db
+class TestCashTransferGovernanceAndRoleRegistryIntegration:
+    """
+    اختبارات الحوكمة والتكامل الدقيق لسيرفيس التحويلات المالية مع سجل الأدوار المحاسبية
+    (Phase 2 Remediation & Single Source of Truth Verification)
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_data(self, django_user_model):
+        from financial.models.cost_center import CostCenter
+        from financial.models.currency import Currency, ExchangeRate
+
+        self.user = django_user_model.objects.create_user(
+            username="treasury_gov_admin",
+            email="treasury_gov@mwheba.com",
+            password="Password123!",
+            is_staff=True,
+            is_superuser=True
+        )
+
+        self.egp = Currency.objects.get_or_create(
+            code="EGP",
+            defaults={"name": "جنيه مصري", "symbol": "ج.م", "is_functional": True, "is_active": True}
+        )[0]
+
+        self.usd = Currency.objects.get_or_create(
+            code="USD",
+            defaults={"name": "دولار أمريكي", "symbol": "$", "is_functional": False, "is_active": True}
+        )[0]
+
+        ExchangeRate.objects.get_or_create(
+            from_currency=self.usd,
+            to_currency=self.egp,
+            effective_date=timezone.now().date(),
+            defaults={"rate": Decimal("50.000000")}
+        )
+
+        self.asset_type = AccountType.objects.get_or_create(code="AST_GOV", defaults={"name": "أصول متداولة", "category": "asset"})[0]
+        self.expense_type = AccountType.objects.get_or_create(code="EXP_GOV", defaults={"name": "مصروفات", "category": "expense"})[0]
+        self.revenue_type = AccountType.objects.get_or_create(code="REV_GOV", defaults={"name": "إيرادات", "category": "revenue"})[0]
+
+        self.from_cost_center = CostCenter.objects.create(name="فرع القاهرة", code="CC-CAI", is_active=True)
+        self.to_cost_center = CostCenter.objects.create(name="فرع الإسكندرية", code="CC-ALX", is_active=True)
+        self.fee_cost_center = CostCenter.objects.create(name="الإدارة المالية", code="CC-FIN", is_active=True)
+
+        self.cash_control = ChartOfAccounts.objects.get_or_create(
+            code="11120",
+            defaults={
+                "name": "الخزائن النقدية والصناديق",
+                "account_type": self.asset_type,
+                "is_leaf": False,
+                "is_control_account": True,
+                "is_cash_account": True,
+                "currency": self.egp,
+                "is_active": True
+            }
+        )[0]
+
+        self.treasury_egp = ChartOfAccounts.objects.create(
+            code="11120010",
+            name="الخزينة الرئيسية EGP",
+            parent=self.cash_control,
+            account_type=self.asset_type,
+            is_leaf=True,
+            is_cash_account=True,
+            currency=self.egp,
+            is_active=True
+        )
+
+        self.bank_egp = ChartOfAccounts.objects.create(
+            code="11160010",
+            name="بنك مصر جاري EGP",
+            account_type=self.asset_type,
+            is_leaf=True,
+            is_bank_account=True,
+            currency=self.egp,
+            is_active=True
+        )
+
+        self.treasury_usd = ChartOfAccounts.objects.create(
+            code="11120020",
+            name="الخزينة الدولارية USD",
+            parent=self.cash_control,
+            account_type=self.asset_type,
+            is_leaf=True,
+            is_cash_account=True,
+            currency=self.usd,
+            is_active=True
+        )
+
+    def test_helper_accounts_routed_via_role_registry_with_no_hardcoded_filtering(self):
+        """التحقق من أن كافة دوال الحسابات الرقابية المساعدة تسترجع حساباتها حصرياً عبر سجل الأدوار المعتمد"""
+        from financial.services.cash_transfer_service import CashTransferService
+
+        bank_charges_acc = CashTransferService._get_bank_charges_account()
+        assert bank_charges_acc.code == "54100"
+        assert bank_charges_acc.account_type.category == "expense"
+
+        vat_input_acc = CashTransferService._get_input_vat_account()
+        assert vat_input_acc.code == "11510"
+        assert vat_input_acc.account_type.category == "asset"
+
+        fx_gain_acc = CashTransferService._get_fx_gain_account()
+        assert fx_gain_acc.code == "43100"
+        assert fx_gain_acc.account_type.category == "revenue"
+
+        fx_loss_acc = CashTransferService._get_fx_loss_account()
+        assert fx_loss_acc.code == "54300"
+        assert fx_loss_acc.account_type.category == "expense"
+
+        transit_acc = CashTransferService._get_transit_account()
+        assert transit_acc.code == "11150"
+        assert transit_acc.account_type.category == "asset"
+
+        rounding_acc = CashTransferService._get_rounding_account()
+        assert rounding_acc.code == "54400"
+        assert rounding_acc.account_type.category == "expense"
+
+    def test_multi_currency_transfer_with_fees_and_vat_generates_correct_journal_lines(self):
+        """
+        التحقق من تنفيذ تحويل متعدد العملات مع رسوم بنكية وضريبة مدخلات وفروق عملة
+        والتأكد من أن القيد المحاسبي يحتوي حصرياً على الأكواد الصحيحة 54100 و 11510 و 43100
+        وخلوه التام من الأكواد الخاطئة 52200 (تأمينات) أو 11350 (بضائع بالطريق) أو 52300 (إيجارات)
+        """
+        from financial.services.cash_transfer_service import CashTransferService
+
+        # تحويل 100$ بسعر صرف مباشر 53.00 (ربح صرافة 300 ج.م) مع رسوم 50$ وضريبة 7$
+        transfer = CashTransferService.execute_transfer(
+            from_account_id=self.treasury_usd.id,
+            to_account_id=self.treasury_egp.id,
+            source_amount=Decimal("100.00"),
+            exchange_rate=Decimal("53.000000"),
+            bank_fee=Decimal("50.00"),
+            fee_vat_amount=Decimal("7.00"),
+            is_fee_vat_inclusive=False,
+            from_cost_center_id=self.from_cost_center.id,
+            to_cost_center_id=self.to_cost_center.id,
+            fee_cost_center_id=self.fee_cost_center.id,
+            user=self.user
+        )
+
+        assert transfer.journal_entry is not None
+        je = transfer.journal_entry
+        lines = list(je.lines.all())
+
+        line_codes = [l.account.code for l in lines]
+        # التأكد التام من غياب الأكواد القديمة الملوثة
+        assert "52200" not in line_codes, "كود 52200 التأمينات لا يجب أن يظهر كرسوم بنكية!"
+        assert "11350" not in line_codes, "كود 11350 بضائع بالطريق لا يجب أن يظهر كضريبة مدخلات!"
+        assert "52300" not in line_codes, "كود 52300 الإيجارات لا يجب أن يظهر كخسائر فروق عملة!"
+
+        # التأكد من وجود الأكواد المعيارية الصحيحة
+        assert "54100" in line_codes, "يجب توجيه الرسوم البنكية لحساب 54100"
+        assert "11510" in line_codes, "يجب توجيه ضريبة القيمة المضافة لحساب 11510"
+        assert "43100" in line_codes, "يجب توجيه أرباح الصرافة لحساب 43100"
+
+        # التحقق من توازن القيد
+        assert je.is_balanced is True
+        assert je.difference == Decimal("0.00")
+
+        # التحقق من مبالغ الرسوم والضرائب
+        bank_line = je.lines.filter(account__code="54100").first()
+        assert bank_line.debit == Decimal("2500.00")  # 50 USD * 50 EGP
+
+        vat_line = je.lines.filter(account__code="11510").first()
+        assert vat_line.debit == Decimal("350.00")  # 7 USD * 50 EGP
+
+        fx_line = je.lines.filter(account__code="43100").first()
+        assert fx_line.credit == Decimal("300.00")  # (53 - 50) * 100 USD
+
+    def test_vat_inclusive_fee_calculation(self):
+        """التحقق من حساب الرسوم شاملة الضريبة (14%) وفصل أصل المصروف عن الضريبة بدقة"""
+        from financial.services.cash_transfer_service import CashTransferService
+
+        # رسوم 114 ج.م شاملة ضريبة 14% => أصل المصروف 100 ج.م، الضريبة 14 ج.م
+        preview = CashTransferService.calculate_transfer_preview(
+            from_account=self.treasury_egp,
+            to_account=self.treasury_egp,
+            source_amount=Decimal("1000.00"),
+            bank_fee=Decimal("114.00"),
+            is_fee_vat_inclusive=True
+        )
+
+        assert preview["net_bank_fee"] == Decimal("100.00")
+        assert preview["fee_vat_amount"] == Decimal("14.00")
+        assert preview["total_fee"] == Decimal("114.00")
+        assert preview["total_source_deduction"] == Decimal("1114.00")
+
+    def test_multi_currency_transfer_with_fx_loss_bank_fee_and_vat_generates_correct_journal_lines(self):
+        """
+        التحقق من تنفيذ تحويل متعدد العملات ينتج عنه خسارة فروق عملة (FX Loss) مع رسوم وضريبة
+        والتأكد من توجيه الخسارة لحساب 54300 حصرياً وتوجيه الرسوم لـ 54100 والضريبة لـ 11510
+        وخلو القيد تماماً من حسابات الإيجارات 52300 أو التأمينات 52200 أو بضائع بالطريق 11350
+        """
+        from financial.services.cash_transfer_service import CashTransferService
+
+        # تحويل 100$ بسعر صرف مباشر 48.00 (أقل من السعر الاسترشادي 50.00 بمقدار 2.00 ج.م لكل دولار => خسارة 200 ج.م)
+        # مع رسوم 10$ (500 ج.م) وضريبة 1.40$ (70 ج.م)
+        transfer = CashTransferService.execute_transfer(
+            from_account_id=self.treasury_usd.id,
+            to_account_id=self.treasury_egp.id,
+            source_amount=Decimal("100.00"),
+            exchange_rate=Decimal("48.000000"),
+            bank_fee=Decimal("10.00"),
+            fee_vat_amount=Decimal("1.40"),
+            is_fee_vat_inclusive=False,
+            from_cost_center_id=self.from_cost_center.id,
+            to_cost_center_id=self.to_cost_center.id,
+            fee_cost_center_id=self.fee_cost_center.id,
+            user=self.user
+        )
+
+        assert transfer.journal_entry is not None
+        je = transfer.journal_entry
+        lines = list(je.lines.all())
+
+        line_codes = [l.account.code for l in lines]
+        # التأكد التام من غياب الأكواد القديمة الملوثة
+        assert "52300" not in line_codes, "كود 52300 الإيجارات لا يجب أن يظهر كخسائر فروق عملة!"
+        assert "52200" not in line_codes, "كود 52200 التأمينات لا يجب أن يظهر كرسوم بنكية!"
+        assert "11350" not in line_codes, "كود 11350 بضائع بالطريق لا يجب أن يظهر كضريبة مدخلات!"
+
+        # التأكد من وجود الأكواد المعيارية الصحيحة
+        assert "54300" in line_codes, "يجب توجيه خسائر فروق العملة لحساب 54300"
+        assert "54100" in line_codes, "يجب توجيه الرسوم البنكية لحساب 54100"
+        assert "11510" in line_codes, "يجب توجيه ضريبة القيمة المضافة لحساب 11510"
+
+        # التحقق من توازن القيد
+        assert je.is_balanced is True
+        assert je.difference == Decimal("0.00")
+
+        # التحقق من مبالغ خسائر الصرف والرسوم والضرائب ومراكز التكلفة
+        loss_line = je.lines.filter(account__code="54300").first()
+        assert loss_line.debit == Decimal("200.00")  # (50 - 48) * 100 USD
+        assert loss_line.cost_center == self.from_cost_center
+
+        bank_line = je.lines.filter(account__code="54100").first()
+        assert bank_line.debit == Decimal("500.00")  # 10 USD * 50 EGP
+        assert bank_line.cost_center == self.fee_cost_center
+
+        vat_line = je.lines.filter(account__code="11510").first()
+        assert vat_line.debit == Decimal("70.00")  # 1.40 USD * 50 EGP
+        assert vat_line.cost_center == self.fee_cost_center
+
+    def test_cash_transfer_service_with_custom_db_role_mapping(self):
+        """
+        التحقق من أن خدمة التحويلات المالية تستجيب ديناميكياً لتغيير الأدوار في قاعدة البيانات (Priority 1 DB Roles)
+        دون الحاجة لتعديل سطر كود واحد
+        """
+        from financial.models.account_role import FinancialAccountRole
+        from financial.services.cash_transfer_service import CashTransferService
+
+        # إنشاء حسابات مخصصة بديلة
+        custom_fee_acc = ChartOfAccounts.objects.create(
+            code="54199",
+            name="عمولات تحويل دولية خاصة",
+            account_type=self.expense_type,
+            is_active=True,
+            is_leaf=True
+        )
+        custom_vat_acc = ChartOfAccounts.objects.create(
+            code="11599",
+            name="ضريبة مدخلات بنكية وسيطة",
+            account_type=self.asset_type,
+            is_active=True,
+            is_leaf=True
+        )
+
+        FinancialAccountRole.objects.update_or_create(
+            role_name="bank_charges_expense",
+            defaults={"account": custom_fee_acc, "is_active": True}
+        )
+        FinancialAccountRole.objects.update_or_create(
+            role_name="vat_input",
+            defaults={"account": custom_vat_acc, "is_active": True}
+        )
+
+        try:
+            transfer = CashTransferService.execute_transfer(
+                from_account_id=self.treasury_egp.id,
+                to_account_id=self.bank_egp.id,
+                source_amount=Decimal("5000.00"),
+                bank_fee=Decimal("100.00"),
+                fee_vat_amount=Decimal("14.00"),
+                is_fee_vat_inclusive=False,
+                user=self.user
+            )
+
+            assert transfer.journal_entry is not None
+            je = transfer.journal_entry
+            line_codes = [l.account.code for l in je.lines.all()]
+
+            assert "54199" in line_codes, "يجب توجيه الرسوم للحساب المخصص 54199 المعرف في قاعدة البيانات"
+            assert "11599" in line_codes, "يجب توجيه الضريبة للحساب المخصص 11599 المعرف في قاعدة البيانات"
+            assert "54100" not in line_codes
+            assert "11510" not in line_codes
+            assert je.is_balanced is True
+        finally:
+            # إعادة الأدوار لأصلها
+            orig_fee = ChartOfAccounts.objects.filter(code="54100").first()
+            orig_vat = ChartOfAccounts.objects.filter(code="11510").first()
+            if orig_fee:
+                FinancialAccountRole.objects.update_or_create(
+                    role_name="bank_charges_expense",
+                    defaults={"account": orig_fee, "is_active": True}
+                )
+            if orig_vat:
+                FinancialAccountRole.objects.update_or_create(
+                    role_name="vat_input",
+                    defaults={"account": orig_vat, "is_active": True}
+                )
+
+
 
 
 

@@ -87,6 +87,8 @@ def transfer_preview_api(request):
         except (ValueError, TypeError):
             vat_on_fee = Decimal("0.00")
 
+        is_fee_vat_inclusive = data.get("is_fee_vat_inclusive") in [True, "true", "True", "1", 1]
+
         transfer_date = None
         if transfer_date_str:
             try:
@@ -101,6 +103,7 @@ def transfer_preview_api(request):
             exchange_rate=exchange_rate,
             bank_fee=bank_fee,
             vat_on_fee=vat_on_fee,
+            is_fee_vat_inclusive=is_fee_vat_inclusive,
             transfer_type=transfer_type,
             transfer_date=transfer_date
         )
@@ -162,8 +165,6 @@ def transfer_create_api(request):
         exchange_rate_raw = request.POST.get("exchange_rate") or request.POST.get("custom_exchange_rate")
         
         bank_fee_raw = request.POST.get("bank_fee") or request.POST.get("transfer_fee", "0")
-        is_fee_vat_inclusive = request.POST.get("is_fee_vat_inclusive") in ["true", "True", "1", True]
-        fee_vat_amount_raw = request.POST.get("vat_on_fee") or request.POST.get("fee_vat_amount")
         
         bank_name = request.POST.get("bank_name", "").strip()
         account_number = request.POST.get("account_number", "").strip()
@@ -233,14 +234,12 @@ def transfer_create_api(request):
         except (ValueError, TypeError):
             bank_fee = Decimal("0.00")
 
-        fee_vat_amount = None
-        if fee_vat_amount_raw:
-            try:
-                v = Decimal(str(fee_vat_amount_raw))
-                if v >= Decimal("0.00"):
-                    fee_vat_amount = v
-            except (ValueError, TypeError):
-                pass
+        is_fee_vat_inclusive = request.POST.get("is_fee_vat_inclusive") in [True, "true", "True", "1", 1]
+        fee_vat_amount_raw = request.POST.get("fee_vat_amount") or request.POST.get("vat_on_fee")
+        try:
+            fee_vat_amount = Decimal(str(fee_vat_amount_raw)) if fee_vat_amount_raw else None
+        except (ValueError, TypeError):
+            fee_vat_amount = None
 
         transfer = CashTransferService.execute_transfer(
             from_account_id=int(from_account_id),

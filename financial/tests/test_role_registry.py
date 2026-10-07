@@ -221,3 +221,206 @@ class TestAccountRoleRegistryAndContextProcessors:
         assert context_normal["default_payment_account"]["code"] == "10199_CP"
         assert context_normal["default_bank_account"] is not None
         assert context_normal["default_bank_account"]["code"] == "10299_CP"
+
+    def test_bank_charges_and_vat_input_default_resolutions(self):
+        """التحقق من حل أدوار المصاريف البنكية وضريبة المدخلات بالأكواد المعيارية الصحيحة 54100 و 11510"""
+        bank_charges_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.BANK_CHARGES_EXPENSE)
+        assert bank_charges_code == "54100"
+
+        vat_input_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.VAT_INPUT)
+        assert vat_input_code == "11510"
+
+        fx_gain_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.FX_REALIZED_GAIN)
+        assert fx_gain_code == "43100"
+
+        fx_loss_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.FX_REALIZED_LOSS)
+        assert fx_loss_code == "54300"
+
+    def test_semantic_type_guard_rejects_invalid_account_category(self):
+        """التحقق من أن صمام الأمان الدلالي (Semantic Type Guard) يرفض ربط دور مصاريف بحساب أصول"""
+        asset_type, _ = AccountType.objects.get_or_create(
+            code="AST_TEST_GUARD",
+            defaults={"name": "Asset Test Guard", "category": "asset"}
+        )
+        # إنشاء حساب خاطئ (أصول) مع كود المصاريف البنكية
+        acc, _ = ChartOfAccounts.objects.get_or_create(
+            code="54100_TEST",
+            defaults={"name": "Bank Charges Bad Asset", "account_type": asset_type, "is_active": True}
+        )
+        acc.account_type = asset_type
+        acc.is_active = True
+        acc.save()
+
+        import os
+        os.environ["ACCOUNT_ROLE_BANK_CHARGES_EXPENSE"] = "54100_TEST"
+        try:
+            with pytest.raises(RoleConfigurationError) as exc_info:
+                AccountRoleRegistry.get_account(AccountRoleNames.BANK_CHARGES_EXPENSE)
+            assert "does not match expected category 'expense'" in str(exc_info.value)
+        finally:
+            os.environ.pop("ACCOUNT_ROLE_BANK_CHARGES_EXPENSE", None)
+
+
+@pytest.mark.django_db
+class TestAllRolesAuditAndCompliance:
+    """
+    اختبارات الحوكمة الرقابية الذاتية والتدقيق الشامل لكافة الأدوار المالية (Phase 6 Governance Audit)
+    """
+
+    @pytest.fixture(autouse=True)
+    def setup_system_coa_and_roles(self):
+        from django.core.management import call_command
+        call_command("setup_accounting_system", force=True)
+
+    def test_all_roles_audit_against_chart_of_accounts_and_seeding(self):
+        """
+        تدقيق شامل لجميع الأدوار الـ 28 المسجلة في AccountRoleNames:
+        1. التأكد من وجود سجل FinancialAccountRole في قاعدة البيانات (Priority 1)
+        2. التأكد من وجود الحساب الفعلي في شجرة الحسابات ونشاطه (is_active=True)
+        3. التحقق من مطابقة نوع الحساب للمصفوفة الدلالية المعيارية ROLE_EXPECTED_CATEGORIES
+        """
+        from financial.models.account_role import FinancialAccountRole
+        from financial.services.role_registry import ROLE_EXPECTED_CATEGORIES
+
+        # استثناء الأدوار المرادفة العامة إن وجدت
+        all_roles = list(AccountRoleNames)
+        assert len(all_roles) >= 28
+
+        for role in all_roles:
+            role_name = role.value
+            expected_category = ROLE_EXPECTED_CATEGORIES.get(role_name)
+            assert expected_category is not None, f"Role '{role_name}' must be defined in ROLE_EXPECTED_CATEGORIES"
+
+            # 1. حل كود الحساب
+            resolved_code = AccountRoleRegistry.resolve_role_code(role)
+            assert resolved_code, f"Role '{role_name}' must resolve to a valid account code"
+
+            # 2. جلب الحساب وتطبيق الحماية الدلالية
+            account = AccountRoleRegistry.get_account(role)
+            assert account is not None, f"Account for role '{role_name}' ({resolved_code}) must exist in COA"
+            assert account.is_active is True, f"Account '{account.code}' for role '{role_name}' must be active"
+            assert account.account_type is not None, f"Account '{account.code}' must have an account_type"
+            assert account.account_type.category == expected_category, (
+                f"Role '{role_name}' expected category '{expected_category}' "
+                f"but got '{account.account_type.category}' for account '{account.code}'"
+            )
+
+            # 3. التحقق من وجود السجل في قاعدة البيانات (Priority 1)
+            db_role = FinancialAccountRole.objects.filter(role_name=role_name, is_active=True).first()
+            assert db_role is not None, f"DB FinancialAccountRole record must exist for role '{role_name}'"
+            assert db_role.account.code == resolved_code, (
+                f"DB role '{role_name}' account '{db_role.account.code}' does not match resolved '{resolved_code}'"
+            )
+
+    def test_three_tier_hierarchy_precedence(self, monkeypatch):
+        """
+        التحقق من التدرج الهرمي الحاسم الثلاثي (Priority 1: DB -> Priority 2: ENV -> Priority 3: Legacy Fallback)
+        """
+        from financial.models.account_role import FinancialAccountRole
+
+        expense_type, _ = AccountType.objects.get_or_create(
+            code="EXPENSE",
+            defaults={"name": "مصروفات", "category": "expense", "nature": "debit"}
+        )
+
+        # إنشاء 3 حسابات تجريبية
+        acc_db = ChartOfAccounts.objects.create(
+            code="54101",
+            name="Bank Charges DB Role Test",
+            account_type=expense_type,
+            is_active=True,
+            is_leaf=True
+        )
+        acc_env = ChartOfAccounts.objects.create(
+            code="54102",
+            name="Bank Charges ENV Role Test",
+            account_type=expense_type,
+            is_active=True,
+            is_leaf=True
+        )
+
+        role_name = AccountRoleNames.BANK_CHARGES_EXPENSE.value
+
+        # ضبط قاعدة البيانات على acc_db
+        db_role, _ = FinancialAccountRole.objects.update_or_create(
+            role_name=role_name,
+            defaults={"account": acc_db, "is_active": True}
+        )
+
+        # ضبط متغير البيئة على acc_env
+        monkeypatch.setenv("ACCOUNT_ROLE_BANK_CHARGES_EXPENSE", "54102")
+
+        # 1. اختبار الأولوية 1: قاعدة البيانات تغلب متغير البيئة والـ Legacy
+        assert AccountRoleRegistry.resolve_role_code(role_name) == "54101"
+        account = AccountRoleRegistry.get_account(role_name)
+        assert account.code == "54101"
+
+        # 2. اختبار الأولوية 2: عند تعطيل سجل قاعدة البيانات، يغلب متغير البيئة الـ Legacy
+        db_role.is_active = False
+        db_role.save()
+        assert AccountRoleRegistry.resolve_role_code(role_name) == "54102"
+        account = AccountRoleRegistry.get_account(role_name)
+        assert account.code == "54102"
+
+        # 3. اختبار الأولوية 3: عند إزالة متغير البيئة، يتم التراجع للـ Legacy Fallback (54100)
+        monkeypatch.delenv("ACCOUNT_ROLE_BANK_CHARGES_EXPENSE", raising=False)
+        assert AccountRoleRegistry.resolve_role_code(role_name) == "54100"
+        account = AccountRoleRegistry.get_account(role_name)
+        assert account.code == "54100"
+
+    def test_semantic_type_guard_rejects_category_mismatches_for_core_roles(self):
+        """
+        التحقق من أن صمام الأمان الدلالي يمنع أي محاولة لربط الحسابات بتصنيفات غير متوافقة
+        سواء كانت أصولاً مرتبطة بإيرادات، أو خصوماً مرتبطة بأصول، أو مصروفات مرتبطة بخصوم
+        """
+        from financial.models.account_role import FinancialAccountRole
+
+        asset_type = AccountType.objects.get(code="ASSET")
+        liability_type = AccountType.objects.get(code="LIABILITY")
+        revenue_type = AccountType.objects.get(code="REVENUE")
+        expense_type = AccountType.objects.get(code="EXPENSE")
+
+        # حساب أصول
+        bad_asset = ChartOfAccounts.objects.create(
+            code="99001",
+            name="Bad Asset Account",
+            account_type=asset_type,
+            is_active=True,
+            is_leaf=True
+        )
+        # حساب خصوم
+        bad_liability = ChartOfAccounts.objects.create(
+            code="99002",
+            name="Bad Liability Account",
+            account_type=liability_type,
+            is_active=True,
+            is_leaf=True
+        )
+
+        # 1. محاولة ربط دور إيرادات المبيعات (revenue) بحساب أصول (asset)
+        FinancialAccountRole.objects.update_or_create(
+            role_name=AccountRoleNames.SALES_REVENUE.value,
+            defaults={"account": bad_asset, "is_active": True}
+        )
+        with pytest.raises(RoleConfigurationError) as exc:
+            AccountRoleRegistry.get_account(AccountRoleNames.SALES_REVENUE)
+        assert "does not match expected category 'revenue'" in str(exc.value)
+
+        # 2. محاولة ربط دور ضريبة المدخلات (asset) بحساب خصوم (liability)
+        FinancialAccountRole.objects.update_or_create(
+            role_name=AccountRoleNames.VAT_INPUT.value,
+            defaults={"account": bad_liability, "is_active": True}
+        )
+        with pytest.raises(RoleConfigurationError) as exc:
+            AccountRoleRegistry.get_account(AccountRoleNames.VAT_INPUT)
+        assert "does not match expected category 'asset'" in str(exc.value)
+
+        # 3. محاولة ربط دور خسائر فروق العملة (expense) بحساب أصول (asset)
+        FinancialAccountRole.objects.update_or_create(
+            role_name=AccountRoleNames.FX_REALIZED_LOSS.value,
+            defaults={"account": bad_asset, "is_active": True}
+        )
+        with pytest.raises(RoleConfigurationError) as exc:
+            AccountRoleRegistry.get_account(AccountRoleNames.FX_REALIZED_LOSS)
+        assert "does not match expected category 'expense'" in str(exc.value)
+

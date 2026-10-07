@@ -309,3 +309,62 @@ class TestTreasuryProvisioningSuite:
         data = response.json()
         assert data["success"] is False
         assert "مسجل مسبقاً" in data["error"]
+
+    def test_duplicate_cash_account_name_rejection(self, client):
+        """رفض تكرار اسم الخزنة النقدية"""
+        client.force_login(self.admin_user)
+        # إنشاء أول خزينة
+        res1 = client.post(self.url, {
+            "account_category": "cash",
+            "name": "خزينة الفرع الرئيسي",
+            "work_location_id": self.work_location.id,
+            "opening_balance": "0.00",
+            "currency_id": self.egp.id
+        })
+        assert res1.status_code == 200
+        assert res1.json()["success"] is True
+
+        # محاولة إنشاء خزينة بنفس الاسم
+        res2 = client.post(self.url, {
+            "account_category": "cash",
+            "name": "خزينة الفرع الرئيسي",
+            "work_location_id": self.work_location.id,
+            "opening_balance": "0.00",
+            "currency_id": self.egp.id
+        })
+        assert res2.status_code == 400
+        data2 = res2.json()
+        assert data2["success"] is False
+        assert "يوجد خزينة مسجلة مسبقاً بنفس الاسم" in data2["error"]
+
+    def test_cash_account_edit_duplicate_name_rejection(self, client):
+        """رفض تعديل اسم الخزينة إلى اسم خزينة أخرى موجودة بالفعل"""
+        client.force_login(self.admin_user)
+        # إنشاء خزينة أولى
+        res1 = client.post(self.url, {
+            "account_category": "cash",
+            "name": "خزينة رقم 1",
+            "opening_balance": "0.00",
+            "currency_id": self.egp.id
+        })
+        # إنشاء خزينة ثانية
+        res2 = client.post(self.url, {
+            "account_category": "cash",
+            "name": "خزينة رقم 2",
+            "opening_balance": "0.00",
+            "currency_id": self.egp.id
+        })
+        acc2_id = res2.json()["account"]["id"]
+
+        # محاولة تعديل اسم الخزينة الثانية ليصبح "خزينة رقم 1"
+        edit_url = reverse("financial:cash_account_edit", args=[acc2_id])
+        edit_resp = client.post(edit_url, {
+            "name": "خزينة رقم 1",
+            "account_type_choice": "cash",
+            "is_active": "on"
+        }, follow=True)
+        
+        # التأكد من عدم تغيير الاسم
+        acc2 = ChartOfAccounts.objects.get(pk=acc2_id)
+        assert acc2.name == "خزينة رقم 2"
+

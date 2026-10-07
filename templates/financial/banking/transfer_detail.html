@@ -202,9 +202,9 @@
  <td class="text-muted small">{% trans "فروق تقييم العملة (FX):" %}</td>
  <td>
  {% if transfer.fx_gain_loss_amount > 0 %}
- <span class="badge bg-success">+{{ transfer.fx_gain_loss_amount|smart_float }} {{ base_currency_symbol }} ({% trans "أرباح صرافة 42300" %})</span>
+ <span class="badge bg-success">+{{ transfer.fx_gain_loss_amount|smart_float }} {{ base_currency_symbol }} ({% trans "أرباح فروق العملة 43100" %})</span>
  {% else %}
- <span class="badge bg-danger">{{ transfer.fx_gain_loss_amount|smart_float }} {{ base_currency_symbol }} ({% trans "خسائر صرافة 52300" %})</span>
+ <span class="badge bg-danger">{{ transfer.fx_gain_loss_amount|smart_float }} {{ base_currency_symbol }} ({% trans "خسائر فروق العملة 54300" %})</span>
  {% endif %}
  </td>
  </tr>
@@ -242,13 +242,15 @@
  {% endif %}
  {% if transfer.transfer_fee > 0 %}
  <tr>
- <td class="text-muted small">{% trans "العمولة البنكية (52200):" %}</td>
- <td class="fw-bold">{{ transfer.transfer_fee|smart_float }} {{ base_currency_symbol }}</td>
+ <td class="text-muted small">{% trans "العمولة / المصاريف البنكية" %} ({% if transfer.fee_account %}{{ transfer.fee_account.code }}{% else %}54100{% endif %}):</td>
+ <td class="fw-bold">{{ transfer.transfer_fee|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}</td>
  </tr>
+ {% if transfer.fee_vat_amount > 0 %}
  <tr>
- <td class="text-muted small">{% trans "ضريبة العمولة 14% (11350):" %}</td>
- <td class="fw-bold">{{ transfer.fee_vat_amount|smart_float }} {{ base_currency_symbol }}</td>
+ <td class="text-muted small">{% trans "ضريبة القيمة المضافة على العمولة (11510):" %}</td>
+ <td class="fw-bold">{{ transfer.fee_vat_amount|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}</td>
  </tr>
+ {% endif %}
  {% endif %}
  {% if transfer.courier_name %}
  <tr>

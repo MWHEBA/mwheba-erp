@@ -53,6 +53,42 @@ class AccountRoleNames(str, Enum):
     ROUNDING_DIFFERENCE_ACCOUNT = "rounding_difference_account"
     WITHHOLDING_TAX_PAYABLE = "withholding_tax_payable"
     WITHHOLDING_TAX_RECEIVABLE = "withholding_tax_receivable"
+    BANK_CHARGES_EXPENSE = "bank_charges_expense"
+    CASH_IN_TRANSIT_CONTROL = "cash_in_transit_control"
+
+
+# مصفوفة التحقق الدلالي للأدوار المالية (Semantic Type Guard)
+ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
+    AccountRoleNames.DEFAULT_CASH_DRAWER.value: "asset",
+    AccountRoleNames.DEFAULT_BANK_ACCOUNT.value: "asset",
+    AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL.value: "asset",
+    AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value: "liability",
+    AccountRoleNames.GRNI_CLEARING.value: "liability",
+    AccountRoleNames.GENERAL_SALES_REVENUE.value: "revenue",
+    AccountRoleNames.SALES_REVENUE.value: "revenue",
+    AccountRoleNames.SALES_RETURNS.value: "revenue",
+    AccountRoleNames.SALES_DISCOUNTS.value: "revenue",
+    AccountRoleNames.PURCHASE_DISCOUNTS.value: "expense",
+    AccountRoleNames.PURCHASE_RETURNS.value: "expense",
+    AccountRoleNames.COGS_EXPENSE.value: "expense",
+    AccountRoleNames.INVENTORY_GENERAL.value: "asset",
+    AccountRoleNames.VAT_OUTPUT.value: "liability",
+    AccountRoleNames.VAT_INPUT.value: "asset",
+    AccountRoleNames.WITHHOLDING_TAX_PAYABLE.value: "liability",
+    AccountRoleNames.WITHHOLDING_TAX_RECEIVABLE.value: "asset",
+    AccountRoleNames.FX_REALIZED_GAIN.value: "revenue",
+    AccountRoleNames.FX_REALIZED_LOSS.value: "expense",
+    AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "expense",
+    AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "liability",
+    AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "asset",
+    AccountRoleNames.SALARY_EXPENSE.value: "expense",
+    AccountRoleNames.SOCIAL_INSURANCE.value: "liability",
+    AccountRoleNames.INCOME_TAX.value: "liability",
+    AccountRoleNames.SALARY_PAYABLES.value: "liability",
+    AccountRoleNames.EMPLOYEE_ADVANCE.value: "asset",
+    AccountRoleNames.BANK_CHARGES_EXPENSE.value: "expense",
+    AccountRoleNames.CASH_IN_TRANSIT_CONTROL.value: "asset",
+}
 
 
 LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
@@ -65,6 +101,9 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "DEFAULT_BANK_ACCOUNT": "11160001",
     "BANK_CONTROL_ACCOUNT": "11160",
     "BANK_ACCOUNT": "11160001",
+    AccountRoleNames.CASH_IN_TRANSIT_CONTROL.value: "11150",
+    "CASH_IN_TRANSIT_CONTROL": "11150",
+    "CASH_IN_TRANSIT_ACCOUNT": "11150",
 
     # العملاء والموردين
     AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL.value: "11210",
@@ -126,6 +165,7 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     AccountRoleNames.VAT_INPUT.value: "11510",
     "VAT_INPUT": "11510",
     "INPUT_TAX_ACCOUNT": "11510",
+    "INPUT_VAT": "11510",
     "PURCHASE_TAX_RECEIVABLE": "11510",
     AccountRoleNames.WITHHOLDING_TAX_PAYABLE.value: "21330",
     "WITHHOLDING_TAX_PAYABLE": "21330",
@@ -135,25 +175,22 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "CUSTOMER_WHT_RECEIVABLE": "11520",
     "WHT_RECEIVABLE": "11520",
 
-    # أرباح وخسائر فروق العملة والتقريب
-    AccountRoleNames.FX_REALIZED_GAIN.value: "42300",
-    "FX_REALIZED_GAIN": "42300",
-    "FX_REALIZED_GAIN_ACCOUNT": "42300",
-    "FX_GAIN_ACCOUNT": "42300",
-    AccountRoleNames.FX_REALIZED_LOSS.value: "52300",
-    "FX_REALIZED_LOSS": "52300",
-    "FX_REALIZED_LOSS_ACCOUNT": "52300",
-    "FX_LOSS_ACCOUNT": "52300",
+    # أرباح وخسائر فروق العملة والتقريب والمصاريف البنكية
+    AccountRoleNames.FX_REALIZED_GAIN.value: "43100",
+    "FX_REALIZED_GAIN": "43100",
+    "FX_REALIZED_GAIN_ACCOUNT": "43100",
+    "FX_GAIN_ACCOUNT": "43100",
+    AccountRoleNames.FX_REALIZED_LOSS.value: "54300",
+    "FX_REALIZED_LOSS": "54300",
+    "FX_REALIZED_LOSS_ACCOUNT": "54300",
+    "FX_LOSS_ACCOUNT": "54300",
     AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "54400",
     "ROUNDING_DIFFERENCE_ACCOUNT": "54400",
     "ROUNDING_DIFF_ACCOUNT": "54400",
-    "CASH_IN_TRANSIT_CONTROL": "11150",
-    "CASH_IN_TRANSIT_ACCOUNT": "11150",
-    "BANK_CHARGES_EXPENSE": "52200",
-    "BANK_CHARGES_ACCOUNT": "52200",
-    "BANK_FEES_EXPENSE": "52200",
-    "VAT_INPUT": "11350",
-    "INPUT_VAT": "11350",
+    AccountRoleNames.BANK_CHARGES_EXPENSE.value: "54100",
+    "BANK_CHARGES_EXPENSE": "54100",
+    "BANK_CHARGES_ACCOUNT": "54100",
+    "BANK_FEES_EXPENSE": "54100",
 
     # دفعات مقدمة
     AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "21510",
@@ -253,10 +290,11 @@ class AccountRoleRegistry:
     @classmethod
     def get_account(cls, role_input: Union[str, AccountRoleNames]):
         """
-        جلب وتوثيق كائن ChartOfAccounts النشط المقابل للدور
+        جلب وتوثيق كائن ChartOfAccounts النشط المقابل للدور مع تطبيق الحماية الدلالية (Semantic Type Guard).
         """
         ChartOfAccounts = apps.get_model('financial', 'ChartOfAccounts')
         AccountType = apps.get_model('financial', 'AccountType')
+        role_str = cls.validate_role_name(role_input)
         account_code = cls.resolve_role_code(role_input)
 
         account = ChartOfAccounts.objects.filter(code=account_code).first()
@@ -272,15 +310,13 @@ class AccountRoleRegistry:
                 "11110": ("الخزينة الرئيسية", "asset", "debit"),
                 "11160": ("الحسابات الجارية بالبنوك - محلي", "asset", "debit"),
                 "11160001": ("حساب البنك الرئيسي", "asset", "debit"),
-                "50900": ("حساب فروق التقريب", "expense", "debit"),
-                "54400": ("حساب فروق التقريب", "expense", "debit"),
-                "50400": ("خسائر فروق عملة محققة", "expense", "debit"),
-                "52300": ("خسائر فروق تقييم وتحويل العملة", "expense", "debit"),
-                "40400": ("أرباح فروق عملة محققة", "revenue", "credit"),
-                "42300": ("أرباح فروق تقييم وتحويل العملة", "revenue", "credit"),
+                "54400": ("حساب فروق تقريب العملات", "expense", "debit"),
+                "54300": ("خسائر فروق العملة", "expense", "debit"),
+                "43100": ("أرباح فروق العملة", "revenue", "credit"),
                 "11150": ("نقدية بالطريق وتحويلات وسيطة", "asset", "debit"),
-                "52200": ("مصاريف وعمولات بنكية", "expense", "debit"),
-                "11350": ("ضريبة القيمة المضافة على المدخلات", "asset", "debit"),
+                "54100": ("عمولات ومصاريف بنكية", "expense", "debit"),
+                "11510": ("ضريبة القيمة المضافة - مدخلات (مشتريات)", "asset", "debit"),
+                "21310": ("ضريبة القيمة المضافة - مخرجات (مبيعات)", "liability", "credit"),
                 "10100": ("الصندوق الرئيسي", "asset", "debit"),
                 "10200": ("حساب البنك الرئيسي", "asset", "debit"),
             }
@@ -308,6 +344,16 @@ class AccountRoleRegistry:
             raise RoleConfigurationError(
                 f"Account '{account_code}' resolved for role '{role_input}' is inactive."
             )
+
+        # 4. الحماية الدلالية (Semantic Type Guard): التحقق من مطابقة نوع الحساب لطبيعة الدور
+        expected_cat = ROLE_EXPECTED_CATEGORIES.get(role_str) or ROLE_EXPECTED_CATEGORIES.get(role_str.lower())
+        if expected_cat and hasattr(account, 'account_type') and account.account_type:
+            account_cat = str(getattr(account.account_type, 'category', '')).lower()
+            if account_cat and account_cat != expected_cat.lower():
+                raise RoleConfigurationError(
+                    f"Account '{account.code}' ({account.name}) of category '{account_cat}' "
+                    f"does not match expected category '{expected_cat}' for role '{role_input}'."
+                )
 
         return account
 
