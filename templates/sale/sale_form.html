@@ -430,7 +430,7 @@
                     <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
                         <i class="fa fa-plus me-1"></i> إضافة بند
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-sale-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
+                    <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-sale-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal({currencyId: $('#id_currency').val(), currencyCode: $('#id_currency option:selected').data('code'), currencySymbol: $('#id_currency option:selected').data('symbol') || $('.currency-symbol-display').first().text() || 'ج.م', exchangeRate: $('#id_exchange_rate').val() || '1.0'});">
                         <i class="fas fa-plus-circle me-1"></i> صنف جديد
                     </button>
                     {% if enabled_modules.printing_pricing %}

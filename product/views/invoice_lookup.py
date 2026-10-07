@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q, Sum
@@ -188,7 +188,7 @@ def invoice_product_lookup(request):
         show_all = show_all_param or exact or product_ids or (product_type in ["service", "services", "purchase"])
         
         # Prefetch currency prices and variants for efficiency
-        qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit', 'tax_code')
+        qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit', 'tax_code', 'pricing_currency')
 
         # تجهيز كاش التسعير للطلبات غير الشرائية
         pricing_cache = None
@@ -201,18 +201,30 @@ def invoice_product_lookup(request):
             except Exception as e:
                 logger.warning(f"Failed to build pricing cache in lookup: {e}")
 
+        # استخراج سعر الصرف الممرر من شاشة الفاتورة إن وجد
+        invoice_fx_rate_param = request.GET.get("exchange_rate") or request.GET.get("rate")
+        invoice_fx_rate = None
+        if invoice_fx_rate_param:
+            try:
+                invoice_fx_rate = float(Decimal(str(invoice_fx_rate_param).replace(',', '')))
+            except Exception:
+                invoice_fx_rate = None
+
         raw_results = []
         is_foreign = (currency_obj and not currency_obj.is_functional)
         curr_code = currency_obj.code if currency_obj else None
         
         fx_rate = 1.0
         if is_foreign and curr_code:
-            try:
-                from financial.services.exchange_rate_service import ExchangeRateService
-                fx_rate_dec = ExchangeRateService.get_rate(curr_code, "EGP")
-                fx_rate = float(fx_rate_dec) if fx_rate_dec and fx_rate_dec > 0 else 1.0
-            except Exception:
-                fx_rate = 1.0
+            if invoice_fx_rate and invoice_fx_rate > 0:
+                fx_rate = invoice_fx_rate
+            else:
+                try:
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    fx_rate_dec = ExchangeRateService.get_rate(curr_code, "EGP")
+                    fx_rate = float(fx_rate_dec) if fx_rate_dec and fx_rate_dec > 0 else 1.0
+                except Exception:
+                    fx_rate = 1.0
 
         for p in qs.order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
@@ -234,6 +246,26 @@ def invoice_product_lookup(request):
                 else:
                     cost_p = round(cost_p_base / fx_rate, 2)
                     has_custom_fx_cost = False
+            elif not is_foreign and p.is_foreign_currency_priced and p.pricing_currency:
+                # محرك حماية هوامش الربح للأصناف المستوردة بالفواتير المحلية (Dynamic FX Protection)
+                p_curr_code = p.pricing_currency.code
+                p_fx_rate = invoice_fx_rate
+                if not p_fx_rate or p_fx_rate <= 0:
+                    try:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        r_dec = ExchangeRateService.get_rate(p_curr_code, "EGP")
+                        p_fx_rate = float(r_dec) if r_dec and r_dec > 0 else 1.0
+                    except Exception:
+                        p_fx_rate = 1.0
+
+                cp_data = curr_prices.get(p_curr_code)
+                if cp_data:
+                    foreign_selling = cp_data.get("selling")
+                    if foreign_selling and float(foreign_selling) > 0:
+                        selling_p = round(float(foreign_selling) * p_fx_rate, 2)
+                    foreign_cost = cp_data.get("cost")
+                    if foreign_cost and float(foreign_cost) > 0:
+                        cost_p = round(float(foreign_cost) * p_fx_rate, 2)
 
             discount_amount = 0.0
             discount_percentage = 0.0
@@ -250,6 +282,7 @@ def invoice_product_lookup(request):
                         customer_id=c_id_int,
                         price_list_id=pl_id_int,
                         currency=curr_code or "EGP",
+                        exchange_rate=Decimal(str(invoice_fx_rate)) if invoice_fx_rate else None,
                         context_cache=pricing_cache
                     )
                     selling_p = float(p_info["base_price"])
@@ -321,6 +354,10 @@ def invoice_product_lookup(request):
                 "cost_price": cost_p,
                 "cost_price_base": cost_p_base,
                 "has_custom_fx_cost": has_custom_fx_cost,
+                "pricing_currency_id": p.pricing_currency_id,
+                "pricing_currency_code": p.pricing_currency.code if p.pricing_currency else None,
+                "pricing_currency_symbol": p.pricing_currency.symbol if p.pricing_currency else None,
+                "is_foreign_currency_priced": p.is_foreign_currency_priced,
                 "discount_amount": discount_amount,
                 "discount_percentage": discount_percentage,
                 "rule_name": rule_name,

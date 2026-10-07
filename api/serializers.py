@@ -76,12 +76,16 @@ class ProductListSerializer(serializers.ModelSerializer):
     
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_name_en = serializers.CharField(source='category.name_en', read_only=True)
+    pricing_currency_code = serializers.CharField(source='pricing_currency.code', read_only=True, default=None)
+    pricing_currency_symbol = serializers.CharField(source='pricing_currency.symbol', read_only=True, default=None)
+    is_foreign_currency_priced = serializers.BooleanField(read_only=True)
     total_stock = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'name_en', 'sku', 'category', 'category_name', 'category_name_en',
+            'pricing_currency', 'pricing_currency_code', 'pricing_currency_symbol', 'is_foreign_currency_priced',
             'selling_price', 'cost_price', 'total_stock', 'is_active'
         ]
         read_only_fields = ['id']
@@ -106,6 +110,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     
     category_name = serializers.CharField(source='category.name', read_only=True)
     category_name_en = serializers.CharField(source='category.name_en', read_only=True)
+    pricing_currency_code = serializers.CharField(source='pricing_currency.code', read_only=True, default=None)
+    pricing_currency_symbol = serializers.CharField(source='pricing_currency.symbol', read_only=True, default=None)
+    is_foreign_currency_priced = serializers.BooleanField(read_only=True)
+    currency_prices = serializers.SerializerMethodField()
     total_stock = serializers.SerializerMethodField()
     stock_value = serializers.SerializerMethodField()
     
@@ -113,7 +121,9 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         model = Product
         fields = [
             'id', 'name', 'name_en', 'sku', 'barcode', 'category', 'category_name', 'category_name_en',
-            'description', 'description_en', 'selling_price', 'cost_price', 'min_stock',
+            'description', 'description_en',
+            'pricing_currency', 'pricing_currency_code', 'pricing_currency_symbol', 'is_foreign_currency_priced',
+            'currency_prices', 'selling_price', 'cost_price', 'min_stock',
             'is_active', 'total_stock', 'stock_value',
             'created_at', 'updated_at'
         ]
@@ -126,6 +136,27 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         stock = getattr(obj, 'current_stock', 0) or 0
         cost = getattr(obj, 'cost_price', 0) or 0
         return stock * cost
+
+    def get_currency_prices(self, obj):
+        prices = []
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        can_view_selling = getattr(user, 'can_view_selling_price', True) if user and user.is_authenticated else True
+        can_view_cost = (getattr(user, 'can_view_profit_margin', True) or getattr(user, 'can_view_operational_costs', True)) if user and user.is_authenticated else True
+
+        for cp in obj.currency_prices.select_related('currency').all():
+            item = {
+                'currency_id': cp.currency_id,
+                'currency_code': cp.currency.code,
+                'currency_name': cp.currency.name,
+                'currency_symbol': cp.currency.symbol,
+            }
+            if can_view_selling:
+                item['indicative_selling_price'] = cp.indicative_selling_price
+            if can_view_cost:
+                item['indicative_cost_price'] = cp.indicative_cost_price
+            prices.append(item)
+        return prices
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

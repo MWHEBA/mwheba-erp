@@ -7,6 +7,7 @@ Handles importing products from Excel/CSV files
 import logging
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
+from django.db.models import Q
 from django.utils.text import slugify
 import re
 
@@ -93,6 +94,11 @@ class ProductImportService:
         'price_sar': 'price_sar',
         'سعر التكلفة ريال': 'cost_sar',
         'cost_sar': 'cost_sar',
+        'عملة التسعير': 'pricing_currency',
+        'العملة': 'pricing_currency',
+        'currency': 'pricing_currency',
+        'currency_code': 'pricing_currency',
+        'pricing_currency': 'pricing_currency',
         'نسبة الضريبة': 'tax_rate',
         'الضريبة': 'tax_rate',
         'ضريبة القيمة المضافة': 'tax_rate',
@@ -498,12 +504,10 @@ class ProductImportService:
                 existing.description = description
                 if description_en:
                     existing.description_en = description_en
-                existing.min_stock = min_stock
-                existing.is_active = is_active
-                existing.is_service = is_service
-                existing.item_type = item_type
-                existing.tax_rate = tax_rate
-                existing.is_tax_exempt = is_tax_exempt
+                if is_tax_exempt:
+                    existing.tax_rate = Decimal('0.00')
+                else:
+                    existing.tax_rate = tax_rate
                 existing.updated_by = self.user
                 if barcode:
                     existing.barcode = barcode
@@ -518,6 +522,7 @@ class ProductImportService:
 
                 final_cost = cost_price if cost_price is not None else Decimal('0.00')
                 final_sell = selling_price if selling_price is not None else (final_cost or Decimal('0.00'))
+                final_tax_rate = Decimal('0.00') if is_tax_exempt else tax_rate
 
                 product = Product.objects.create(
                     name=name,
@@ -534,8 +539,7 @@ class ProductImportService:
                     is_active=is_active,
                     is_service=is_service,
                     item_type=item_type,
-                    tax_rate=tax_rate,
-                    is_tax_exempt=is_tax_exempt,
+                    tax_rate=final_tax_rate,
                     created_by=self.user,
                 )
                 self.created_count += 1
@@ -544,7 +548,38 @@ class ProductImportService:
             if target_product:
                 try:
                     from financial.models import Currency
+                    from financial.services.exchange_rate_service import ExchangeRateService
                     from product.services.pricing_service import PricingService
+
+                    # معالجة عملة التسعير المرجعية للمنتج إن وجدت في الملف
+                    pricing_curr_val = str(row.get('pricing_currency', '')).strip()
+                    if pricing_curr_val:
+                        p_curr = Currency.objects.filter(
+                            Q(code__iexact=pricing_curr_val) | Q(name__iexact=pricing_curr_val),
+                            is_active=True
+                        ).first()
+                        if p_curr:
+                            target_product.pricing_currency = p_curr
+                            if not p_curr.is_functional:
+                                # إذا كانت الأسعار مدخلة بالعملة الأجنبية، نحدث السعر الاسترشادي ونحول المعادل بالجنيه
+                                curr_rate = Decimal(str(ExchangeRateService.get_exchange_rate(p_curr) or 1.0))
+                                foreign_cost = cost_price
+                                foreign_sell = selling_price
+                                if foreign_cost is not None and foreign_cost > 0:
+                                    target_product.cost_price = (foreign_cost * curr_rate).quantize(Decimal('0.01'))
+                                if foreign_sell is not None and foreign_sell > 0:
+                                    target_product.selling_price = (foreign_sell * curr_rate).quantize(Decimal('0.01'))
+                                
+                                PricingService.update_currency_price(
+                                    product=target_product,
+                                    currency=p_curr,
+                                    indicative_selling_price=foreign_sell,
+                                    indicative_cost_price=foreign_cost,
+                                    user=self.user,
+                                    notes="استيراد كعملة تسعير أساسية من ملف إكسل"
+                                )
+                            target_product.save(update_fields=['pricing_currency', 'cost_price', 'selling_price'])
+
                     for curr_code in ["USD", "EUR", "SAR"]:
                         p_val = row.get(f"price_{curr_code.lower()}")
                         c_val = row.get(f"cost_{curr_code.lower()}")

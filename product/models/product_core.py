@@ -198,7 +198,23 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
     )
     min_stock = models.PositiveIntegerField(_("الحد الأدنى للمخزون"), default=0)
+    pricing_currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products_priced",
+        verbose_name=_("عملة التسعير المرجعية"),
+        help_text=_("العملة المرجعية الأساسية لتسعير هذا المنتج (افتراضياً: العملة الوظيفية للمنشأة)"),
+    )
     valuation_method = models.CharField(_("طريقة تقييم المخزون"), max_length=20, default="", blank=True)
+
+    @property
+    def is_foreign_currency_priced(self) -> bool:
+        """هل الصنف مسعر أصلاً بعملة أجنبية؟"""
+        if not self.pricing_currency:
+            return False
+        return bool(not getattr(self.pricing_currency, 'is_functional', True) and getattr(self.pricing_currency, 'code', '') != "EGP")
 
     def get_effective_valuation_method(self) -> str:
         """
@@ -536,13 +552,30 @@ class Product(models.Model):
     def get_price_for_currency(self, currency_code, exchange_rate=1.0, price_type='selling'):
         """
         جلب سعر المنتج بالعملة المحددة (السعر الاسترشادي المثبت إن وجد، وإلا التحويل اللحظي)
+        يدعم تمرير كائن Currency أو كود العملة النصي (مثل 'USD')
         """
-        if not currency_code or currency_code == "EGP":
+        if hasattr(currency_code, 'code'):
+            code_str = currency_code.code
+        else:
+            code_str = str(currency_code) if currency_code else "EGP"
+
+        if not code_str or code_str == "EGP":
+            # إذا كان الصنف مسعراً أصلاً بعملة أجنبية، وتم طلب السعر بالجنيه بسعر صرف الفاتورة الحالي
+            if self.is_foreign_currency_priced and exchange_rate and Decimal(str(exchange_rate)) > Decimal("1.0"):
+                try:
+                    from .product_currency_price import ProductCurrencyPrice
+                    cp = ProductCurrencyPrice.objects.filter(product=self, currency=self.pricing_currency).first()
+                    if cp:
+                        foreign_val = cp.indicative_selling_price if price_type == 'selling' else cp.indicative_cost_price
+                        if foreign_val is not None and Decimal(str(foreign_val)) > Decimal("0"):
+                            return (Decimal(str(foreign_val)) * Decimal(str(exchange_rate))).quantize(Decimal("0.01"))
+                except Exception:
+                    pass
             return self.selling_price if price_type == 'selling' else self.cost_price
 
         try:
             from .product_currency_price import ProductCurrencyPrice
-            cp = ProductCurrencyPrice.objects.filter(product=self, currency__code=currency_code).first()
+            cp = ProductCurrencyPrice.objects.filter(product=self, currency__code=code_str).first()
             if cp:
                 val = cp.indicative_selling_price if price_type == 'selling' else cp.indicative_cost_price
                 if val is not None and Decimal(str(val)) > Decimal("0"):
@@ -889,6 +922,11 @@ class ProductVariant(models.Model):
         verbose_name = _("متغير منتج")
         verbose_name_plural = _("متغيرات المنتجات")
         ordering = ["product", "name"]
+
+    @property
+    def pricing_currency(self):
+        """وراثة عملة التسعير المرجعية للمنتج الأب"""
+        return self.product.pricing_currency if self.product else None
 
     def __str__(self):
         return f"{self.product} - {self.name} ({self.sku})"

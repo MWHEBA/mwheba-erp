@@ -191,11 +191,12 @@ def product_list(request):
     try:
         # استرجاع المنتجات مع كل البيانات المطلوبة في query واحدة
         products = (
-            Product.objects.select_related("category", "unit", "created_by", "updated_by", "tax_code")
+            Product.objects.select_related("category", "unit", "created_by", "updated_by", "tax_code", "pricing_currency")
             .prefetch_related(
                 "stocks",
                 "images",
                 "components__component_product__stocks",  # للـ bundles
+                "currency_prices__currency",
             )
             .filter(is_service=False)
             .annotate(
@@ -374,11 +375,26 @@ def product_list(request):
                 tax_rate = product.tax_rate if (product.tax_rate is not None and product.tax_rate > Decimal('0.00')) else (
                     product.tax_code.rate if (product.tax_code and product.tax_code.rate) else Decimal('0.00')
                 )
+                foreign_badge = ""
+                if product.is_foreign_currency_priced and product.pricing_currency:
+                    p_code = product.pricing_currency.code
+                    p_symbol = product.pricing_currency.symbol or p_code
+                    f_price = None
+                    for cp in product.currency_prices.all():
+                        if cp.currency_id == product.pricing_currency_id:
+                            f_price = cp.indicative_selling_price
+                            break
+                    if f_price is not None:
+                        foreign_badge = f'<div class="mb-1"><span class="badge bg-light text-primary border border-primary-subtle" title="سعر التسعير المرجعي"><i class="fas fa-coins me-1"></i>{p_symbol} {smart_float(f_price)}</span></div>'
+                    else:
+                        foreign_badge = f'<div class="mb-1"><span class="badge bg-light text-primary border border-primary-subtle">{p_code}</span></div>'
+
                 if tax_rate > Decimal('0.00'):
                     tax_amount = (base_price * tax_rate) / Decimal('100.00')
                     gross_price = base_price + tax_amount
                     tax_rate_str = smart_float(tax_rate)
                     price_html = (
+                        f'{foreign_badge}'
                         f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
                         f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
                         f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
@@ -386,6 +402,7 @@ def product_list(request):
                     )
                 else:
                     price_html = (
+                        f'{foreign_badge}'
                         f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
                         f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
                         f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
@@ -677,6 +694,29 @@ def product_bulk_edit(request):
         return JsonResponse({'success': False, 'error': f'حدث خطأ: {str(e)}'}, status=500)
 
 
+def _get_active_currencies_data():
+    """
+    استرجاع العملات النشطة وأسعار الصرف الحالية لتمريرها للواجهة للتسعير المباشر
+    """
+    from financial.models.currency import Currency
+    from financial.services.exchange_rate_service import ExchangeRateService
+    import json
+    currencies = []
+    for c in Currency.objects.filter(is_active=True).order_by("-is_functional", "code"):
+        rate_val = float(ExchangeRateService.get_exchange_rate(c) or 1.0)
+        rate_display = int(rate_val) if rate_val.is_integer() else rate_val
+        currencies.append({
+            "id": c.id,
+            "code": c.code,
+            "name": c.name,
+            "symbol": c.symbol or c.code,
+            "rate": rate_val,
+            "rate_display": rate_display,
+            "is_functional": c.is_functional,
+        })
+    return currencies, json.dumps(currencies)
+
+
 @login_required
 @require_permission('product.add_product')
 def product_create(request):
@@ -687,11 +727,13 @@ def product_create(request):
     is_service = request.GET.get('is_service', 'false').lower() == 'true'
     
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES, is_service=is_service)
+        form = ProductForm(request.POST, request.FILES, is_service=is_service, user=request.user)
         if form.is_valid():
             product = form.save(commit=False)
             product.created_by = request.user
             product.save()
+            form.save_m2m()
+            form.save_currency_pricing(product, user=request.user)
 
             # معالجة الصور
             images = request.FILES.getlist("images")
@@ -724,6 +766,9 @@ def product_create(request):
         # تمرير is_service للفورم
         form = ProductForm(is_service=is_service)
 
+    # استرجاع العملات النشطة للواجهة
+    active_currencies_list, active_currencies_json = _get_active_currencies_data()
+
     # عناوين ديناميكية حسب النوع
     if is_service:
         page_title = "إضافة خدمة جديدة"
@@ -746,6 +791,8 @@ def product_create(request):
         "page_subtitle": page_subtitle,
         "page_icon": page_icon,
         "is_service": is_service,
+        "active_currencies_list": active_currencies_list,
+        "active_currencies_json": active_currencies_json,
         "header_buttons": [
             {
                 "url": breadcrumb_parent_url,
@@ -781,8 +828,8 @@ def service_list(request):
     try:
         # استرجاع الخدمات فقط
         services = (
-            Product.objects.select_related("category", "unit", "tax_code")
-            .prefetch_related("stocks", "images")
+            Product.objects.select_related("category", "unit", "tax_code", "pricing_currency")
+            .prefetch_related("stocks", "images", "currency_prices__currency")
             .filter(is_service=True)
             .all()
         )
@@ -904,11 +951,26 @@ def service_list(request):
                 tax_rate = service.tax_rate if (service.tax_rate is not None and service.tax_rate > Decimal('0.00')) else (
                     service.tax_code.rate if (service.tax_code and service.tax_code.rate) else Decimal('0.00')
                 )
+                foreign_badge = ""
+                if service.is_foreign_currency_priced and service.pricing_currency:
+                    p_code = service.pricing_currency.code
+                    p_symbol = service.pricing_currency.symbol or p_code
+                    f_price = None
+                    for cp in service.currency_prices.all():
+                        if cp.currency_id == service.pricing_currency_id:
+                            f_price = cp.indicative_selling_price
+                            break
+                    if f_price is not None:
+                        foreign_badge = f'<div class="mb-1"><span class="badge bg-light text-primary border border-primary-subtle" title="سعر التسعير المرجعي"><i class="fas fa-coins me-1"></i>{p_symbol} {smart_float(f_price)}</span></div>'
+                    else:
+                        foreign_badge = f'<div class="mb-1"><span class="badge bg-light text-primary border border-primary-subtle">{p_code}</span></div>'
+
                 if tax_rate > Decimal('0.00'):
                     tax_amount = (base_price * tax_rate) / Decimal('100.00')
                     gross_price = base_price + tax_amount
                     tax_rate_str = smart_float(tax_rate)
                     price_html = (
+                        f'{foreign_badge}'
                         f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
                         f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
                         f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
@@ -916,6 +978,7 @@ def service_list(request):
                     )
                 else:
                     price_html = (
+                        f'{foreign_badge}'
                         f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
                         f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
                         f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
@@ -1057,11 +1120,13 @@ def product_create_modal(request):
     إضافة منتج جديد عبر المودال
     """
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES)
+        form = ProductForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             product = form.save(commit=False)
             product.created_by = request.user
             product.save()
+            form.save_m2m()
+            form.save_currency_pricing(product, user=request.user)
 
             # معالجة الصور
             images = request.FILES.getlist("images")
@@ -1091,12 +1156,16 @@ def product_create_modal(request):
                     'errors': form.errors
                 })
     else:
-        form = ProductForm()
+        form = ProductForm(user=request.user)
+
+    active_currencies_list, active_currencies_json = _get_active_currencies_data()
 
     context = {
         "form": form,
         "page_title": "إضافة منتج جديد",
         "is_modal": True,
+        "active_currencies_list": active_currencies_list,
+        "active_currencies_json": active_currencies_json,
     }
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1115,11 +1184,13 @@ def product_edit(request, pk):
     product = get_object_or_404(Product, pk=pk)
 
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES, instance=product)
+        form = ProductForm(request.POST, request.FILES, instance=product, user=request.user)
         if form.is_valid():
             product = form.save(commit=False)
             product.updated_by = request.user
             product.save()
+            form.save_m2m()
+            form.save_currency_pricing(product, user=request.user)
 
             # معالجة الصور
             images = request.FILES.getlist("images")
@@ -1142,7 +1213,9 @@ def product_edit(request, pk):
             else:
                 return redirect("product:product_list")
     else:
-        form = ProductForm(instance=product)
+        form = ProductForm(instance=product, user=request.user)
+
+    active_currencies_list, active_currencies_json = _get_active_currencies_data()
 
     # عناوين ديناميكية حسب النوع
     if product.is_service:
@@ -1164,6 +1237,8 @@ def product_edit(request, pk):
         "page_subtitle": f"تعديل بيانات {item_type} الحالي",
         "page_icon": page_icon,
         "is_service": product.is_service,
+        "active_currencies_list": active_currencies_list,
+        "active_currencies_json": active_currencies_json,
         "header_buttons": [
             {
                 "url": breadcrumb_parent_url,
@@ -1388,17 +1463,25 @@ def update_currency_prices(request, pk):
         from product.services.pricing_service import PricingService
         
         currency_code = request.POST.get("currency_code")
+        currency_id = request.POST.get("currency_id")
         action = request.POST.get("form_action") or request.POST.get("action", "update")
         selling_price = request.POST.get("selling_price")
         cost_price = request.POST.get("cost_price")
         notes = request.POST.get("notes", "")
 
-        if not currency_code:
-            return JsonResponse({"success": False, "message": "رمز العملة مطلوب"}, status=400)
-
-        currency = get_object_or_404(Currency, code=currency_code)
+        if currency_id:
+            currency = get_object_or_404(Currency, pk=currency_id)
+        elif currency_code:
+            currency = get_object_or_404(Currency, code=currency_code)
+        else:
+            return JsonResponse({"success": False, "message": "رمز أو معرف العملة مطلوب"}, status=400)
 
         if action == "delete":
+            if product.pricing_currency and product.pricing_currency.id == currency.id:
+                return JsonResponse({
+                    "success": False,
+                    "message": f"لا يمكن حذف السعر المخصص للعملة الأساسية لتسعير المنتج ({currency.code})"
+                }, status=400)
             from product.models import ProductCurrencyPrice
             ProductCurrencyPrice.objects.filter(product=product, currency=currency).delete()
             return JsonResponse({"success": True, "message": f"تم حذف السعر المخصص لعملة {currency.code} بنجاح"})
@@ -3992,24 +4075,6 @@ def add_stock_movement(request):
             notes=request.POST.get("notes", ""),
             created_by=request.user,
         )
-
-        # إذا كانت حركة تحويل، حفظ المخزن المستلم
-        if movement_type == "transfer" and "destination_warehouse" in locals():
-            movement.destination_warehouse = destination_warehouse
-            movement.save()
-
-            # إنشاء سجل حركة للمخزن المستلم
-            StockMovement.objects.create(
-                product=product,
-                warehouse=destination_warehouse,
-                movement_type="transfer_in",
-                quantity=quantity,
-                quantity_before=dest_before,
-                quantity_after=dest_stock.quantity,
-                reference_number=request.POST.get("reference_number", ""),
-                notes=_("تحويل من مخزن {}").format(warehouse.name),
-                created_by=request.user,
-            )
 
         # تسجيل الحركة في سجل النظام
 

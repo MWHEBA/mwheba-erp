@@ -398,6 +398,9 @@
                             <div class="kpi-title"><i class="fas fa-tag text-primary"></i>سعر البيع</div>
                             <div class="kpi-value text-primary">{{ product.selling_price|currency }}</div>
                             <div class="kpi-sub">
+                                {% if product.is_foreign_currency_priced and product.pricing_currency %}
+                                <span class="badge bg-light text-primary border me-1"><i class="fas fa-coins me-1"></i>{{ product.pricing_currency.name }}</span>
+                                {% endif %}
                                 {% if can_view_profit_margin %}
                                 هامش الربح: {{ product.profit_margin|smart_float }}%
                                 {% else %}
@@ -1115,6 +1118,11 @@
                                     <tr class="table-light">
                                         <td class="text-center">
                                             <strong class="text-primary">EGP (العملة الأساسية)</strong>
+                                            {% if not product.is_foreign_currency_priced %}
+                                            <span class="badge bg-light text-primary border border-primary-subtle ms-1">عملة التسعير المرجعية</span>
+                                            {% else %}
+                                            <span class="badge bg-light text-muted border ms-1">معادل الصرف</span>
+                                            {% endif %}
                                         </td>
                                         {% if can_view_selling_price %}<td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>{% endif %}
                                         {% if can_view_operational_costs %}<td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>{% endif %}
@@ -1122,9 +1130,12 @@
                                         <td class="text-center text-muted small">-</td>
                                     </tr>
                                     {% for cp in currency_prices_list %}
-                                    <tr>
+                                    <tr {% if product.pricing_currency_id == cp.currency_id %}class="table-primary-subtle"{% endif %}>
                                         <td class="text-center">
                                             <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
+                                            {% if product.pricing_currency_id == cp.currency_id %}
+                                            <span class="badge bg-primary text-white ms-1"><i class="fas fa-check-circle me-1"></i>العملة المرجعية</span>
+                                            {% endif %}
                                         </td>
                                         {% if can_view_selling_price %}
                                         <td class="text-center">

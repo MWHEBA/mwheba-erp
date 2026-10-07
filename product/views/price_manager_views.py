@@ -250,20 +250,56 @@ def price_manager_bulk_update_api(request):
     except (InvalidOperation, ValueError):
         return JsonResponse({'success': False, 'error': 'قيمة غير صحيحة'})
 
-    products = Product.objects.filter(pk__in=product_ids)
+    products = Product.objects.filter(pk__in=product_ids).select_related('pricing_currency')
     updated  = 0
 
     from product.services.pricing_service import PricingService
+    from product.models.product_currency_price import ProductCurrencyPrice
+    from financial.services.exchange_rate_service import ExchangeRateService
 
     with transaction.atomic():
         for product in products:
             old_price = getattr(product, field)
-            if mode == 'fixed':
-                new_price = val
-            elif mode == 'percent_increase':
-                new_price = (old_price * (1 + val / 100)).quantize(Decimal('0.01'))
-            else:  # percent_decrease
-                new_price = (old_price * (1 - val / 100)).quantize(Decimal('0.01'))
+            
+            # إذا كان الصنف مسعراً بالعملة الأجنبية
+            if product.is_foreign_currency_priced and product.pricing_currency:
+                cp = ProductCurrencyPrice.objects.filter(product=product, currency=product.pricing_currency).first()
+                curr_rate = Decimal(str(ExchangeRateService.get_exchange_rate(product.pricing_currency) or 1.0))
+
+                if cp:
+                    target_foreign_field = "indicative_selling_price" if field == "selling_price" else "indicative_cost_price"
+                    old_foreign = getattr(cp, target_foreign_field) or Decimal("0.00")
+                    
+                    if mode == 'fixed':
+                        new_foreign = val
+                    elif mode == 'percent_increase':
+                        new_foreign = (old_foreign * (1 + val / 100)).quantize(Decimal('0.01'))
+                    else:
+                        new_foreign = (old_foreign * (1 - val / 100)).quantize(Decimal('0.01'))
+
+                    if new_foreign <= 0:
+                        continue
+
+                    setattr(cp, target_foreign_field, new_foreign)
+                    cp.updated_by = request.user
+                    cp.save()
+
+                    # المعادل بالجنيه بعد تطبيق نسبة التعديل
+                    new_price = (new_foreign * curr_rate).quantize(Decimal('0.01'))
+                else:
+                    if mode == 'fixed':
+                        new_price = val
+                    elif mode == 'percent_increase':
+                        new_price = (old_price * (1 + val / 100)).quantize(Decimal('0.01'))
+                    else:  # percent_decrease
+                        new_price = (old_price * (1 - val / 100)).quantize(Decimal('0.01'))
+            else:
+                if mode == 'fixed':
+                    new_price = val
+                elif mode == 'percent_increase':
+                    new_price = (old_price * (1 + val / 100)).quantize(Decimal('0.01'))
+                else:  # percent_decrease
+                    new_price = (old_price * (1 - val / 100)).quantize(Decimal('0.01'))
 
             if new_price <= 0:
                 continue
@@ -275,7 +311,8 @@ def price_manager_bulk_update_api(request):
                 product=product,
                 old_price=old_price,
                 new_price=new_price,
-                source_type="CATALOG_BASE",
+                currency=product.pricing_currency if product.is_foreign_currency_priced else None,
+                source_type="CATALOG_FX" if product.is_foreign_currency_priced else "CATALOG_BASE",
                 change_reason="bulk_update",
                 notes=f"تحديث جماعي ({mode}) لـ {field} بقيمة {val}",
                 user=request.user,

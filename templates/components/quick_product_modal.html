@@ -120,6 +120,27 @@
                         <!-- 💵 التبويب 2: التسعير والضرائب والمورد -->
                         <div class="tab-pane fade" id="qp-pane-pricing" role="tabpanel">
                             <div class="row g-3">
+                                <!-- اختيار عملة التسعير المرجعية -->
+                                <div class="col-12">
+                                    <label class="form-label fw-medium" for="qp-pricing-currency">
+                                        <i class="fas fa-coins text-warning me-1"></i>عملة التسعير المرجعية
+                                    </label>
+                                    <select id="qp-pricing-currency" class="form-select fw-bold">
+                                        <option value="">جاري التحميل...</option>
+                                    </select>
+                                    <input type="hidden" id="qp-exchange-rate" value="1">
+                                </div>
+
+                                <!-- شريط التحويل اللحظي الحي بالمودال -->
+                                <div class="col-12" id="qp-fx-live-conversion" style="display: none;">
+                                    <div class="alert alert-light border border-info-subtle py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between">
+                                        <span class="small fw-bold text-muted">
+                                            <i class="fas fa-bolt text-info me-1"></i>المعادل بالجنيه المصري (EGP): <strong class="text-success fs-6" id="qp-fx-egp-preview">0 ج.م</strong>
+                                        </span>
+                                        <small class="text-muted" id="qp-fx-rate-preview">سعر الصرف: 1 ج.م</small>
+                                    </div>
+                                </div>
+
                                 <div class="col-md-6 col-12">
                                     <label class="form-label fw-medium" for="qp-cost-price">
                                         سعر التكلفة <span class="text-muted qp-currency-symbol"></span>
@@ -302,6 +323,7 @@
             },
 
             loadFormData: function() {
+                var self = this;
                 $.ajax({
                     url: '{% url "purchase:ajax_form_data" %}',
                     success: function(data) {
@@ -334,12 +356,95 @@
                             });
                             if (currentItVal) $it.val(currentItVal);
                         }
+
+                        // 4. العملات وأسعار الصرف اللحظية
+                        var $curr = $('#qp-pricing-currency');
+                        var currentCurrVal = $curr.val();
+                        $curr.empty();
+                        (data.currencies || []).forEach(function(c) {
+                            var isFunc = c.is_functional;
+                            var opt = $('<option>').val(c.id).text(c.name + ' (' + c.code + ')' + (isFunc ? ' [العملة الأساسية]' : ''))
+                                .attr('data-code', c.code)
+                                .attr('data-symbol', c.symbol || c.code)
+                                .attr('data-rate', c.rate)
+                                .attr('data-functional', isFunc ? 'true' : 'false');
+                            $curr.append(opt);
+                        });
+
+                        // تحديد العملة المطلوبة بناءً على سياق الفاتورة
+                        var presetCurrencyId = self._currentOptions.currencyId || $('#id_currency').val();
+                        var presetCurrencyCode = self._currentOptions.currencyCode || $('#id_currency option:selected').data('code');
+
+                        if (presetCurrencyId) {
+                            $curr.val(presetCurrencyId).trigger('change');
+                        } else if (presetCurrencyCode) {
+                            var $opt = $curr.find('option[data-code="' + presetCurrencyCode + '"]');
+                            if ($opt.length) {
+                                $curr.val($opt.val()).trigger('change');
+                            } else {
+                                $curr.trigger('change');
+                            }
+                        } else {
+                            $curr.trigger('change');
+                        }
                     }
                 });
             },
 
+            formatNumber: function(val) {
+                if (val === null || val === undefined || isNaN(val) || val === '') return '0';
+                var n = parseFloat(val);
+                if (n % 1 === 0) {
+                    return n.toFixed(0);
+                }
+                var s = n.toFixed(2);
+                return s.replace(/\.?0+$/, '');
+            },
+
+            updateFxPreview: function() {
+                var $opt = $('#qp-pricing-currency option:selected');
+                var isFunc = ($opt.attr('data-functional') === 'true');
+                if (isFunc) return;
+
+                var rate = parseFloat($('#qp-exchange-rate').val()) || 1.0;
+                var selling = parseFloat($('#qp-selling-price').val()) || 0;
+                var cost = parseFloat($('#qp-cost-price').val()) || 0;
+                var mainPrice = selling > 0 ? selling : cost;
+                var egpVal = mainPrice * rate;
+
+                $('#qp-fx-egp-preview').text(this.formatNumber(egpVal) + ' ج.م');
+                $('#qp-fx-rate-preview').text('سعر الصرف: ' + this.formatNumber(rate) + ' ج.م');
+            },
+
             bindEvents: function() {
                 var self = this;
+
+                // 0. تغيير عملة التسعير المرجعية
+                $(document).on('change', '#qp-pricing-currency', function() {
+                    var $opt = $(this).find('option:selected');
+                    var isFunc = ($opt.attr('data-functional') === 'true');
+                    var symbol = $opt.attr('data-symbol') || $opt.attr('data-code') || 'ج.م';
+                    var rate = parseFloat($opt.attr('data-rate')) || 1.0;
+
+                    $('.qp-currency-symbol').text('(' + symbol + ')');
+
+                    if (!isFunc) {
+                        $('#qp-fx-live-conversion').slideDown(150);
+                        if (self._currentOptions.exchangeRate && parseFloat(self._currentOptions.exchangeRate) > 0) {
+                            $('#qp-exchange-rate').val(parseFloat(self._currentOptions.exchangeRate));
+                        } else {
+                            $('#qp-exchange-rate').val(rate);
+                        }
+                    } else {
+                        $('#qp-fx-live-conversion').slideUp(150);
+                        $('#qp-exchange-rate').val('1');
+                    }
+                    self.updateFxPreview();
+                });
+
+                $(document).on('input change keyup', '#qp-cost-price, #qp-selling-price, #qp-exchange-rate', function() {
+                    self.updateFxPreview();
+                });
 
                 // 1. التبديل بين منتج مادي وخدمة
                 $(document).on('change', 'input[name="qp_is_service_radio"]', function() {
@@ -600,8 +705,8 @@
                     }
 
                     var supplierId = $('#id_supplier').val() || '';
-                    var currencyId = $('#id_currency').val() || '';
-                    var exchangeRate = $('#id_exchange_rate').val() || '1.0';
+                    var currencyId = $('#qp-pricing-currency').val() || $('#id_currency').val() || '';
+                    var exchangeRate = $('#qp-exchange-rate').val() || $('#id_exchange_rate').val() || '1.0';
 
                     var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
 

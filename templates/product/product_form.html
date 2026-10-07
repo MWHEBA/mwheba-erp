@@ -286,11 +286,58 @@
                     <div class="form-section-header d-flex justify-content-between align-items-center">
                         <h6 class="form-section-title">
                             <i class="fas fa-calculator text-success"></i>
-                            <span id="pricing-title">الأسعار والضرائب والمورد الافتراضي</span>
+                            <span id="pricing-title">الأسعار والضرائب والعملة المرجعية</span>
                         </h6>
                         <span class="badge bg-light text-muted border"><i class="fas fa-shield-alt text-success me-1"></i>منظومة الفاتورة والضرائب (ETA)</span>
                     </div>
                     <div class="form-section-body">
+                        <!-- شريط تحديد عملة التسعير المرجعية -->
+                        <div class="row g-3 mb-3 p-3 bg-light rounded border align-items-center">
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark" for="{{ form.pricing_currency.id_for_label }}">
+                                    <i class="fas fa-coins text-warning me-1"></i>{{ form.pricing_currency.label|default:"عملة التسعير المرجعية" }}
+                                </label>
+                                <select name="{{ form.pricing_currency.html_name }}"
+                                        id="{{ form.pricing_currency.id_for_label }}"
+                                        class="form-select fw-bold{% if form.pricing_currency.errors %} is-invalid{% endif %}">
+                                    {% for curr in active_currencies_list %}
+                                    <option value="{{ curr.id }}"
+                                            data-code="{{ curr.code }}"
+                                            data-symbol="{{ curr.symbol }}"
+                                            data-rate="{{ curr.rate }}"
+                                            data-rate-display="{{ curr.rate_display }}"
+                                            data-functional="{% if curr.is_functional %}true{% else %}false{% endif %}"
+                                            {% if form.pricing_currency.value|stringformat:"s" == curr.id|stringformat:"s" or curr.code == form.instance.pricing_currency.code %}selected{% elif not form.pricing_currency.value and curr.is_functional %}selected{% endif %}>
+                                        {{ curr.name }} ({{ curr.code }}){% if curr.is_functional %} [العملة الأساسية]{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.pricing_currency.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.pricing_currency.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted d-block mt-1">العملة الأصلية لتسعير الصنف (الجنيه EGP أو عملة أجنبية كالدولار/اليورو) - يتم تحديث سعر الصرف تلقائياً بمجرد اختيار العملة.</small>
+                            </div>
+                            <input type="hidden"
+                                   name="{{ form.exchange_rate.html_name }}"
+                                   id="{{ form.exchange_rate.id_for_label }}"
+                                   value="{{ form.exchange_rate.value|default:'1' }}">
+                        </div>
+
+                        <!-- شريط التحويل اللحظي الحي المباشر (Live FX Conversion Bar) -->
+                        <div id="fx-live-conversion-container" class="alert alert-light border border-info-subtle d-flex flex-wrap align-items-center justify-content-between mb-3 py-2 px-3"{% if not form.instance.is_foreign_currency_priced %} style="display: none;"{% endif %}>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="badge bg-info text-dark fw-bold"><i class="fas fa-bolt me-1"></i>تحويل لحظي حي</span>
+                                <span class="small fw-bold text-muted">السعر المدخل بالعملة:</span>
+                                <span class="badge bg-light text-primary border fs-6 fw-bold" id="fx-live-foreign-price">0 $</span>
+                                <i class="fas fa-arrows-alt-h text-muted mx-1"></i>
+                                <span class="small fw-bold text-muted">المعادل بالجنيه المصري:</span>
+                                <span class="badge bg-light text-success border fs-6 fw-bold" id="fx-live-egp-price">0 ج.م</span>
+                            </div>
+                            <div class="text-muted small mt-1 mt-md-0" id="fx-live-rate-info">
+                                سعر الصرف: <strong id="fx-live-rate-val">1</strong> ج.م
+                            </div>
+                        </div>
+
                         <!-- صف الأسعار والمخزون الأساسي -->
                         <div class="row g-3">
                             <div class="col-md-4">
@@ -305,12 +352,12 @@
                                            value="{{ form.cost_price.value|default:'' }}"
                                            class="form-control{% if form.cost_price.errors %} is-invalid{% endif %}"
                                            step="0.01" min="0" placeholder="0.00">
-                                    <span class="input-group-text text-muted small">ج.م</span>
+                                    <span class="input-group-text text-muted small currency-symbol-addon">ج.م</span>
                                 </div>
                                 {% if form.cost_price.errors %}
                                     <div class="invalid-feedback d-block">{{ form.cost_price.errors.0 }}</div>
                                 {% endif %}
-                                <small class="text-muted d-block mt-1">سعر شراء الوحدة أو تكلفة الإنتاج المباشرة.</small>
+                                <small class="text-muted d-block mt-1">سعر شراء الوحدة أو تكلفة الإنتاج المباشرة بالعملة المختارة.</small>
                             </div>
 
                             {% if can_view_selling_price %}
@@ -326,12 +373,12 @@
                                            value="{{ form.selling_price.value|default:'' }}"
                                            class="form-control fw-bold{% if form.selling_price.errors %} is-invalid{% endif %}"
                                            step="0.01" min="0" required placeholder="0.00">
-                                    <span class="input-group-text text-muted small">ج.م</span>
+                                    <span class="input-group-text text-muted small currency-symbol-addon">ج.م</span>
                                 </div>
                                 {% if form.selling_price.errors %}
                                     <div class="invalid-feedback d-block">{{ form.selling_price.errors.0 }}</div>
                                 {% endif %}
-                                <small class="text-muted d-block mt-1">السعر المعتمد قبل احتساب الضريبة.</small>
+                                <small class="text-muted d-block mt-1">السعر المعتمد قبل احتساب الضريبة بالعملة المختارة.</small>
                             </div>
                             {% else %}
                             <input type="hidden" name="{{ form.selling_price.html_name }}" id="{{ form.selling_price.id_for_label }}" value="{{ form.selling_price.value|default:'' }}">
@@ -762,6 +809,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<script id="active-currencies-data" type="application/json">
+{{ active_currencies_json|safe|default:"[]" }}
+</script>
 <script>
     $(document).ready(function() {
         // إدارة الصور إذا كان في وضع التعديل
@@ -926,7 +976,80 @@
         });
 
             // =========================================================================
-            // إدارة الحسابات والضرائب اللحظية والتكامل مع منظومة الفاتورة الإلكترونية
+            // إدارة العملات والتسعير متعدد العملات وشريط التحويل اللحظي (Live FX Engine)
+            // =========================================================================
+            var activeCurrenciesEl = document.getElementById('active-currencies-data');
+            var ACTIVE_CURRENCIES = activeCurrenciesEl ? JSON.parse(activeCurrenciesEl.textContent || '[]') : [];
+            var currenciesMap = {};
+            for (var i = 0; i < ACTIVE_CURRENCIES.length; i++) {
+                currenciesMap[ACTIVE_CURRENCIES[i].id.toString()] = ACTIVE_CURRENCIES[i];
+            }
+
+            function formatNumberDisplay(val) {
+                if (val === null || val === undefined || isNaN(val) || val === '') return '0';
+                var n = parseFloat(val);
+                if (n % 1 === 0) {
+                    return n.toFixed(0);
+                }
+                var s = n.toFixed(2);
+                return s.replace(/\.?0+$/, '');
+            }
+
+            function formatRateDisplay(val) {
+                if (val === null || val === undefined || isNaN(val) || val === '') return '1';
+                var n = parseFloat(val);
+                if (n % 1 === 0) {
+                    return n.toFixed(0);
+                }
+                var s = n.toFixed(6);
+                return s.replace(/\.?0+$/, '');
+            }
+
+            function getSelectedCurrency() {
+                var selectedId = $('#id_pricing_currency').val();
+                if (selectedId && currenciesMap[selectedId]) {
+                    return currenciesMap[selectedId];
+                }
+                // افتراضي: العملة الوظيفية
+                for (var i = 0; i < ACTIVE_CURRENCIES.length; i++) {
+                    if (ACTIVE_CURRENCIES[i].is_functional) return ACTIVE_CURRENCIES[i];
+                }
+                return { id: 0, code: 'EGP', symbol: 'ج.م', rate: 1.0, is_functional: true };
+            }
+
+            function onCurrencyChanged() {
+                var curr = getSelectedCurrency();
+                var isForeign = !curr.is_functional;
+
+                // تحديث رموز العملة في إضافات الحقول
+                var symbolDisplay = curr.symbol || curr.code;
+                $('.currency-symbol-addon').text(symbolDisplay);
+                $('.selected-currency-code').text(curr.code);
+
+                if (isForeign) {
+                    var newRate = (curr.rate && curr.rate > 0) ? curr.rate : 1.0;
+                    $('#id_exchange_rate').val(newRate);
+                    $('#fx-live-rate-val').text(formatRateDisplay(newRate));
+                    $('#fx-live-conversion-container').slideDown(150);
+                } else {
+                    $('#id_exchange_rate').val('1');
+                    $('#fx-live-rate-val').text('1');
+                    $('#fx-live-conversion-container').slideUp(150);
+                }
+
+                updateTaxCalculations();
+            }
+
+            $('#id_pricing_currency').on('change', function() {
+                onCurrencyChanged();
+            });
+
+            $('#id_exchange_rate').on('input change keyup', function() {
+                updateTaxCalculations();
+            });
+
+            // =========================================================================
+            // إدارة الحسابات والضرائب اللحظية والتكامل مع منظومة الفاتورة الإلكترونية (ETA)
             // =========================================================================
 
             // تهيئة Select2 لكود الضريبة والموردين
@@ -944,26 +1067,53 @@
                 var costPrice = parseFloat($('#id_cost_price').val()) || 0;
                 var netSellingPrice = parseFloat($('#id_selling_price').val()) || 0;
                 var taxRate = parseFloat($('#id_tax_rate').val()) || 0;
+                var exchangeRate = parseFloat($('#id_exchange_rate').val()) || 1.0;
+                if (exchangeRate <= 0) exchangeRate = 1.0;
 
-                // حساب مبلغ الضريبة والسعر الإجمالي
+                var curr = getSelectedCurrency();
+                var isForeign = !curr.is_functional;
+                var currSymbol = curr.symbol || curr.code;
+
+                // حساب مبالغ العملة المدخلة
                 var taxAmount = (netSellingPrice * taxRate) / 100.0;
                 var grossSellingPrice = netSellingPrice + taxAmount;
+
+                // حساب المعادل بالجنيه المصري EGP
+                var egpNetSellingPrice = netSellingPrice * exchangeRate;
+                var egpTaxAmount = taxAmount * exchangeRate;
+                var egpGrossSellingPrice = grossSellingPrice * exchangeRate;
+                var egpCostPrice = costPrice * exchangeRate;
 
                 // حساب هامش الربح قبل الضريبة
                 var profit = netSellingPrice - costPrice;
                 var profitPercent = netSellingPrice > 0 ? ((profit / netSellingPrice) * 100.0) : 0;
 
-                // تحديث واجهة المستخدم
-                $('#summary-net-price').text(netSellingPrice.toFixed(2) + ' ج.م');
-                $('#summary-tax-rate').text(taxRate.toFixed(2).replace(/\.00$/, ''));
-                $('#summary-tax-amount').text((taxAmount >= 0 ? '+ ' : '') + taxAmount.toFixed(2) + ' ج.م');
-                $('#summary-gross-price').text(grossSellingPrice.toFixed(2) + ' ج.م');
+                // تحديث شريط التحويل المباشر اللحظي Live FX Bar
+                if (isForeign) {
+                    $('#fx-live-foreign-price').text(formatNumberDisplay(netSellingPrice) + ' ' + currSymbol);
+                    $('#fx-live-egp-price').text(formatNumberDisplay(egpNetSellingPrice) + ' ج.م');
+                    $('#fx-live-rate-val').text(formatNumberDisplay(exchangeRate));
+                    $('#exchange-rate-text').text(formatNumberDisplay(exchangeRate));
+                }
+
+                // تحديث ملخص السعر والضرائب المزدوج Dual ETA Tax Display
+                if (isForeign) {
+                    $('#summary-net-price').html('<strong>' + formatNumberDisplay(netSellingPrice) + ' ' + currSymbol + '</strong> <span class="text-muted small">(' + formatNumberDisplay(egpNetSellingPrice) + ' ج.م)</span>');
+                    $('#summary-tax-amount').html('<strong>' + (taxAmount >= 0 ? '+ ' : '') + formatNumberDisplay(taxAmount) + ' ' + currSymbol + '</strong> <span class="text-muted small">(' + formatNumberDisplay(egpTaxAmount) + ' ج.م)</span>');
+                    $('#summary-gross-price').html('<strong>' + formatNumberDisplay(grossSellingPrice) + ' ' + currSymbol + '</strong> <span class="text-muted small">(' + formatNumberDisplay(egpGrossSellingPrice) + ' ج.م)</span>');
+                } else {
+                    $('#summary-net-price').text(formatNumberDisplay(netSellingPrice) + ' ج.م');
+                    $('#summary-tax-amount').text((taxAmount >= 0 ? '+ ' : '') + formatNumberDisplay(taxAmount) + ' ج.م');
+                    $('#summary-gross-price').text(formatNumberDisplay(grossSellingPrice) + ' ج.م');
+                }
+
+                $('#summary-tax-rate').text(formatNumberDisplay(taxRate));
 
                 var profitHtml = '';
                 if (profit < 0) {
-                    profitHtml = '<span class="text-danger">' + profit.toFixed(2) + ' ج.م (' + profitPercent.toFixed(1) + '%) [خسارة]</span>';
+                    profitHtml = '<span class="text-danger">' + formatNumberDisplay(profit) + ' ' + (isForeign ? currSymbol : 'ج.م') + ' (' + formatNumberDisplay(profitPercent) + '%) [خسارة]</span>';
                 } else {
-                    profitHtml = '<span class="text-success">' + profit.toFixed(2) + ' ج.م (' + profitPercent.toFixed(1) + '%)</span>';
+                    profitHtml = '<span class="text-success">' + formatNumberDisplay(profit) + ' ' + (isForeign ? currSymbol : 'ج.م') + ' (' + formatNumberDisplay(profitPercent) + '%)</span>';
                 }
                 $('#summary-profit-margin').html(profitHtml);
 
@@ -971,7 +1121,7 @@
                 var $badge = $('#tax-status-badge');
                 if (taxRate > 0) {
                     $badge.removeClass('bg-secondary bg-info bg-warning').addClass('bg-primary text-white')
-                          .html('<i class="fas fa-check-circle me-1"></i>خاضع للضريبة (' + taxRate.toFixed(1).replace(/\.0$/, '') + '%)');
+                          .html('<i class="fas fa-check-circle me-1"></i>خاضع للضريبة (' + formatNumberDisplay(taxRate) + '%)');
                 } else {
                     $badge.removeClass('bg-primary bg-warning').addClass('bg-info text-white')
                           .html('<i class="fas fa-ban me-1"></i>معفى من الضريبة (0%)');
@@ -1080,12 +1230,14 @@
                 $('#id_selling_price').val(calculatedNet.toFixed(2)).trigger('input');
 
                 if (typeof toastr !== 'undefined') {
-                    toastr.success('تم احتساب وتطبيق السعر الأساسي الصافي: ' + calculatedNet.toFixed(2) + ' ج.م');
+                    var curr = getSelectedCurrency();
+                    var currSymbol = curr.symbol || curr.code;
+                    toastr.success('تم احتساب وتطبيق السعر الأساسي الصافي: ' + calculatedNet.toFixed(2) + ' ' + currSymbol);
                 }
             });
 
             // تشغيل الحسابات الأولية عند تحميل الصفحة
-            updateTaxCalculations();
+            onCurrencyChanged();
     });
 </script>
 {% endblock %}

@@ -78,6 +78,17 @@ class ProductForm(forms.ModelForm):
     min_stock = forms.IntegerField(
         required=False, min_value=0, label=_("الحد الأدنى للمخزون")
     )
+    pricing_currency = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        empty_label=None,
+        label=_("عملة التسعير المرجعية"),
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_pricing_currency"})
+    )
+    exchange_rate = forms.DecimalField(
+        required=False, min_value=Decimal("0.000001"), max_digits=12, decimal_places=6, label=_("سعر الصرف المعتمد"),
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.000001", "id": "id_exchange_rate", "placeholder": "1.000000"})
+    )
     cost_price = forms.DecimalField(
         required=False, min_value=0, max_digits=15, decimal_places=2, label=_("سعر التكلفة"),
         widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_cost_price"})
@@ -102,6 +113,7 @@ class ProductForm(forms.ModelForm):
             "sku",
             "barcode",
             "unit",
+            "pricing_currency",
             "cost_price",
             "selling_price",
             "tax_rate",
@@ -130,6 +142,10 @@ class ProductForm(forms.ModelForm):
         self.user = user
         
         super().__init__(*args, **kwargs)
+
+        from financial.models.currency import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        from product.models.product_currency_price import ProductCurrencyPrice
         
         # حجب سعر البيع للمستخدمين غير المصرح لهم مع الحفاظ على القيمة في قاعدة البيانات
         if user and hasattr(user, 'can_view_selling_price') and not user.can_view_selling_price:
@@ -142,6 +158,35 @@ class ProductForm(forms.ModelForm):
         # تهيئة قائمة أكواد الضرائب المعيارية
         self.fields['tax_code'].queryset = TaxCode.objects.filter(is_active=True).order_by('-is_default', 'tax_type', 'code')
         self.fields['tax_code'].empty_label = _("--- بدون كود ضريبي مخصص (معفى/يدوي) ---")
+
+        # تهيئة قائمة العملات النشطة
+        active_currencies = Currency.objects.filter(is_active=True).order_by('-is_functional', 'code')
+        self.fields['pricing_currency'].queryset = active_currencies
+        functional_currency = Currency.objects.filter(is_functional=True).first()
+
+        # ضبط عملة التسعير وسعر الصرف والأسعار في وضع التعديل (Edit Mode Hydration)
+        if self.instance and self.instance.pk:
+            current_currency = self.instance.pricing_currency or functional_currency
+            self.fields['pricing_currency'].initial = current_currency
+
+            if self.instance.is_foreign_currency_priced and self.instance.pricing_currency:
+                cp = ProductCurrencyPrice.objects.filter(
+                    product=self.instance,
+                    currency=self.instance.pricing_currency
+                ).first()
+                if cp:
+                    if cp.indicative_selling_price is not None and cp.indicative_selling_price > Decimal("0"):
+                        self.initial['selling_price'] = cp.indicative_selling_price.quantize(Decimal("0.01"))
+                    if cp.indicative_cost_price is not None and cp.indicative_cost_price > Decimal("0"):
+                        self.initial['cost_price'] = cp.indicative_cost_price.quantize(Decimal("0.01"))
+                
+                curr_rate = ExchangeRateService.get_exchange_rate(self.instance.pricing_currency)
+                self.fields['exchange_rate'].initial = Decimal(str(curr_rate or 1.0)).quantize(Decimal("0.000001"))
+            else:
+                self.fields['exchange_rate'].initial = Decimal("1.000000")
+        else:
+            self.fields['pricing_currency'].initial = functional_currency
+            self.fields['exchange_rate'].initial = Decimal("1.000000")
         
         # تحديد إذا كان العنصر خدمة
         if is_service is not None:
@@ -327,13 +372,18 @@ class ProductForm(forms.ModelForm):
         return is_active
 
     def clean(self):
-        """التحقق من صحة البيانات المترابطة ومزامنة الضريبة"""
+        """التحقق من صحة البيانات المترابطة ومزامنة الضريبة ومعالجة العملة وسعر الصرف"""
         cleaned_data = super().clean()
         cost_price = cleaned_data.get("cost_price")
         selling_price = cleaned_data.get("selling_price")
         tax_code = cleaned_data.get("tax_code")
         tax_rate = cleaned_data.get("tax_rate")
+        pricing_currency = cleaned_data.get("pricing_currency")
+        exchange_rate = cleaned_data.get("exchange_rate")
         
+        from financial.models.currency import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+
         # مزامنة معدل الضريبة مع كود الضريبة المعتمد
         if tax_code:
             cleaned_data["tax_rate"] = (tax_code.rate or Decimal("0.00")).quantize(Decimal("0.01"))
@@ -350,8 +400,69 @@ class ProductForm(forms.ModelForm):
         # التحقق من أن سعر البيع أكبر من سعر التكلفة
         if cost_price and selling_price and selling_price <= cost_price:
             self.add_error("selling_price", _("سعر البيع يجب أن يكون أكبر من سعر التكلفة"))
+
+        # معالجة العملة والتحويل اللحظي للمعادل بالجنيه
+        if not pricing_currency:
+            functional_currency = Currency.objects.filter(is_functional=True).first()
+            cleaned_data["pricing_currency"] = functional_currency
+            pricing_currency = functional_currency
+
+        if pricing_currency and not pricing_currency.is_functional:
+            if not exchange_rate or exchange_rate <= Decimal("0"):
+                exchange_rate = Decimal(str(ExchangeRateService.get_exchange_rate(pricing_currency) or 1.0))
+                cleaned_data["exchange_rate"] = exchange_rate
+
+            raw_cost = cost_price or Decimal("0.00")
+            raw_selling = selling_price or Decimal("0.00")
+            cleaned_data["foreign_cost_price"] = raw_cost
+            cleaned_data["foreign_selling_price"] = raw_selling
+
+            # تحويل القيم إلى الجنيه للتخزين المحاسبي الأساسي
+            base_cost = (raw_cost * exchange_rate).quantize(Decimal("0.01"))
+            base_selling = (raw_selling * exchange_rate).quantize(Decimal("0.01"))
+            cleaned_data["cost_price"] = base_cost
+            cleaned_data["selling_price"] = base_selling
+        else:
+            cleaned_data["foreign_cost_price"] = None
+            cleaned_data["foreign_selling_price"] = None
+            cleaned_data["exchange_rate"] = Decimal("1.000000")
         
         return cleaned_data
+
+    def save_currency_pricing(self, product, user=None):
+        """حفظ أو تحديث السعر الاسترشادي بالعملة الأجنبية بعد حفظ المنتج"""
+        pricing_currency = self.cleaned_data.get("pricing_currency")
+        foreign_cost = self.cleaned_data.get("foreign_cost_price")
+        foreign_selling = self.cleaned_data.get("foreign_selling_price")
+        active_user = user or self.user
+
+        if pricing_currency and not pricing_currency.is_functional:
+            from product.services.pricing_service import PricingService
+            PricingService.update_currency_price(
+                product=product,
+                currency=pricing_currency,
+                indicative_selling_price=foreign_selling,
+                indicative_cost_price=foreign_cost,
+                user=active_user,
+                notes="تم التحديث تلقائياً من شاشة إدارة المنتج"
+            )
+
+    def save(self, commit=True):
+        product = super().save(commit=False)
+        product.pricing_currency = self.cleaned_data.get("pricing_currency")
+        if self.user and not product.created_by_id:
+            product.created_by = self.user
+        
+        if "cost_price" in self.cleaned_data:
+            product.cost_price = self.cleaned_data["cost_price"]
+        if "selling_price" in self.cleaned_data:
+            product.selling_price = self.cleaned_data["selling_price"]
+
+        if commit:
+            product.save()
+            self.save_m2m()
+            self.save_currency_pricing(product, user=self.user)
+        return product
 
 
 class ProductImageForm(forms.ModelForm):

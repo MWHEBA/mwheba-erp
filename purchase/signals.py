@@ -45,35 +45,55 @@ def update_product_prices_on_purchase(sender, instance, created, **kwargs):
 
             logger = logging.getLogger(__name__)
 
-            # تحديث سعر المنتج للمورد
+            purchase = instance.purchase
+            is_foreign = bool(purchase.currency and not purchase.currency.is_functional)
+            exchange_rate = getattr(purchase, "exchange_rate", Decimal("1.0")) or Decimal("1.0")
+            
+            # إذا كانت الفاتورة بعملة أجنبية، نحسب المعادل بالجنيه لسعر التكلفة المحاسبي
+            if is_foreign:
+                indicative_foreign_price = instance.unit_price
+                base_egp_price = (instance.unit_price * exchange_rate).quantize(Decimal("0.01"))
+
+                # تحديث السعر الاسترشادي للعملة الأجنبية
+                PricingService.update_currency_price(
+                    product=instance.product,
+                    currency=purchase.currency,
+                    indicative_cost_price=indicative_foreign_price,
+                    user=purchase.created_by,
+                    notes=f"تحديث تلقائي من فاتورة شراء {purchase.number}",
+                )
+            else:
+                base_egp_price = instance.unit_price
+
+            # تحديث سعر المنتج للمورد (بالمعادل المحاسبي الأساسي بالجنيه)
             supplier_price = PricingService.update_supplier_price(
                 product=instance.product,
-                supplier=instance.purchase.supplier,
-                new_price=instance.unit_price,
-                user=instance.purchase.created_by,
+                supplier=purchase.supplier,
+                new_price=base_egp_price,
+                user=purchase.created_by,
                 reason="purchase",
-                purchase_reference=instance.purchase.number,
+                purchase_reference=purchase.number,
                 purchase_quantity=instance.quantity,
-                notes=f"تحديث تلقائي من فاتورة شراء {instance.purchase.number}",
+                notes=f"تحديث تلقائي من فاتورة شراء {purchase.number}" + (f" ({purchase.currency.code} {instance.unit_price})" if is_foreign else ""),
             )
 
             if supplier_price:
                 logger.info(
                     f"✅ تم تحديث سعر المنتج '{instance.product.name}' "
-                    f"للمورد '{instance.purchase.supplier.name}' إلى {instance.unit_price} "
-                    f"من فاتورة {instance.purchase.number}"
+                    f"للمورد '{purchase.supplier.name}' إلى {base_egp_price} "
+                    f"من فاتورة {purchase.number}"
                 )
 
                 # إشعار المستخدم بالتحديث (يمكن إضافة نظام إشعارات لاحقاً)
                 if supplier_price.is_default:
                     logger.info(
                         f"📢 تم تحديث السعر الرئيسي للمنتج '{instance.product.name}' "
-                        f"إلى {instance.unit_price} (المورد الافتراضي)"
+                        f"إلى {base_egp_price} (المورد الافتراضي)"
                     )
             else:
                 logger.warning(
                     f"⚠️ فشل في تحديث سعر المنتج '{instance.product.name}' "
-                    f"للمورد '{instance.purchase.supplier.name}'"
+                    f"للمورد '{purchase.supplier.name}'"
                 )
 
         except Exception as e:
@@ -84,7 +104,10 @@ def update_product_prices_on_purchase(sender, instance, created, **kwargs):
 
             # Fallback للنظام القديم في حالة فشل النظام الجديد
             product = instance.product
-            purchase_price = instance.unit_price
+            purchase = instance.purchase
+            is_foreign = bool(purchase.currency and not purchase.currency.is_functional)
+            exchange_rate = getattr(purchase, "exchange_rate", Decimal("1.0")) or Decimal("1.0")
+            purchase_price = (instance.unit_price * exchange_rate).quantize(Decimal("0.01")) if is_foreign else instance.unit_price
 
             if purchase_price > product.cost_price:
                 # حساب نسبة الربح الحالية قبل التحديث

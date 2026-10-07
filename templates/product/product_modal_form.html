@@ -2,50 +2,38 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 
-<div class="modal-header">
-    <h5 class="modal-title">
-        <i class="fas fa-box me-2"></i>
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-box text-primary me-2"></i>
         {% if form.instance.pk %}
             {% if form.instance.is_service %}
-                {% trans "تعديل خدمة" %}
+                {% trans "تعديل خدمة" %}: {{ form.instance.name }}
             {% else %}
-                {% trans "تعديل منتج" %}
+                {% trans "تعديل منتج" %}: {{ form.instance.name }}
             {% endif %}
         {% else %}
-            {% trans "إضافة عنصر جديد" %}
+            {% trans "إضافة صنف / خدمة جديدة" %}
         {% endif %}
     </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form method="post" enctype="multipart/form-data" id="product-modal-form">
+<form method="post" enctype="multipart/form-data" id="product-modal-form" action="{% if form.instance.pk %}{% url 'product:product_edit' form.instance.pk %}{% else %}{% url 'product:product_create_modal' %}{% endif %}">
     {% csrf_token %}
     
-    <div class="modal-body">
-        <div class="row">
+    <div class="modal-body p-4">
+        <div class="row g-3">
             <!-- المعلومات الأساسية -->
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.name|as_crispy_field }}
             </div>
             
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.name_en|as_crispy_field }}
             </div>
 
-            <div class="col-md-6 mb-3">
-                {{ form.description|as_crispy_field }}
-            </div>
-
-            <div class="col-md-6 mb-3">
-                {{ form.description_en|as_crispy_field }}
-            </div>
-            
-            <div class="col-12 mb-3">
-                {{ form.sku|as_crispy_field }}
-            </div>
-            
-            <div class="col-md-6 mb-3">
-                <label class="form-label" for="{{ form.category.id_for_label }}">
+            <div class="col-md-6">
+                <label class="form-label fw-medium" for="{{ form.category.id_for_label }}">
                     التصنيف{% if form.category.field.required %} <span class="text-danger">*</span>{% endif %}
                 </label>
                 <select name="{{ form.category.html_name }}"
@@ -72,27 +60,65 @@
                         {% endfor %}
                     </optgroup>
                     {% endif %}
-                    {% if form.grouped_category_choices.standalone %}
-                    <optgroup label="── أخرى ──">
-                        {% for cat in form.grouped_category_choices.standalone %}
-                        <option value="{{ cat.pk }}"
-                            {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
-                            {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
-                        </option>
-                        {% endfor %}
-                    </optgroup>
-                    {% endif %}
                 </select>
                 {% if form.category.errors %}
                 <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
                 {% endif %}
             </div>
             
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.unit|as_crispy_field }}
             </div>
             
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
+                {{ form.sku|as_crispy_field }}
+            </div>
+
+            <div class="col-md-6">
+                {{ form.barcode|as_crispy_field }}
+            </div>
+
+            <!-- صف العملات وأسعار الصرف -->
+            <div class="col-12 p-3 bg-light rounded border">
+                <div class="row g-2 align-items-center">
+                    <div class="col-12">
+                        <label class="form-label fw-bold text-dark" for="modal_id_pricing_currency">
+                            <i class="fas fa-coins text-warning me-1"></i>عملة التسعير المرجعية
+                        </label>
+                        <select name="{{ form.pricing_currency.html_name }}"
+                                id="modal_id_pricing_currency"
+                                class="form-select fw-bold{% if form.pricing_currency.errors %} is-invalid{% endif %}">
+                            {% for curr in active_currencies_list %}
+                            <option value="{{ curr.id }}"
+                                    data-code="{{ curr.code }}"
+                                    data-symbol="{{ curr.symbol }}"
+                                    data-rate="{{ curr.rate }}"
+                                    data-rate-display="{{ curr.rate_display }}"
+                                    data-functional="{% if curr.is_functional %}true{% else %}false{% endif %}"
+                                    {% if form.pricing_currency.value|stringformat:"s" == curr.id|stringformat:"s" or curr.code == form.instance.pricing_currency.code %}selected{% elif not form.pricing_currency.value and curr.is_functional %}selected{% endif %}>
+                                {{ curr.name }} ({{ curr.code }}){% if curr.is_functional %} [العملة الأساسية]{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden"
+                               name="{{ form.exchange_rate.html_name }}"
+                               id="modal_id_exchange_rate"
+                               value="{{ form.exchange_rate.value|default:'1' }}">
+                    </div>
+
+                    <div class="col-12 mt-2" id="modal-fx-live-container"{% if not form.instance.is_foreign_currency_priced %} style="display: none;"{% endif %}>
+                        <div class="alert alert-light border border-info-subtle py-2 px-3 mb-0 d-flex align-items-center justify-content-between">
+                            <span class="small fw-bold text-muted">
+                                <i class="fas fa-bolt text-info me-1"></i>المعادل بالجنيه المصري: <strong class="text-success" id="modal-fx-egp-preview">0 ج.م</strong>
+                            </span>
+                            <small class="text-muted" id="modal-fx-rate-preview">سعر الصرف: 1 ج.م</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الأسعار والضرائب -->
+            <div class="col-md-6">
                 {% if can_view_operational_costs %}
                     {{ form.cost_price|as_crispy_field }}
                 {% else %}
@@ -100,7 +126,7 @@
                 {% endif %}
             </div>
             
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {% if can_view_selling_price %}
                     {{ form.selling_price|as_crispy_field }}
                 {% else %}
@@ -108,48 +134,45 @@
                 {% endif %}
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.tax_code|as_crispy_field }}
             </div>
 
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.tax_rate|as_crispy_field }}
             </div>
             
-            <div class="col-md-6 mb-3">
+            <div class="col-md-6">
                 {{ form.min_stock|as_crispy_field }}
             </div>
-            
+
+            <!-- الوصف -->
+            <div class="col-md-6">
+                {{ form.description|as_crispy_field }}
+            </div>
 
             <!-- الخيارات -->
             <div class="col-12">
                 <div class="form-check form-switch mb-2">
                     {{ form.is_active }}
                     <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                        {% trans "منتج نشط" %}
-                    </label>
-                </div>
-                
-                <div class="form-check form-switch">
-                    {{ form.is_featured }}
-                    <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
-                        {% trans "منتج مميز" %}
+                        {% trans "صنف نشط" %}
                     </label>
                 </div>
             </div>
         </div>
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+    <div class="modal-footer bg-light border-top px-4 py-3 d-flex justify-content-between">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-2"></i>
+        <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-modal-product">
+            <i class="fas fa-save me-1"></i>
             {% if form.instance.pk %}
                 {% trans "تحديث" %}
             {% else %}
-                {% trans "حفظ" %}
+                {% trans "حفظ الصنف" %}
             {% endif %}
         </button>
     </div>
@@ -157,87 +180,126 @@
 
 <script>
 $(document).ready(function() {
-    // تنشيط Select2 للقوائم المنسدلة في المودال
-    $('select#id_category').select2({
-        theme: 'bootstrap-5',
-        placeholder: "{% trans 'اختر التصنيف' %}",
-        allowClear: true,
-        dropdownParent: $('#productModal')
-    });
-    
-    $('select#id_unit').select2({
-        theme: 'bootstrap-5',
-        placeholder: "{% trans 'اختر وحدة القياس' %}",
-        allowClear: true,
-        dropdownParent: $('#productModal')
+    function formatNumberDisplay(val) {
+        if (val === null || val === undefined || isNaN(val) || val === '') return '0';
+        var n = parseFloat(val);
+        if (n % 1 === 0) {
+            return n.toFixed(0);
+        }
+        var s = n.toFixed(2);
+        return s.replace(/\.?0+$/, '');
+    }
+
+    // إدارة تحويل العملات اللحظي في المودال
+    function updateModalFxPreview() {
+        var $opt = $('#modal_id_pricing_currency option:selected');
+        var isFunc = ($opt.data('functional') === true || $opt.data('functional') === 'true');
+        
+        if (!isFunc) {
+            $('#modal-fx-live-container').slideDown(150);
+            
+            var rate = parseFloat($('#modal_id_exchange_rate').val()) || parseFloat($opt.data('rate')) || 1.0;
+            var selling = parseFloat($('#id_selling_price').val()) || 0;
+            var cost = parseFloat($('#id_cost_price').val()) || 0;
+            var mainPrice = selling > 0 ? selling : cost;
+            var egpVal = mainPrice * rate;
+
+            $('#modal-fx-egp-preview').text(formatNumberDisplay(egpVal) + ' ج.م');
+            $('#modal-fx-rate-preview').text('سعر الصرف: ' + formatNumberDisplay(rate) + ' ج.م');
+        } else {
+            $('#modal-fx-live-container').slideUp(150);
+            $('#modal_id_exchange_rate').val('1');
+        }
+    }
+
+    $('#modal_id_pricing_currency').on('change', function() {
+        var $opt = $(this).find('option:selected');
+        var isFunc = ($opt.data('functional') === true || $opt.data('functional') === 'true');
+        if (!isFunc) {
+            var defaultRate = parseFloat($opt.data('rate')) || 1.0;
+            $('#modal_id_exchange_rate').val(defaultRate);
+        } else {
+            $('#modal_id_exchange_rate').val('1');
+        }
+        updateModalFxPreview();
     });
 
-    $('select#id_tax_code').select2({
-        theme: 'bootstrap-5',
-        placeholder: "{% trans 'اختر كود الضريبة' %}",
-        allowClear: true,
-        dropdownParent: $('#productModal')
+    $('#id_selling_price, #id_cost_price, #modal_id_exchange_rate').on('input change keyup', function() {
+        updateModalFxPreview();
     });
-    
-    // معالجة إرسال النموذج
+
+    updateModalFxPreview();
+
+    // معالجة إرسال النموذج عبر AJAX
     $('#product-modal-form').on('submit', function(e) {
         e.preventDefault();
-        
-        const formData = new FormData(this);
+        var $form = $(this);
+        var $btn = $('#btn-submit-modal-product').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
+        var formData = new FormData(this);
         
         $.ajax({
-            url: $(this).attr('action') || window.location.href,
+            url: $form.attr('action') || window.location.href,
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
             success: function(response) {
                 if (response.success) {
-                    $('#productModal').modal('hide');
-                    // إعادة تحميل الصفحة أو تحديث الجدول
-                    if (typeof refreshProductTable === 'function') {
-                        refreshProductTable();
-                    } else {
-                        location.reload();
+                    var modalEl = $form.closest('.modal');
+                    if (modalEl.length && window.bootstrap) {
+                        var modalInstance = bootstrap.Modal.getInstance(modalEl[0]);
+                        if (modalInstance) modalInstance.hide();
                     }
-                    
-                    // عرض رسالة نجاح
-                    if (response.message) {
-                        showSuccessMessage(response.message);
+
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(response.message || 'تم حفظ الصنف بنجاح', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message || 'تم حفظ الصنف بنجاح');
+                    }
+
+                    // استدعاء الكولباك المخصص إذا وُجد
+                    if (typeof window.onProductModalSuccess === 'function') {
+                        window.onProductModalSuccess(response);
+                    } else if (typeof window.ProductPicker !== 'undefined' && window.ProductPicker.applyProductToRow) {
+                        var $container = $('#items-container');
+                        if ($container.length) {
+                            var $targetRow = null;
+                            $container.find('.item-row').each(function() {
+                                var $row = $(this);
+                                var prodId = $row.find('.product-id-input').val();
+                                if (!prodId) { $targetRow = $row; return false; }
+                            });
+                            if (!$targetRow) {
+                                $('#add-item').trigger('click');
+                                $targetRow = $container.find('.item-row:last-child');
+                            }
+                            if ($targetRow && $targetRow.length) {
+                                window.ProductPicker.applyProductToRow($targetRow, response, 'modal');
+                            }
+                        }
                     }
                 } else {
-                    // عرض الأخطاء
                     if (response.errors) {
                         displayFormErrors(response.errors);
                     } else if (response.error) {
-                        showErrorMessage(response.error);
+                        alert(response.error);
                     }
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error:', error);
-                showErrorMessage('{% trans "حدث خطأ أثناء حفظ البيانات" %}');
+                alert('حدث خطأ أثناء حفظ البيانات: ' + error);
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> حفظ الصنف');
             }
         });
     });
 });
 
-// دوال مساعدة لعرض الرسائل
-function showSuccessMessage(message) {
-    // يمكن استبدالها بنظام الإشعارات المستخدم في المشروع
-    alert(message);
-}
-
-function showErrorMessage(message) {
-    alert(message);
-}
-
 function displayFormErrors(errors) {
-    // مسح الأخطاء السابقة
     $('.invalid-feedback').remove();
     $('.is-invalid').removeClass('is-invalid');
-    
-    // عرض الأخطاء الجديدة
     for (const field in errors) {
         const fieldElement = $(`#id_${field}`);
         if (fieldElement.length) {

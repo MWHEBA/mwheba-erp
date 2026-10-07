@@ -203,6 +203,7 @@ def ajax_create_product(request):
                 unit=unit,
                 sku=sku,
                 barcode=barcode if barcode else None,
+                pricing_currency=currency_obj if is_foreign else None,
                 cost_price=base_cost,
                 selling_price=base_selling,
                 tax_rate=tax_rate_decimal,
@@ -259,6 +260,12 @@ def ajax_create_product(request):
                     'cost_price': float(cost_decimal),
                     'selling_price': float(selling_decimal),
                     'price': float(cost_decimal),
+                    'pricing_currency_id': product.pricing_currency_id,
+                    'pricing_currency_code': product.pricing_currency.code if product.pricing_currency else 'EGP',
+                    'pricing_currency_symbol': (product.pricing_currency.symbol or product.pricing_currency.code) if product.pricing_currency else 'ج.م',
+                    'is_foreign_currency_priced': product.is_foreign_currency_priced,
+                    'indicative_cost_price': float(cost_decimal) if is_foreign else None,
+                    'indicative_selling_price': float(selling_decimal) if is_foreign else None,
                     'tax_rate': float(product.tax_rate or 0),
                     'stock': 0 if product.is_service else product.current_stock,
                     'is_service': product.is_service,
@@ -282,10 +289,12 @@ def ajax_create_product(request):
 @login_required
 def ajax_get_form_data(request):
     """
-    AJAX endpoint لجلب التصنيفات والوحدات وخيارات الأنواع والضرائب لمودال إضافة منتج/خدمة
+    AJAX endpoint لجلب التصنيفات والوحدات وخيارات الأنواع والضرائب والعملات لمودال إضافة منتج/خدمة
     التصنيفات مرتبة هرمياً: أب ثم أبناؤه
     """
     from product.models import Category, Unit, Product
+    from financial.models import Currency
+    from financial.services.exchange_rate_service import ExchangeRateService
     from django.db.models import Count
 
     counts = {
@@ -331,8 +340,21 @@ def ajax_get_form_data(request):
         for code, label in Product.ITEM_TYPES
     ]
 
+    currencies = []
+    for c in Currency.objects.filter(is_active=True).order_by('-is_functional', 'code'):
+        rate = float(ExchangeRateService.get_exchange_rate(c) or 1.0)
+        currencies.append({
+            'id': c.id,
+            'code': c.code,
+            'name': c.name,
+            'symbol': c.symbol or c.code,
+            'rate': rate,
+            'is_functional': c.is_functional,
+        })
+
     return JsonResponse({
         'categories': categories, 
         'units': units,
         'item_types': item_types,
+        'currencies': currencies,
     })

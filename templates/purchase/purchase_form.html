@@ -895,7 +895,10 @@
                              $('#django-purchase-form-data').data('is-service-invoice') === 'true');
             window.openQuickProductModal({
                 isService: isService,
-                currencySymbol: $('#django-purchase-form-data').data('currency-symbol') || 'ج.م'
+                currencyId: $('#id_currency').val(),
+                currencyCode: $('#id_currency option:selected').data('code'),
+                currencySymbol: $('#id_currency option:selected').data('symbol') || $('#django-purchase-form-data').data('currency-symbol') || 'ج.م',
+                exchangeRate: $('#id_exchange_rate').val() || '1.0'
             });
         });
 

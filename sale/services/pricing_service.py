@@ -122,7 +122,7 @@ class PricingService:
         """
         الحصول على لقطة تسعير المبيعات الحاكمة للمنتج متضمنة السعر المرجعي والخصم التجاري المستحق
         """
-        product = Product.objects.select_related("unit", "category").prefetch_related("currency_prices__currency").get(pk=product_id)
+        product = Product.objects.select_related("unit", "category", "pricing_currency").prefetch_related("currency_prices__currency").get(pk=product_id)
         as_of_date = cls._normalize_date(as_of_date)
         base_price = product.selling_price or Decimal("0.00")
         cost_price = product.cost_price or Decimal("0.00")
@@ -187,12 +187,13 @@ class PricingService:
         func_curr = ExchangeRateService.get_functional_currency()
         func_code = func_curr.code if func_curr else "EGP"
 
-        rate = exchange_rate
-        if rate is None or rate <= Decimal("0"):
-            if target_currency != func_code:
+        if target_currency != func_code:
+            rate = exchange_rate
+            if rate is None or rate <= Decimal("0"):
                 rate = ExchangeRateService.get_rate(target_currency, func_code, as_of_date)
-            else:
-                rate = Decimal("1.000000")
+        else:
+            rate = Decimal("1.000000")
+
         if not rate or rate <= Decimal("0"):
             rate = Decimal("1.000000")
 
@@ -228,6 +229,21 @@ class PricingService:
                 elif rate > Decimal("0"):
                     base_price = (base_price / rate).quantize(Decimal("0.01"))
                     price_source = "AUTO_FX_CONVERSION"
+            elif product.is_foreign_currency_priced and product.pricing_currency:
+                # محرك الحساب الديناميكي للأصناف المسعرة بالعملة الأجنبية عند بيعها بالجنيه
+                p_curr_code = product.pricing_currency.code
+                p_rate = exchange_rate if (exchange_rate and exchange_rate > Decimal("1.0")) else None
+                if p_rate is None or p_rate <= Decimal("0"):
+                    p_rate = ExchangeRateService.get_rate(p_curr_code, func_code, as_of_date)
+                if p_rate and p_rate > Decimal("0"):
+                    for cp in product.currency_prices.all():
+                        if cp.currency and cp.currency.code == p_curr_code:
+                            if cp.indicative_selling_price is not None and cp.indicative_selling_price > Decimal("0"):
+                                base_price = (cp.indicative_selling_price * p_rate * uom_factor).quantize(Decimal("0.01"))
+                                price_source = "AUTO_FX_CONVERSION"
+                            if cp.indicative_cost_price is not None and cp.indicative_cost_price > Decimal("0"):
+                                cost_price = (cp.indicative_cost_price * p_rate * uom_factor).quantize(Decimal("0.01"))
+                            break
 
         # تحويل التكلفة لعملة الفاتورة
         if target_currency != func_code:

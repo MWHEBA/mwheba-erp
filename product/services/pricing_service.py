@@ -22,7 +22,7 @@ class PricingService:
         product: Product,
         supplier: Supplier,
         new_price: Decimal,
-        user: User,
+        user: Any,
         reason: str = "manual_update",
         purchase_reference: Optional[str] = None,
         purchase_quantity: Optional[int] = None,
@@ -84,7 +84,18 @@ class PricingService:
             return None
 
     @staticmethod
-    def set_default_supplier(product: Product, supplier: Supplier, user: User) -> bool:
+    def _update_product_main_cost_price(product: Product, cost_price: Decimal):
+        """
+        تحديث سعر التكلفة الرئيسي للمنتج بالعملة الوظيفية (EGP)
+        """
+        try:
+            product.cost_price = cost_price
+            product.save(update_fields=["cost_price"])
+        except Exception as e:
+            logger.error(f"خطأ في تحديث سعر التكلفة الرئيسي للمنتج: {e}")
+
+    @staticmethod
+    def set_default_supplier(product: Product, supplier: Supplier, user: Any) -> bool:
         """
         تعيين مورد كافتراضي لمنتج معين
         """
@@ -193,7 +204,7 @@ class PricingService:
 
     @staticmethod
     def bulk_update_prices(
-        updates: List[Dict[str, Any]], user: User, reason: str = "bulk_update"
+        updates: List[Dict[str, Any]], user: Any, reason: str = "bulk_update"
     ) -> Dict[str, int]:
         """
         تحديث أسعار متعددة دفعة واحدة
@@ -302,7 +313,7 @@ class PricingService:
             logger.error(f"خطأ في تحديث سعر التكلفة الرئيسي: {e}")
 
     @staticmethod
-    def sync_purchase_prices(purchase_items: List[Any], user: User) -> Dict[str, int]:
+    def sync_purchase_prices(purchase_items: List[Any], user: Any) -> Dict[str, int]:
         """
         مزامنة أسعار المنتجات من فاتورة شراء
         """
