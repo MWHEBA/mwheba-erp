@@ -311,11 +311,19 @@ def quick_add_cash_bank_account(request):
     مع دعم العملات المتعددة، السحب على المكشوف، القيد الافتتاحي عبر AccountingGateway،
     والإسناد التلقائي للصلاحيات وسجل تاريخ العهدة.
     """
+    # 1. التحقق الصارم من الصلاحية الأمنية (Zero-Trust RBAC)
+    if not (request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm("financial.add_chartofaccounts")):
+        return JsonResponse({
+            "success": False,
+            "error": "غير مصرح لك بإضافة خزن أو حسابات بنكية أو عهد جديدة."
+        }, status=403)
+
     try:
         from decimal import Decimal
         from datetime import datetime
         from django.db.models import Q
         from financial.models.currency import Currency
+        from financial.models import AccountingPeriod
         from financial.services.exchange_rate_service import ExchangeRateService
         from financial.services.subledger_account_service import SubledgerAccountService
         from financial.services.role_registry import AccountRoleRegistry
@@ -343,6 +351,8 @@ def quick_add_cash_bank_account(request):
         minimum_balance_raw = request.POST.get("minimum_balance")
         max_holding_limit_raw = request.POST.get("max_holding_limit")
         employee_id = request.POST.get("employee_id") or request.POST.get("assigned_employee_id")
+        custody_type_val = request.POST.get("custody_type", "permanent")
+        card_masked_number = request.POST.get("card_masked_number", "").strip()
         bank_name = request.POST.get("bank_name", "").strip()
         account_number = request.POST.get("account_number", "").strip()
         iban = request.POST.get("iban", "").strip()
@@ -352,6 +362,33 @@ def quick_add_cash_bank_account(request):
             return JsonResponse({"success": False, "error": "نوع الحساب مطلوب ويجب أن يكون: خزنة، بنك، أو عهدة."}, status=400)
         if not name:
             return JsonResponse({"success": False, "error": "اسم الحساب / الخزينة مطلوب."}, status=400)
+
+        # التحقق من تاريخ الرصيد الافتتاحي
+        if opening_balance_date_str:
+            try:
+                op_date = datetime.strptime(opening_balance_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                op_date = timezone.now().date()
+        else:
+            op_date = timezone.now().date()
+
+        try:
+            op_balance = Decimal(str(opening_balance_raw)) if opening_balance_raw else Decimal("0.00")
+        except (ValueError, TypeError):
+            op_balance = Decimal("0.00")
+
+        # التحقق من سريان الفترة المحاسبية في حال وجود رصيد افتتاحي
+        if op_balance != Decimal("0.00"):
+            open_period = AccountingPeriod.objects.filter(
+                start_date__lte=op_date,
+                end_date__gte=op_date,
+                status="open"
+            ).first()
+            if not open_period:
+                return JsonResponse({
+                    "success": False,
+                    "error": f"التاريخ المحدد للرصيد الافتتاحي ({op_date}) لا يقع ضمن أي فترة محاسبية مفتوحة حالياً."
+                }, status=400)
 
         # مطابقة العملة
         currency_obj = None
@@ -388,16 +425,42 @@ def quick_add_cash_bank_account(request):
         if not parent_account:
             return JsonResponse({
                 "success": False,
-                "error": f"لم يتم العثور على الحساب الرقابي الرئيسي لـ {account_type}."
+                "error": f"لم يتم العثور على الحساب الرقابي الرئيسي لـ {account_type} في دليل الحسابات."
             }, status=400)
+
+        # منع تكرار اسم الحساب تحت نفس الحساب الأب
+        if ChartOfAccounts.objects.filter(parent=parent_account, name=name, is_active=True).exists():
+            return JsonResponse({
+                "success": False,
+                "error": f"يوجد حساب آخر مسجل مسبقاً بنفس الاسم '{name}' تحت نفس التصنيف."
+            }, status=400)
+
+        # التحقق من عدم تكرار رقم الحساب البنكي لنفس البنك
+        if account_type == "bank" and account_number:
+            if ChartOfAccounts.objects.filter(is_bank_account=True, bank_name=bank_name, account_number=account_number, is_active=True).exists():
+                return JsonResponse({
+                    "success": False,
+                    "error": f"يوجد حساب بنكي مسجل مسبقاً برقم الحساب '{account_number}' لدى '{bank_name}'."
+                }, status=400)
+
+        # التحقق من إلزامية اختيار الموظف للعهد النقدية
+        assigned_emp_obj = None
+        if account_type == "custody":
+            if not employee_id:
+                return JsonResponse({
+                    "success": False,
+                    "error": "يجب اختيار الموظف المسؤول عن صندوق أو بطاقة العهدة."
+                }, status=400)
+            try:
+                assigned_emp_obj = Employee.objects.get(pk=employee_id)
+            except Employee.DoesNotExist:
+                return JsonResponse({
+                    "success": False,
+                    "error": "الموظف المختار غير موجود في قاعدة البيانات."
+                }, status=400)
 
         # توليد كود الحساب الفرعي ذرياً
         suggested_code, parent_account = SubledgerAccountService._generate_next_sub_code(parent_account)
-
-        try:
-            op_balance = Decimal(str(opening_balance_raw)) if opening_balance_raw else Decimal("0.00")
-        except (ValueError, TypeError):
-            op_balance = Decimal("0.00")
 
         min_balance = None
         if minimum_balance_raw:
@@ -428,6 +491,7 @@ def quick_add_cash_bank_account(request):
         account.description = description
         account.created_by = request.user
         account.opening_balance = op_balance
+        account.opening_balance_date = op_date
         account.minimum_balance = min_balance
         account.max_holding_limit = max_holding
 
@@ -442,21 +506,12 @@ def quick_add_cash_bank_account(request):
             account.account_number = account_number
             account.iban = iban
             account.swift_code = swift_code
+            account.is_reconcilable = True
         elif account_type == "custody":
-            account.custody_type = "permanent"
-            if employee_id:
-                try:
-                    account.assigned_employee = Employee.objects.get(pk=employee_id)
-                except Employee.DoesNotExist:
-                    pass
-
-        if opening_balance_date_str:
-            try:
-                account.opening_balance_date = datetime.strptime(opening_balance_date_str, "%Y-%m-%d").date()
-            except ValueError:
-                account.opening_balance_date = timezone.now().date()
-        else:
-            account.opening_balance_date = timezone.now().date()
+            account.custody_type = custody_type_val if custody_type_val in ["permanent", "temporary", "card"] else "permanent"
+            account.assigned_employee = assigned_emp_obj
+            if card_masked_number:
+                account.card_masked_number = card_masked_number
 
         account.save()
 
@@ -492,6 +547,8 @@ def quick_add_cash_bank_account(request):
             opening_equity_account = ChartOfAccounts.objects.filter(
                 code="31010", is_active=True
             ).first()
+            if not opening_equity_account:
+                opening_equity_account = AccountRoleRegistry.get_account("OPENING_BALANCE_EQUITY")
             if not opening_equity_account:
                 opening_equity_account = ChartOfAccounts.objects.filter(
                     Q(code="30100") | Q(code="30000") | Q(account_type__category="equity"),
@@ -585,12 +642,13 @@ def quick_add_cash_bank_account(request):
                     }
                 )
 
-        # إبطال الكاش
+        # إبطال الكاش الأمني فورياً
         TreasurySecurityService.invalidate_all_users_cache()
 
         return JsonResponse({
             "success": True,
             "message": f'تم إضافة {account.name} بنجاح (كود: {account.code})',
+            "account_category": account_type,
             "account": {
                 "id": account.id,
                 "code": account.code,
@@ -799,7 +857,9 @@ def cash_and_bank_accounts_list(request):
         ca.current_balance = c_bal
         total_custody_balance += c_bal
 
+    from hr.models.work_location import WorkLocation
     active_employees = list(Employee.objects.active().order_by("name"))
+    work_locations = list(WorkLocation.objects.filter(is_active=True).order_by("name_ar"))
     currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
     cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 
@@ -812,6 +872,7 @@ def cash_and_bank_accounts_list(request):
         "custody_accounts_count": len(custody_accounts_list),
         "total_custody_balance": total_custody_balance,
         "employees": active_employees,
+        "work_locations": work_locations,
         "total_balance": total_balance_base,
         "base_currency_code": base_currency_code,
         "base_currency_symbol": base_currency_symbol,
@@ -834,7 +895,7 @@ def cash_and_bank_accounts_list(request):
                 [{
                     "url": reverse("financial:treasury_assignments_list"),
                     "icon": "fas fa-user-shield",
-                    "text": "مصفوفة إسناد الخزن",
+                    "text": "إسناد الخزن",
                     "class": "btn-outline-primary me-2",
                 }] if (request.user.has_perm("financial.change_chartofaccounts") or request.user.is_superuser) else []
             ),
@@ -5015,7 +5076,7 @@ def transfer_between_accounts(request):
 
 
 # ==========================================
-# مصفوفة إسناد الخزن والحسابات البنكية للمستخدمين
+# إسناد الخزن والحسابات البنكية للمستخدمين
 # Granular Zero-Trust Treasury Assignment System
 # ==========================================
 
@@ -5023,7 +5084,7 @@ def transfer_between_accounts(request):
 @require_permission('financial.change_chartofaccounts')
 def treasury_assignments_list(request):
     """
-    شاشة مصفوفة إسناد الخزن والحسابات البنكية للمستخدمين مع الرقابة والسرية التامة
+    شاشة إسناد الخزن والحسابات البنكية للمستخدمين مع الرقابة والسرية التامة
     """
     from django.contrib.auth import get_user_model
     from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
@@ -5102,8 +5163,8 @@ def treasury_assignments_list(request):
         "deposit_perms_count": deposit_perms_count,
         "disburse_perms_count": disburse_perms_count,
         "recent_audits": recent_audits,
-        "title": _("مصفوفة إسناد الخزن والحسابات البنكية"),
-        "page_title": _("مصفوفة إسناد الخزن والحسابات البنكية"),
+        "title": _("إسناد الخزن والحسابات البنكية"),
+        "page_title": _("إسناد الخزن والحسابات البنكية"),
         "subtitle": _("حوكمة مالية ورقابة شاملة على صلاحيات الإيداع والصرف للمستخدمين"),
         "page_subtitle": _("حوكمة مالية ورقابة شاملة على صلاحيات الإيداع والصرف للمستخدمين"),
         "icon": "fas fa-user-shield",

@@ -233,6 +233,24 @@ class TestCashTransferPhase2ProvisioningAndArchiving:
             is_active=True
         )
 
+        from financial.models import FiscalYear, AccountingPeriod
+        now = timezone.now().date()
+        self.fy = FiscalYear.objects.create(
+            year_code=f"FY_P2_{now.year}",
+            name=f"FY {now.year}",
+            start_date=now.replace(month=1, day=1),
+            end_date=now.replace(month=12, day=31),
+            status="open"
+        )
+        self.period = AccountingPeriod.objects.create(
+            fiscal_year=self.fy,
+            name=f"Period {now.year}",
+            start_date=now.replace(month=1, day=1),
+            end_date=now.replace(month=12, day=31),
+            status="open",
+            period_number=1
+        )
+
     def test_quick_add_cash_account_success(self):
         """التحقق من إنشاء خزينة نقدية وتوليد الكود 1112001 وإسناد الصلاحيات للمنشئ"""
         from financial.models.treasury_access import UserTreasuryAccess

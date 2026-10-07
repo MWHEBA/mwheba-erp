@@ -18,7 +18,7 @@ class CustomerGeneralSettingsForm(forms.ModelForm):
         ]
         widgets = {
             "code_prefix": forms.TextInput(attrs={
-                "class": "form-control font-monospace text-uppercase",
+                "class": "form-control text-uppercase",
                 "placeholder": "CUST-"
             }),
             "code_digits": forms.NumberInput(attrs={

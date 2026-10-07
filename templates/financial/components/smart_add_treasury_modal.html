@@ -1,0 +1,596 @@
+<!-- templates/financial/components/smart_add_treasury_modal.html -->
+{% load i18n %}
+
+<style>
+/* ستايل بطاقات اختيار نوع الحساب - أفقي متناسق ومريح متوافق 100% مع نظام التصميم الموحد */
+.smart-add-modal .account-type-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+@media (max-width: 768px) {
+    .smart-add-modal .account-type-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.smart-add-modal .account-type-card {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: right !important;
+    gap: 12px !important;
+    padding: 10px 14px 10px 36px !important;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    margin-bottom: 0 !important;
+    height: 100%;
+}
+.smart-add-modal .account-type-card:hover {
+    background-color: var(--card-bg);
+    border-color: var(--primary-light);
+}
+.smart-add-modal .account-type-radio:checked + .account-type-card {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+.smart-add-modal .account-type-card .icon-box {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 8px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+}
+.smart-add-modal .account-type-radio:checked + .account-type-card .icon-box {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+.smart-add-modal .account-type-card .card-text-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    text-align: right !important;
+    flex-grow: 1 !important;
+    min-width: 0 !important;
+}
+.smart-add-modal .account-type-card .card-title-text {
+    color: var(--text-dark);
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    margin-bottom: 2px !important;
+}
+.smart-add-modal .account-type-radio:checked + .account-type-card .card-title-text {
+    color: var(--primary-dark);
+}
+.smart-add-modal .account-type-card .card-desc-text {
+    color: var(--text-muted);
+    font-size: 0.75rem !important;
+    line-height: 1.3 !important;
+}
+.smart-add-modal .account-type-card .check-indicator {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    left: 12px !important;
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.smart-add-modal .account-type-radio:checked + .account-type-card .check-indicator {
+    opacity: 1;
+}
+
+/* تنسيق الكروت الداخلية والقطاعات */
+.smart-add-modal .inner-section-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+.smart-add-modal .inner-section-header {
+    background-color: var(--light-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+.smart-add-modal .form-label {
+    margin-bottom: 4px;
+}
+</style>
+
+<!-- المودال الذكي الموحد لإضافة خزنة / حساب بنكي / عهدة -->
+<div class="modal fade smart-add-modal" id="quickAddModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0 fs-6">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>{% trans "إضافة خزنة أو حساب جديد" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quickAddForm" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    
+                    <!-- 1. اختيار نوع الحساب ببطاقات تفاعلية أفقية -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-dark mb-1">
+                            <i class="fas fa-layer-group text-primary me-1"></i>{% trans "نوع الحساب المالي" %} <span class="text-danger">*</span>
+                        </label>
+                        <div class="account-type-grid">
+                            <!-- خزينة نقدية -->
+                            <div>
+                                <input type="radio" class="d-none account-type-radio" name="account_category" id="acc_cat_cash" value="cash" checked>
+                                <label class="account-type-card" for="acc_cat_cash">
+                                    <div class="icon-box">
+                                        <i class="fas fa-vault"></i>
+                                    </div>
+                                    <div class="card-text-wrapper">
+                                        <div class="card-title-text">{% trans "خزينة نقدية (كاش)" %}</div>
+                                        <div class="card-desc-text">{% trans "خزينة فرع أو مبيعات" %}</div>
+                                    </div>
+                                    <i class="fas fa-check-circle check-indicator"></i>
+                                </label>
+                            </div>
+
+                            <!-- حساب بنكي -->
+                            <div>
+                                <input type="radio" class="d-none account-type-radio" name="account_category" id="acc_cat_bank" value="bank">
+                                <label class="account-type-card" for="acc_cat_bank">
+                                    <div class="icon-box">
+                                        <i class="fas fa-university"></i>
+                                    </div>
+                                    <div class="card-text-wrapper">
+                                        <div class="card-title-text">{% trans "حساب بنكي" %}</div>
+                                        <div class="card-desc-text">{% trans "حساب جاري / توفير" %}</div>
+                                    </div>
+                                    <i class="fas fa-check-circle check-indicator"></i>
+                                </label>
+                            </div>
+
+                            <!-- صندوق عهدة -->
+                            <div>
+                                <input type="radio" class="d-none account-type-radio" name="account_category" id="acc_cat_custody" value="custody">
+                                <label class="account-type-card" for="acc_cat_custody">
+                                    <div class="icon-box">
+                                        <i class="fas fa-user-tag"></i>
+                                    </div>
+                                    <div class="card-text-wrapper">
+                                        <div class="card-title-text">{% trans "صندوق / بطاقة عهدة" %}</div>
+                                        <div class="card-desc-text">{% trans "عهدة بمسؤولية موظف" %}</div>
+                                    </div>
+                                    <i class="fas fa-check-circle check-indicator"></i>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. الاسم والبيانات الأساسية المشتركة -->
+                    <div class="inner-section-card mb-3">
+                        <div class="inner-section-header">
+                            <i class="fas fa-info-circle text-primary me-2"></i>{% trans "البيانات الأساسية للتعريف" %}
+                        </div>
+                        <div class="p-3">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small text-dark mb-1">
+                                        {% trans "اسم الحساب / الخزينة" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" name="name" id="modal_account_name" class="form-control form-control-sm" placeholder="{% trans 'مثال: الخزينة الفرعية - التجمع، أو بنك مصر - جاري' %}" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. القطاع المشروط: بيانات الخزينة النقدية -->
+                    <div id="cashConditionalSection" class="inner-section-card mb-3">
+                        <div class="inner-section-header">
+                            <i class="fas fa-sliders-h text-primary me-2"></i>{% trans "حوكمة وسقوف الخزينة النقدية" %}
+                        </div>
+                        <div class="p-3">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">{% trans "فرع الشركة / الموقع" %}</label>
+                                    <select name="work_location_id" id="modal_work_location" class="form-select form-select-sm">
+                                        <option value="">-- {% trans "بدون تخصيص فرع" %} --</option>
+                                        {% for loc in work_locations %}
+                                            <option value="{{ loc.id }}">{{ loc.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">{% trans "سقف التأمين على النقدية" %}</label>
+                                    <input type="number" name="max_holding_limit" step="0.01" min="0" class="form-control form-control-sm" placeholder="{% trans 'الحد الأقصى للسيولة' %}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">{% trans "حد الأمان الأدنى" %}</label>
+                                    <input type="number" name="minimum_balance" step="0.01" min="0" class="form-control form-control-sm" placeholder="{% trans 'الحد الأدنى' %}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. القطاع المشروط: بيانات الحساب البنكي -->
+                    <div id="bankConditionalSection" class="inner-section-card mb-3" style="display: none;">
+                        <div class="inner-section-header">
+                            <i class="fas fa-university text-primary me-2"></i>{% trans "البيانات المصرفية والتسويات" %}
+                        </div>
+                        <div class="p-3">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">
+                                        {% trans "اسم البنك" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" name="bank_name" id="modal_bank_name" class="form-control form-control-sm" placeholder="{% trans 'مثال: البنك الأهلي المصري، CIB' %}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">
+                                        {% trans "رقم الحساب البنكي" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" name="account_number" id="modal_account_number" class="form-control form-control-sm" placeholder="{% trans 'رقم الحساب لدى البنك' %}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">{% trans "رقم الآيبان (IBAN)" %}</label>
+                                    <input type="text" name="iban" class="form-control form-control-sm" placeholder="EG...">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">{% trans "كود السويفت (SWIFT / BIC)" %}</label>
+                                    <input type="text" name="swift_code" class="form-control form-control-sm" placeholder="SWIFT CODE">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. القطاع المشروط: بيانات صندوق / بطاقة العهدة -->
+                    <div id="custodyConditionalSection" class="inner-section-card mb-3" style="display: none;">
+                        <div class="inner-section-header">
+                            <i class="fas fa-user-shield text-primary me-2"></i>{% trans "مسؤولية وحوكمة العهدة" %}
+                        </div>
+                        <div class="p-3">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-dark fw-bold mb-1">
+                                        {% trans "الموظف المسؤول عن العهدة" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="employee_id" id="modal_custody_employee" class="form-select form-select-sm">
+                                        <option value="">-- {% trans "اختر الموظف المسؤول" %} --</option>
+                                        {% for emp in employees %}
+                                            <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }}) - {{ emp.job_title.title_ar|default:'' }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">{% trans "نوع العهدة" %}</label>
+                                    <select name="custody_type" id="modal_custody_type" class="form-select form-select-sm">
+                                        <option value="permanent">{% trans "عهدة مستديمة" %}</option>
+                                        <option value="temporary">{% trans "عهدة مؤقتة" %}</option>
+                                        <option value="card">{% trans "بطاقة مشتريات بنكية" %}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3" id="custodyCardNumberWrapper" style="display: none;">
+                                    <label class="form-label small text-muted mb-1">{% trans "رقم البطاقة المقنع" %}</label>
+                                    <input type="text" name="card_masked_number" class="form-control form-control-sm" placeholder="**** 1234">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. قطاع العملة والرصيد الافتتاحي والقيد المحوكم -->
+                    <div class="inner-section-card mb-3">
+                        <div class="inner-section-header">
+                            <i class="fas fa-coins text-primary me-2"></i>{% trans "العملة والرصيد الافتتاحي" %}
+                        </div>
+                        <div class="p-3">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-dark fw-bold mb-1">
+                                        {% trans "العملة" %} <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="currency_id" id="modal_currency_select" class="form-select form-select-sm" required>
+                                        {% for cur in currencies %}
+                                            <option value="{{ cur.id }}" data-code="{{ cur.code }}" data-is-func="{% if cur.is_functional %}1{% else %}0{% endif %}" {% if cur.is_functional %}selected{% endif %}>
+                                                {{ cur.name }} ({{ cur.code }}) {% if cur.is_functional %}- {% trans "العملة الرئيسية" %}{% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-dark fw-bold mb-1">{% trans "الرصيد الافتتاحي" %}</label>
+                                    <input type="number" name="opening_balance" id="modal_opening_balance" step="0.01" class="form-control form-control-sm" value="0.00">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted mb-1">{% trans "تاريخ الرصيد الافتتاحي" %}</label>
+                                    <input type="date" name="opening_balance_date" id="modal_opening_balance_date" class="form-control form-control-sm" value="{{ current_date|date:'Y-m-d'|default:'' }}">
+                                </div>
+                            </div>
+
+                            <!-- حقل سعر الصرف اللحظي للعملات الأجنبية -->
+                            <div id="modalFxRateWrapper" class="mt-2 p-2 bg-light border rounded" style="display: none;">
+                                <div class="row g-3 align-items-center">
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted mb-1">
+                                            <i class="fas fa-exchange-alt me-1 text-primary"></i>{% trans "سعر الصرف اللحظي مقابل" %} {{ base_currency_code }}
+                                        </label>
+                                        <input type="number" name="exchange_rate" id="modal_exchange_rate" step="0.000001" min="0.000001" class="form-control form-control-sm text-center" placeholder="1.000000">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small text-muted mb-1">{% trans "المعادل التقريبي بالعملة المحلية" %}</label>
+                                        <div id="modal_base_equiv_preview" class="form-control form-control-sm bg-white text-center fw-bold text-success">0.00 {{ base_currency_symbol }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. ملاحظات وبيان -->
+                    <div>
+                        <label class="form-label small text-muted mb-1">{% trans "بيان وملاحظات إضافية" %}</label>
+                        <textarea name="description" class="form-control form-control-sm" rows="1" placeholder="{% trans 'ملاحظات تعريف الحساب، أسباب التأسيس...' %}"></textarea>
+                    </div>
+
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+                    </button>
+                    <button type="submit" id="quickAddSubmitBtn" class="btn btn-primary btn-sm px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ وتأسيس الحساب" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modalEl = document.getElementById('quickAddModal');
+    var formEl = document.getElementById('quickAddForm');
+    var cashSec = document.getElementById('cashConditionalSection');
+    var bankSec = document.getElementById('bankConditionalSection');
+    var custodySec = document.getElementById('custodyConditionalSection');
+    var bankNameInp = document.getElementById('modal_bank_name');
+    var accNumInp = document.getElementById('modal_account_number');
+    var empSelect = document.getElementById('modal_custody_employee');
+    var custodyTypeSelect = document.getElementById('modal_custody_type');
+    var cardNumWrapper = document.getElementById('custodyCardNumberWrapper');
+    var curSelect = document.getElementById('modal_currency_select');
+    var fxWrapper = document.getElementById('modalFxRateWrapper');
+    var fxRateInp = document.getElementById('modal_exchange_rate');
+    var opBalInp = document.getElementById('modal_opening_balance');
+    var equivPreview = document.getElementById('modal_base_equiv_preview');
+    var baseCurrencySymbol = '{{ base_currency_symbol|default:"ج.م" }}';
+
+    // ضبط تاريخ اليوم افتراضياً
+    var opDateInp = document.getElementById('modal_opening_balance_date');
+    if (opDateInp && !opDateInp.value) {
+        var todayStr = new Date().toISOString().split('T')[0];
+        opDateInp.value = todayStr;
+    }
+
+    // فتح المودال برمجياً
+    window.openQuickAddModal = function() {
+        if (typeof jQuery !== 'undefined') {
+            $('#quickAddModal').modal('show');
+        } else {
+            var bsModal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            bsModal.show();
+        }
+    };
+
+    // تبديل القطاعات المشروطة وضبط required ديناميكياً
+    function updateAccountCategorySections() {
+        var selectedRadio = document.querySelector('input[name="account_category"]:checked');
+        var cat = selectedRadio ? selectedRadio.value : 'cash';
+
+        if (cat === 'cash') {
+            if (cashSec) cashSec.style.display = '';
+            if (bankSec) bankSec.style.display = 'none';
+            if (custodySec) custodySec.style.display = 'none';
+
+            if (bankNameInp) bankNameInp.required = false;
+            if (accNumInp) accNumInp.required = false;
+            if (empSelect) empSelect.required = false;
+        } else if (cat === 'bank') {
+            if (cashSec) cashSec.style.display = 'none';
+            if (bankSec) bankSec.style.display = '';
+            if (custodySec) custodySec.style.display = 'none';
+
+            if (bankNameInp) bankNameInp.required = true;
+            if (accNumInp) accNumInp.required = true;
+            if (empSelect) empSelect.required = false;
+        } else if (cat === 'custody') {
+            if (cashSec) cashSec.style.display = 'none';
+            if (bankSec) bankSec.style.display = 'none';
+            if (custodySec) custodySec.style.display = '';
+
+            if (bankNameInp) bankNameInp.required = false;
+            if (accNumInp) accNumInp.required = false;
+            if (empSelect) empSelect.required = true;
+        }
+    }
+
+    // الاستماع لتغيير نوع الحساب
+    var radios = document.querySelectorAll('input[name="account_category"]');
+    radios.forEach(function(r) {
+        r.addEventListener('change', updateAccountCategorySections);
+    });
+    updateAccountCategorySections();
+
+    // الاستماع لتغيير نوع العهدة
+    if (custodyTypeSelect) {
+        custodyTypeSelect.addEventListener('change', function() {
+            if (this.value === 'card') {
+                if (cardNumWrapper) cardNumWrapper.style.display = '';
+            } else {
+                if (cardNumWrapper) cardNumWrapper.style.display = 'none';
+            }
+        });
+    }
+
+    // فحص العملة وسعر الصرف اللحظي
+    function updateCurrencyFx() {
+        if (!curSelect) return;
+        var selectedOpt = curSelect.options[curSelect.selectedIndex];
+        var isFunc = selectedOpt ? selectedOpt.getAttribute('data-is-func') === '1' : true;
+
+        if (!isFunc) {
+            if (fxWrapper) fxWrapper.style.display = '';
+            if (fxRateInp && (!fxRateInp.value || fxRateInp.value === '1')) {
+                fxRateInp.value = '';
+            }
+        } else {
+            if (fxWrapper) fxWrapper.style.display = 'none';
+            if (fxRateInp) fxRateInp.value = '1';
+        }
+        updateEquivPreview();
+    }
+
+    function updateEquivPreview() {
+        if (!equivPreview || !opBalInp) return;
+        var bal = parseFloat(opBalInp.value) || 0;
+        var rate = (fxRateInp && fxRateInp.value) ? (parseFloat(fxRateInp.value) || 1) : 1;
+        var equiv = bal * rate;
+        equivPreview.textContent = equiv.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + baseCurrencySymbol;
+    }
+
+    if (curSelect) {
+        curSelect.addEventListener('change', updateCurrencyFx);
+    }
+    if (opBalInp) {
+        opBalInp.addEventListener('input', updateEquivPreview);
+    }
+    if (fxRateInp) {
+        fxRateInp.addEventListener('input', updateEquivPreview);
+    }
+    updateCurrencyFx();
+
+    // تهيئة Select2 داخل المودال
+    if (typeof jQuery !== 'undefined' && $.fn.select2) {
+        $('#modal_custody_employee').select2({
+            dropdownParent: $('#quickAddModal'),
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+        $('#modal_custody_employee').on('change', function() {
+            if (empSelect) empSelect.value = $(this).val();
+        });
+    }
+
+    // إرسال الفورم عبر AJAX
+    if (formEl) {
+        formEl.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var submitBtn = document.getElementById('quickAddSubmitBtn');
+            var originalHtml = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>{% trans "جاري الحفظ..." %}';
+
+            var formData = new FormData(formEl);
+
+            // استخدام $.ajax إن وجد أو fetch
+            if (typeof jQuery !== 'undefined') {
+                $.ajax({
+                    url: '{% url "financial:quick_add_cash_bank_account" %}',
+                    method: 'POST',
+                    data: $(formEl).serialize(),
+                    success: function(resp) {
+                        if (resp.success) {
+                            $('#quickAddModal').modal('hide');
+                            
+                            // حفظ التبويب المستهدف لفتحه تلقائياً بعد التحديث
+                            if (window.sessionStorage) {
+                                var targetTab = (resp.account_category === 'custody') ? '#custody-tab' : '#treasuries-tab';
+                                sessionStorage.setItem('active_treasury_tab', targetTab);
+                            }
+
+                            if (window.showNotification) {
+                                window.showNotification(resp.message, 'success', '{% trans "تم الحفظ بنجاح" %}');
+                            }
+                            setTimeout(function() {
+                                location.reload();
+                            }, 3100);
+                        } else {
+                            if (window.showNotification) {
+                                window.showNotification(resp.error || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error', '{% trans "فشل الحفظ" %}');
+                            }
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalHtml;
+                        }
+                    },
+                    error: function(xhr) {
+                        var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : '{% trans "فشل الاتصال بالخادم" %}';
+                        if (window.showNotification) {
+                            window.showNotification(errorMsg, 'error', '{% trans "خطأ" %}');
+                        }
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalHtml;
+                    }
+                });
+            } else {
+                fetch('{% url "financial:quick_add_cash_bank_account" %}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(resp) {
+                    if (resp.success) {
+                        var bsModal = bootstrap.Modal.getInstance(modalEl);
+                        if (bsModal) bsModal.hide();
+
+                        if (window.sessionStorage) {
+                            var targetTab = (resp.account_category === 'custody') ? '#custody-tab' : '#treasuries-tab';
+                            sessionStorage.setItem('active_treasury_tab', targetTab);
+                        }
+
+                        if (window.showNotification) {
+                            window.showNotification(resp.message, 'success', '{% trans "تم الحفظ بنجاح" %}');
+                        }
+                        setTimeout(function() {
+                            location.reload();
+                        }, 3100);
+                    } else {
+                        if (window.showNotification) {
+                            window.showNotification(resp.error || '{% trans "حدث خطأ" %}', 'error');
+                        }
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalHtml;
+                    }
+                })
+                .catch(function(err) {
+                    if (window.showNotification) {
+                        window.showNotification('{% trans "حدث خطأ في الشبكة" %}', 'error');
+                    }
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                });
+            }
+        });
+    }
+});
+</script>

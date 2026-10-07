@@ -6,7 +6,7 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-light border-bottom px-4 py-3">
                 <h5 class="modal-title fw-bold text-dark mb-0" id="receiveTransitModalLabel">
-                    <i class="fas fa-truck-loading text-success me-2"></i>{% trans "تأكيد استلام نقدية مرحلية في الطريق" %}
+                    <i class="fas fa-truck-loading text-primary me-2"></i>{% trans "تأكيد استلام نقدية مرحلية في الطريق" %}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
             </div>
@@ -63,13 +63,15 @@
                     <div class="alert alert-info py-2 px-3 fs-8 mb-0 d-flex align-items-center">
                         <i class="fas fa-shield-alt text-info fs-5 me-2"></i>
                         <div>
-                            {% trans "تأكيد الاستلام يولد قيد إقفال حساب النقدية بالطريق (11150) وإيداع الرصيد في الخزينة المستهدفة آلياً." %}
+                            {% trans "تأكيد الاستلام يولد قيد إقفال حساب النقدية بالطريق وإيداع الرصيد في الخزينة المستهدفة آلياً." %}
                         </div>
                     </div>
                 </div>
 
                 <div class="modal-footer bg-light border-top px-4 py-3">
-                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+                    </button>
                     <button type="submit" id="rcvSubmitBtn" class="btn btn-success px-4 fw-bold">
                         <i class="fas fa-check-double me-1"></i>{% trans "تأكيد الاستلام والترحيل" %}
                     </button>
@@ -80,59 +82,73 @@
 </div>
 
 <script>
+function formatSmartAmountRcv(val) {
+    if (val === null || val === undefined || val === '') return '0';
+    var num = parseFloat(val);
+    if (isNaN(num)) return val;
+    if (num % 1 === 0) {
+        return num.toLocaleString('en-US');
+    }
+    return parseFloat(num.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
 window.openReceiveTransitModal = function(transferId, trfNumber, fromAcc, toAcc, expectedAmt, currSymbol, courier) {
-    $('#rcv_transfer_id').val(transferId);
-    $('#rcv_transfer_number').text(trfNumber || 'TRF');
-    $('#rcv_from_account').text(fromAcc || '-');
-    $('#rcv_to_account').text(toAcc || '-');
-    $('#rcv_expected_amount').text((expectedAmt || '0.00') + ' ' + (currSymbol || 'ج.م'));
-    $('#rcv_actual_amount').val(expectedAmt || '');
-    $('#rcv_currency_symbol').text(currSymbol || 'ج.م');
-    $('#rcv_courier_name').text(courier || 'غير محدد');
-    $('#rcv_notes').val('');
-    $('#receiveTransitTransferModal').modal('show');
+    if (typeof jQuery !== 'undefined') {
+        $('#rcv_transfer_id').val(transferId);
+        $('#rcv_transfer_number').text(trfNumber || 'TRF');
+        $('#rcv_from_account').text(fromAcc || '-');
+        $('#rcv_to_account').text(toAcc || '-');
+        $('#rcv_expected_amount').text(formatSmartAmountRcv(expectedAmt) + ' ' + (currSymbol || 'ج.م'));
+        $('#rcv_actual_amount').val(expectedAmt ? parseFloat(expectedAmt) : '');
+        $('#rcv_currency_symbol').text(currSymbol || 'ج.م');
+        $('#rcv_courier_name').text(courier || 'غير محدد');
+        $('#rcv_notes').val('');
+        $('#receiveTransitTransferModal').modal('show');
+    }
 };
 
-$(document).ready(function() {
-    $('#receiveTransitTransferForm').on('submit', function(e) {
-        e.preventDefault();
-        var transferId = $('#rcv_transfer_id').val();
-        if (!transferId) return;
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof jQuery !== 'undefined') {
+        $('#receiveTransitTransferForm').on('submit', function(e) {
+            e.preventDefault();
+            var transferId = $('#rcv_transfer_id').val();
+            if (!transferId) return;
 
-        var $btn = $('#rcvSubmitBtn');
-        var origText = $btn.html();
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التأكيد...');
+            var $btn = $('#rcvSubmitBtn');
+            var origText = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التأكيد...');
 
-        var url = '/financial/api/transfers/' + transferId + '/receive/';
+            var url = '/financial/api/transfers/' + transferId + '/receive/';
 
-        $.ajax({
-            url: url,
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(res) {
-                if (res.success) {
-                    $('#receiveTransitTransferModal').modal('hide');
-                    if (window.showNotification) {
-                        window.showNotification(res.message, 'success', 'تم الاستلام بنجاح');
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    if (res.success) {
+                        $('#receiveTransitTransferModal').modal('hide');
+                        if (window.showNotification) {
+                            window.showNotification(res.message, 'success', 'تم الاستلام بنجاح');
+                        }
+                        setTimeout(function() {
+                            location.reload();
+                        }, 3100);
+                    } else {
+                        if (window.showNotification) {
+                            window.showNotification(res.error, 'error');
+                        }
+                        $btn.prop('disabled', false).html(origText);
                     }
-                    setTimeout(function() {
-                        location.reload();
-                    }, 3100);
-                } else {
+                },
+                error: function(xhr) {
+                    var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تأكيد استلام النقدية بالطريق';
                     if (window.showNotification) {
-                        window.showNotification(res.error, 'error');
+                        window.showNotification(errorMsg, 'error');
                     }
                     $btn.prop('disabled', false).html(origText);
                 }
-            },
-            error: function(xhr) {
-                var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تأكيد استلام النقدية بالطريق';
-                if (window.showNotification) {
-                    window.showNotification(errorMsg, 'error');
-                }
-                $btn.prop('disabled', false).html(origText);
-            }
+            });
         });
-    });
+    }
 });
 </script>

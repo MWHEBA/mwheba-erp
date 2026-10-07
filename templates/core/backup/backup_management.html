@@ -19,929 +19,929 @@
 
 {% block content %}
 <div class="container-fluid">
-    {% csrf_token %}
-    
-    {% include "shared/page_header.html" with title="إدارة النسخ الاحتياطية" subtitle="إنشاء واستعادة النسخ الاحتياطية للنظام" icon="fas fa-database" breadcrumb_items=breadcrumb_items %}
-    
-    <!-- Tabs Navigation -->
-    <ul class="nav nav-tabs mb-4" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" data-tab="create" href="#"><i class="fas fa-plus-circle me-2"></i>إنشاء نسخة احتياطية</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-tab="list" href="#"><i class="fas fa-list me-2"></i>النسخ المحفوظة</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-tab="restore-upload" href="#"><i class="fas fa-upload me-2"></i>استعادة من ملف</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-tab="settings" href="#"><i class="fas fa-cog me-2"></i>الإعدادات</a>
-        </li>
-    </ul>
-    
-    <!-- Tab 1: Create Backup -->
-    <div class="backup-tab-content active" id="tab-create">
-        <div class="section-container mb-4">
-            <h5 class="section-title"><i class="fas fa-database me-2"></i>إنشاء نسخة احتياطية جديدة</h5>
-            
-            <form id="createBackupForm">
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="backup-type-card card p-4 text-center h-100" data-type="full">
-                            <i class="fas fa-server fa-3x mb-3 text-primary"></i>
-                            <h6 class="fw-bold mb-1">نسخة كاملة</h6>
-                            <small class="text-muted">قاعدة البيانات + الملفات والمفاتيح</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="backup-type-card card p-4 text-center h-100" data-type="database">
-                            <i class="fas fa-database fa-3x mb-3 text-info"></i>
-                            <h6 class="fw-bold mb-1">قاعدة البيانات فقط</h6>
-                            <small class="text-muted">نسخة احتياطية لكافة الجداول والبيانات</small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="backup-type-card card p-4 text-center h-100" data-type="media">
-                            <i class="fas fa-images fa-3x mb-3 text-success"></i>
-                            <h6 class="fw-bold mb-1">ملفات الميديا فقط</h6>
-                            <small class="text-muted">المستندات والصور المرفوعة</small>
-                        </div>
-                    </div>
-                </div>
-                
-                <input type="hidden" id="backupType" name="backup_type" value="full">
-                
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <h6 class="fw-bold mb-3">طريقة الحفظ:</h6>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="radio" name="save_mode" id="saveServer" value="server" checked>
-                            <label class="form-check-label" for="saveServer">
-                                <i class="fas fa-server me-2 text-primary"></i>حفظ على السيرفر
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="save_mode" id="saveDownload" value="download">
-                            <label class="form-check-label" for="saveDownload">
-                                <i class="fas fa-download me-2 text-success"></i>تحميل مباشر للمتصفح
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6">
-                        <h6 class="fw-bold mb-3">خيارات الأمان والضغط:</h6>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="compressBackup" checked disabled>
-                            <label class="form-check-label" for="compressBackup">
-                                <i class="fas fa-compress me-2 text-secondary"></i>ضغط Gzip المسرع وحساب SHA-256 (مفعّل تلقائياً)
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="backup-progress mb-4">
-                    <div class="alert alert-info border-0 shadow-sm d-flex align-items-center">
-                        <i class="fas fa-spinner fa-spin fa-2x me-3"></i>
-                        <div>
-                            <strong class="d-block" id="progressText">جاري إنشاء النسخة الاحتياطية...</strong>
-                            <small class="text-muted">الرجاء الانتظار حتى اكتمال عملية الضغط والتحقق من السلامة</small>
-                        </div>
-                    </div>
-                    <div class="progress" style="height: 10px;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
-                    </div>
-                </div>
-                
-                <button type="submit" class="btn btn-primary px-4 py-2 fw-bold" id="createBackupBtn">
-                    <i class="fas fa-rocket me-2"></i>بدء إنشاء النسخة الاحتياطية
-                </button>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Tab 2: List Backups -->
-    <div class="backup-tab-content" id="tab-list">
-        <div class="section-container mb-4">
-            <h5 class="section-title">
-                <i class="fas fa-list me-2"></i>النسخ الاحتياطية المحفوظة
-                <button class="btn btn-sm btn-outline-secondary float-end" onclick="refreshBackupList()">
-                    <i class="fas fa-sync-alt me-1"></i>تحديث القائمة
-                </button>
-            </h5>
-            
-            <div id="backupListContainer">
-                <div class="text-center py-5">
-                    <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">جاري تحميل النسخ الاحتياطية...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tab 3: Restore from Upload -->
-    <div class="backup-tab-content" id="tab-restore-upload">
-        <div class="section-container mb-4">
-            <h5 class="section-title"><i class="fas fa-upload me-2"></i>استعادة من ملف خارجي</h5>
-            
-            <div class="alert alert-danger border-0 shadow-sm mb-4">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>تحذير أمني:</strong> عملية الاستعادة ستقوم بإعادة بناء واستبدال البيانات الحالية. يتم أخذ لقطة أمان فورية تلقائياً قبل الاستعادة للتراجع في حال حدوث أي خطأ.
-            </div>
-            
-            <form id="restoreUploadForm" enctype="multipart/form-data">
-                <div class="row">
-                    <div class="col-md-8 offset-md-2">
-                        {% include "components/file_upload_field.html" with name="backup_file" id="backupFile" label="ملف النسخة الاحتياطية" accept=".sql,.gz,.tar.gz,.tgz,.zip,.db,.sqlite3,.json" max_size_mb=500 required=True icon="fa-database" help_text="الصيغ المدعومة: SQL (.sql, .sql.gz)، SQLite (.db, .sqlite3)، JSON (.json, .json.gz)، الميديا (.tar.gz)، والنسخ الكاملة (.zip)" %}
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">نوع الاستعادة:</label>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="restore_type" id="restoreAuto" value="auto" checked>
-                                <label class="form-check-label" for="restoreAuto">
-                                    <strong>تعرف تلقائي (مستحسن)</strong> - يكتشف نوع الملف ومحتوياته آلياً
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="restore_type" id="restoreDb" value="database">
-                                <label class="form-check-label" for="restoreDb">
-                                    استعادة قاعدة البيانات فقط
-                                </label>
-                            </div>
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" name="restore_type" id="restoreMedia" value="media">
-                                <label class="form-check-label" for="restoreMedia">
-                                    استعادة ملفات الميديا فقط
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="restore_type" id="restoreFull" value="full">
-                                <label class="form-check-label" for="restoreFull">
-                                    استعادة شاملة (قاعدة بيانات + ميديا + مفاتيح)
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="confirmRestoreCheckbox" required>
-                            <label class="form-check-label text-danger fw-bold" for="confirmRestoreCheckbox">
-                                أقر بأنني على علم بأن هذه العملية ستستبدل البيانات الحالية ببيانات النسخة المرفوعة
-                            </label>
-                        </div>
-                        
-                        <div class="restore-upload-progress mb-4" style="display: none;">
-                            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center">
-                                <i class="fas fa-spinner fa-spin fa-2x me-3"></i>
-                                <div id="restoreProgressText">
-                                    <strong>جاري رفع الملف واستعادة البيانات...</strong><br>
-                                    <small class="text-muted">الرجاء عدم إغلاق الصفحة أو تحديثها حتى تكتمل العملية</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-danger btn-lg px-4 fw-bold" id="restoreUploadBtn">
-                            <i class="fas fa-undo me-2"></i>بدء الاستعادة من الملف
-                        </button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- Tab 4: Settings -->
-    <div class="backup-tab-content" id="tab-settings">
-        <div class="section-container mb-4">
-            <h5 class="section-title"><i class="fas fa-cog me-2"></i>إعدادات سياسات الاحتفاظ والجدولة</h5>
-            
-            <form id="backupSettingsForm">
-                <!-- Database Retention -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
-                        <i class="fas fa-database text-primary me-2"></i>سياسة الاحتفاظ بنسخ قاعدة البيانات
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="db_retention_type" id="dbRetCount" value="count" checked>
-                                    <label class="form-check-label" for="dbRetCount">
-                                        حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="dbRetentionCountValue" value="10" min="1" max="100"> نسخ)
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="db_retention_type" id="dbRetDays" value="days">
-                                    <label class="form-check-label" for="dbRetDays">
-                                        حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="dbRetentionDaysValue" value="30" min="1" max="365"> يوماً)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="dbAutoCleanup" checked>
-                                    <label class="form-check-label fw-bold" for="dbAutoCleanup">
-                                        تفعيل الحذف التلقائي للنسخ القديمة
-                                    </label>
-                                </div>
-                                <small class="text-muted d-block">يقوم بحذف النسخ الأقدم تلقائياً بعد كل عملية نسخ احتياطي ناجحة 100%.</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+ {% csrf_token %}
+ 
+ {% include "shared/page_header.html" with title="إدارة النسخ الاحتياطية" subtitle="إنشاء واستعادة النسخ الاحتياطية للنظام" icon="fas fa-database" breadcrumb_items=breadcrumb_items %}
+ 
+ <!-- Tabs Navigation -->
+ <ul class="nav nav-tabs mb-4" role="tablist">
+ <li class="nav-item">
+ <a class="nav-link active" data-tab="create" href="#"><i class="fas fa-plus-circle me-2"></i>إنشاء نسخة احتياطية</a>
+ </li>
+ <li class="nav-item">
+ <a class="nav-link" data-tab="list" href="#"><i class="fas fa-list me-2"></i>النسخ المحفوظة</a>
+ </li>
+ <li class="nav-item">
+ <a class="nav-link" data-tab="restore-upload" href="#"><i class="fas fa-upload me-2"></i>استعادة من ملف</a>
+ </li>
+ <li class="nav-item">
+ <a class="nav-link" data-tab="settings" href="#"><i class="fas fa-cog me-2"></i>الإعدادات</a>
+ </li>
+ </ul>
+ 
+ <!-- Tab 1: Create Backup -->
+ <div class="backup-tab-content active" id="tab-create">
+ <div class="section-container mb-4">
+ <h5 class="section-title"><i class="fas fa-database me-2"></i>إنشاء نسخة احتياطية جديدة</h5>
+ 
+ <form id="createBackupForm">
+ <div class="row g-3 mb-4">
+ <div class="col-md-4">
+ <div class="backup-type-card card p-4 text-center h-100" data-type="full">
+ <i class="fas fa-server fa-3x mb-3 text-primary"></i>
+ <h6 class="fw-bold mb-1">نسخة كاملة</h6>
+ <small class="text-muted">قاعدة البيانات + الملفات والمفاتيح</small>
+ </div>
+ </div>
+ <div class="col-md-4">
+ <div class="backup-type-card card p-4 text-center h-100" data-type="database">
+ <i class="fas fa-database fa-3x mb-3 text-info"></i>
+ <h6 class="fw-bold mb-1">قاعدة البيانات فقط</h6>
+ <small class="text-muted">نسخة احتياطية لكافة الجداول والبيانات</small>
+ </div>
+ </div>
+ <div class="col-md-4">
+ <div class="backup-type-card card p-4 text-center h-100" data-type="media">
+ <i class="fas fa-images fa-3x mb-3 text-success"></i>
+ <h6 class="fw-bold mb-1">ملفات الميديا فقط</h6>
+ <small class="text-muted">المستندات والصور المرفوعة</small>
+ </div>
+ </div>
+ </div>
+ 
+ <input type="hidden" id="backupType" name="backup_type" value="full">
+ 
+ <div class="row mb-4">
+ <div class="col-md-6">
+ <h6 class="fw-bold mb-3">طريقة الحفظ:</h6>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="save_mode" id="saveServer" value="server" checked>
+ <label class="form-check-label" for="saveServer">
+ <i class="fas fa-server me-2 text-primary"></i>حفظ على السيرفر
+ </label>
+ </div>
+ <div class="form-check">
+ <input class="form-check-input" type="radio" name="save_mode" id="saveDownload" value="download">
+ <label class="form-check-label" for="saveDownload">
+ <i class="fas fa-download me-2 text-success"></i>تحميل مباشر للمتصفح
+ </label>
+ </div>
+ </div>
+ 
+ <div class="col-md-6">
+ <h6 class="fw-bold mb-3">خيارات الأمان والضغط:</h6>
+ <div class="form-check">
+ <input class="form-check-input" type="checkbox" id="compressBackup" checked disabled>
+ <label class="form-check-label" for="compressBackup">
+ <i class="fas fa-compress me-2 text-secondary"></i>ضغط Gzip المسرع وحساب SHA-256 (مفعّل تلقائياً)
+ </label>
+ </div>
+ </div>
+ </div>
+ 
+ <div class="backup-progress mb-4">
+ <div class="alert alert-info border-0 shadow-sm d-flex align-items-center">
+ <i class="fas fa-spinner fa-spin fa-2x me-3"></i>
+ <div>
+ <strong class="d-block" id="progressText">جاري إنشاء النسخة الاحتياطية...</strong>
+ <small class="text-muted">الرجاء الانتظار حتى اكتمال عملية الضغط والتحقق من السلامة</small>
+ </div>
+ </div>
+ <div class="progress" style="height: 10px;">
+ <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 100%"></div>
+ </div>
+ </div>
+ 
+ <button type="submit" class="btn btn-primary px-4 py-2 fw-bold" id="createBackupBtn">
+ <i class="fas fa-rocket me-2"></i>بدء إنشاء النسخة الاحتياطية
+ </button>
+ </form>
+ </div>
+ </div>
+ 
+ <!-- Tab 2: List Backups -->
+ <div class="backup-tab-content" id="tab-list">
+ <div class="section-container mb-4">
+ <h5 class="section-title">
+ <i class="fas fa-list me-2"></i>النسخ الاحتياطية المحفوظة
+ <button class="btn btn-sm btn-outline-secondary float-end" onclick="refreshBackupList()">
+ <i class="fas fa-sync-alt me-1"></i>تحديث القائمة
+ </button>
+ </h5>
+ 
+ <div id="backupListContainer">
+ <div class="text-center py-5">
+ <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+ <p class="text-muted">جاري تحميل النسخ الاحتياطية...</p>
+ </div>
+ </div>
+ </div>
+ </div>
+ 
+ <!-- Tab 3: Restore from Upload -->
+ <div class="backup-tab-content" id="tab-restore-upload">
+ <div class="section-container mb-4">
+ <h5 class="section-title"><i class="fas fa-upload me-2"></i>استعادة من ملف خارجي</h5>
+ 
+ <div class="alert alert-danger border-0 shadow-sm mb-4">
+ <i class="fas fa-exclamation-triangle me-2"></i>
+ <strong>تحذير أمني:</strong> عملية الاستعادة ستقوم بإعادة بناء واستبدال البيانات الحالية. يتم أخذ لقطة أمان فورية تلقائياً قبل الاستعادة للتراجع في حال حدوث أي خطأ.
+ </div>
+ 
+ <form id="restoreUploadForm" enctype="multipart/form-data">
+ <div class="row">
+ <div class="col-md-8 offset-md-2">
+ {% include "components/file_upload_field.html" with name="backup_file" id="backupFile" label="ملف النسخة الاحتياطية" accept=".sql,.gz,.tar.gz,.tgz,.zip,.db,.sqlite3,.json" max_size_mb=500 required=True icon="fa-database" help_text="الصيغ المدعومة: SQL (.sql, .sql.gz)، SQLite (.db, .sqlite3)، JSON (.json, .json.gz)، الميديا (.tar.gz)، والنسخ الكاملة (.zip)" %}
+ 
+ <div class="mb-4">
+ <label class="form-label fw-bold">نوع الاستعادة:</label>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="restore_type" id="restoreAuto" value="auto" checked>
+ <label class="form-check-label" for="restoreAuto">
+ <strong>تعرف تلقائي (مستحسن)</strong> - يكتشف نوع الملف ومحتوياته آلياً
+ </label>
+ </div>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="restore_type" id="restoreDb" value="database">
+ <label class="form-check-label" for="restoreDb">
+ استعادة قاعدة البيانات فقط
+ </label>
+ </div>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="restore_type" id="restoreMedia" value="media">
+ <label class="form-check-label" for="restoreMedia">
+ استعادة ملفات الميديا فقط
+ </label>
+ </div>
+ <div class="form-check">
+ <input class="form-check-input" type="radio" name="restore_type" id="restoreFull" value="full">
+ <label class="form-check-label" for="restoreFull">
+ استعادة شاملة (قاعدة بيانات + ميديا + مفاتيح)
+ </label>
+ </div>
+ </div>
+ 
+ <div class="form-check mb-4">
+ <input class="form-check-input" type="checkbox" id="confirmRestoreCheckbox" required>
+ <label class="form-check-label text-danger fw-bold" for="confirmRestoreCheckbox">
+ أقر بأنني على علم بأن هذه العملية ستستبدل البيانات الحالية ببيانات النسخة المرفوعة
+ </label>
+ </div>
+ 
+ <div class="restore-upload-progress mb-4" style="display: none;">
+ <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center">
+ <i class="fas fa-spinner fa-spin fa-2x me-3"></i>
+ <div id="restoreProgressText">
+ <strong>جاري رفع الملف واستعادة البيانات...</strong><br>
+ <small class="text-muted">الرجاء عدم إغلاق الصفحة أو تحديثها حتى تكتمل العملية</small>
+ </div>
+ </div>
+ </div>
+ 
+ <button type="submit" class="btn btn-danger btn-lg px-4 fw-bold" id="restoreUploadBtn">
+ <i class="fas fa-undo me-2"></i>بدء الاستعادة من الملف
+ </button>
+ </div>
+ </div>
+ </form>
+ </div>
+ </div>
+ 
+ <!-- Tab 4: Settings -->
+ <div class="backup-tab-content" id="tab-settings">
+ <div class="section-container mb-4">
+ <h5 class="section-title"><i class="fas fa-cog me-2"></i>إعدادات سياسات الاحتفاظ والجدولة</h5>
+ 
+ <form id="backupSettingsForm">
+ <!-- Database Retention -->
+ <div class="card border-0 shadow-sm mb-4">
+ <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
+ <i class="fas fa-database text-primary me-2"></i>سياسة الاحتفاظ بنسخ قاعدة البيانات
+ </div>
+ <div class="card-body p-4">
+ <div class="row">
+ <div class="col-md-6 mb-3">
+ <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="db_retention_type" id="dbRetCount" value="count" checked>
+ <label class="form-check-label" for="dbRetCount">
+ حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="dbRetentionCountValue" value="10" min="1" max="100"> نسخ)
+ </label>
+ </div>
+ <div class="form-check">
+ <input class="form-check-input" type="radio" name="db_retention_type" id="dbRetDays" value="days">
+ <label class="form-check-label" for="dbRetDays">
+ حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="dbRetentionDaysValue" value="30" min="1" max="365"> يوماً)
+ </label>
+ </div>
+ </div>
+ <div class="col-md-6 mb-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="dbAutoCleanup" checked>
+ <label class="form-check-label fw-bold" for="dbAutoCleanup">
+ تفعيل الحذف التلقائي للنسخ القديمة
+ </label>
+ </div>
+ <small class="text-muted d-block">يقوم بحذف النسخ الأقدم تلقائياً بعد كل عملية نسخ احتياطي ناجحة 100%.</small>
+ </div>
+ </div>
+ </div>
+ </div>
 
-                <!-- Full Backup Retention -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
-                        <i class="fas fa-server text-info me-2"></i>سياسة الاحتفاظ بالنسخ الكاملة
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="full_retention_type" id="fullRetCount" value="count" checked>
-                                    <label class="form-check-label" for="fullRetCount">
-                                        حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="fullRetentionCountValue" value="5" min="1" max="50"> نسخ كاملة)
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="full_retention_type" id="fullRetDays" value="days">
-                                    <label class="form-check-label" for="fullRetDays">
-                                        حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="fullRetentionDaysValue" value="60" min="1" max="365"> يوماً)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="fullAutoCleanup" checked>
-                                    <label class="form-check-label fw-bold" for="fullAutoCleanup">
-                                        تفعيل الحذف التلقائي للنسخ الكاملة
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+ <!-- Full Backup Retention -->
+ <div class="card border-0 shadow-sm mb-4">
+ <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
+ <i class="fas fa-server text-info me-2"></i>سياسة الاحتفاظ بالنسخ الكاملة
+ </div>
+ <div class="card-body p-4">
+ <div class="row">
+ <div class="col-md-6 mb-3">
+ <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="full_retention_type" id="fullRetCount" value="count" checked>
+ <label class="form-check-label" for="fullRetCount">
+ حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="fullRetentionCountValue" value="5" min="1" max="50"> نسخ كاملة)
+ </label>
+ </div>
+ <div class="form-check">
+ <input class="form-check-input" type="radio" name="full_retention_type" id="fullRetDays" value="days">
+ <label class="form-check-label" for="fullRetDays">
+ حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="fullRetentionDaysValue" value="60" min="1" max="365"> يوماً)
+ </label>
+ </div>
+ </div>
+ <div class="col-md-6 mb-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="fullAutoCleanup" checked>
+ <label class="form-check-label fw-bold" for="fullAutoCleanup">
+ تفعيل الحذف التلقائي للنسخ الكاملة
+ </label>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
 
-                <!-- Media Retention -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
-                        <i class="fas fa-images text-success me-2"></i>سياسة الاحتفاظ بنسخ الميديا
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
-                                <div class="form-check mb-2">
-                                    <input class="form-check-input" type="radio" name="media_retention_type" id="mediaRetCount" value="count" checked>
-                                    <label class="form-check-label" for="mediaRetCount">
-                                        حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="mediaRetentionCountValue" value="3" min="1" max="30"> نسخ)
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="media_retention_type" id="mediaRetDays" value="days">
-                                    <label class="form-check-label" for="mediaRetDays">
-                                        حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="mediaRetentionDaysValue" value="90" min="1" max="365"> يوماً)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="mediaAutoCleanup" checked>
-                                    <label class="form-check-label fw-bold" for="mediaAutoCleanup">
-                                        تفعيل الحذف التلقائي لنسخ الميديا
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+ <!-- Media Retention -->
+ <div class="card border-0 shadow-sm mb-4">
+ <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
+ <i class="fas fa-images text-success me-2"></i>سياسة الاحتفاظ بنسخ الميديا
+ </div>
+ <div class="card-body p-4">
+ <div class="row">
+ <div class="col-md-6 mb-3">
+ <label class="form-label fw-bold">طريقة الاحتفاظ:</label>
+ <div class="form-check mb-2">
+ <input class="form-check-input" type="radio" name="media_retention_type" id="mediaRetCount" value="count" checked>
+ <label class="form-check-label" for="mediaRetCount">
+ حسب العدد (الاحتفاظ بآخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="mediaRetentionCountValue" value="3" min="1" max="30"> نسخ)
+ </label>
+ </div>
+ <div class="form-check">
+ <input class="form-check-input" type="radio" name="media_retention_type" id="mediaRetDays" value="days">
+ <label class="form-check-label" for="mediaRetDays">
+ حسب المدة (الاحتفاظ بنسخ آخر <input type="number" class="form-control d-inline-block text-center" style="width: 80px;" id="mediaRetentionDaysValue" value="90" min="1" max="365"> يوماً)
+ </label>
+ </div>
+ </div>
+ <div class="col-md-6 mb-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="mediaAutoCleanup" checked>
+ <label class="form-check-label fw-bold" for="mediaAutoCleanup">
+ تفعيل الحذف التلقائي لنسخ الميديا
+ </label>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
 
-                <!-- Automatic Schedule -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
-                        <i class="fas fa-clock text-warning me-2"></i>جدولة النسخ الاحتياطي التلقائي
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="row g-3 mb-4">
-                            <!-- Daily DB -->
-                            <div class="col-md-4">
-                                <div class="card h-100 border p-3">
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="enableDailyDbBackup">
-                                        <label class="form-check-label fw-bold" for="enableDailyDbBackup">
-                                            نسخ يومي - قاعدة البيانات
-                                        </label>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">الوقت:</label>
-                                        <input type="time" class="form-control form-control-sm" id="dailyDbBackupTime" value="02:00">
-                                    </div>
-                                </div>
-                            </div>
+ <!-- Automatic Schedule -->
+ <div class="card border-0 shadow-sm mb-4">
+ <div class="card-header bg-light border-bottom text-dark fw-bold px-4 py-3">
+ <i class="fas fa-clock text-warning me-2"></i>جدولة النسخ الاحتياطي التلقائي
+ </div>
+ <div class="card-body p-4">
+ <div class="row g-3 mb-4">
+ <!-- Daily DB -->
+ <div class="col-md-4">
+ <div class="card h-100 border p-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="enableDailyDbBackup">
+ <label class="form-check-label fw-bold" for="enableDailyDbBackup">
+ نسخ يومي - قاعدة البيانات
+ </label>
+ </div>
+ <div class="mb-2">
+ <label class="form-label small">الوقت:</label>
+ <input type="time" class="form-control form-control-sm" id="dailyDbBackupTime" value="02:00">
+ </div>
+ </div>
+ </div>
 
-                            <!-- Weekly Full -->
-                            <div class="col-md-4">
-                                <div class="card h-100 border p-3">
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="enableWeeklyFullBackup">
-                                        <label class="form-check-label fw-bold" for="enableWeeklyFullBackup">
-                                            نسخ أسبوعي - شامل
-                                        </label>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">اليوم:</label>
-                                        <select class="form-select form-select-sm" id="weeklyFullBackupDay">
-                                            <option value="5" selected>الجمعة</option>
-                                            <option value="6">السبت</option>
-                                            <option value="0">الأحد</option>
-                                            <option value="1">الاثنين</option>
-                                            <option value="2">الثلاثاء</option>
-                                            <option value="3">الأربعاء</option>
-                                            <option value="4">الخميس</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">الوقت:</label>
-                                        <input type="time" class="form-control form-control-sm" id="weeklyFullBackupTime" value="03:00">
-                                    </div>
-                                </div>
-                            </div>
+ <!-- Weekly Full -->
+ <div class="col-md-4">
+ <div class="card h-100 border p-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="enableWeeklyFullBackup">
+ <label class="form-check-label fw-bold" for="enableWeeklyFullBackup">
+ نسخ أسبوعي - شامل
+ </label>
+ </div>
+ <div class="mb-2">
+ <label class="form-label small">اليوم:</label>
+ <select class="form-select form-select-sm" id="weeklyFullBackupDay">
+ <option value="5" selected>الجمعة</option>
+ <option value="6">السبت</option>
+ <option value="0">الأحد</option>
+ <option value="1">الاثنين</option>
+ <option value="2">الثلاثاء</option>
+ <option value="3">الأربعاء</option>
+ <option value="4">الخميس</option>
+ </select>
+ </div>
+ <div class="mb-2">
+ <label class="form-label small">الوقت:</label>
+ <input type="time" class="form-control form-control-sm" id="weeklyFullBackupTime" value="03:00">
+ </div>
+ </div>
+ </div>
 
-                            <!-- Monthly Media -->
-                            <div class="col-md-4">
-                                <div class="card h-100 border p-3">
-                                    <div class="form-check form-switch mb-3">
-                                        <input class="form-check-input" type="checkbox" id="enableMonthlyMediaBackup">
-                                        <label class="form-check-label fw-bold" for="enableMonthlyMediaBackup">
-                                            نسخ شهري - ملفات الميديا
-                                        </label>
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">اليوم من الشهر:</label>
-                                        <input type="number" class="form-control form-control-sm" id="monthlyMediaBackupDay" value="1" min="1" max="28">
-                                    </div>
-                                    <div class="mb-2">
-                                        <label class="form-label small">الوقت:</label>
-                                        <input type="time" class="form-control form-control-sm" id="monthlyMediaBackupTime" value="04:00">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+ <!-- Monthly Media -->
+ <div class="col-md-4">
+ <div class="card h-100 border p-3">
+ <div class="form-check form-switch mb-3">
+ <input class="form-check-input" type="checkbox" id="enableMonthlyMediaBackup">
+ <label class="form-check-label fw-bold" for="enableMonthlyMediaBackup">
+ نسخ شهري - ملفات الميديا
+ </label>
+ </div>
+ <div class="mb-2">
+ <label class="form-label small">اليوم من الشهر:</label>
+ <input type="number" class="form-control form-control-sm" id="monthlyMediaBackupDay" value="1" min="1" max="28">
+ </div>
+ <div class="mb-2">
+ <label class="form-label small">الوقت:</label>
+ <input type="time" class="form-control form-control-sm" id="monthlyMediaBackupTime" value="04:00">
+ </div>
+ </div>
+ </div>
+ </div>
 
-                        <!-- Cron Terminal Commands -->
-                        <div class="alert alert-secondary border-0 mb-0">
-                            <h6 class="fw-bold mb-2"><i class="fas fa-terminal me-2"></i>أوامر Cron الجاهزة للإعداد على السيرفر:</h6>
-                            <code class="d-block bg-dark text-light p-2 rounded mb-2 font-monospace" dir="ltr">
-                                0 2 * * * cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=database
-                            </code>
-                            <code class="d-block bg-dark text-light p-2 rounded mb-2 font-monospace" dir="ltr">
-                                0 3 * * 5 cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=full
-                            </code>
-                            <code class="d-block bg-dark text-light p-2 rounded font-monospace" dir="ltr">
-                                0 4 1 * * cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=media
-                            </code>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center">
-                    <button type="submit" class="btn btn-primary btn-lg px-4 fw-bold">
-                        <i class="fas fa-save me-2"></i>حفظ جميع الإعدادات
-                    </button>
-                    
-                    <button type="button" class="btn btn-outline-secondary" onclick="triggerManualCleanup()">
-                        <i class="fas fa-broom me-1"></i>تنظيف يدوي للنسخ القديمة الآن
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+ <!-- Cron Terminal Commands -->
+ <div class="alert alert-secondary border-0 mb-0">
+ <h6 class="fw-bold mb-2"><i class="fas fa-terminal me-2"></i>أوامر Cron الجاهزة للإعداد على السيرفر:</h6>
+ <code class="d-block bg-dark text-light p-2 rounded mb-2" dir="ltr">
+ 0 2 * * * cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=database
+ </code>
+ <code class="d-block bg-dark text-light p-2 rounded mb-2" dir="ltr">
+ 0 3 * * 5 cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=full
+ </code>
+ <code class="d-block bg-dark text-light p-2 rounded" dir="ltr">
+ 0 4 1 * * cd {{ base_dir }} && {{ python_executable }} manage.py create_backup --type=media
+ </code>
+ </div>
+ </div>
+ </div>
+ 
+ <div class="d-flex justify-content-between align-items-center">
+ <button type="submit" class="btn btn-primary btn-lg px-4 fw-bold">
+ <i class="fas fa-save me-2"></i>حفظ جميع الإعدادات
+ </button>
+ 
+ <button type="button" class="btn btn-outline-secondary" onclick="triggerManualCleanup()">
+ <i class="fas fa-broom me-1"></i>تنظيف يدوي للنسخ القديمة الآن
+ </button>
+ </div>
+ </form>
+ </div>
+ </div>
 </div>
 
 <!-- Corporate Standard Restore Modal (AGENTS.md Rule 8) -->
 <div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0" id="restoreModalLabel">
-                    <i class="fas fa-undo text-danger me-2"></i>استعادة النسخة الاحتياطية
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="alert alert-danger border-0 mb-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>تحذير هام:</strong> سيتم استبدال البيانات الحالية ببيانات النسخة المحددة.
-                </div>
-                <p class="mb-1">هل أنت متأكد من رغبتك في استعادة النسخة التالية؟</p>
-                <div class="p-3 bg-light rounded text-center my-3">
-                    <strong class="text-primary font-monospace fs-6" id="restoreBackupId"></strong>
-                </div>
-                <input type="hidden" id="restoreBackupIdInput">
-            </div>
-            <div class="modal-footer bg-light border-top px-4 py-3">
-                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-danger px-4 fw-bold" id="confirmRestoreBtn" onclick="confirmRestore()">
-                    <i class="fas fa-undo me-2"></i>تأكيد الاستعادة
-                </button>
-            </div>
-        </div>
-    </div>
+ <div class="modal-dialog modal-dialog-centered">
+ <div class="modal-content border-0 shadow-lg">
+ <div class="modal-header bg-light border-bottom px-4 py-3">
+ <h5 class="modal-title fw-bold text-dark mb-0" id="restoreModalLabel">
+ <i class="fas fa-undo text-danger me-2"></i>استعادة النسخة الاحتياطية
+ </h5>
+ <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+ </div>
+ <div class="modal-body p-4">
+ <div class="alert alert-danger border-0 mb-3">
+ <i class="fas fa-exclamation-triangle me-2"></i>
+ <strong>تحذير هام:</strong> سيتم استبدال البيانات الحالية ببيانات النسخة المحددة.
+ </div>
+ <p class="mb-1">هل أنت متأكد من رغبتك في استعادة النسخة التالية؟</p>
+ <div class="p-3 bg-light rounded text-center my-3">
+ <strong class="text-primary fs-6" id="restoreBackupId"></strong>
+ </div>
+ <input type="hidden" id="restoreBackupIdInput">
+ </div>
+ <div class="modal-footer bg-light border-top px-4 py-3">
+ <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+ <button type="button" class="btn btn-danger px-4 fw-bold" id="confirmRestoreBtn" onclick="confirmRestore()">
+ <i class="fas fa-undo me-2"></i>تأكيد الاستعادة
+ </button>
+ </div>
+ </div>
+ </div>
 </div>
 
 <!-- Corporate Standard Delete Modal (AGENTS.md Rule 8) -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0" id="deleteModalLabel">
-                    <i class="fas fa-trash text-danger me-2"></i>حذف النسخة الاحتياطية
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="mb-1">هل أنت متأكد من حذف هذه النسخة نهائياً من القرص؟</p>
-                <div class="p-3 bg-light rounded text-center my-3">
-                    <strong class="text-danger font-monospace fs-6" id="deleteBackupId"></strong>
-                </div>
-                <input type="hidden" id="deleteBackupIdInput">
-            </div>
-            <div class="modal-footer bg-light border-top px-4 py-3">
-                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-danger px-4 fw-bold" id="confirmDeleteBtn" onclick="confirmDelete()">
-                    <i class="fas fa-trash me-2"></i>تأكيد الحذف
-                </button>
-            </div>
-        </div>
-    </div>
+ <div class="modal-dialog modal-dialog-centered">
+ <div class="modal-content border-0 shadow-lg">
+ <div class="modal-header bg-light border-bottom px-4 py-3">
+ <h5 class="modal-title fw-bold text-dark mb-0" id="deleteModalLabel">
+ <i class="fas fa-trash text-danger me-2"></i>حذف النسخة الاحتياطية
+ </h5>
+ <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+ </div>
+ <div class="modal-body p-4">
+ <p class="mb-1">هل أنت متأكد من حذف هذه النسخة نهائياً من القرص؟</p>
+ <div class="p-3 bg-light rounded text-center my-3">
+ <strong class="text-danger fs-6" id="deleteBackupId"></strong>
+ </div>
+ <input type="hidden" id="deleteBackupIdInput">
+ </div>
+ <div class="modal-footer bg-light border-top px-4 py-3">
+ <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+ <button type="button" class="btn btn-danger px-4 fw-bold" id="confirmDeleteBtn" onclick="confirmDelete()">
+ <i class="fas fa-trash me-2"></i>تأكيد الحذف
+ </button>
+ </div>
+ </div>
+ </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 const BACKUP_URLS = {
-    create: "{% url 'core:backup_create' %}",
-    list: "{% url 'core:backup_list' %}",
-    restore: "{% url 'core:backup_restore' %}",
-    restoreUpload: "{% url 'core:backup_restore_upload' %}",
-    settings: "{% url 'core:backup_settings' %}",
-    settingsUpdate: "{% url 'core:backup_settings_update' %}",
-    cleanup: "{% url 'core:backup_cleanup' %}",
-    downloadTemplate: "{% url 'core:backup_download' 'BACKUP_ID_PLACEHOLDER' %}",
-    deleteTemplate: "{% url 'core:backup_delete' 'BACKUP_ID_PLACEHOLDER' %}"
+ create:"{% url 'core:backup_create' %}",
+ list:"{% url 'core:backup_list' %}",
+ restore:"{% url 'core:backup_restore' %}",
+ restoreUpload:"{% url 'core:backup_restore_upload' %}",
+ settings:"{% url 'core:backup_settings' %}",
+ settingsUpdate:"{% url 'core:backup_settings_update' %}",
+ cleanup:"{% url 'core:backup_cleanup' %}",
+ downloadTemplate:"{% url 'core:backup_download' 'BACKUP_ID_PLACEHOLDER' %}",
+ deleteTemplate:"{% url 'core:backup_delete' 'BACKUP_ID_PLACEHOLDER' %}"
 };
 
 $(document).ready(function() {
-    // Tab switching
-    $('.nav-link[data-tab]').click(function(e) {
-        e.preventDefault();
-        const tab = $(this).data('tab');
-        $('.nav-link').removeClass('active');
-        $(this).addClass('active');
-        $('.backup-tab-content').removeClass('active');
-        $(`#tab-${tab}`).addClass('active');
-        
-        if (tab === 'list') {
-            loadBackupList();
-        }
-    });
-    
-    // Backup type selection
-    $('.backup-type-card').click(function() {
-        $('.backup-type-card').removeClass('selected');
-        $(this).addClass('selected');
-        $('#backupType').val($(this).data('type'));
-    });
-    $('.backup-type-card[data-type="full"]').addClass('selected');
-    
-    $('#createBackupForm').submit(function(e) {
-        e.preventDefault();
-        createBackup();
-    });
-    
-    $('#backupSettingsForm').submit(function(e) {
-        e.preventDefault();
-        saveSettings();
-    });
-    
-    $('#restoreUploadForm').submit(function(e) {
-        e.preventDefault();
-        restoreFromUpload();
-    });
-    
-    loadSettings();
+ // Tab switching
+ $('.nav-link[data-tab]').click(function(e) {
+ e.preventDefault();
+ const tab = $(this).data('tab');
+ $('.nav-link').removeClass('active');
+ $(this).addClass('active');
+ $('.backup-tab-content').removeClass('active');
+ $(`#tab-${tab}`).addClass('active');
+ 
+ if (tab === 'list') {
+ loadBackupList();
+ }
+ });
+ 
+ // Backup type selection
+ $('.backup-type-card').click(function() {
+ $('.backup-type-card').removeClass('selected');
+ $(this).addClass('selected');
+ $('#backupType').val($(this).data('type'));
+ });
+ $('.backup-type-card[data-type="full"]').addClass('selected');
+ 
+ $('#createBackupForm').submit(function(e) {
+ e.preventDefault();
+ createBackup();
+ });
+ 
+ $('#backupSettingsForm').submit(function(e) {
+ e.preventDefault();
+ saveSettings();
+ });
+ 
+ $('#restoreUploadForm').submit(function(e) {
+ e.preventDefault();
+ restoreFromUpload();
+ });
+ 
+ loadSettings();
 });
 
 function showToast(message, type = 'info') {
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message, type);
-    } else if (typeof toastr !== 'undefined') {
-        toastr[type](message);
-    } else {
-        alert(message);
-    }
+ if (typeof window.showNotification === 'function') {
+ window.showNotification(message, type);
+ } else if (typeof toastr !== 'undefined') {
+ toastr[type](message);
+ } else {
+ alert(message);
+ }
 }
 
 function createBackup() {
-    const backupType = $('#backupType').val();
-    const saveMode = $('input[name="save_mode"]:checked').val();
-    const downloadMode = saveMode === 'download';
-    
-    $('#createBackupBtn').prop('disabled', true);
-    $('.backup-progress').addClass('active');
-    $('#progressText').text('جاري إنشاء النسخة الاحتياطية وضغط البيانات...');
-    
-    $.ajax({
-        url: BACKUP_URLS.create,
-        method: 'POST',
-        data: {
-            backup_type: backupType,
-            download_mode: downloadMode ? 'true' : 'false',
-            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function(response) {
-            $('.backup-progress').removeClass('active');
-            $('#createBackupBtn').prop('disabled', false);
-            
-            if (response.success) {
-                if (downloadMode && response.download_url) {
-                    const link = document.createElement('a');
-                    link.href = response.download_url;
-                    if (response.download_filename) {
-                        link.download = response.download_filename;
-                    }
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    showToast('تم إنشاء النسخة الاحتياطية وبدأ التحميل بنجاح', 'success');
-                } else {
-                    showToast('تم إنشاء النسخة الاحتياطية بنجاح على السيرفر', 'success');
-                    $('.nav-link[data-tab="list"]').click();
-                }
-            } else {
-                showToast(response.message || 'فشل إنشاء النسخة الاحتياطية', 'error');
-            }
-        },
-        error: function(xhr) {
-            $('.backup-progress').removeClass('active');
-            $('#createBackupBtn').prop('disabled', false);
-            let msg = 'حدث خطأ أثناء إنشاء النسخة الاحتياطية';
-            try {
-                const data = JSON.parse(xhr.responseText);
-                msg = data.message || msg;
-            } catch(e) {}
-            showToast(msg, 'error');
-        }
-    });
+ const backupType = $('#backupType').val();
+ const saveMode = $('input[name="save_mode"]:checked').val();
+ const downloadMode = saveMode === 'download';
+ 
+ $('#createBackupBtn').prop('disabled', true);
+ $('.backup-progress').addClass('active');
+ $('#progressText').text('جاري إنشاء النسخة الاحتياطية وضغط البيانات...');
+ 
+ $.ajax({
+ url: BACKUP_URLS.create,
+ method: 'POST',
+ data: {
+ backup_type: backupType,
+ download_mode: downloadMode ? 'true' : 'false',
+ csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+ },
+ success: function(response) {
+ $('.backup-progress').removeClass('active');
+ $('#createBackupBtn').prop('disabled', false);
+ 
+ if (response.success) {
+ if (downloadMode && response.download_url) {
+ const link = document.createElement('a');
+ link.href = response.download_url;
+ if (response.download_filename) {
+ link.download = response.download_filename;
+ }
+ document.body.appendChild(link);
+ link.click();
+ document.body.removeChild(link);
+ showToast('تم إنشاء النسخة الاحتياطية وبدأ التحميل بنجاح', 'success');
+ } else {
+ showToast('تم إنشاء النسخة الاحتياطية بنجاح على السيرفر', 'success');
+ $('.nav-link[data-tab="list"]').click();
+ }
+ } else {
+ showToast(response.message || 'فشل إنشاء النسخة الاحتياطية', 'error');
+ }
+ },
+ error: function(xhr) {
+ $('.backup-progress').removeClass('active');
+ $('#createBackupBtn').prop('disabled', false);
+ let msg = 'حدث خطأ أثناء إنشاء النسخة الاحتياطية';
+ try {
+ const data = JSON.parse(xhr.responseText);
+ msg = data.message || msg;
+ } catch(e) {}
+ showToast(msg, 'error');
+ }
+ });
 }
 
 function loadBackupList() {
-    $('#backupListContainer').html(`
-        <div class="text-center py-5">
-            <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
-            <p class="text-muted">جاري تحميل النسخ الاحتياطية...</p>
-        </div>
-    `);
-    
-    $.ajax({
-        url: BACKUP_URLS.list,
-        method: 'GET',
-        success: function(response) {
-            if (response.success && response.backups && response.backups.length > 0) {
-                renderBackupList(response.backups);
-            } else {
-                $('#backupListContainer').html(`
-                    <div class="text-center py-5">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">لا توجد نسخ احتياطية محفوظة على السيرفر</p>
-                    </div>
-                `);
-            }
-        },
-        error: function() {
-            $('#backupListContainer').html(`
-                <div class="alert alert-danger border-0">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    فشل تحميل قائمة النسخ الاحتياطية
-                </div>
-            `);
-        }
-    });
+ $('#backupListContainer').html(`
+ <div class="text-center py-5">
+ <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
+ <p class="text-muted">جاري تحميل النسخ الاحتياطية...</p>
+ </div>
+ `);
+ 
+ $.ajax({
+ url: BACKUP_URLS.list,
+ method: 'GET',
+ success: function(response) {
+ if (response.success && response.backups && response.backups.length > 0) {
+ renderBackupList(response.backups);
+ } else {
+ $('#backupListContainer').html(`
+ <div class="text-center py-5">
+ <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+ <p class="text-muted">لا توجد نسخ احتياطية محفوظة على السيرفر</p>
+ </div>
+ `);
+ }
+ },
+ error: function() {
+ $('#backupListContainer').html(`
+ <div class="alert alert-danger border-0">
+ <i class="fas fa-exclamation-circle me-2"></i>
+ فشل تحميل قائمة النسخ الاحتياطية
+ </div>
+ `);
+ }
+ });
 }
 
 function renderBackupList(backups) {
-    let html = '<div class="table-responsive"><table class="table table-hover align-middle">';
-    html += '<thead class="table-light"><tr>';
-    html += '<th>اسم النسخة</th>';
-    html += '<th>النوع</th>';
-    html += '<th>التاريخ والتوقيت</th>';
-    html += '<th>الحجم الإجمالي</th>';
-    html += '<th>عدد الملفات</th>';
-    html += '<th class="text-center">الإجراءات</th>';
-    html += '</tr></thead><tbody>';
-    
-    backups.forEach(function(backup) {
-        const dateObj = new Date(backup.created_at);
-        const dateStr = dateObj.toLocaleString('en-US', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit', hour12: true
-        });
-        const sizeStr = formatFileSize(backup.size_bytes);
-        const displayName = backup.display_name || backup.backup_id;
-        
-        let typeBadge = '<span class="badge bg-primary">كاملة</span>';
-        if (backup.backup_type === 'database') {
-            typeBadge = '<span class="badge bg-info">قاعدة بيانات</span>';
-        } else if (backup.backup_type === 'media') {
-            typeBadge = '<span class="badge bg-success">ميديا</span>';
-        }
-        
-        html += '<tr>';
-        html += `<td><strong>${displayName}</strong><br><small class="text-muted font-monospace">${backup.backup_id}</small></td>`;
-        html += `<td>${typeBadge}</td>`;
-        html += `<td dir="ltr" class="text-end">${dateStr}</td>`;
-        html += `<td>${sizeStr}</td>`;
-        html += `<td><span class="badge bg-secondary">${backup.files.length}</span></td>`;
-        html += '<td class="text-center">';
-        html += '<div class="btn-group btn-group-sm">';
-        html += `<button class="btn btn-outline-primary" onclick="downloadBackup('${backup.backup_id}')" title="تحميل"><i class="fas fa-download"></i></button>`;
-        html += `<button class="btn btn-outline-warning" onclick="showRestoreModal('${backup.backup_id}')" title="استعادة"><i class="fas fa-undo"></i></button>`;
-        html += `<button class="btn btn-outline-danger" onclick="showDeleteModal('${backup.backup_id}')" title="حذف"><i class="fas fa-trash"></i></button>`;
-        html += '</div></td></tr>';
-    });
-    
-    html += '</tbody></table></div>';
-    $('#backupListContainer').html(html);
+ let html = '<div class="table-responsive"><table class="table table-hover align-middle">';
+ html += '<thead class="table-light"><tr>';
+ html += '<th>اسم النسخة</th>';
+ html += '<th>النوع</th>';
+ html += '<th>التاريخ والتوقيت</th>';
+ html += '<th>الحجم الإجمالي</th>';
+ html += '<th>عدد الملفات</th>';
+ html += '<th class="text-center">الإجراءات</th>';
+ html += '</tr></thead><tbody>';
+ 
+ backups.forEach(function(backup) {
+ const dateObj = new Date(backup.created_at);
+ const dateStr = dateObj.toLocaleString('en-US', {
+ year: 'numeric', month: '2-digit', day: '2-digit',
+ hour: '2-digit', minute: '2-digit', hour12: true
+ });
+ const sizeStr = formatFileSize(backup.size_bytes);
+ const displayName = backup.display_name || backup.backup_id;
+ 
+ let typeBadge = '<span class="badge bg-primary">كاملة</span>';
+ if (backup.backup_type === 'database') {
+ typeBadge = '<span class="badge bg-info">قاعدة بيانات</span>';
+ } else if (backup.backup_type === 'media') {
+ typeBadge = '<span class="badge bg-success">ميديا</span>';
+ }
+ 
+ html += '<tr>';
+ html += `<td><strong>${displayName}</strong><br><small class="text-muted">${backup.backup_id}</small></td>`;
+ html += `<td>${typeBadge}</td>`;
+ html += `<td dir="ltr" class="text-end">${dateStr}</td>`;
+ html += `<td>${sizeStr}</td>`;
+ html += `<td><span class="badge bg-secondary">${backup.files.length}</span></td>`;
+ html += '<td class="text-center">';
+ html += '<div class="btn-group btn-group-sm">';
+ html += `<button class="btn btn-outline-primary" onclick="downloadBackup('${backup.backup_id}')" title="تحميل"><i class="fas fa-download"></i></button>`;
+ html += `<button class="btn btn-outline-warning" onclick="showRestoreModal('${backup.backup_id}')" title="استعادة"><i class="fas fa-undo"></i></button>`;
+ html += `<button class="btn btn-outline-danger" onclick="showDeleteModal('${backup.backup_id}')" title="حذف"><i class="fas fa-trash"></i></button>`;
+ html += '</div></td></tr>';
+ });
+ 
+ html += '</tbody></table></div>';
+ $('#backupListContainer').html(html);
 }
 
 function refreshBackupList() {
-    loadBackupList();
+ loadBackupList();
 }
 
 function downloadBackup(backupId) {
-    const url = BACKUP_URLS.downloadTemplate.replace('BACKUP_ID_PLACEHOLDER', backupId);
-    window.location.href = url;
+ const url = BACKUP_URLS.downloadTemplate.replace('BACKUP_ID_PLACEHOLDER', backupId);
+ window.location.href = url;
 }
 
 function showRestoreModal(backupId) {
-    $('#restoreBackupId').text(backupId);
-    $('#restoreBackupIdInput').val(backupId);
-    new bootstrap.Modal(document.getElementById('restoreModal')).show();
+ $('#restoreBackupId').text(backupId);
+ $('#restoreBackupIdInput').val(backupId);
+ new bootstrap.Modal(document.getElementById('restoreModal')).show();
 }
 
 function confirmRestore() {
-    const backupId = $('#restoreBackupIdInput').val();
-    const modalEl = document.getElementById('restoreModal');
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    const restoreBtn = document.getElementById('confirmRestoreBtn');
-    
-    restoreBtn.disabled = true;
-    restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاستعادة...';
-    
-    $.ajax({
-        url: BACKUP_URLS.restore,
-        method: 'POST',
-        data: {
-            backup_id: backupId,
-            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-        },
-        timeout: 600000,
-        success: function(response) {
-            modal.hide();
-            restoreBtn.disabled = false;
-            restoreBtn.innerHTML = '<i class="fas fa-undo me-2"></i>تأكيد الاستعادة';
-            
-            if (response.success) {
-                showToast('تم استعادة النسخة الاحتياطية بنجاح 100%. سيتم تحديث الصفحة...', 'success');
-                setTimeout(function() {
-                    window.location.reload();
-                }, 3100);
-            } else {
-                showToast(response.message || 'فشلت عملية الاستعادة', 'error');
-            }
-        },
-        error: function(xhr) {
-            modal.hide();
-            restoreBtn.disabled = false;
-            restoreBtn.innerHTML = '<i class="fas fa-undo me-2"></i>تأكيد الاستعادة';
-            let msg = 'حدث خطأ أثناء استعادة النسخة الاحتياطية';
-            try {
-                const data = JSON.parse(xhr.responseText);
-                msg = data.message || msg;
-            } catch(e) {}
-            showToast(msg, 'error');
-        }
-    });
+ const backupId = $('#restoreBackupIdInput').val();
+ const modalEl = document.getElementById('restoreModal');
+ const modal = bootstrap.Modal.getInstance(modalEl);
+ const restoreBtn = document.getElementById('confirmRestoreBtn');
+ 
+ restoreBtn.disabled = true;
+ restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاستعادة...';
+ 
+ $.ajax({
+ url: BACKUP_URLS.restore,
+ method: 'POST',
+ data: {
+ backup_id: backupId,
+ csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+ },
+ timeout: 600000,
+ success: function(response) {
+ modal.hide();
+ restoreBtn.disabled = false;
+ restoreBtn.innerHTML = '<i class="fas fa-undo me-2"></i>تأكيد الاستعادة';
+ 
+ if (response.success) {
+ showToast('تم استعادة النسخة الاحتياطية بنجاح 100%. سيتم تحديث الصفحة...', 'success');
+ setTimeout(function() {
+ window.location.reload();
+ }, 3100);
+ } else {
+ showToast(response.message || 'فشلت عملية الاستعادة', 'error');
+ }
+ },
+ error: function(xhr) {
+ modal.hide();
+ restoreBtn.disabled = false;
+ restoreBtn.innerHTML = '<i class="fas fa-undo me-2"></i>تأكيد الاستعادة';
+ let msg = 'حدث خطأ أثناء استعادة النسخة الاحتياطية';
+ try {
+ const data = JSON.parse(xhr.responseText);
+ msg = data.message || msg;
+ } catch(e) {}
+ showToast(msg, 'error');
+ }
+ });
 }
 
 function showDeleteModal(backupId) {
-    $('#deleteBackupId').text(backupId);
-    $('#deleteBackupIdInput').val(backupId);
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+ $('#deleteBackupId').text(backupId);
+ $('#deleteBackupIdInput').val(backupId);
+ new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
 function confirmDelete() {
-    const backupId = $('#deleteBackupIdInput').val();
-    const modalEl = document.getElementById('deleteModal');
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    const delBtn = document.getElementById('confirmDeleteBtn');
-    
-    delBtn.disabled = true;
-    delBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحذف...';
-    
-    const url = BACKUP_URLS.deleteTemplate.replace('BACKUP_ID_PLACEHOLDER', backupId);
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: {
-            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function(response) {
-            modal.hide();
-            delBtn.disabled = false;
-            delBtn.innerHTML = '<i class="fas fa-trash me-2"></i>تأكيد الحذف';
-            
-            if (response.success) {
-                showToast('تم حذف النسخة الاحتياطية بنجاح', 'success');
-                loadBackupList();
-            } else {
-                showToast(response.message || 'فشل حذف النسخة', 'error');
-            }
-        },
-        error: function(xhr) {
-            modal.hide();
-            delBtn.disabled = false;
-            delBtn.innerHTML = '<i class="fas fa-trash me-2"></i>تأكيد الحذف';
-            showToast('حدث خطأ أثناء حذف النسخة الاحتياطية', 'error');
-        }
-    });
+ const backupId = $('#deleteBackupIdInput').val();
+ const modalEl = document.getElementById('deleteModal');
+ const modal = bootstrap.Modal.getInstance(modalEl);
+ const delBtn = document.getElementById('confirmDeleteBtn');
+ 
+ delBtn.disabled = true;
+ delBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحذف...';
+ 
+ const url = BACKUP_URLS.deleteTemplate.replace('BACKUP_ID_PLACEHOLDER', backupId);
+ $.ajax({
+ url: url,
+ method: 'POST',
+ data: {
+ csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+ },
+ success: function(response) {
+ modal.hide();
+ delBtn.disabled = false;
+ delBtn.innerHTML = '<i class="fas fa-trash me-2"></i>تأكيد الحذف';
+ 
+ if (response.success) {
+ showToast('تم حذف النسخة الاحتياطية بنجاح', 'success');
+ loadBackupList();
+ } else {
+ showToast(response.message || 'فشل حذف النسخة', 'error');
+ }
+ },
+ error: function(xhr) {
+ modal.hide();
+ delBtn.disabled = false;
+ delBtn.innerHTML = '<i class="fas fa-trash me-2"></i>تأكيد الحذف';
+ showToast('حدث خطأ أثناء حذف النسخة الاحتياطية', 'error');
+ }
+ });
 }
 
 function loadSettings() {
-    $.ajax({
-        url: BACKUP_URLS.settings,
-        method: 'GET',
-        success: function(response) {
-            if (response.success && response.settings) {
-                const s = response.settings;
-                $(`input[name="db_retention_type"][value="${s.db_retention_type || 'count'}"]`).prop('checked', true);
-                $('#dbRetentionCountValue').val(s.db_retention_count || 10);
-                $('#dbRetentionDaysValue').val(s.db_retention_days || 30);
-                $('#dbAutoCleanup').prop('checked', !!s.db_auto_cleanup);
-                
-                $(`input[name="full_retention_type"][value="${s.full_retention_type || 'count'}"]`).prop('checked', true);
-                $('#fullRetentionCountValue').val(s.full_retention_count || 5);
-                $('#fullRetentionDaysValue').val(s.full_retention_days || 60);
-                $('#fullAutoCleanup').prop('checked', !!s.full_auto_cleanup);
-                
-                $(`input[name="media_retention_type"][value="${s.media_retention_type || 'count'}"]`).prop('checked', true);
-                $('#mediaRetentionCountValue').val(s.media_retention_count || 3);
-                $('#mediaRetentionDaysValue').val(s.media_retention_days || 90);
-                $('#mediaAutoCleanup').prop('checked', !!s.media_auto_cleanup);
-                
-                $('#enableDailyDbBackup').prop('checked', !!s.enable_daily_db_backup);
-                $('#dailyDbBackupTime').val(s.daily_db_backup_time || '02:00');
-                
-                $('#enableWeeklyFullBackup').prop('checked', !!s.enable_weekly_full_backup);
-                $('#weeklyFullBackupDay').val(s.weekly_full_backup_day || '5');
-                $('#weeklyFullBackupTime').val(s.weekly_full_backup_time || '03:00');
-                
-                $('#enableMonthlyMediaBackup').prop('checked', !!s.enable_monthly_media_backup);
-                $('#monthlyMediaBackupDay').val(s.monthly_media_backup_day || '1');
-                $('#monthlyMediaBackupTime').val(s.monthly_media_backup_time || '04:00');
-            }
-        }
-    });
+ $.ajax({
+ url: BACKUP_URLS.settings,
+ method: 'GET',
+ success: function(response) {
+ if (response.success && response.settings) {
+ const s = response.settings;
+ $(`input[name="db_retention_type"][value="${s.db_retention_type || 'count'}"]`).prop('checked', true);
+ $('#dbRetentionCountValue').val(s.db_retention_count || 10);
+ $('#dbRetentionDaysValue').val(s.db_retention_days || 30);
+ $('#dbAutoCleanup').prop('checked', !!s.db_auto_cleanup);
+ 
+ $(`input[name="full_retention_type"][value="${s.full_retention_type || 'count'}"]`).prop('checked', true);
+ $('#fullRetentionCountValue').val(s.full_retention_count || 5);
+ $('#fullRetentionDaysValue').val(s.full_retention_days || 60);
+ $('#fullAutoCleanup').prop('checked', !!s.full_auto_cleanup);
+ 
+ $(`input[name="media_retention_type"][value="${s.media_retention_type || 'count'}"]`).prop('checked', true);
+ $('#mediaRetentionCountValue').val(s.media_retention_count || 3);
+ $('#mediaRetentionDaysValue').val(s.media_retention_days || 90);
+ $('#mediaAutoCleanup').prop('checked', !!s.media_auto_cleanup);
+ 
+ $('#enableDailyDbBackup').prop('checked', !!s.enable_daily_db_backup);
+ $('#dailyDbBackupTime').val(s.daily_db_backup_time || '02:00');
+ 
+ $('#enableWeeklyFullBackup').prop('checked', !!s.enable_weekly_full_backup);
+ $('#weeklyFullBackupDay').val(s.weekly_full_backup_day || '5');
+ $('#weeklyFullBackupTime').val(s.weekly_full_backup_time || '03:00');
+ 
+ $('#enableMonthlyMediaBackup').prop('checked', !!s.enable_monthly_media_backup);
+ $('#monthlyMediaBackupDay').val(s.monthly_media_backup_day || '1');
+ $('#monthlyMediaBackupTime').val(s.monthly_media_backup_time || '04:00');
+ }
+ }
+ });
 }
 
 function saveSettings() {
-    const data = {
-        db_retention_type: $('input[name="db_retention_type"]:checked').val(),
-        db_retention_count: $('#dbRetentionCountValue').val(),
-        db_retention_days: $('#dbRetentionDaysValue').val(),
-        db_auto_cleanup: $('#dbAutoCleanup').is(':checked'),
-        
-        full_retention_type: $('input[name="full_retention_type"]:checked').val(),
-        full_retention_count: $('#fullRetentionCountValue').val(),
-        full_retention_days: $('#fullRetentionDaysValue').val(),
-        full_auto_cleanup: $('#fullAutoCleanup').is(':checked'),
-        
-        media_retention_type: $('input[name="media_retention_type"]:checked').val(),
-        media_retention_count: $('#mediaRetentionCountValue').val(),
-        media_retention_days: $('#mediaRetentionDaysValue').val(),
-        media_auto_cleanup: $('#mediaAutoCleanup').is(':checked'),
-        
-        enable_daily_db_backup: $('#enableDailyDbBackup').is(':checked'),
-        daily_db_backup_time: $('#dailyDbBackupTime').val(),
-        enable_weekly_full_backup: $('#enableWeeklyFullBackup').is(':checked'),
-        weekly_full_backup_day: $('#weeklyFullBackupDay').val(),
-        weekly_full_backup_time: $('#weeklyFullBackupTime').val(),
-        enable_monthly_media_backup: $('#enableMonthlyMediaBackup').is(':checked'),
-        monthly_media_backup_day: $('#monthlyMediaBackupDay').val(),
-        monthly_media_backup_time: $('#monthlyMediaBackupTime').val(),
-        
-        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-    };
-    
-    $.ajax({
-        url: BACKUP_URLS.settingsUpdate,
-        method: 'POST',
-        data: data,
-        success: function(response) {
-            if (response.success) {
-                showToast('تم حفظ جميع الإعدادات وتحديث الكاش بنجاح', 'success');
-            } else {
-                showToast(response.message || 'فشل حفظ الإعدادات', 'error');
-            }
-        },
-        error: function(xhr) {
-            let msg = 'حدث خطأ أثناء حفظ الإعدادات';
-            try {
-                const d = JSON.parse(xhr.responseText);
-                msg = d.message || msg;
-            } catch(e) {}
-            showToast(msg, 'error');
-        }
-    });
+ const data = {
+ db_retention_type: $('input[name="db_retention_type"]:checked').val(),
+ db_retention_count: $('#dbRetentionCountValue').val(),
+ db_retention_days: $('#dbRetentionDaysValue').val(),
+ db_auto_cleanup: $('#dbAutoCleanup').is(':checked'),
+ 
+ full_retention_type: $('input[name="full_retention_type"]:checked').val(),
+ full_retention_count: $('#fullRetentionCountValue').val(),
+ full_retention_days: $('#fullRetentionDaysValue').val(),
+ full_auto_cleanup: $('#fullAutoCleanup').is(':checked'),
+ 
+ media_retention_type: $('input[name="media_retention_type"]:checked').val(),
+ media_retention_count: $('#mediaRetentionCountValue').val(),
+ media_retention_days: $('#mediaRetentionDaysValue').val(),
+ media_auto_cleanup: $('#mediaAutoCleanup').is(':checked'),
+ 
+ enable_daily_db_backup: $('#enableDailyDbBackup').is(':checked'),
+ daily_db_backup_time: $('#dailyDbBackupTime').val(),
+ enable_weekly_full_backup: $('#enableWeeklyFullBackup').is(':checked'),
+ weekly_full_backup_day: $('#weeklyFullBackupDay').val(),
+ weekly_full_backup_time: $('#weeklyFullBackupTime').val(),
+ enable_monthly_media_backup: $('#enableMonthlyMediaBackup').is(':checked'),
+ monthly_media_backup_day: $('#monthlyMediaBackupDay').val(),
+ monthly_media_backup_time: $('#monthlyMediaBackupTime').val(),
+ 
+ csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+ };
+ 
+ $.ajax({
+ url: BACKUP_URLS.settingsUpdate,
+ method: 'POST',
+ data: data,
+ success: function(response) {
+ if (response.success) {
+ showToast('تم حفظ جميع الإعدادات وتحديث الكاش بنجاح', 'success');
+ } else {
+ showToast(response.message || 'فشل حفظ الإعدادات', 'error');
+ }
+ },
+ error: function(xhr) {
+ let msg = 'حدث خطأ أثناء حفظ الإعدادات';
+ try {
+ const d = JSON.parse(xhr.responseText);
+ msg = d.message || msg;
+ } catch(e) {}
+ showToast(msg, 'error');
+ }
+ });
 }
 
 function triggerManualCleanup() {
-    $.ajax({
-        url: BACKUP_URLS.cleanup,
-        method: 'POST',
-        data: {
-            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function(response) {
-            if (response.success) {
-                showToast(response.message || 'تم تنظيف النسخ القديمة بنجاح', 'success');
-                loadBackupList();
-            } else {
-                showToast(response.message || 'فشل تنظيف النسخ القديمة', 'error');
-            }
-        },
-        error: function() {
-            showToast('حدث خطأ أثناء تشغيل التنظيف اليدوي', 'error');
-        }
-    });
+ $.ajax({
+ url: BACKUP_URLS.cleanup,
+ method: 'POST',
+ data: {
+ csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+ },
+ success: function(response) {
+ if (response.success) {
+ showToast(response.message || 'تم تنظيف النسخ القديمة بنجاح', 'success');
+ loadBackupList();
+ } else {
+ showToast(response.message || 'فشل تنظيف النسخ القديمة', 'error');
+ }
+ },
+ error: function() {
+ showToast('حدث خطأ أثناء تشغيل التنظيف اليدوي', 'error');
+ }
+ });
 }
 
 function restoreFromUpload() {
-    const fileInput = document.getElementById('backupFile');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showToast('الرجاء اختيار ملف النسخة الاحتياطية', 'error');
-        return;
-    }
-    
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('backup_file', file);
-    formData.append('restore_type', $('input[name="restore_type"]:checked').val());
-    formData.append('csrfmiddlewaretoken', $('[name=csrfmiddlewaretoken]').val());
-    
-    $('#restoreUploadBtn').prop('disabled', true);
-    $('.restore-upload-progress').show();
-    
-    $.ajax({
-        url: BACKUP_URLS.restoreUpload,
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 600000,
-        success: function(response) {
-            $('.restore-upload-progress').hide();
-            $('#restoreUploadBtn').prop('disabled', false);
-            
-            if (response.success) {
-                showToast('تم استعادة النسخة الاحتياطية بنجاح 100%. سيتم إعادة تحميل الصفحة...', 'success');
-                $('#restoreUploadForm')[0].reset();
-                setTimeout(function() {
-                    window.location.reload();
-                }, 3100);
-            } else {
-                showToast(response.message || 'فشلت استعادة البيانات', 'error');
-            }
-        },
-        error: function(xhr) {
-            $('.restore-upload-progress').hide();
-            $('#restoreUploadBtn').prop('disabled', false);
-            let msg = 'حدث خطأ أثناء استعادة النسخة الاحتياطية من الملف';
-            try {
-                const d = JSON.parse(xhr.responseText);
-                msg = d.message || msg;
-            } catch(e) {}
-            showToast(msg, 'error');
-        }
-    });
+ const fileInput = document.getElementById('backupFile');
+ if (!fileInput.files || fileInput.files.length === 0) {
+ showToast('الرجاء اختيار ملف النسخة الاحتياطية', 'error');
+ return;
+ }
+ 
+ const file = fileInput.files[0];
+ const formData = new FormData();
+ formData.append('backup_file', file);
+ formData.append('restore_type', $('input[name="restore_type"]:checked').val());
+ formData.append('csrfmiddlewaretoken', $('[name=csrfmiddlewaretoken]').val());
+ 
+ $('#restoreUploadBtn').prop('disabled', true);
+ $('.restore-upload-progress').show();
+ 
+ $.ajax({
+ url: BACKUP_URLS.restoreUpload,
+ method: 'POST',
+ data: formData,
+ processData: false,
+ contentType: false,
+ timeout: 600000,
+ success: function(response) {
+ $('.restore-upload-progress').hide();
+ $('#restoreUploadBtn').prop('disabled', false);
+ 
+ if (response.success) {
+ showToast('تم استعادة النسخة الاحتياطية بنجاح 100%. سيتم إعادة تحميل الصفحة...', 'success');
+ $('#restoreUploadForm')[0].reset();
+ setTimeout(function() {
+ window.location.reload();
+ }, 3100);
+ } else {
+ showToast(response.message || 'فشلت استعادة البيانات', 'error');
+ }
+ },
+ error: function(xhr) {
+ $('.restore-upload-progress').hide();
+ $('#restoreUploadBtn').prop('disabled', false);
+ let msg = 'حدث خطأ أثناء استعادة النسخة الاحتياطية من الملف';
+ try {
+ const d = JSON.parse(xhr.responseText);
+ msg = d.message || msg;
+ } catch(e) {}
+ showToast(msg, 'error');
+ }
+ });
 }
 
 function formatFileSize(bytes) {
-    if (!bytes || bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+ if (!bytes || bytes === 0) return '0 Bytes';
+ const k = 1024;
+ const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+ const i = Math.floor(Math.log(bytes) / Math.log(k));
+ return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 </script>
 {% endblock %}

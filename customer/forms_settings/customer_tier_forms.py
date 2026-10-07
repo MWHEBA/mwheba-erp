@@ -42,7 +42,7 @@ class CustomerTierForm(forms.ModelForm):
                 "placeholder": _("مثال: وكالات الدعاية والإعلان")
             }),
             "code": forms.TextInput(attrs={
-                "class": "form-control text-uppercase font-monospace",
+                "class": "form-control text-uppercase",
                 "placeholder": _("مثال: AGENCY")
             }),
             "description": forms.Textarea(attrs={
@@ -51,11 +51,11 @@ class CustomerTierForm(forms.ModelForm):
                 "placeholder": _("وصف مختصر لخصائص هذه الشريحة وتصنيفها...")
             }),
             "icon": forms.TextInput(attrs={
-                "class": "form-control font-monospace",
+                "class": "form-control",
                 "placeholder": "fas fa-users"
             }),
             "color": forms.TextInput(attrs={
-                "class": "form-control font-monospace",
+                "class": "form-control",
                 "placeholder": "var(--primary-color) أو #0d6efd"
             }),
             "default_price_list": forms.Select(attrs={

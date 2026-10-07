@@ -26,7 +26,7 @@ class PaymentTermForm(forms.ModelForm):
                 "placeholder": _("مثال: سداد آجل خلال 30 يوماً")
             }),
             "code": forms.TextInput(attrs={
-                "class": "form-control text-uppercase font-monospace",
+                "class": "form-control text-uppercase",
                 "placeholder": _("مثال: NET30")
             }),
             "days": forms.NumberInput(attrs={

@@ -1,493 +1,612 @@
 <!-- templates/financial/components/smart_cash_transfer_modal.html -->
 {% load i18n %}
 
-<div class="modal fade" id="smartCashTransferModal" tabindex="-1" aria-labelledby="smartCashTransferModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0" id="smartCashTransferModalLabel">
-                    <i class="fas fa-exchange-alt text-primary me-2"></i>{% trans "سند تحويل مالي بين الخزن والبنوك" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
-            </div>
+<style>
+/* ستايل نمط التحويل المالي - بطاقات اختيار أفقية مريحة وأنيقة مطابقة 100% للنظام الموحد */
+.smart-transfer-modal .transfer-type-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+@media (max-width: 768px) {
+    .smart-transfer-modal .transfer-type-selector {
+        grid-template-columns: 1fr;
+    }
+}
+.smart-transfer-modal .transfer-type-card {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: right !important;
+    gap: 12px !important;
+    padding: 10px 14px 10px 36px !important;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    margin-bottom: 0 !important;
+    height: 100%;
+}
+.smart-transfer-modal .transfer-type-card:hover {
+    background-color: var(--card-bg);
+    border-color: var(--primary-light);
+}
+.smart-transfer-modal .transfer-type-radio:checked + .transfer-type-card {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+}
+.smart-transfer-modal .transfer-type-card .icon-box {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 8px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.1rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+}
+.smart-transfer-modal .transfer-type-radio:checked + .transfer-type-card .icon-box {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+.smart-transfer-modal .transfer-type-card .card-text-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    text-align: right !important;
+    flex-grow: 1 !important;
+    min-width: 0 !important;
+}
+.smart-transfer-modal .transfer-type-card .card-title-text {
+    color: var(--text-dark);
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    margin-bottom: 2px !important;
+}
+.smart-transfer-modal .transfer-type-radio:checked + .transfer-type-card .card-title-text {
+    color: var(--primary-dark);
+}
+.smart-transfer-modal .transfer-type-card .card-desc-text {
+    color: var(--text-muted);
+    font-size: 0.75rem !important;
+    line-height: 1.3 !important;
+}
+.smart-transfer-modal .transfer-type-card .check-indicator {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    left: 12px !important;
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.smart-transfer-modal .transfer-type-radio:checked + .transfer-type-card .check-indicator {
+    opacity: 1;
+}
 
-            <form id="smartCashTransferForm" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="modal-body p-4">
-                    <!-- 1. نمط التحويل: مباشر vs مرحلي في الطريق -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small mb-2">{% trans "نمط التحويل المالي" %}</label>
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <input type="radio" class="btn-check" name="transfer_type" id="type_direct" value="direct" checked>
-                                <label class="btn btn-outline-primary w-100 py-2 d-flex align-items-center justify-content-center" for="type_direct">
-                                    <i class="fas fa-bolt me-2"></i>
-                                    <div>
-                                        <div class="fw-bold">{% trans "تحويل فوري مباشر" %}</div>
-                                        <small class="text-muted fs-8">{% trans "نقل رصيد مباشر بين الخزن/البنوك" %}</small>
+/* تنسيق الجداول والبطاقات الداخلية */
+.smart-transfer-modal .inner-section-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+}
+.smart-transfer-modal .inner-section-header {
+    background-color: var(--light-bg);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+.smart-transfer-modal .form-label {
+    margin-bottom: 4px;
+}
+.smart-transfer-modal .balance-pill {
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+}
+</style>
+
+<div class="modal fade smart-transfer-modal" id="smartCashTransferModal" tabindex="-1" aria-labelledby="smartCashTransferModalLabel" aria-hidden="true">
+ <div class="modal-dialog modal-lg modal-dialog-centered">
+ <div class="modal-content border-0 shadow-lg">
+ <div class="modal-header bg-light border-bottom px-4 py-3">
+ <h5 class="modal-title fw-bold text-dark mb-0" id="smartCashTransferModalLabel">
+ <i class="fas fa-exchange-alt text-primary me-2"></i>{% trans "سند تحويل مالي بين الخزن والبنوك" %}
+ </h5>
+ <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+ </div>
+
+ <form id="smartCashTransferForm" enctype="multipart/form-data">
+ {% csrf_token %}
+ <div class="modal-body p-4">
+ <!-- 1. نمط التحويل: مباشر vs مرحلي في الطريق -->
+ <div class="mb-3">
+					<label class="form-label fw-bold text-dark small mb-1">
+						<i class="fas fa-sliders-h text-primary me-1"></i>{% trans "نمط التحويل المالي" %}
+					</label>
+					<div class="transfer-type-selector">
+						<div>
+							<input type="radio" class="d-none transfer-type-radio" name="transfer_type" id="type_direct" value="direct" checked>
+							<label class="transfer-type-card" for="type_direct">
+								<div class="icon-box">
+									<i class="fas fa-bolt"></i>
+								</div>
+								<div class="card-text-wrapper">
+                                        <div class="card-title-text">{% trans "تحويل فوري مباشر" %}</div>
+                                        <div class="card-desc-text">{% trans "نقل رصيد مباشر ولحظي بين الخزن أو البنوك" %}</div>
                                     </div>
-                                </label>
-                            </div>
-                            <div class="col-md-6">
-                                <input type="radio" class="btn-check" name="transfer_type" id="type_in_transit" value="in_transit">
-                                <label class="btn btn-outline-warning w-100 py-2 d-flex align-items-center justify-content-center" for="type_in_transit">
-                                    <i class="fas fa-truck-moving me-2"></i>
-                                    <div>
-                                        <div class="fw-bold">{% trans "تحويل مرحلي (نقدية في الطريق)" %}</div>
-                                        <small class="text-muted fs-8">{% trans "خطوتان: إرسال ثم استلام مع الفصل بين المهام" %}</small>
+								<i class="fas fa-check-circle check-indicator"></i>
+							</label>
+						</div>
+						<div>
+							<input type="radio" class="d-none transfer-type-radio" name="transfer_type" id="type_in_transit" value="in_transit">
+							<label class="transfer-type-card" for="type_in_transit">
+								<div class="icon-box">
+									<i class="fas fa-truck-moving"></i>
+								</div>
+								<div class="card-text-wrapper">
+                                        <div class="card-title-text">{% trans "تحويل مرحلي (نقدية بالطريق)" %}</div>
+                                        <div class="card-desc-text">{% trans "إرسال مع مندوب نقل ثم تأكيد استلام لاحقاً" %}</div>
                                     </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
+								<i class="fas fa-check-circle check-indicator"></i>
+							</label>
+						</div>
+					</div>
+				</div>
 
-                    <!-- 2. الحسابات والمبلغ وتاريخ السند -->
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-dark">
-                                {% trans "من خزينة / حساب مصدر" %} <span class="text-danger">*</span>
-                            </label>
-                            <select name="from_account" id="trf_from_account" class="form-select select2-modal" required>
-                                <option value="">-- {% trans "اختر الحساب المصدر" %} --</option>
-                                {% for acc in accounts %}
-                                    <option value="{{ acc.id }}" 
-                                            data-currency-id="{{ acc.currency_id }}" 
-                                            data-currency-code="{{ acc.currency_code }}" 
-                                            data-currency-symbol="{{ acc.currency_symbol }}"
-                                            data-is-bank="{{ acc.is_bank_account|yesno:'1,0' }}"
-                                            data-balance="{{ acc.get_balance|default:0 }}">
-                                        {{ acc.name }} ({{ acc.code }}) - [{{ acc.currency_symbol }}]
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <div class="d-flex justify-content-between mt-1 fs-8 text-muted">
-                                <span>{% trans "الرصيد المتاح:" %} <strong id="trf_from_balance" class="text-dark">0.00</strong></span>
-                            </div>
-                        </div>
+ <!-- 2. الحسابات والمبلغ وتاريخ السند -->
+ <div class="row g-3 mb-3">
+ <div class="col-md-6">
+ <div class="d-flex justify-content-between align-items-center mb-1">
+ <label class="form-label fw-bold small text-dark mb-0">
+ <i class="fas fa-sign-out-alt text-primary me-1"></i>{% trans "من خزينة / حساب مصدر" %} <span class="text-danger">*</span>
+ </label>
+ <span class="balance-pill text-muted">
+ {% trans "الرصيد:" %} <strong id="trf_from_balance" class="text-dark">0</strong>
+ </span>
+ </div>
+ <select name="from_account" id="trf_from_account" class="form-select select2-modal" required>
+ <option value="">-- {% trans "اختر الحساب المصدر" %} --</option>
+ {% for acc in accounts %}
+ <option value="{{ acc.id }}" 
+ data-currency-id="{{ acc.currency_id }}" 
+ data-currency-code="{{ acc.currency_code }}" 
+ data-currency-symbol="{{ acc.currency_symbol }}"
+ data-is-bank="{{ acc.is_bank_account|yesno:'1,0' }}"
+ data-balance="{{ acc.get_balance|default:0 }}">
+ {{ acc.name }} - [{{ acc.currency_symbol }}]
+ </option>
+ {% endfor %}
+ </select>
+ </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-dark">
-                                {% trans "إلى خزينة / حساب مستلم" %} <span class="text-danger">*</span>
-                            </label>
-                            <select name="to_account" id="trf_to_account" class="form-select select2-modal" required>
-                                <option value="">-- {% trans "اختر الحساب المستلم" %} --</option>
-                                {% for acc in accounts %}
-                                    <option value="{{ acc.id }}" 
-                                            data-currency-id="{{ acc.currency_id }}" 
-                                            data-currency-code="{{ acc.currency_code }}" 
-                                            data-currency-symbol="{{ acc.currency_symbol }}"
-                                            data-is-bank="{{ acc.is_bank_account|yesno:'1,0' }}">
-                                        {{ acc.name }} ({{ acc.code }}) - [{{ acc.currency_symbol }}]
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
+ <div class="col-md-6">
+ <label class="form-label fw-bold small text-dark mb-1">
+ <i class="fas fa-sign-in-alt text-primary me-1"></i>{% trans "إلى خزينة / حساب مستلم" %} <span class="text-danger">*</span>
+ </label>
+ <select name="to_account" id="trf_to_account" class="form-select select2-modal" required>
+ <option value="">-- {% trans "اختر الحساب المستلم" %} --</option>
+ {% for acc in accounts %}
+ <option value="{{ acc.id }}" 
+ data-currency-id="{{ acc.currency_id }}" 
+ data-currency-code="{{ acc.currency_code }}" 
+ data-currency-symbol="{{ acc.currency_symbol }}"
+ data-is-bank="{{ acc.is_bank_account|yesno:'1,0' }}">
+ {{ acc.name }} - [{{ acc.currency_symbol }}]
+ </option>
+ {% endfor %}
+ </select>
+ </div>
+ </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-dark">
-                                {% trans "المبلغ المحول" %} <span class="text-danger">*</span>
-                            </label>
-                            <div class="input-group">
-                                <input type="number" name="amount" id="trf_amount" step="0.01" min="0.01" class="form-control fw-bold fs-6" placeholder="0.00" required>
-                                <span class="input-group-text bg-light fw-bold" id="trf_source_currency_symbol">{{ base_currency_symbol|default:"ج.م" }}</span>
-                            </div>
-                        </div>
+ <div class="row g-3 mb-3">
+	<div class="col-md-6">
+		<label class="form-label fw-bold small text-dark">
+			<i class="fas fa-money-bill-wave text-primary me-1"></i>{% trans "المبلغ المحول" %} <span class="text-danger">*</span>
+		</label>
+		<div class="input-group">
+			<input type="number" name="amount" id="trf_amount" step="any" min="0.01" class="form-control fw-bold" placeholder="0" required>
+			<span class="input-group-text bg-light fw-bold text-muted" id="trf_source_currency_symbol">{{ base_currency_symbol|default:"ج.م" }}</span>
+		</div>
+		<div id="trf_tafqeet_text" class="text-primary small fw-bold mt-1" style="min-height: 18px;"></div>
+	</div>
 
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-dark">
-                                {% trans "تاريخ التحويل" %} <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" name="transfer_date" id="trf_date" class="form-control" value="{{ current_date|date:'Y-m-d'|default:'' }}">
-                        </div>
-                    </div>
+	<div class="col-md-6">
+		<label class="form-label fw-bold small text-dark">
+			<i class="fas fa-calendar-alt text-primary me-1"></i>{% trans "تاريخ التحويل" %} <span class="text-danger">*</span>
+		</label>
+		<input type="date" name="transfer_date" id="trf_date" class="form-control" value="{{ current_date|date:'Y-m-d'|default:'' }}">
+	</div>
+</div>
 
-                    <!-- 3. كارت التحويل متعدد العملات (يظهر تلقائياً عند اختلاف العملة) -->
-                    <div id="crossCurrencyCard" class="card border border-info mb-3 bg-light bg-opacity-25" style="display: none;">
-                        <div class="card-body p-3">
-                            <h6 class="fw-bold text-info mb-2">
-                                <i class="fas fa-coins me-1"></i>{% trans "تسوية أسعار الصرف وتحويل العملات" %}
-                            </h6>
-                            <div class="row g-2 align-items-center">
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "سعر الصرف المباشر" %}</label>
-                                    <input type="number" name="exchange_rate" id="trf_exchange_rate" step="0.000001" min="0.000001" class="form-control form-control-sm text-center font-monospace" placeholder="1.000000">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "المبلغ المستلم المعادل" %}</label>
-                                    <input type="text" id="trf_dest_amount_preview" class="form-control form-control-sm bg-white text-center fw-bold font-monospace" readonly>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="small text-muted mb-1">{% trans "فروق العملة / التقريب" %}</div>
-                                    <span id="trf_fx_badge" class="badge bg-secondary">0.00 ج.م</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+ <!-- 3. كارت التحويل متعدد العملات (يظهر تلقائياً عند اختلاف العملة) -->
+ <div id="crossCurrencyCard" class="inner-section-card mb-3" style="display: none;">
+ <div class="inner-section-header d-flex align-items-center justify-content-between">
+ <span><i class="fas fa-coins text-primary me-2"></i>{% trans "تسوية أسعار الصرف وتحويل العملات" %}</span>
+ <span id="trf_fx_badge" class="badge bg-secondary">0 ج.م</span>
+ </div>
+ <div class="p-3">
+ <div class="row g-3 align-items-center">
+ <div class="col-md-6">
+ <label class="form-label small text-muted mb-1">{% trans "سعر الصرف المباشر" %}</label>
+ <input type="number" name="exchange_rate" id="trf_exchange_rate" step="0.000001" min="0.000001" class="form-control form-control-sm text-center" placeholder="1">
+ </div>
+ <div class="col-md-6">
+ <label class="form-label small text-muted mb-1">{% trans "المبلغ المستلم المعادل" %}</label>
+ <input type="text" id="trf_dest_amount_preview" class="form-control form-control-sm bg-light text-center fw-bold" readonly>
+ </div>
+ </div>
+ </div>
+ </div>
 
-                    <!-- 4. تفاصيل العمليات البنكية (تظهر إذا كان أحد الطرفين حساباً بنكياً) -->
-                    <div id="bankDetailsSection" class="card border mb-3" style="display: none;">
-                        <div class="card-header bg-light py-2 px-3 fw-bold small text-dark">
-                            <i class="fas fa-university text-primary me-1"></i>{% trans "بيانات المعاملة والمصاريف البنكية" %}
-                        </div>
-                        <div class="card-body p-3">
-                            <div class="row g-2 mb-2">
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">{% trans "المرجع البنكي / رقم العملية" %}</label>
-                                    <input type="text" name="bank_reference" id="trf_bank_reference" class="form-control form-control-sm" placeholder="مثال: FT2609081234">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label small text-muted mb-1">{% trans "إشعار التحويل البنكي (مرفق)" %}</label>
-                                    <input type="file" name="bank_slip_attachment" id="trf_bank_slip" class="form-control form-control-sm" accept="image/*,.pdf">
-                                </div>
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "العمولة / المصاريف البنكية" %}</label>
-                                    <input type="number" name="bank_fee" id="trf_bank_fee" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00" value="0.00">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "ضريبة القيمة المضافة (14%)" %}</label>
-                                    <input type="number" name="vat_on_fee" id="trf_vat_on_fee" step="0.01" min="0" class="form-control form-control-sm" placeholder="0.00" value="0.00">
-                                </div>
-                                <div class="col-md-4 d-flex align-items-center pt-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="is_fee_vat_inclusive" id="trf_fee_inclusive" value="1">
-                                        <label class="form-check-label small" for="trf_fee_inclusive">
-                                            {% trans "العمولة شاملة الضريبة" %}
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+ <!-- 4. تفاصيل العمليات البنكية (تظهر إذا كان أحد الطرفين حساباً بنكياً) -->
+ <div id="bankDetailsSection" class="inner-section-card mb-3" style="display: none;">
+ <div class="inner-section-header">
+ <i class="fas fa-university text-primary me-2"></i>{% trans "بيانات المعاملة والمصاريف البنكية" %}
+ </div>
+ <div class="p-3">
+ <div class="row g-3 mb-3">
+ <div class="col-md-6">
+ <label class="form-label small text-muted mb-1">{% trans "المرجع البنكي / رقم العملية" %}</label>
+ <input type="text" name="bank_reference" id="trf_bank_reference" class="form-control form-control-sm" placeholder="مثال: FT2609081234">
+ </div>
+ <div class="col-md-6">
+ <label class="form-label small text-muted mb-1">{% trans "إشعار التحويل البنكي (مرفق)" %}</label>
+ <input type="file" name="bank_slip_attachment" id="trf_bank_slip" class="form-control form-control-sm" accept="image/*,.pdf">
+ </div>
+ </div>
+ <div class="row g-3">
+ <div class="col-md-4">
+ <label class="form-label small text-muted mb-1">{% trans "العمولة / المصاريف البنكية" %}</label>
+ <input type="number" name="bank_fee" id="trf_bank_fee" step="any" min="0" class="form-control form-control-sm" placeholder="0" value="0">
+ </div>
+ <div class="col-md-4">
+ <label class="form-label small text-muted mb-1">{% trans "ضريبة القيمة المضافة (14%)" %}</label>
+ <input type="number" name="vat_on_fee" id="trf_vat_on_fee" step="any" min="0" class="form-control form-control-sm" placeholder="0" value="0">
+ </div>
+ <div class="col-md-4 d-flex align-items-center pt-3">
+ <div class="form-check">
+ <input class="form-check-input" type="checkbox" name="is_fee_vat_inclusive" id="trf_fee_inclusive" value="1">
+ <label class="form-check-label small" for="trf_fee_inclusive">
+ {% trans "العمولة شاملة الضريبة" %}
+ </label>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
 
-                    <!-- 5. بيانات مندوب النقل (للتحويلات المرحلية In-Transit) -->
-                    <div id="courierDetailsSection" class="card border mb-3" style="display: none;">
-                        <div class="card-header bg-light py-2 px-3 fw-bold small text-dark">
-                            <i class="fas fa-user-tie text-warning me-1"></i>{% trans "بيانات مندوب / سيارة نقل النقدية بالطريق" %}
-                        </div>
-                        <div class="card-body p-3">
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "اسم المندوب / السائق" %}</label>
-                                    <input type="text" name="courier_name" id="trf_courier_name" class="form-control form-control-sm" placeholder="اسم المستلم للنقل">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "رقم تحقيق الشخصية" %}</label>
-                                    <input type="text" name="courier_id_number" id="trf_courier_id" class="form-control form-control-sm" placeholder="الرقم القومي / الإثبات">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small text-muted mb-1">{% trans "رقم هاتف المندوب" %}</label>
-                                    <input type="text" name="courier_phone" id="trf_courier_phone" class="form-control form-control-sm" placeholder="01xxxxxxxxx">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+ <!-- 5. بيانات مندوب النقل (للتحويلات المرحلية In-Transit) -->
+ <div id="courierDetailsSection" class="inner-section-card mb-3" style="display: none;">
+ <div class="inner-section-header">
+ <i class="fas fa-user-tie text-primary me-2"></i>{% trans "بيانات مندوب / سيارة نقل النقدية بالطريق" %}
+ </div>
+ <div class="p-3">
+ <div class="row g-3">
+ <div class="col-md-4">
+ <label class="form-label small text-muted mb-1">{% trans "اسم المندوب / السائق" %}</label>
+ <input type="text" name="courier_name" id="trf_courier_name" class="form-control form-control-sm" placeholder="اسم المستلم للنقل">
+ </div>
+ <div class="col-md-4">
+ <label class="form-label small text-muted mb-1">{% trans "رقم تحقيق الشخصية" %}</label>
+ <input type="text" name="courier_id_number" id="trf_courier_id" class="form-control form-control-sm" placeholder="الرقم القومي / الإثبات">
+ </div>
+ <div class="col-md-4">
+ <label class="form-label small text-muted mb-1">{% trans "رقم هاتف المندوب" %}</label>
+ <input type="text" name="courier_phone" id="trf_courier_phone" class="form-control form-control-sm" placeholder="01xxxxxxxxx">
+ </div>
+ </div>
+ </div>
+ </div>
 
-                    <!-- 6. فئات النقدية المسلمة (Denominations Accordion) -->
-                    <div class="accordion mb-3" id="denominationsAccordion">
-                        <div class="accordion-item border">
-                            <h2 class="accordion-header" id="headingDenom">
-                                <button class="accordion-button collapsed py-2 px-3 bg-light text-dark fw-bold small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDenom">
-                                    <i class="fas fa-money-bill-wave text-success me-2"></i>{% trans "تفصيل فئات النقدية المسلمة (اختياري للخزن)" %}
-                                    <span id="denomSummaryBadge" class="badge bg-secondary ms-auto me-2">0.00</span>
-                                </button>
-                            </h2>
-                            <div id="collapseDenom" class="accordion-collapse collapse" data-bs-parent="#denominationsAccordion">
-                                <div class="accordion-body p-3 bg-white">
-                                    <div class="row g-2 text-center small">
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">200 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="200" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">100 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="100" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">50 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="50" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">20 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="20" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">10 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="10" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">5 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="5" min="0" placeholder="0">
-                                        </div>
-                                        <div class="col-3 col-md">
-                                            <label class="form-label mb-1 text-muted">1 ج.م</label>
-                                            <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="1" min="0" placeholder="0">
-                                        </div>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top fs-8">
-                                        <span>{% trans "إجمالي الفئات المحسوبة:" %} <strong id="denomCalculatedTotal" class="text-dark">0.00</strong></span>
-                                        <span id="denomMatchStatus" class="badge bg-secondary">{% trans "غير متطابق" %}</span>
-                                    </div>
-                                    <input type="hidden" name="denominations_breakdown" id="trf_denominations_json" value="{}">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+ <!-- 6. فئات النقدية المسلمة (Denominations Accordion) -->
+ <div class="accordion mb-3" id="denominationsAccordion">
+ <div class="accordion-item border rounded">
+ <h2 class="accordion-header" id="headingDenom">
+ <button class="accordion-button collapsed py-2 px-3 bg-light text-dark fw-bold small" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDenom">
+ <i class="fas fa-money-bill-wave text-success me-2"></i>{% trans "تفصيل فئات النقدية المسلمة (اختياري للخزن)" %}
+ <span id="denomSummaryBadge" class="badge bg-secondary ms-auto me-2">0</span>
+ </button>
+ </h2>
+ <div id="collapseDenom" class="accordion-collapse collapse" data-bs-parent="#denominationsAccordion">
+ <div class="accordion-body p-3 bg-white">
+ <div class="row g-3 text-center small">
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">200 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="200" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">100 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="100" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">50 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="50" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">20 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="20" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">10 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="10" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">5 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="5" min="0" placeholder="0">
+ </div>
+ <div class="col-3 col-md">
+ <label class="form-label mb-1 text-muted">1 ج.م</label>
+ <input type="number" class="form-control form-control-sm text-center denom-input" data-denom="1" min="0" placeholder="0">
+ </div>
+ </div>
+ <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top fs-8">
+ <span>{% trans "إجمالي الفئات المحسوبة:" %} <strong id="denomCalculatedTotal" class="text-dark">0</strong></span>
+ <span id="denomMatchStatus" class="badge bg-secondary">{% trans "غير محدد" %}</span>
+ </div>
+ <input type="hidden" name="denominations_breakdown" id="trf_denominations_json" value="{}">
+ </div>
+ </div>
+ </div>
+ </div>
 
-                    <!-- 7. البيان والملاحظات -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-dark">{% trans "بيان وملاحظات التحويل" %}</label>
-                        <textarea name="notes" id="trf_notes" class="form-control" rows="2" placeholder="{% trans 'اكتب الغرض من التحويل المالي أو أي تفاصيل إدارية...' %}"></textarea>
-                    </div>
+ <!-- 7. البيان والملاحظات -->
+ <div class="mb-3">
+ <label class="form-label fw-bold small text-dark">
+ <i class="fas fa-sticky-note text-primary me-1"></i>{% trans "بيان وملاحظات التحويل" %}
+ </label>
+ <textarea name="notes" id="trf_notes" class="form-control" rows="2" placeholder="{% trans 'اكتب الغرض من التحويل المالي أو أي تفاصيل إدارية...' %}"></textarea>
+ </div>
 
-                    <!-- 8. المعاينة المحاسبية اللحظية وقيد اليومية -->
-                    <div id="liveAccountingPreview" class="border rounded p-3 bg-light">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold small text-dark"><i class="fas fa-file-invoice text-primary me-1"></i>{% trans "محاكاة قيد اليومية المتوازن" %}</span>
-                            <span id="trf_tafqeet_text" class="text-primary small fw-bold"></span>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered bg-white mb-0 fs-8 align-middle text-center">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>{% trans "كود الحساب" %}</th>
-                                        <th>{% trans "اسم الحساب" %}</th>
-                                        <th class="text-end" style="width: 110px;">{% trans "مدين (EGP)" %}</th>
-                                        <th class="text-end" style="width: 110px;">{% trans "دائن (EGP)" %}</th>
-                                        <th>{% trans "البيان المحاسبي" %}</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="simulatedLinesTableBody">
-                                    <tr>
-                                        <td colspan="5" class="text-muted py-2">{% trans "أدخل بيانات التحويل للمعاينة المحاسبية اللحظية" %}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+ 
+ </div>
 
-                <div class="modal-footer bg-light border-top px-4 py-3">
-                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                    <button type="submit" id="smartTransferSubmitBtn" class="btn btn-primary px-4 fw-bold">
-                        <i class="fas fa-check-circle me-1"></i>{% trans "تنفيذ وترحيل السند" %}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+ <div class="modal-footer bg-light border-top px-4 py-3">
+ <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+ <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+ </button>
+ <button type="submit" id="smartTransferSubmitBtn" class="btn btn-primary px-4 fw-bold">
+ <i class="fas fa-check-circle me-1"></i>{% trans "تنفيذ وترحيل السند" %}
+ </button>
+ </div>
+ </form>
+ </div>
+ </div>
 </div>
 
 <script>
+// دالة لتنسيق الأرقام بدون علامة عشرية للأرقام الصحيحة ومع فواصل الآلاف
+function formatSmartAmount(val) {
+ if (val === null || val === undefined || val === '') return '0';
+ var num = parseFloat(val);
+ if (isNaN(num)) return val;
+ if (num % 1 === 0) {
+ return num.toLocaleString('en-US');
+ }
+ // للأرقام التي تحتوي على كسور فعلية: عرض الكسور بدون أصفار زائدة
+ var formatted = parseFloat(num.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+ return formatted;
+}
+
 window.initSmartCashTransferModal = function() {
-    var $modal = $('#smartCashTransferModal');
-    var $form = $('#smartCashTransferForm');
-    var previewTimeout = null;
+ var $modal = $('#smartCashTransferModal');
+ var $form = $('#smartCashTransferForm');
+ var previewTimeout = null;
 
-    if ($.fn.select2) {
-        $modal.find('.select2-modal').select2({
-            dropdownParent: $modal,
-            dir: 'rtl',
-            language: 'ar',
-            width: '100%'
-        });
-    }
+ if ($.fn.select2) {
+ $modal.find('.select2-modal').select2({
+ dropdownParent: $modal,
+ dir: 'rtl',
+ language: 'ar',
+ width: '100%'
+ });
+ }
 
-    // تبديل نمط التحويل (مباشر vs مرحلي)
-    $('input[name="transfer_type"]').on('change', function() {
-        var isTransit = $(this).val() === 'in_transit';
-        $('#courierDetailsSection').toggle(isTransit);
-        triggerPreview();
-    });
+ // تبديل نمط التحويل (مباشر vs مرحلي)
+ $('input[name="transfer_type"]').on('change', function() {
+ var isTransit = $(this).val() === 'in_transit';
+ $('#courierDetailsSection').toggle(isTransit);
+ triggerPreview();
+ });
 
-    // مراقبة الحسابات المختارة
-    $('#trf_from_account, #trf_to_account').on('change', function() {
-        var $fromOpt = $('#trf_from_account').find(':selected');
-        var $toOpt = $('#trf_to_account').find(':selected');
+ // مراقبة الحسابات المختارة
+ $('#trf_from_account, #trf_to_account').on('change', function() {
+ var $fromOpt = $('#trf_from_account').find(':selected');
+ var $toOpt = $('#trf_to_account').find(':selected');
 
-        var fromBalance = $fromOpt.data('balance') || '0.00';
-        var fromSymbol = $fromOpt.data('currency-symbol') || 'ج.م';
-        var fromCode = $fromOpt.data('currency-code') || '';
-        var toCode = $toOpt.data('currency-code') || '';
-        var isFromBank = $fromOpt.data('is-bank') == '1';
-        var isToBank = $toOpt.data('is-bank') == '1';
+ var fromBalance = $fromOpt.data('balance') || 0;
+ var fromSymbol = $fromOpt.data('currency-symbol') || 'ج.م';
+ var fromCode = $fromOpt.data('currency-code') || '';
+ var toCode = $toOpt.data('currency-code') || '';
+ var isFromBank = $fromOpt.data('is-bank') == '1';
+ var isToBank = $toOpt.data('is-bank') == '1';
 
-        $('#trf_from_balance').text(fromBalance + ' ' + fromSymbol);
-        $('#trf_source_currency_symbol').text(fromSymbol);
+ $('#trf_from_balance').text(formatSmartAmount(fromBalance) + ' ' + fromSymbol);
+ $('#trf_source_currency_symbol').text(fromSymbol);
 
-        // إظهار كارت العملات المتعددة إذا اختلفت العملتان
-        if (fromCode && toCode && fromCode !== toCode) {
-            $('#crossCurrencyCard').slideDown(200);
-        } else {
-            $('#crossCurrencyCard').slideUp(200);
-        }
+ // إظهار كارت العملات المتعددة إذا اختلفت العملتان
+ if (fromCode && toCode && fromCode !== toCode) {
+ $('#crossCurrencyCard').slideDown(200);
+ } else {
+ $('#crossCurrencyCard').slideUp(200);
+ }
 
-        // إظهار قسم البنك إذا كان أحدهما حساباً بنكياً
-        if (isFromBank || isToBank) {
-            $('#bankDetailsSection').slideDown(200);
-        } else {
-            $('#bankDetailsSection').slideUp(200);
-        }
+ // إظهار قسم البنك إذا كان أحدهما حساباً بنكياً
+ if (isFromBank || isToBank) {
+ $('#bankDetailsSection').slideDown(200);
+ } else {
+ $('#bankDetailsSection').slideUp(200);
+ }
 
-        triggerPreview();
-    });
+ triggerPreview();
+ });
 
-    // مراقبة المدخلات الرقمية للمعاينة
-    $('#trf_amount, #trf_exchange_rate, #trf_bank_fee, #trf_vat_on_fee, #trf_date, #trf_fee_inclusive').on('input change', function() {
-        triggerPreview();
-    });
+ // مراقبة المدخلات الرقمية للمعاينة
+ $('#trf_amount, #trf_exchange_rate, #trf_bank_fee, #trf_vat_on_fee, #trf_date, #trf_fee_inclusive').on('input change', function() {
+ triggerPreview();
+ });
 
-    function triggerPreview() {
-        clearTimeout(previewTimeout);
-        previewTimeout = setTimeout(executeLivePreview, 300);
-    }
+ function triggerPreview() {
+ clearTimeout(previewTimeout);
+ previewTimeout = setTimeout(executeLivePreview, 300);
+ }
 
-    function executeLivePreview() {
-        var fromId = $('#trf_from_account').val();
-        var toId = $('#trf_to_account').val();
-        var amount = $('#trf_amount').val();
-        if (!fromId || !toId || !amount || parseFloat(amount) <= 0) {
-            return;
-        }
+ function executeLivePreview() {
+ var fromId = $('#trf_from_account').val();
+ var toId = $('#trf_to_account').val();
+ var amount = $('#trf_amount').val();
+ if (!fromId || !toId || !amount || parseFloat(amount) <= 0) {
+ return;
+ }
 
-        var formData = {
-            from_account: fromId,
-            to_account: toId,
-            amount: amount,
-            exchange_rate: $('#trf_exchange_rate').val(),
-            bank_fee: $('#trf_bank_fee').val(),
-            vat_on_fee: $('#trf_vat_on_fee').val(),
-            transfer_type: $('input[name="transfer_type"]:checked').val(),
-            transfer_date: $('#trf_date').val(),
-            csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
-        };
+ var formData = {
+ from_account: fromId,
+ to_account: toId,
+ amount: amount,
+ exchange_rate: $('#trf_exchange_rate').val(),
+ bank_fee: $('#trf_bank_fee').val(),
+ vat_on_fee: $('#trf_vat_on_fee').val(),
+ transfer_type: $('input[name="transfer_type"]:checked').val(),
+ transfer_date: $('#trf_date').val(),
+ csrfmiddlewaretoken: $('input[name="csrfmiddlewaretoken"]').val()
+ };
 
-        $.ajax({
-            url: '{% url "financial:transfer_preview_api" %}',
-            type: 'POST',
-            data: formData,
-            success: function(res) {
-                if (res.success && res.preview) {
-                    var p = res.preview;
-                    $('#trf_dest_amount_preview').val(p.destination_amount + ' ' + p.destination_currency);
-                    if (!$('#trf_exchange_rate').val() || $('#trf_exchange_rate').val() == '1.000000') {
-                        $('#trf_exchange_rate').val(p.effective_exchange_rate);
-                    }
+ $.ajax({
+ url: '{% url "financial:transfer_preview_api" %}',
+ type: 'POST',
+ data: formData,
+ success: function(res) {
+ if (res.success && res.preview) {
+ var p = res.preview;
+ $('#trf_dest_amount_preview').val(formatSmartAmount(p.destination_amount) + ' ' + p.destination_currency);
+ if (!$('#trf_exchange_rate').val() || $('#trf_exchange_rate').val() == '1' || $('#trf_exchange_rate').val() == '1.000000') {
+ $('#trf_exchange_rate').val(formatSmartAmount(p.effective_exchange_rate));
+ }
 
-                    // شارة الفروق
-                    if (p.fx_type === 'gain') {
-                        $('#trf_fx_badge').removeClass('bg-secondary bg-danger').addClass('bg-success').text('+' + p.fx_gain_loss + ' ج.م (أرباح صرافة)');
-                    } else if (p.fx_type === 'loss') {
-                        $('#trf_fx_badge').removeClass('bg-secondary bg-success').addClass('bg-danger').text(p.fx_gain_loss + ' ج.م (خسائر صرافة)');
-                    } else if (p.penny_difference !== 0) {
-                        $('#trf_fx_badge').removeClass('bg-success bg-danger').addClass('bg-info').text(p.penny_difference + ' ج.م (فروق تقريب 54400)');
-                    } else {
-                        $('#trf_fx_badge').removeClass('bg-success bg-danger bg-info').addClass('bg-secondary').text('متطابق تماماً');
-                    }
+ // شارة الفروق
+ if (p.fx_type === 'gain') {
+ $('#trf_fx_badge').removeClass('bg-secondary bg-danger').addClass('bg-success').text('+' + formatSmartAmount(p.fx_gain_loss) + ' ج.م (أرباح صرافة)');
+ } else if (p.fx_type === 'loss') {
+ $('#trf_fx_badge').removeClass('bg-secondary bg-success').addClass('bg-danger').text(formatSmartAmount(p.fx_gain_loss) + ' ج.م (خسائر صرافة)');
+ } else if (p.penny_difference !== 0) {
+ $('#trf_fx_badge').removeClass('bg-success bg-danger').addClass('bg-info').text(formatSmartAmount(p.penny_difference) + ' ج.م (فروق تقريب)');
+ } else {
+ $('#trf_fx_badge').removeClass('bg-success bg-danger bg-info').addClass('bg-secondary').text('متطابق تماماً');
+ }
 
-                    // التفقيط
-                    $('#trf_tafqeet_text').text(p.amount_in_words);
+ // التفقيط
+ $('#trf_tafqeet_text').text(p.amount_in_words);
 
-                    // جدول القيود
-                    var linesHtml = '';
-                    p.simulated_lines.forEach(function(l) {
-                        linesHtml += '<tr>' +
-                            '<td class="font-monospace fw-bold">' + l.account_code + '</td>' +
-                            '<td>' + l.account_name + '</td>' +
-                            '<td class="text-end fw-bold text-success">' + (l.debit > 0 ? l.debit.toFixed(2) : '-') + '</td>' +
-                            '<td class="text-end fw-bold text-danger">' + (l.credit > 0 ? l.credit.toFixed(2) : '-') + '</td>' +
-                            '<td class="text-muted fs-8">' + l.description + '</td>' +
-                            '</tr>';
-                    });
-                    $('#simulatedLinesTableBody').html(linesHtml);
-                }
-            }
-        });
-    }
+ 
+ }
+ }
+ });
+ }
 
-    // حساب فئات النقدية
-    $('.denom-input').on('input', function() {
-        var breakdown = {};
-        var total = 0;
-        $('.denom-input').each(function() {
-            var d = $(this).data('denom');
-            var qty = parseInt($(this).val(), 10) || 0;
-            if (qty > 0) {
-                breakdown[d] = qty;
-                total += (d * qty);
-            }
-        });
-        $('#trf_denominations_json').val(JSON.stringify(breakdown));
-        $('#denomCalculatedTotal, #denomSummaryBadge').text(total.toFixed(2) + ' ج.م');
+ // حساب فئات النقدية
+ $('.denom-input').on('input', function() {
+ var breakdown = {};
+ var total = 0;
+ $('.denom-input').each(function() {
+ var d = $(this).data('denom');
+ var qty = parseInt($(this).val(), 10) || 0;
+ if (qty > 0) {
+ breakdown[d] = qty;
+ total += (d * qty);
+ }
+ });
+ $('#trf_denominations_json').val(JSON.stringify(breakdown));
+ $('#denomCalculatedTotal, #denomSummaryBadge').text(formatSmartAmount(total) + ' ج.م');
 
-        var transferAmt = parseFloat($('#trf_amount').val()) || 0;
-        if (total > 0 && Math.abs(total - transferAmt) < 0.01) {
-            $('#denomMatchStatus').removeClass('bg-secondary bg-danger').addClass('bg-success').text('متطابق تماماً مع المبلغ');
-        } else if (total > 0) {
-            $('#denomMatchStatus').removeClass('bg-secondary bg-success').addClass('bg-danger').text('غير متطابق (فارق: ' + (transferAmt - total).toFixed(2) + ')');
-        } else {
-            $('#denomMatchStatus').removeClass('bg-success bg-danger').addClass('bg-secondary').text('غير محدد');
-        }
-    });
+ var transferAmt = parseFloat($('#trf_amount').val()) || 0;
+ if (total > 0 && Math.abs(total - transferAmt) < 0.01) {
+ $('#denomMatchStatus').removeClass('bg-secondary bg-danger').addClass('bg-success').text('متطابق تماماً مع المبلغ');
+ } else if (total > 0) {
+ $('#denomMatchStatus').removeClass('bg-secondary bg-success').addClass('bg-danger').text('غير متطابق (فارق: ' + formatSmartAmount(Math.abs(transferAmt - total)) + ')');
+ } else {
+ $('#denomMatchStatus').removeClass('bg-success bg-danger').addClass('bg-secondary').text('غير محدد');
+ }
+ });
 
-    // إرسال الفورم وحفظ السند
-    $form.on('submit', function(e) {
-        e.preventDefault();
-        var $btn = $('#smartTransferSubmitBtn');
-        var origText = $btn.html();
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الترحيل والحفظ...');
+ // إرسال الفورم وحفظ السند
+ $form.on('submit', function(e) {
+ e.preventDefault();
+ var $btn = $('#smartTransferSubmitBtn');
+ var origText = $btn.html();
+ $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الترحيل والحفظ...');
 
-        var formData = new FormData(this);
+ var formData = new FormData(this);
 
-        $.ajax({
-            url: '{% url "financial:transfer_create_api" %}',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(res) {
-                if (res.success) {
-                    $modal.modal('hide');
-                    if (window.showNotification) {
-                        window.showNotification(res.message, 'success', 'تم الترحيل بنجاح');
-                    }
-                    setTimeout(function() {
-                        if (res.redirect_url) {
-                            window.location.href = res.redirect_url;
-                        } else {
-                            location.reload();
-                        }
-                    }, 3100);
-                } else {
-                    if (window.showNotification) {
-                        window.showNotification(res.error, 'error');
-                    }
-                    $btn.prop('disabled', false).html(origText);
-                }
-            },
-            error: function(xhr) {
-                var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تنفيذ سند التحويل';
-                if (window.showNotification) {
-                    window.showNotification(errorMsg, 'error');
-                }
-                $btn.prop('disabled', false).html(origText);
-            }
-        });
-    });
+ $.ajax({
+ url: '{% url "financial:transfer_create_api" %}',
+ type: 'POST',
+ data: formData,
+ processData: false,
+ contentType: false,
+ success: function(res) {
+ if (res.success) {
+ $modal.modal('hide');
+ if (window.showNotification) {
+ window.showNotification(res.message, 'success', 'تم الترحيل بنجاح');
+ }
+ setTimeout(function() {
+ if (res.redirect_url) {
+ window.location.href = res.redirect_url;
+ } else {
+ location.reload();
+ }
+ }, 3100);
+ } else {
+ if (window.showNotification) {
+ window.showNotification(res.error, 'error');
+ }
+ $btn.prop('disabled', false).html(origText);
+ }
+ },
+ error: function(xhr) {
+ var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'فشل تنفيذ سند التحويل';
+ if (window.showNotification) {
+ window.showNotification(errorMsg, 'error');
+ }
+ $btn.prop('disabled', false).html(origText);
+ }
+ });
+ });
 };
 
 window.openSmartTransferModalFor = function(accountId) {
-    var $modal = $('#smartCashTransferModal');
-    if (accountId) {
-        $('#trf_from_account').val(accountId).trigger('change');
-    }
-    $modal.modal('show');
+ if (typeof jQuery !== 'undefined') {
+ var $modal = $('#smartCashTransferModal');
+ if (accountId) {
+ $('#trf_from_account').val(accountId).trigger('change');
+ }
+ $modal.modal('show');
+ }
 };
 
-$(document).ready(function() {
-    window.initSmartCashTransferModal();
+document.addEventListener('DOMContentLoaded', function() {
+ if (typeof jQuery !== 'undefined' && typeof window.initSmartCashTransferModal === 'function') {
+ window.initSmartCashTransferModal();
+ }
 });
 </script>
