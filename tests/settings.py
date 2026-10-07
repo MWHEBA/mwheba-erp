@@ -4,9 +4,8 @@
 from corporate_erp.settings import *
 import os
 
-# قاعدة بيانات للاختبارات - استخدام نفس MySQL
-# لكن مع اسم قاعدة بيانات مختلفة للاختبارات
-if env("DB_ENGINE", default="sqlite") == "mysql":
+# قاعدة بيانات للاختبارات - استخدام SQLite بشكل افتراضي لتسريع الاختبارات
+if os.environ.get("TEST_DB_ENGINE") == "mysql":
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -31,17 +30,17 @@ if env("DB_ENGINE", default="sqlite") == "mysql":
         }
     }
 else:
-    # Fallback to SQLite for local testing
+    # Default: Fast In-Memory SQLite for local and CI pytest execution
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': 'test_db.sqlite3',
+            'NAME': ':memory:',
             'ATOMIC_REQUESTS': True,
             'OPTIONS': {
                 'timeout': 20,
             },
             'TEST': {
-                'NAME': 'test_db.sqlite3',
+                'NAME': ':memory:',
             }
         }
     }

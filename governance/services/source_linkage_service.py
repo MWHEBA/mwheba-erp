@@ -48,6 +48,7 @@ class SourceLinkageService:
         'purchase.SupplierBill',  # Supplier Bill (FIN-PUR-001)
         'purchase.PurchaseOrder',  # Purchase Order
         'financial.RevenueRecognitionSchedule',  # Revenue Recognition Schedule
+        'financial.CashTransfer',  # Central Cash & Bank Transfers
         'hr.PayrollRun',  # Payroll Run
         'product.LandedCostDocument',  # Landed Cost
         'product.BatchVoucher',  # Added for batch vouchers

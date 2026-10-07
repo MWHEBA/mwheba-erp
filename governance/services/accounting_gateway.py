@@ -149,6 +149,7 @@ class AccountingGateway:
         'financial.PettyCashSettlement',
         'financial.CustodyTransfer',
         'financial.PettyCashCount',
+        'financial.CashTransfer',
         'hr.EmployeeAssetCustody',
         'hr.EmployeeAssetTransfer',
     }
@@ -531,7 +532,7 @@ class AccountingGateway:
         """
         with DatabaseLockManager.atomic_operation():
             # Validate and prepare data
-            validated_lines = self._validate_and_prepare_lines(lines)
+            validated_lines = self._validate_and_prepare_lines(lines, source_info=source_info)
             self._validate_treasury_permissions(validated_lines, user, source_info)
             entry_date = date or timezone.now().date()
             
@@ -742,7 +743,7 @@ class AccountingGateway:
             if credit_amt > Decimal('0.00'):
                 TreasurySecurityService.enforce_disbursement(user, acc.id, amount=credit_amt)
     
-    def _validate_and_prepare_lines(self, lines: List[JournalEntryLineData]) -> List[Dict]:
+    def _validate_and_prepare_lines(self, lines: List[JournalEntryLineData], source_info=None) -> List[Dict]:
         """
         Validate journal entry lines and prepare them for database insertion.
         
@@ -852,7 +853,7 @@ class AccountingGateway:
                 }
             )
 
-        # الحظر الحوكمي الصارم: حظر القيود المباشرة بين حسابين خزينة/بنك بعملات مختلفة
+        # الحظر الحوكمي الصارم: حظر القيود المباشرة بين حسابين خزينة/بنك بعملات مختلفة إلا لسندات التحويل المالي المعتمدة
         treasury_lines = [
             l for l in validated_lines
             if (getattr(l['account'], 'is_cash_account', False) or 
@@ -860,7 +861,11 @@ class AccountingGateway:
                 (l['account'].account_type and l['account'].account_type.category in ['cash', 'bank', 'treasury']))
         ]
 
-        if len(treasury_lines) >= 2:
+        is_cash_transfer = source_info and (
+            f"{source_info.module}.{source_info.model}" == "financial.CashTransfer" or 
+            getattr(source_info, 'model', '') == "CashTransfer"
+        )
+        if not is_cash_transfer and len(treasury_lines) >= 2:
             currencies = set()
             for t_line in treasury_lines:
                 curr = t_line.get('currency') or (t_line['account'].currency.code if getattr(t_line['account'], 'currency', None) else 'EGP')

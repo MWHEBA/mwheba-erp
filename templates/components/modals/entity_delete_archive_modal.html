@@ -8,8 +8,9 @@
             <!-- Modal Header -->
             <div class="modal-header bg-light border-bottom px-4 py-3">
                 <h5 class="modal-title fw-bold text-dark mb-0" id="entityDeleteArchiveModalLabel">
-                    <i class="fas fa-trash-alt text-danger me-2" id="entityModalIcon"></i>
-                    <span id="entityModalTitle">{% trans "تأكيد الإجراء" %}</span>
+                    <span id="entityModalHeaderContent">
+                        <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "فحص حالة السجل" %}
+                    </span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
             </div>
@@ -29,7 +30,9 @@
                     <!-- Alert Notice Box -->
                     <div class="alert mb-3" id="entityModalAlert" role="alert">
                         <div class="d-flex align-items-start">
-                            <i class="fas fa-exclamation-triangle fa-lg me-2 mt-1" id="entityAlertIcon"></i>
+                            <span id="entityAlertIconWrapper" class="me-2 mt-1">
+                                <i class="fas fa-exclamation-triangle fa-lg"></i>
+                            </span>
                             <div>
                                 <strong id="entityAlertTitle"></strong>
                                 <div class="small mt-1" id="entityAlertMessage"></div>
@@ -62,7 +65,7 @@
                     <!-- Transaction Summary Breakdown (For Archived entities) -->
                     <div id="entityTransactionsBreakdown" class="mb-3" style="display: none;">
                         <h6 class="fw-bold text-secondary small mb-2">
-                            <i class="fas fa-link me-1"></i> {% trans "سجل المعاملات والارتباطات القائمة:" %}
+                            <i class="fas fa-link me-1 text-primary"></i> {% trans "سجل المعاملات والارتباطات القائمة:" %}
                         </h6>
                         <div class="d-flex flex-wrap gap-2" id="entityBreakdownBadges">
                             <!-- Badges injected dynamically via JS -->
@@ -77,8 +80,8 @@
                     <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
                 </button>
                 <button type="button" class="btn px-4 fw-bold" id="entityConfirmSubmitBtn" disabled>
-                    <i class="fas fa-check me-1" id="entitySubmitIcon"></i>
-                    <span id="entitySubmitText">{% trans "تأكيد" %}</span>
+                    <i class="fas fa-check me-1"></i>
+                    <span>{% trans "تأكيد" %}</span>
                 </button>
             </div>
         </div>
@@ -100,7 +103,9 @@ window.EntityDeleteArchiveController = (function() {
 
     function getCsrfToken() {
         const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (tokenInput) return tokenInput.value;
+        if (tokenInput && tokenInput.value) return tokenInput.value;
+        const metaTag = document.querySelector('meta[name="csrf-token"]');
+        if (metaTag && metaTag.getAttribute('content')) return metaTag.getAttribute('content');
         const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
         return cookie ? cookie.split('=')[1] : '';
     }
@@ -111,6 +116,22 @@ window.EntityDeleteArchiveController = (function() {
         const modalEl = document.getElementById('entityDeleteArchiveModal');
         if (!modalEl) return;
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        const loadingEl = document.getElementById('entityModalLoading');
+        const contentEl = document.getElementById('entityModalContent');
+        const submitBtn = document.getElementById('entityConfirmSubmitBtn');
+        const headerContent = document.getElementById('entityModalHeaderContent');
+
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (contentEl) contentEl.style.display = 'none';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.className = 'btn btn-secondary px-4 fw-bold';
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> <span>جاري الفحص...</span>';
+        }
+        if (headerContent) {
+            headerContent.innerHTML = '<i class="fas fa-shield-alt text-primary me-2"></i>فحص حالة السجل';
+        }
 
         // Perform AJAX Pre-check FIRST before opening the modal to prevent backdrop glitches and flicker
         const precheckUrl = currentConfig.deleteUrl + (currentConfig.deleteUrl.includes('?') ? '&' : '?') + 'precheck=1';
@@ -130,13 +151,16 @@ window.EntityDeleteArchiveController = (function() {
                 const errorMsg = (errorData && (errorData.message || errorData.error)) 
                     ? (errorData.message || errorData.error) 
                     : (response.status === 403 ? 'غير مصرح لك بتنفيذ هذا الإجراء.' : 'HTTP error ' + response.status);
-                throw new Error(errorMsg);
+                const title = response.status === 403 ? 'غير مصرح' : 'تنبيه';
+                const err = new Error(errorMsg);
+                err.title = title;
+                throw err;
             }
             return response.json();
         })
         .then(data => {
             if (!data.success) {
-                const msg = data.message || 'فشل فحص الكيان';
+                const msg = data.message || 'فشل فحص سجلات الكيان';
                 if (window.showNotification) {
                     window.showNotification(msg, 'error', 'تنبيه');
                 } else if (window.toastr) {
@@ -151,9 +175,10 @@ window.EntityDeleteArchiveController = (function() {
         })
         .catch(err => {
             console.error('Error pre-checking entity:', err);
-            const userMsg = err.message && !err.message.startsWith('HTTP error') ? err.message : 'حدث خطأ أثناء فحص سجلات الكيان';
+            const userMsg = (err && err.message && !err.message.startsWith('HTTP error')) ? err.message : 'حدث خطأ أثناء فحص سجلات الكيان';
+            const alertTitle = (err && err.title) ? err.title : 'تنبيه';
             if (window.showNotification) {
-                window.showNotification(userMsg, 'error', 'غير مصرح');
+                window.showNotification(userMsg, 'error', alertTitle);
             } else if (window.toastr) {
                 window.toastr.error(userMsg);
             }
@@ -161,8 +186,10 @@ window.EntityDeleteArchiveController = (function() {
     }
 
     function renderModalContent(data) {
-        document.getElementById('entityModalLoading').style.display = 'none';
-        document.getElementById('entityModalContent').style.display = 'block';
+        const loadingEl = document.getElementById('entityModalLoading');
+        const contentEl = document.getElementById('entityModalContent');
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (contentEl) contentEl.style.display = 'block';
 
         const nameEl = document.getElementById('entityInfoName');
         const codeEl = document.getElementById('entityInfoCode');
@@ -176,89 +203,101 @@ window.EntityDeleteArchiveController = (function() {
         const alertBox = document.getElementById('entityModalAlert');
         const alertTitle = document.getElementById('entityAlertTitle');
         const alertMsg = document.getElementById('entityAlertMessage');
-        const alertIcon = document.getElementById('entityAlertIcon');
-        const modalIcon = document.getElementById('entityModalIcon');
-        const modalTitle = document.getElementById('entityModalTitle');
+        const alertIconWrapper = document.getElementById('entityAlertIconWrapper');
+        const headerContent = document.getElementById('entityModalHeaderContent');
         const submitBtn = document.getElementById('entityConfirmSubmitBtn');
-        const submitIcon = document.getElementById('entitySubmitIcon');
-        const submitText = document.getElementById('entitySubmitText');
 
-        nameEl.textContent = data.name || '-';
-        if (data.code) {
-            codeEl.textContent = data.code;
-            codeRow.style.display = 'flex';
-        } else {
-            codeRow.style.display = 'none';
-        }
-
-        if (data.debt_display) {
-            debtEl.innerHTML = data.debt_display;
-            debtEl.className = 'badge ' + (data.has_debt ? 'bg-danger' : 'bg-secondary');
-            debtRow.style.display = 'flex';
-        } else {
-            debtRow.style.display = 'none';
-        }
-
-        if (data.prepaid_display) {
-            prepaidEl.innerHTML = data.prepaid_display;
-            prepaidRow.style.display = 'flex';
-        } else {
-            prepaidRow.style.display = 'none';
-        }
-
-        currentConfig.canDelete = data.can_delete;
-
-        if (data.can_delete) {
-            // HARD DELETE MODE
-            modalIcon.className = 'fas fa-trash-alt text-danger me-2';
-            modalTitle.textContent = 'تأكيد الحذف النهائي';
-            alertBox.className = 'alert alert-danger mb-3';
-            alertIcon.className = 'fas fa-trash-alt fa-lg me-2 mt-1 text-danger';
-            alertTitle.textContent = 'تحذير: حذف نهائي من قاعدة البيانات';
-            alertMsg.textContent = 'هذا السجل جديد وخالٍ تماماً من أي معاملات سابقة. سيتم مسح السجل وتطهير الحساب المالي المرتبط من شجرة الحسابات نهائياً.';
-            
-            submitBtn.className = 'btn btn-danger px-4 fw-bold';
-            submitIcon.className = 'fas fa-trash-alt me-1';
-            submitText.textContent = 'تأكيد الحذف النهائي';
-            breakdownDiv.style.display = 'none';
-        } else {
-            // SOFT ARCHIVE MODE
-            modalIcon.className = 'fas fa-archive text-warning me-2';
-            modalTitle.textContent = 'أرشفة وتعطيل السجل';
-            alertBox.className = 'alert alert-warning mb-3';
-            alertIcon.className = 'fas fa-info-circle fa-lg me-2 mt-1 text-warning';
-            alertTitle.textContent = 'تنبيه: لا يمكن الحذف الجذري لحماية القيود المحاسبية';
-            alertMsg.textContent = 'هذا السجل مرتبط بمعاملات محاسبية أو فواتير سابقة. سيتم تعطيله وأرشفته فوراً لمنع استخدامه في المعاملات الجديدة مع بقاء دفاتره سليمة.';
-            
-            submitBtn.className = 'btn btn-warning text-dark px-4 fw-bold';
-            submitIcon.className = 'fas fa-archive me-1';
-            submitText.textContent = 'أرشفة وتعطيل السجل';
-
-            // Populate Breakdown Badges
-            badgesContainer.innerHTML = '';
-            if (data.transactions_summary && Array.isArray(data.transactions_summary)) {
-                data.transactions_summary.forEach(item => {
-                    const badge = document.createElement('span');
-                    badge.className = 'badge bg-white text-dark border p-2';
-                    badge.innerHTML = `<i class="${item.icon || 'fas fa-circle'} text-primary me-1"></i> ${item.label}: <strong>${item.count}</strong>`;
-                    badgesContainer.appendChild(badge);
-                });
-                breakdownDiv.style.display = 'block';
+        if (nameEl) nameEl.textContent = data.name || '-';
+        if (codeEl && codeRow) {
+            if (data.code) {
+                codeEl.textContent = data.code;
+                codeRow.style.display = 'flex';
             } else {
-                breakdownDiv.style.display = 'none';
+                codeRow.style.display = 'none';
             }
         }
 
-        submitBtn.disabled = false;
+        if (debtEl && debtRow) {
+            if (data.debt_display) {
+                debtEl.innerHTML = data.debt_display;
+                debtEl.className = 'badge ' + (data.has_debt ? 'bg-danger' : 'bg-secondary');
+                debtRow.style.display = 'flex';
+            } else {
+                debtRow.style.display = 'none';
+            }
+        }
+
+        if (prepaidEl && prepaidRow) {
+            if (data.prepaid_display) {
+                prepaidEl.innerHTML = data.prepaid_display;
+                prepaidRow.style.display = 'flex';
+            } else {
+                prepaidRow.style.display = 'none';
+            }
+        }
+
+        currentConfig.canDelete = !!data.can_delete;
+
+        if (data.can_delete) {
+            // HARD DELETE MODE
+            if (headerContent) {
+                headerContent.innerHTML = '<i class="fas fa-trash-alt text-danger me-2"></i>تأكيد الحذف النهائي';
+            }
+            if (alertBox) alertBox.className = 'alert alert-danger mb-3';
+            if (alertIconWrapper) alertIconWrapper.innerHTML = '<i class="fas fa-trash-alt fa-lg text-danger"></i>';
+            if (alertTitle) alertTitle.textContent = 'تحذير: حذف نهائي من قاعدة البيانات';
+            if (alertMsg) alertMsg.textContent = 'هذا السجل جديد وخالٍ تماماً من أي معاملات سابقة. سيتم مسح السجل وتطهير الحساب المالي المرتبط من شجرة الحسابات نهائياً.';
+            
+            if (submitBtn) {
+                submitBtn.className = 'btn btn-danger px-4 fw-bold';
+                submitBtn.innerHTML = '<i class="fas fa-trash-alt me-1"></i><span>تأكيد الحذف النهائي</span>';
+                submitBtn.disabled = false;
+            }
+            if (breakdownDiv) breakdownDiv.style.display = 'none';
+        } else {
+            // SOFT ARCHIVE MODE
+            if (headerContent) {
+                headerContent.innerHTML = '<i class="fas fa-archive text-warning me-2"></i>أرشفة وتعطيل السجل';
+            }
+            if (alertBox) alertBox.className = 'alert alert-warning mb-3';
+            if (alertIconWrapper) alertIconWrapper.innerHTML = '<i class="fas fa-info-circle fa-lg text-warning"></i>';
+            if (alertTitle) alertTitle.textContent = 'تنبيه: لا يمكن الحذف الجذري لوجود معاملات مرتبطة';
+            if (alertMsg) alertMsg.textContent = 'هذا السجل مرتبط بمعاملات أو فواتير أو قيود محاسبية سابقة. لحماية سلامة الدفاتر وتوازن الحسابات، سيتم نقله إلى الأرشيف وتعطيله فوراً لمنع استخدامه في أي معاملات جديدة.';
+            
+            if (submitBtn) {
+                submitBtn.className = 'btn btn-warning text-dark px-4 fw-bold';
+                submitBtn.innerHTML = '<i class="fas fa-archive me-1"></i><span>تأكيد الأرشفة والتعطيل</span>';
+                submitBtn.disabled = false;
+            }
+
+            // Populate Breakdown Badges
+            if (badgesContainer) {
+                badgesContainer.innerHTML = '';
+                if (data.transactions_summary && Array.isArray(data.transactions_summary) && data.transactions_summary.length > 0) {
+                    data.transactions_summary.forEach(item => {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge bg-white text-dark border shadow-sm p-2 px-3 rounded-2';
+                        badge.innerHTML = `<i class="${item.icon || 'fas fa-circle'} text-primary me-1"></i> ${item.label}: <strong>${item.count}</strong>`;
+                        badgesContainer.appendChild(badge);
+                    });
+                    if (breakdownDiv) breakdownDiv.style.display = 'block';
+                } else {
+                    if (breakdownDiv) breakdownDiv.style.display = 'none';
+                }
+            }
+        }
     }
 
     function submitAction() {
         const submitBtn = document.getElementById('entityConfirmSubmitBtn');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> جاري التنفيذ...';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> جاري التنفيذ...';
+        }
 
         const formData = new FormData();
-        formData.append('csrfmiddlewaretoken', getCsrfToken());
+        const csrfToken = getCsrfToken();
+        formData.append('csrfmiddlewaretoken', csrfToken);
         formData.append('action', currentConfig.canDelete ? 'delete' : 'archive');
 
         fetch(currentConfig.deleteUrl, {
@@ -266,7 +305,7 @@ window.EntityDeleteArchiveController = (function() {
             body: formData,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': getCsrfToken()
+                'X-CSRFToken': csrfToken
             }
         })
         .then(async response => {
@@ -329,8 +368,10 @@ window.EntityDeleteArchiveController = (function() {
                 } else if (window.toastr) {
                     window.toastr.error(data.message || 'فشلت العملية');
                 }
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'إعادة المحاولة';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-redo me-1"></i><span>إعادة المحاولة</span>';
+                }
             }
         })
         .catch(err => {
@@ -340,8 +381,10 @@ window.EntityDeleteArchiveController = (function() {
             } else if (window.toastr) {
                 window.toastr.error('حدث خطأ أثناء تنفيذ الإجراء');
             }
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'إعادة المحاولة';
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-redo me-1"></i><span>إعادة المحاولة</span>';
+            }
         });
     }
 

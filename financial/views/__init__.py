@@ -285,4 +285,20 @@ from .currency_views import (
     fx_revaluation_view,
 )
 
+# من cash_transfer_views.py
+from .cash_transfer_views import (
+    transfer_preview_api,
+    transfer_create_api,
+    transfer_between_accounts,
+    transfer_receive_api,
+    transfer_recall_api,
+    transfer_reverse_api,
+    transfer_detail_api,
+    cash_transfers_list_view,
+    cash_transfer_create_view,
+    cash_transfer_detail_view,
+    transfer_voucher_print_view,
+)
+
+
 

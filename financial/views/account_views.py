@@ -304,19 +304,34 @@ def get_parent_accounts_by_type(request):
 
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
 def quick_add_cash_bank_account(request):
     """
-    API endpoint لإضافة خزنة أو بنك بشكل سريع ومبسط مع دعم العملات والقيد الافتتاحي
+    API endpoint لإضافة خزنة، حساب بنكي، أو صندوق عهدة بشكل سريع ومحوكم
+    مع دعم العملات المتعددة، السحب على المكشوف، القيد الافتتاحي عبر AccountingGateway،
+    والإسناد التلقائي للصلاحيات وسجل تاريخ العهدة.
     """
     try:
         from decimal import Decimal
         from datetime import datetime
+        from django.db.models import Q
         from financial.models.currency import Currency
         from financial.services.exchange_rate_service import ExchangeRateService
-        from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
-        from financial.services.ledger_core_service import LedgerCoreService
+        from financial.services.subledger_account_service import SubledgerAccountService
+        from financial.services.role_registry import AccountRoleRegistry
+        from financial.services.treasury_security_service import TreasurySecurityService
+        from financial.models.treasury_access import UserTreasuryAccess
+        from financial.models.custody_history import CustodyAssignmentHistory
+        from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
+        from hr.models.employee import Employee
+        from hr.models.work_location import WorkLocation
 
-        account_type = request.POST.get("account_type")  # cash أو bank
+        # قراءة نوع الحساب بمرونة (لدعم كلا المسميين account_category أو account_type)
+        account_type = request.POST.get("account_category") or request.POST.get("account_type")
+        if not account_type:
+            account_type = "cash"
+        account_type = str(account_type).strip().lower()
+
         name = request.POST.get("name", "").strip()
         opening_balance_raw = request.POST.get("opening_balance", "0")
         opening_balance_date_str = request.POST.get("opening_balance_date")
@@ -324,45 +339,59 @@ def quick_add_cash_bank_account(request):
         currency_id = request.POST.get("currency_id")
         custom_exchange_rate = request.POST.get("exchange_rate")
 
-        if not account_type or account_type not in ["cash", "bank"]:
-            return JsonResponse({"success": False, "error": "نوع الحساب مطلوب (خزنة أو بنك)"}, status=400)
-        if not name:
-            return JsonResponse({"success": False, "error": "اسم الحساب مطلوب"}, status=400)
+        work_location_id = request.POST.get("work_location_id") or request.POST.get("work_location")
+        minimum_balance_raw = request.POST.get("minimum_balance")
+        max_holding_limit_raw = request.POST.get("max_holding_limit")
+        employee_id = request.POST.get("employee_id") or request.POST.get("assigned_employee_id")
+        bank_name = request.POST.get("bank_name", "").strip()
+        account_number = request.POST.get("account_number", "").strip()
+        iban = request.POST.get("iban", "").strip()
+        swift_code = request.POST.get("swift_code", "").strip()
 
-        # Currency resolution
+        if account_type not in ["cash", "bank", "custody"]:
+            return JsonResponse({"success": False, "error": "نوع الحساب مطلوب ويجب أن يكون: خزنة، بنك، أو عهدة."}, status=400)
+        if not name:
+            return JsonResponse({"success": False, "error": "اسم الحساب / الخزينة مطلوب."}, status=400)
+
+        # مطابقة العملة
         currency_obj = None
         if currency_id:
             try:
                 currency_obj = Currency.objects.get(pk=currency_id)
             except Currency.DoesNotExist:
                 pass
+        if not currency_obj:
+            currency_obj = ExchangeRateService.get_functional_currency()
 
         func_curr = ExchangeRateService.get_functional_currency()
         base_code = func_curr.code if func_curr else "EGP"
         is_foreign = bool(currency_obj and currency_obj.code != base_code)
 
+        # تحديد الحساب الأب الرقابي المناسب
+        parent_account = None
         if account_type == "cash":
             parent_account = ChartOfAccounts.objects.filter(code="11120", is_active=True).first()
             if not parent_account:
                 parent_account = AccountRoleRegistry.get_account("CASH_CONTROL_ACCOUNT")
-        else:
+        elif account_type == "custody":
+            parent_account = ChartOfAccounts.objects.filter(code="11180", is_active=True).first()
+            if not parent_account:
+                parent_account = AccountRoleRegistry.get_account("CUSTODY_CONTROL_ACCOUNT")
+        else:  # bank
             if is_foreign:
                 parent_account = ChartOfAccounts.objects.filter(code="11170", is_active=True).first()
             else:
                 parent_account = ChartOfAccounts.objects.filter(code="11160", is_active=True).first()
-                if not parent_account:
-                    parent_account = AccountRoleRegistry.get_account("BANK_CONTROL_ACCOUNT")
+            if not parent_account:
+                parent_account = AccountRoleRegistry.get_account("BANK_CONTROL_ACCOUNT")
 
         if not parent_account:
             return JsonResponse({
                 "success": False,
-                "error": f"لم يتم العثور على الحساب الرقابي لـ {'الخزينة' if account_type == 'cash' else 'البنك'}"
+                "error": f"لم يتم العثور على الحساب الرقابي الرئيسي لـ {account_type}."
             }, status=400)
 
-        account_type_obj = parent_account.account_type
-
-        # Generate code atomically
-        from financial.services.subledger_account_service import SubledgerAccountService
+        # توليد كود الحساب الفرعي ذرياً
         suggested_code, parent_account = SubledgerAccountService._generate_next_sub_code(parent_account)
 
         try:
@@ -370,41 +399,56 @@ def quick_add_cash_bank_account(request):
         except (ValueError, TypeError):
             op_balance = Decimal("0.00")
 
-        # Create ChartOfAccounts record
+        min_balance = None
+        if minimum_balance_raw:
+            try:
+                min_balance = Decimal(str(minimum_balance_raw))
+            except (ValueError, TypeError):
+                min_balance = None
+
+        max_holding = None
+        if max_holding_limit_raw:
+            try:
+                max_holding = Decimal(str(max_holding_limit_raw))
+            except (ValueError, TypeError):
+                max_holding = None
+
+        # إنشاء سجل شجرة الحسابات
         account = ChartOfAccounts()
         account.code = suggested_code
         account.name = name
-        account.account_type = account_type_obj
+        account.account_type = parent_account.account_type
         account.parent = parent_account
         account.is_leaf = True
         account.is_active = True
-        account.is_cash_account = (account_type == "cash")
+        account.is_cash_account = (account_type in ["cash", "custody"])
         account.is_bank_account = (account_type == "bank")
+        account.is_custody_account = (account_type == "custody")
         account.currency = currency_obj
-
-        bank_name = request.POST.get("bank_name", "").strip()
-        account_number = request.POST.get("account_number", "").strip()
-        iban = request.POST.get("iban", "").strip()
-        custodian = request.POST.get("custodian", "").strip()
-
-        extra_info = []
-        if account_type == "bank":
-            if bank_name: extra_info.append(f"البنك: {bank_name}")
-            if account_number: extra_info.append(f"رقم الحساب: {account_number}")
-            if iban: extra_info.append(f"IBAN: {iban}")
-        else:
-            if custodian: extra_info.append(f"المسؤول/أمين الخزنة: {custodian}")
-
-        if extra_info:
-            full_desc = " | ".join(extra_info)
-            if description:
-                full_desc += f" - {description}"
-            account.description = full_desc
-        else:
-            account.description = description
-
+        account.description = description
         account.created_by = request.user
         account.opening_balance = op_balance
+        account.minimum_balance = min_balance
+        account.max_holding_limit = max_holding
+
+        if work_location_id:
+            try:
+                account.work_location = WorkLocation.objects.get(pk=work_location_id)
+            except WorkLocation.DoesNotExist:
+                pass
+
+        if account_type == "bank":
+            account.bank_name = bank_name
+            account.account_number = account_number
+            account.iban = iban
+            account.swift_code = swift_code
+        elif account_type == "custody":
+            account.custody_type = "permanent"
+            if employee_id:
+                try:
+                    account.assigned_employee = Employee.objects.get(pk=employee_id)
+                except Employee.DoesNotExist:
+                    pass
 
         if opening_balance_date_str:
             try:
@@ -416,8 +460,20 @@ def quick_add_cash_bank_account(request):
 
         account.save()
 
-        # Generate Opening Journal Entry if opening balance > 0
-        if op_balance > 0:
+        # إذا كان حساب عهدة مسند لموظف، تسجيل السجل التاريخي
+        if account_type == "custody" and account.assigned_employee:
+            CustodyAssignmentHistory.objects.create(
+                account=account,
+                employee=account.assigned_employee,
+                assigned_by=request.user,
+                start_date=account.opening_balance_date,
+                is_active=True,
+                opening_balance_on_handover=op_balance,
+                notes="إسناد تلقائي عند إنشاء حساب العهدة"
+            )
+
+        # توليد القيد الافتتاحي المحوكم عبر AccountingGateway في حال وجود رصيد
+        if op_balance != Decimal("0.00"):
             curr_code = account.currency_code
             if custom_exchange_rate:
                 try:
@@ -430,52 +486,79 @@ def quick_add_cash_bank_account(request):
                 except Exception:
                     rate = Decimal("1.000000")
 
-            base_op_amount = (op_balance * rate).quantize(Decimal("0.01"))
+            base_op_amount = (abs(op_balance) * rate).quantize(Decimal("0.01"))
+            abs_foreign_amount = abs(op_balance)
 
             opening_equity_account = ChartOfAccounts.objects.filter(
-                Q(code="30100") | Q(code="30000") | Q(account_type__category="equity"),
-                is_active=True, is_leaf=True
+                code="31010", is_active=True
             ).first()
+            if not opening_equity_account:
+                opening_equity_account = ChartOfAccounts.objects.filter(
+                    Q(code="30100") | Q(code="30000") | Q(account_type__category="equity"),
+                    is_active=True, is_leaf=True
+                ).first()
 
             if opening_equity_account:
-                lines_data = [
-                    {
-                        "account": account,
-                        "debit": base_op_amount,
-                        "credit": Decimal("0.00"),
-                        "foreign_debit": op_balance,
-                        "foreign_credit": Decimal("0.00"),
-                        "currency": curr_code,
-                        "exchange_rate": rate,
-                        "description": f"رصيد افتتاحي لـ {account.name}"
-                    },
-                    {
-                        "account": opening_equity_account,
-                        "debit": Decimal("0.00"),
-                        "credit": base_op_amount,
-                        "foreign_debit": Decimal("0.00"),
-                        "foreign_credit": base_op_amount,
-                        "currency": base_code,
-                        "exchange_rate": Decimal("1.000000"),
-                        "description": f"مقابل رصيد افتتاحي لـ {account.name}"
-                    }
-                ]
+                lines_data = []
+                if op_balance > Decimal("0.00"):
+                    # رصيد افتتاحي موجب (مدين الحساب، دائن الأرصدة الافتتاحية)
+                    lines_data.append(JournalEntryLineData(
+                        account_code=account.code,
+                        debit=base_op_amount,
+                        credit=Decimal("0.00"),
+                        description=f"رصيد افتتاحي لـ {account.name}",
+                        currency=curr_code,
+                        exchange_rate=rate,
+                        foreign_debit=abs_foreign_amount,
+                        foreign_credit=Decimal("0.00")
+                    ))
+                    lines_data.append(JournalEntryLineData(
+                        account_code=opening_equity_account.code,
+                        debit=Decimal("0.00"),
+                        credit=base_op_amount,
+                        description=f"مقابل رصيد افتتاحي لـ {account.name}",
+                        currency=base_code,
+                        exchange_rate=Decimal("1.000000"),
+                        foreign_debit=Decimal("0.00"),
+                        foreign_credit=base_op_amount
+                    ))
+                else:
+                    # رصيد افتتاحي سالب مكشوف (دائن الحساب، مدين الأرصدة الافتتاحية)
+                    lines_data.append(JournalEntryLineData(
+                        account_code=account.code,
+                        debit=Decimal("0.00"),
+                        credit=base_op_amount,
+                        description=f"رصيد افتتاحي مكشوف لـ {account.name}",
+                        currency=curr_code,
+                        exchange_rate=rate,
+                        foreign_debit=Decimal("0.00"),
+                        foreign_credit=abs_foreign_amount
+                    ))
+                    lines_data.append(JournalEntryLineData(
+                        account_code=opening_equity_account.code,
+                        debit=base_op_amount,
+                        credit=Decimal("0.00"),
+                        description=f"مقابل رصيد افتتاحي مكشوف لـ {account.name}",
+                        currency=base_code,
+                        exchange_rate=Decimal("1.000000"),
+                        foreign_debit=base_op_amount,
+                        foreign_credit=Decimal("0.00")
+                    ))
 
-                draft_entry = LedgerCoreService.create_draft_entry(
+                gateway = AccountingGateway()
+                gateway.create_journal_entry(
+                    source_module="financial",
+                    source_model="JournalEntry",
+                    source_id=account.id,
                     date=account.opening_balance_date,
-                    description=f"قيد رصيد افتتاحي تلقائي لـ {account.name}",
-                    reference=f"OPEN-{account.code}",
-                    entry_type="opening",
-                    created_by=request.user,
-                    lines_data=lines_data
+                    description=f"قيد رصيد افتتاحي محوكم لـ {account.name}",
+                    reference=f"OPB-{account.code}",
+                    lines=lines_data,
+                    idempotency_key=f"JE:financial:OpeningBalance:{account.id}:create",
+                    user=request.user
                 )
-                draft_entry.status = "posted"
-                draft_entry.posted_at = timezone.now()
-                draft_entry.posted_by = request.user
-                draft_entry.save()
 
-        # إسناد الخزينة المنشأة تلقائياً للمستخدم المنشئ
-        from financial.models.treasury_access import UserTreasuryAccess
+        # الإسناد التلقائي للصلاحيات في UserTreasuryAccess
         UserTreasuryAccess.objects.get_or_create(
             user=request.user,
             treasury=account,
@@ -483,9 +566,27 @@ def quick_add_cash_bank_account(request):
                 'can_deposit': True,
                 'can_disburse': True,
                 'assigned_by': request.user,
-                'notes': 'إسناد تلقائي عند إنشاء الخزينة'
+                'notes': 'إسناد تلقائي عند إنشاء الحساب'
             }
         )
+
+        if account_type == "custody" and account.assigned_employee:
+            emp_user = getattr(account.assigned_employee, 'user', None)
+            if emp_user and emp_user != request.user:
+                UserTreasuryAccess.objects.get_or_create(
+                    user=emp_user,
+                    treasury=account,
+                    defaults={
+                        'can_deposit': True,
+                        'can_disburse': True,
+                        'employee': account.assigned_employee,
+                        'assigned_by': request.user,
+                        'notes': 'إسناد مسؤول صندوق العهدة'
+                    }
+                )
+
+        # إبطال الكاش
+        TreasurySecurityService.invalidate_all_users_cache()
 
         return JsonResponse({
             "success": True,
@@ -3180,73 +3281,126 @@ def cash_account_toggle_active(request, pk):
 
 
 @login_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 @require_permission('financial.delete_chartofaccounts')
 def cash_account_delete(request, pk):
     """
-    حذف الخزينة / الحساب البنكي
-    يُشترط للحذف:
-    1. أن تكون الخزينة معطلة (is_active is False)
-    2. أن يكون رصيد الخزينة الحالي مصفراً تماماً (current_balance == 0)
+    فحص التبعيات وحذف/أرشفة الخزينة أو الحساب البنكي أو صندوق العهدة
+    متوافق 100% مع المودال الموحد entity_delete_archive_modal.html
     """
-    from django.core.cache import cache
     from decimal import Decimal
-    from django.db.models import Sum
+    from django.db.models import Sum, Q
+    from django.core.cache import cache
+    from financial.models.cash_transfer import CashTransfer, TransferStatus
+    from financial.models.treasury_access import UserTreasuryAccess
+    from financial.services.treasury_security_service import TreasurySecurityService
 
     account = get_object_or_404(ChartOfAccounts, pk=pk)
 
-    # الشرط 1: يجب أن تكون الخزينة معطلة أولاً
-    if account.is_active:
-        messages.error(request, "لا يمكن حذف الخزينة وهي نشطة! يرجى تعطيل الخزينة أولاً قبل حذفها.")
-        return redirect("financial:cash_account_movements", pk=account.pk)
+    # 1. فحص التحويلات المعلقة
+    pending_transfers_qs = CashTransfer.objects.filter(
+        Q(from_account=account) | Q(to_account=account),
+        status__in=[TransferStatus.IN_TRANSIT, TransferStatus.PENDING_APPROVAL]
+    )
+    pending_transfers_count = pending_transfers_qs.count()
+    has_pending_transfers = pending_transfers_count > 0
 
-    # الشرط 2: يجب أن يكون الرصيد مصفراً تماماً (0)
-    lines = JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
-    debit_sum = lines.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
-    credit_sum = lines.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
+    # 2. حساب الرصيد الفعلي اللحظي
+    lines_qs = JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
+    lines_count = lines_qs.count()
+    debit_sum = lines_qs.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
+    credit_sum = lines_qs.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
     base_balance = debit_sum - credit_sum
 
     if account.is_foreign_currency:
-        f_deb = lines.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
-        f_crd = lines.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
+        f_deb = lines_qs.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
+        f_crd = lines_qs.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
         current_balance = (account.opening_balance or Decimal("0.00")) + f_deb - f_crd
     else:
         current_balance = base_balance
 
-    if abs(current_balance) > Decimal("0.005"):
-        curr_symbol = account.currency_symbol or "ج.م"
-        messages.error(request, f"لا يمكن حذف الخزينة لأن رصيدها غير مصفّر! الرصيد الحالي: {current_balance} {curr_symbol}.")
-        return redirect("financial:cash_account_movements", pk=account.pk)
+    has_non_zero_balance = abs(current_balance) > Decimal("0.005")
+    has_movements = lines_count > 0 or (account.opening_balance and account.opening_balance != Decimal("0.00"))
+    can_hard_delete = not has_movements
 
-    account_name = account.name
+    # موانع التعطيل / الأرشفة
+    blockers = []
+    if has_pending_transfers:
+        blockers.append(f"يوجد ({pending_transfers_count}) تحويل مالي معلق في الطريق/بانتظار الاعتماد مرتبطة بهذا الحساب.")
+    if has_non_zero_balance:
+        curr_sym = account.currency_symbol or "ج.م"
+        blockers.append(f"الرصيد المالي للحساب غير مصفّى! الرصيد الحالي: {current_balance:,.2f} {curr_sym}.")
 
-    # التحقق من وجود قيود مرحلة تاريخية للحساب
-    if lines.exists():
-        # في حالة وجود قيود تاريخية مسجلة، نقوم بإلغاء وسم الخزينة/البنك والتعطيل التام لحفظ سلامة دفتر الأستاذ
-        account.is_cash_account = False
-        account.is_bank_account = False
-        account.is_active = False
-        account.save(update_fields=['is_cash_account', 'is_bank_account', 'is_active'])
+    is_blocked = len(blockers) > 0
+
+    # معالجة طلب الفحص المسبق (Pre-check) للمودال الموحد
+    if request.GET.get("precheck") == "1" or request.method == "GET":
+        access_count = UserTreasuryAccess.objects.filter(treasury=account).count()
+        trans_summary = [
+            {"label": "قيود أستاذ عام", "count": lines_count, "badge_class": "bg-primary-subtle text-primary"},
+            {"label": "تحويلات معلقة", "count": pending_transfers_count, "badge_class": "bg-danger-subtle text-danger" if has_pending_transfers else "bg-secondary-subtle text-secondary"},
+            {"label": "إسنادات مستخدمين نشطة", "count": access_count, "badge_class": "bg-info-subtle text-info"}
+        ]
+
+        msg = " ".join(blockers) if is_blocked else (
+            "يمكن تعطيل وأرشفة الحساب بأمان لحفظ سجل الحسابات التاريخي." if not can_hard_delete else "يمكن حذف الحساب نهائياً لعدم وجود أي حركات أو قيود سابقة عليه."
+        )
+
+        return JsonResponse({
+            "success": True,
+            "can_delete": can_hard_delete,
+            "action_type": "archive" if not can_hard_delete else "delete",
+            "name": account.name,
+            "code": account.code,
+            "debt": float(current_balance),
+            "currency_symbol": account.currency_symbol or "ج.م",
+            "has_pending_transfers": has_pending_transfers,
+            "transactions_count": lines_count + pending_transfers_count,
+            "transactions_summary": trans_summary,
+            "message": msg,
+            "block_action": is_blocked
+        })
+
+    # معالجة طلب الحذف أو الأرشفة الفعلي (POST)
+    if is_blocked:
+        return JsonResponse({
+            "success": False,
+            "message": "لا يمكن تنفيذ الإجراء: " + " ".join(blockers)
+        }, status=400)
+
+    if can_hard_delete:
+        account_name = account.name
+        account.delete()
+        TreasurySecurityService.invalidate_all_users_cache()
+        cache.delete('payment_accounts_data_v4')
+        cache.delete('payment_accounts_data_v2')
+        cache.delete('payment_accounts_data_v3')
+        return JsonResponse({
+            "success": True,
+            "message": f"تم حذف الخزينة/الحساب '{account_name}' نهائياً بنجاح.",
+            "action": "deleted"
+        })
     else:
-        try:
-            account.delete()
-        except Exception:
-            account.is_cash_account = False
-            account.is_bank_account = False
-            account.is_active = False
-            account.save(update_fields=['is_cash_account', 'is_bank_account', 'is_active'])
+        # تعطيل وأرشفة آمنة
+        account.is_active = False
+        account.save(update_fields=['is_active'])
 
-    # تفريغ الكاش
-    cache.delete('payment_accounts_data_v4')
-    cache.delete('payment_accounts_data_v2')
-    cache.delete('payment_accounts_data_v3')
+        # تعطيل كافة إسنادات المستخدمين المرتبطة بهذه الخزينة
+        UserTreasuryAccess.objects.filter(treasury=account).update(can_deposit=False, can_disburse=False)
+        TreasurySecurityService.invalidate_all_users_cache()
+        cache.delete('payment_accounts_data_v4')
+        cache.delete('payment_accounts_data_v2')
+        cache.delete('payment_accounts_data_v3')
 
-    messages.success(request, f"تم حذف الخزينة '{account_name}' بنجاح.")
-    return redirect("financial:cash_and_bank_accounts_list")
+        return JsonResponse({
+            "success": True,
+            "message": f"تم تعطيل وأرشفة الخزينة/الحساب '{account.name}' بنجاح.",
+            "action": "archived"
+        })
 
 
 @login_required
-@login_required
+
 def partner_dashboard(request):
     """
     لوحة تحكم معاملات الشريك

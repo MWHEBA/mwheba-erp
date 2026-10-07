@@ -246,6 +246,14 @@ class ChartOfAccounts(models.Model):
         blank=True,
         help_text=_("الحد الأدنى المطلوب للرصيد"),
     )
+    max_holding_limit = models.DecimalField(
+        _("سقف التأمين على النقدية"),
+        max_digits=15,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("الحد الأقصى للنقدية المسموح بالاحتفاظ بها بالخزينة وفق بوليصة التأمين"),
+    )
 
     # إعدادات التنبيهات
     low_balance_alert = models.BooleanField(_("تنبيه الرصيد المنخفض"), default=False)

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% trans "سند تحويل مالي" %} - {{ transfer.transfer_number }}</title>
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --text-dark: #212529;
+            --border-color: #dee2e6;
+            --light-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-dark);
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .no-print {
+            max-width: 850px;
+            margin: 0 auto 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        .btn-primary { background: var(--primary-color); color: #fff; }
+        .btn-secondary { background: var(--secondary-color); color: #fff; }
+        .btn-outline { background: transparent; border-color: var(--border-color); color: var(--text-dark); }
+
+        /* A4 Layout */
+        .voucher-a4 {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 35px 40px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .header-section {
+            border-bottom: 2px solid var(--text-dark);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .doc-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin: 0 0 5px 0;
+        }
+
+        .doc-subtitle {
+            font-size: 13px;
+            color: var(--secondary-color);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-card {
+            background: var(--light-bg);
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            border-radius: 4px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label { color: var(--secondary-color); }
+        .info-val { font-weight: bold; color: var(--text-dark); }
+
+        .amount-banner {
+            background: var(--light-bg);
+            border: 2px dashed var(--primary-color);
+            border-radius: 6px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .amount-num {
+            font-size: 24px;
+            font-weight: 900;
+            color: var(--primary-color);
+        }
+
+        .amount-words {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-dark);
+        }
+
+        .print-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 12px;
+        }
+
+        .print-table th, .print-table td {
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            text-align: center;
+        }
+
+        .print-table th {
+            background: var(--light-bg);
+            font-weight: bold;
+        }
+
+        .signatures-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .sign-box {
+            padding: 10px;
+        }
+        .sign-title { font-size: 12px; font-weight: bold; color: var(--text-dark); margin-bottom: 40px; }
+        .sign-line { border-bottom: 1px dashed var(--border-color); margin-bottom: 5px; }
+        .sign-name { font-size: 11px; color: var(--secondary-color); }
+
+        /* Thermal 80mm Layout */
+        .voucher-thermal {
+            width: 80mm;
+            margin: 0 auto;
+            background: #fff;
+            padding: 15px 10px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .thermal-header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .thermal-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .thermal-divider {
+            border-bottom: 1px dashed #000;
+            margin: 10px 0;
+        }
+
+        .thermal-amount {
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #000;
+            margin: 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .no-print { display: none !important; }
+            .voucher-a4 {
+                border: none;
+                box-shadow: none;
+                padding: 15mm;
+                max-width: 100%;
+            }
+            .voucher-thermal {
+                border: none;
+                padding: 0;
+                width: 100%;
+            }
+        }
+    </style>
+    {% if print_format == 'thermal' %}
+    <style>
+        @media print {
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+        }
+    </style>
+    {% else %}
+    <style>
+        @media print {
+            @page {
+                margin: 10mm;
+                size: A4 portrait;
+            }
+        }
+    </style>
+    {% endif %}
+</head>
+<body>
+
+    <!-- Print Toolbar (شريط أدوات الطباعة) -->
+    <div class="no-print">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <a href="?format=a4" class="btn {% if print_format == 'a4' %}btn-primary{% else %}btn-outline{% endif %}">
+                <i class="fas fa-file-alt"></i> {% trans "تنسيق A4 المعتمد" %}
+            </a>
+            <a href="?format=thermal" class="btn {% if print_format == 'thermal' %}btn-primary{% else %}btn-outline{% endif %}">
+                <i class="fas fa-receipt"></i> {% trans "إيصال حراري (80mm)" %}
+            </a>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fas fa-print"></i> {% trans "طباعة السند" %}
+            </button>
+            <button onclick="window.close()" class="btn btn-secondary">
+                {% trans "إغلاق" %}
+            </button>
+        </div>
+    </div>
+
+    {% if print_format == 'thermal' %}
+        <!-- 80mm Thermal Receipt Mode -->
+        <div class="voucher-thermal">
+            <div class="thermal-header">
+                <h3 style="margin: 0 0 4px;">{% trans "سند تحويل مالي" %}</h3>
+                <div style="font-weight: bold;">{{ transfer.transfer_number }}</div>
+                <div style="font-size: 10px; color: #555;">{{ transfer.transfer_date|date:"Y-m-d" }} - {{ transfer.created_at|date:"H:i" }}</div>
+            </div>
+
+            <div class="thermal-row">
+                <span>{% trans "من:" %}</span>
+                <strong>{{ transfer.from_account.name }}</strong>
+            </div>
+            <div class="thermal-row">
+                <span>{% trans "إلى:" %}</span>
+                <strong>{{ transfer.to_account.name }}</strong>
+            </div>
+            <div class="thermal-row">
+                <span>{% trans "النوع:" %}</span>
+                <span>{{ transfer.get_transfer_type_display }}</span>
+            </div>
+            {% if transfer.courier_name %}
+                <div class="thermal-row">
+                    <span>{% trans "المندوب:" %}</span>
+                    <span>{{ transfer.courier_name }}</span>
+                </div>
+            {% endif %}
+
+            <div class="thermal-divider"></div>
+
+            <div class="thermal-amount">
+                {{ transfer.source_amount|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}
+            </div>
+
+            {% if transfer.source_currency_id != transfer.destination_currency_id %}
+                <div class="thermal-row" style="font-size: 11px;">
+                    <span>{% trans "المعادل المستلم:" %}</span>
+                    <strong>{{ transfer.destination_amount|smart_float }} {{ transfer.destination_currency.symbol }}</strong>
+                </div>
+                <div class="thermal-row" style="font-size: 10px;">
+                    <span>{% trans "سعر الصرف:" %}</span>
+                    <span>{{ transfer.effective_exchange_rate|floatformat:4 }}</span>
+                </div>
+            {% endif %}
+
+            {% if transfer.notes %}
+                <div style="font-size: 10px; margin: 8px 0; color: #333;">
+                    <strong>{% trans "البيان:" %}</strong> {{ transfer.notes }}
+                </div>
+            {% endif %}
+
+            <div class="thermal-divider"></div>
+
+            <div style="display: flex; justify-content: space-between; text-align: center; margin-top: 15px; font-size: 11px;">
+                <div>
+                    <div>{% trans "المسلّم" %}</div>
+                    <div style="margin-top: 25px; border-top: 1px solid #000; width: 30mm;"></div>
+                </div>
+                <div>
+                    <div>{% trans "المستلم" %}</div>
+                    <div style="margin-top: 25px; border-top: 1px solid #000; width: 30mm;"></div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 15px; font-size: 9px; color: #777;">
+                <div>{{ transfer.verification_hash|slice:":24" }}...</div>
+                <div>{% trans "طبع بواسطة:" %} {{ printed_by.get_full_name|default:printed_by.username }} - {{ printed_at|date:"Y-m-d H:i" }}</div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Standard A4 Voucher Mode -->
+        <div class="voucher-a4">
+            <!-- Header Section -->
+            <div class="header-section">
+                <div>
+                    <h1 class="doc-title">{% trans "سند تحويل مالي بين الخزن والبنوك" %}</h1>
+                    <div class="doc-subtitle">CASH & BANK TRANSFER VOUCHER</div>
+                </div>
+                <div style="text-align: left;">
+                    <div style="font-size: 18px; font-weight: bold; color: var(--primary-color); font-family: monospace;">{{ transfer.transfer_number }}</div>
+                    <div style="font-size: 12px; color: var(--secondary-color);">{% trans "التاريخ:" %} {{ transfer.transfer_date|date:"Y-m-d" }}</div>
+                </div>
+            </div>
+
+            <!-- Metadata Cards Grid -->
+            <div class="grid-2">
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">{% trans "من خزينة / حساب (المصدر):" %}</span>
+                        <span class="info-val">{{ transfer.from_account.name }} ({{ transfer.from_account.code }})</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">{% trans "مقر العمل المصدر:" %}</span>
+                        <span class="info-val">{{ transfer.from_work_location.name_ar|default:"المقر الرئيسي" }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">{% trans "المسؤول المنشئ:" %}</span>
+                        <span class="info-val">{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">{% trans "إلى خزينة / حساب (المستلم):" %}</span>
+                        <span class="info-val">{{ transfer.to_account.name }} ({{ transfer.to_account.code }})</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">{% trans "نمط التحويل:" %}</span>
+                        <span class="info-val">{{ transfer.get_transfer_type_display }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">{% trans "حالة السند:" %}</span>
+                        <span class="info-val">{{ transfer.get_status_display }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Amount Banner & Tafqeet -->
+            <div class="amount-banner">
+                <div>
+                    <div style="font-size: 12px; color: var(--secondary-color); margin-bottom: 4px;">{% trans "المبلغ المنصرف والمحول:" %}</div>
+                    <div class="amount-words">{{ transfer.amount_in_words|default:"" }}</div>
+                </div>
+                <div class="amount-num">
+                    {{ transfer.source_amount|smart_float }} {{ transfer.source_currency.symbol|default:base_currency_symbol }}
+                </div>
+            </div>
+
+            <!-- Multi-Currency & Bank Details Table (if any) -->
+            {% if transfer.source_currency_id != transfer.destination_currency_id or transfer.bank_reference or transfer.transfer_fee > 0 %}
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            {% if transfer.source_currency_id != transfer.destination_currency_id %}
+                                <th>{% trans "سعر الصرف المطبق" %}</th>
+                                <th>{% trans "المبلغ المستلم المعادل" %}</th>
+                                <th>{% trans "فروق تقييم العملة (FX)" %}</th>
+                            {% endif %}
+                            {% if transfer.bank_reference %}
+                                <th>{% trans "المرجع البنكي" %}</th>
+                            {% endif %}
+                            {% if transfer.transfer_fee > 0 %}
+                                <th>{% trans "عمولة البنك" %}</th>
+                                <th>{% trans "ضريبة العمولة (14%)" %}</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            {% if transfer.source_currency_id != transfer.destination_currency_id %}
+                                <td class="font-monospace">1 {{ transfer.source_currency.code }} = {{ transfer.effective_exchange_rate|floatformat:4 }} {{ transfer.destination_currency.code }}</td>
+                                <td class="fw-bold text-success">{{ transfer.destination_amount|smart_float }} {{ transfer.destination_currency.symbol }}</td>
+                                <td>{{ transfer.fx_gain_loss_amount|smart_float }} {{ base_currency_symbol }}</td>
+                            {% endif %}
+                            {% if transfer.bank_reference %}
+                                <td class="font-monospace">{{ transfer.bank_reference }}</td>
+                            {% endif %}
+                            {% if transfer.transfer_fee > 0 %}
+                                <td>{{ transfer.transfer_fee|smart_float }} {{ base_currency_symbol }}</td>
+                                <td>{{ transfer.fee_vat_amount|smart_float }} {{ base_currency_symbol }}</td>
+                            {% endif %}
+                        </tr>
+                    </tbody>
+                </table>
+            {% endif %}
+
+            <!-- Balanced Accounting Journal Entry -->
+            {% if journal_lines %}
+                <div style="margin-top: 20px;">
+                    <div style="font-weight: bold; font-size: 13px; margin-bottom: 8px;">
+                        {% trans "القيد المحاسبي المتوازن لدفتر اليومية العام (سند رقم #" %}{{ transfer.journal_entry.number }})
+                    </div>
+                    <table class="print-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 120px;">{% trans "كود الحساب" %}</th>
+                                <th>{% trans "اسم الحساب" %}</th>
+                                <th style="width: 110px;">{% trans "مدين (EGP)" %}</th>
+                                <th style="width: 110px;">{% trans "دائن (EGP)" %}</th>
+                                <th>{% trans "البيان المحاسبي" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in journal_lines %}
+                                <tr>
+                                    <td class="font-monospace">{{ line.account.code }}</td>
+                                    <td style="text-align: right;">{{ line.account.name }}</td>
+                                    <td style="text-align: left; font-weight: bold;">{% if line.debit > 0 %}{{ line.debit|smart_float }}{% else %}-{% endif %}</td>
+                                    <td style="text-align: left; font-weight: bold;">{% if line.credit > 0 %}{{ line.credit|smart_float }}{% else %}-{% endif %}</td>
+                                    <td style="text-align: right; color: var(--secondary-color);">{{ line.description }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            <!-- Cash Denominations (if any) -->
+            {% if transfer.denominations_breakdown %}
+                <div style="margin-top: 15px;">
+                    <div style="font-weight: bold; font-size: 12px; margin-bottom: 6px;">{% trans "تفصيل فئات النقدية المسلمة:" %}</div>
+                    <div style="display: flex; gap: 10px; font-size: 12px;">
+                        {% for denom, count in transfer.denominations_breakdown.items %}
+                            <div style="border: 1px solid var(--border-color); padding: 4px 8px; border-radius: 4px; background: var(--light-bg);">
+                                <strong>{{ denom }} {{ base_currency_symbol }}:</strong> {{ count }} {% trans "ورقة" %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if transfer.notes %}
+                <div style="margin-top: 15px; font-size: 12px;">
+                    <strong>{% trans "ملاحظات إضافية:" %}</strong> {{ transfer.notes }}
+                </div>
+            {% endif %}
+
+            <!-- Signatures Section -->
+            <div class="signatures-section">
+                <div class="sign-box">
+                    <div class="sign-title">{% trans "أمين الخزينة المسلّم" %}</div>
+                    <div class="sign-line"></div>
+                    <div class="sign-name">{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</div>
+                </div>
+                <div class="sign-box">
+                    <div class="sign-title">{% trans "أمين الخزينة المستلم" %}</div>
+                    <div class="sign-line"></div>
+                    <div class="sign-name">
+                        {% if transfer.received_by %}
+                            {{ transfer.received_by.get_full_name|default:transfer.received_by.username }}
+                        {% elif transfer.courier_name %}
+                            {{ transfer.courier_name }} ({% trans "مندوب" %})
+                        {% else %}
+                            __________________
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="sign-box">
+                    <div class="sign-title">{% trans "المحاسب المالي" %}</div>
+                    <div class="sign-line"></div>
+                    <div class="sign-name">__________________</div>
+                </div>
+                <div class="sign-box">
+                    <div class="sign-title">{% trans "المدير المالي / الاعتماد" %}</div>
+                    <div class="sign-line"></div>
+                    <div class="sign-name">__________________</div>
+                </div>
+            </div>
+
+            <!-- Footer Security Hash -->
+            <div style="margin-top: 30px; display: flex; justify-content: space-between; font-size: 10px; color: var(--secondary-color);">
+                <div>{% trans "البصمة الرقمية للتحقق:" %} {{ transfer.verification_hash }}</div>
+                <div>{% trans "طبع في:" %} {{ printed_at|date:"Y-m-d H:i:s" }} | {{ printed_by.get_full_name|default:printed_by.username }}</div>
+            </div>
+        </div>
+    {% endif %}
+
+</body>
+</html>

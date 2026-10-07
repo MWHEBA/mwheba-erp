@@ -111,6 +111,11 @@ from .custody import (
     CustodyTransfer,
     PettyCashCount,
 )
+from .cash_transfer import (
+    CashTransfer,
+    TransferType,
+    TransferStatus,
+)
 
 __all__ = [
     # النماذج الأساسية
@@ -186,4 +191,8 @@ __all__ = [
     "SettlementLineStatus",
     "PaymentChannel",
     "VarianceRouting",
+    # نماذج سندات التحويل المالي
+    "CashTransfer",
+    "TransferType",
+    "TransferStatus",
 ]

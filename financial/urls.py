@@ -450,7 +450,21 @@ urlpatterns = [
     path("api/accounts/quick-add-cash-bank/", views.quick_add_cash_bank_account, name="quick_add_cash_bank_account"),
     # API للحصول على قائمة الحسابات النقدية والبنكية
     path("api/cash-bank-accounts/", views.get_cash_bank_accounts_api, name="get_cash_bank_accounts_api"),
-    # API لتحويل مبلغ بين الحسابات
+    
+    # ============== سندات التحويل المالي بين الخزن والبنوك (FIN-CORE-025) ==============
+    path("transfers/", views.cash_transfers_list_view, name="cash_transfers_list"),
+    path("transfers/create/", views.cash_transfer_create_view, name="cash_transfer_create"),
+    path("transfers/<int:pk>/", views.cash_transfer_detail_view, name="cash_transfer_detail"),
+    path("transfers/<int:pk>/print/", views.transfer_voucher_print_view, name="cash_transfer_print"),
+    # REST API Endpoints
+    path("api/transfers/preview/", views.transfer_preview_api, name="transfer_preview_api"),
+    path("api/transfers/create/", views.transfer_create_api, name="transfer_create_api"),
+    path("api/transfers/<int:pk>/detail/", views.transfer_detail_api, name="transfer_detail_api"),
+    path("api/transfers/<int:pk>/receive/", views.transfer_receive_api, name="transfer_receive_api"),
+    path("api/transfers/<int:pk>/recall/", views.transfer_recall_api, name="transfer_recall_api"),
+    path("api/transfers/<int:pk>/reverse/", views.transfer_reverse_api, name="transfer_reverse_api"),
+    path("api/transfers/<int:pk>/print/", views.transfer_voucher_print_view, name="transfer_voucher_print"),
+    # API متوافق مع المسار القديم
     path("api/transfer-between-accounts/", views.transfer_between_accounts, name="transfer_between_accounts"),
     # API endpoints
     path(

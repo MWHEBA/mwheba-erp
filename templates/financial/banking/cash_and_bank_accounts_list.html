@@ -131,68 +131,6 @@
     <!-- Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
 
-    <!-- 1. كروت الـ KPI الإحصائية الأربعة المنفصلة -->
-    <div class="row g-3 mb-4">
-        <!-- كارت 1: إجمالي السيولة النقدية والبنكية -->
-        <div class="col-xl-3 col-md-6">
-            <div class="stats-card stats-card-success h-100 shadow-sm border-0">
-                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي السيولة النقدية والبنكية</div>
-                        <div class="stats-card-value fs-4 fw-bold text-success">{{ total_balance|smart_float }} <span class="fs-6 text-muted">{{ base_currency_symbol }}</span></div>
-                    </div>
-                    <div class="stats-card-icon bg-light text-success p-3 rounded-circle">
-                        <i class="fas fa-wallet fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- كارت 2: إجمالي رصيد عهد الموظفين -->
-        <div class="col-xl-3 col-md-6">
-            <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
-                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي رصيد عهد الموظفين</div>
-                        <div class="stats-card-value fs-4 fw-bold text-warning">{{ total_custody_balance|smart_float }} <span class="fs-6 text-muted">{{ base_currency_symbol }}</span></div>
-                    </div>
-                    <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
-                        <i class="fas fa-hand-holding-usd fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- كارت 3: عدد الخزن والحسابات البنكية -->
-        <div class="col-xl-3 col-md-6">
-            <div class="stats-card stats-card-info h-100 shadow-sm border-0">
-                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <div class="stats-card-title text-muted fs-7 mb-1">الخزن والحسابات البنكية</div>
-                        <div class="stats-card-value fs-4 fw-bold text-info">{{ accounts_count }} <span class="fs-7 text-muted">({{ cash_accounts_count }} كاش / {{ bank_accounts_count }} بنك)</span></div>
-                    </div>
-                    <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
-                        <i class="fas fa-university fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- كارت 4: عدد العهد وصناديق الموظفين -->
-        <div class="col-xl-3 col-md-6">
-            <div class="stats-card stats-card-primary h-100 shadow-sm border-0">
-                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
-                    <div>
-                        <div class="stats-card-title text-muted fs-7 mb-1">صناديق وبطاقات العهد</div>
-                        <div class="stats-card-value fs-4 fw-bold text-primary">{{ custody_accounts_count }} <span class="fs-7 text-muted">عهدة مسجلة</span></div>
-                    </div>
-                    <div class="stats-card-icon bg-light text-primary p-3 rounded-circle">
-                        <i class="fas fa-id-card-alt fa-2x"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- 2. Dual-View Nav Tabs (الخزن والبنوك | صناديق وبطاقات عهد الموظفين) -->
     <ul class="nav nav-pills mb-4 border-bottom pb-2" id="treasuryViewTabs" role="tablist">
@@ -368,7 +306,7 @@
                             </thead>
                             <tbody>
                                 {% for ca in custody_accounts %}
-                                    <tr>
+                                    <tr class="clickable-row cursor-pointer" data-href="{% url 'financial:cash_account_movements' ca.id %}">
                                         <td><span class="badge bg-light text-dark border font-monospace">{{ ca.code }}</span></td>
                                         <td>
                                             <a href="{% url 'financial:cash_account_movements' ca.id %}" class="text-decoration-none fw-bold text-dark">
@@ -535,59 +473,9 @@
     </div>
 </div>
 
-<!-- Modal 3: التحويل بين الخزائن -->
-<div class="modal fade" id="transferModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0">
-                    <i class="fas fa-exchange-alt text-primary me-2"></i>تحويل نقدي بين الخزائن
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="transferForm">
-                {% csrf_token %}
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">من خزينة / حساب <span class="text-danger">*</span></label>
-                        <select name="from_account_id" id="from_account" class="form-select" required>
-                            <option value="">-- اختر الحساب المصدر --</option>
-                            {% for acc in accounts %}
-                                <option value="{{ acc.id }}" data-symbol="{{ acc.currency_symbol }}">{{ acc.name }} ({{ acc.code }}) - {{ acc.currency_symbol }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">إلى خزينة / حساب <span class="text-danger">*</span></label>
-                        <select name="to_account_id" id="to_account" class="form-select" required>
-                            <option value="">-- اختر الحساب المستلم --</option>
-                            {% for acc in accounts %}
-                                <option value="{{ acc.id }}" data-symbol="{{ acc.currency_symbol }}">{{ acc.name }} ({{ acc.code }}) - {{ acc.currency_symbol }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">المبلغ المحول <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
-                            <span class="input-group-text bg-light" id="dest_symbol_addon">{{ base_currency_symbol }}</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">بيان التحويل / ملاحظات</label>
-                        <textarea name="description" class="form-control" rows="2" placeholder="بيان التحويل الداخلي..."></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-top px-4 py-3">
-                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold">
-                        <i class="fas fa-check me-1"></i>تنفيذ التحويل
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+<!-- Modals: التحويل الذكي بين الخزن والبنوك + استلام النقدية بالطريق -->
+{% include "financial/components/smart_cash_transfer_modal.html" %}
+{% include "financial/components/receive_transit_transfer_modal.html" %}
 {% endblock %}
 
 {% block extra_js %}
@@ -597,12 +485,11 @@ function openQuickAddModal() {
 }
 
 function openTransferModal() {
-    $('#transferModal').modal('show');
+    openSmartTransferModalFor('');
 }
 
 function openTransferModalFor(accountId, currencyId, currencySymbol) {
-    $('#from_account').val(accountId).trigger('change');
-    $('#transferModal').modal('show');
+    openSmartTransferModalFor(accountId);
 }
 
 function openAssignModal(accountId, accountName, currentEmpId) {
@@ -614,16 +501,21 @@ function openAssignModal(accountId, accountName, currentEmpId) {
 }
 
 $(document).ready(function() {
+    // تفعيل النقر على كروت الخزن وحسابات البنوك وصفوف العهد
+    $(document).on('click', '.clickable-card, .clickable-row', function(e) {
+        if ($(e.target).closest('a, button, input, select, textarea, .dropdown-menu, .btn-group, .card-footer, [onclick]').length) {
+            return;
+        }
+        var href = $(this).data('href') || $(this).find('a').first().attr('href');
+        if (href) {
+            window.location.href = href;
+        }
+    });
+
     // تفعيل Select2 داخل الـ Modals مع dropdownParent
     if ($.fn.select2) {
         $('#assign_employee_select').select2({
             dropdownParent: $('#assignCustodyModal'),
-            dir: 'rtl',
-            language: 'ar',
-            width: '100%'
-        });
-        $('#from_account, #to_account').select2({
-            dropdownParent: $('#transferModal'),
             dir: 'rtl',
             language: 'ar',
             width: '100%'
@@ -649,7 +541,7 @@ $(document).ready(function() {
                     }
                     setTimeout(function() {
                         location.reload();
-                    }, 1500);
+                    }, 3100);
                 } else {
                     if (window.showNotification) {
                         window.showNotification(resp.message || 'حدث خطأ', 'error');
@@ -684,7 +576,7 @@ $(document).ready(function() {
                     if (window.showNotification) {
                         window.showNotification(response.message, 'success');
                     }
-                    setTimeout(function() { location.reload(); }, 1500);
+                    setTimeout(function() { location.reload(); }, 3100);
                 } else {
                     if (window.showNotification) {
                         window.showNotification(response.error, 'error');
@@ -694,41 +586,6 @@ $(document).ready(function() {
             },
             error: function(xhr) {
                 var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'حدث خطأ أثناء الحفظ';
-                if (window.showNotification) {
-                    window.showNotification(errorMsg, 'error');
-                }
-                submitBtn.prop('disabled', false).html(originalText);
-            }
-        });
-    });
-
-    // إرسال فورم التحويل بين الخزائن
-    $('#transferForm').on('submit', function(e) {
-        e.preventDefault();
-        var submitBtn = $(this).find('button[type="submit"]');
-        var originalText = submitBtn.html();
-        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري تنفيذ التحويل...');
-
-        $.ajax({
-            url: '{% url "financial:transfer_between_accounts" %}',
-            method: 'POST',
-            data: $(this).serialize(),
-            success: function(response) {
-                if (response.success) {
-                    $('#transferModal').modal('hide');
-                    if (window.showNotification) {
-                        window.showNotification(response.message, 'success');
-                    }
-                    setTimeout(function() { location.reload(); }, 1500);
-                } else {
-                    if (window.showNotification) {
-                        window.showNotification(response.error, 'error');
-                    }
-                    submitBtn.prop('disabled', false).html(originalText);
-                }
-            },
-            error: function(xhr) {
-                var errorMsg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'حدث خطأ أثناء التحويل';
                 if (window.showNotification) {
                     window.showNotification(errorMsg, 'error');
                 }

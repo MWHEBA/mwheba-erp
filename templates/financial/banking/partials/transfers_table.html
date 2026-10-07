@@ -1,0 +1,146 @@
+<!-- templates/financial/banking/partials/transfers_table.html -->
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle border mb-0 text-nowrap">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 140px;">{% trans "رقم السند" %}</th>
+                <th style="width: 110px;">{% trans "التاريخ" %}</th>
+                <th>{% trans "النوع" %}</th>
+                <th>{% trans "من خزينة / حساب" %}</th>
+                <th>{% trans "إلى خزينة / حساب" %}</th>
+                <th class="text-end">{% trans "المبلغ المحول" %}</th>
+                <th class="text-center" style="width: 120px;">{% trans "الحالة" %}</th>
+                <th>{% trans "المسؤول / المندوب" %}</th>
+                <th class="text-center col-actions" style="width: 130px;">{% trans "الإجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in transfers %}
+                <tr class="clickable-row cursor-pointer" data-href="{% url 'financial:cash_transfer_detail' t.id %}">
+                    <td>
+                        <a href="{% url 'financial:cash_transfer_detail' t.id %}" class="fw-bold text-primary font-monospace text-decoration-none">
+                            {{ t.transfer_number }}
+                        </a>
+                    </td>
+                    <td class="text-muted small">
+                        {{ t.transfer_date|date:"Y-m-d" }}
+                    </td>
+                    <td>
+                        {% if t.transfer_type == 'direct' %}
+                            <span class="badge bg-light text-primary border">
+                                <i class="fas fa-bolt me-1"></i>{% trans "مباشر" %}
+                            </span>
+                        {% elif t.transfer_type == 'in_transit' %}
+                            <span class="badge bg-light text-warning border border-warning">
+                                <i class="fas fa-truck-moving me-1"></i>{% trans "بالطريق" %}
+                            </span>
+                        {% elif t.transfer_type == 'custody_replenishment' %}
+                            <span class="badge bg-light text-info border">
+                                <i class="fas fa-hand-holding-usd me-1"></i>{% trans "تمويل عهدة" %}
+                            </span>
+                        {% elif t.transfer_type == 'custody_clearance' %}
+                            <span class="badge bg-light text-secondary border">
+                                <i class="fas fa-receipt me-1"></i>{% trans "إخلاء عهدة" %}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-light text-dark border">{{ t.get_transfer_type_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="fw-semibold text-dark">{{ t.from_account.name }}</div>
+                        <small class="text-muted font-monospace">{{ t.from_account.code }}</small>
+                    </td>
+                    <td>
+                        <div class="fw-semibold text-dark">{{ t.to_account.name }}</div>
+                        <small class="text-muted font-monospace">{{ t.to_account.code }}</small>
+                    </td>
+                    <td class="text-end">
+                        <div class="fw-bold text-success fs-6">
+                            {{ t.source_amount|smart_float }}
+                            <small class="text-muted ms-1">{{ t.source_currency.symbol|default:base_currency_symbol }}</small>
+                        </div>
+                        {% if t.source_currency_id != t.destination_currency_id %}
+                            <small class="text-muted d-block">
+                                ≈ {{ t.destination_amount|smart_float }} {{ t.destination_currency.symbol }}
+                            </small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if t.status == 'completed' %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success px-2 py-1">
+                                <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل ومرحل" %}
+                            </span>
+                        {% elif t.status == 'in_transit' %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2 py-1">
+                                <i class="fas fa-spinner fa-spin me-1"></i>{% trans "في الطريق" %}
+                            </span>
+                        {% elif t.status == 'draft' %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border px-2 py-1">
+                                <i class="fas fa-edit me-1"></i>{% trans "مسودة" %}
+                            </span>
+                        {% elif t.status == 'reversed' %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-2 py-1">
+                                <i class="fas fa-undo me-1"></i>{% trans "معكوس" %}
+                            </span>
+                        {% elif t.status == 'cancelled' %}
+                            <span class="badge bg-dark bg-opacity-10 text-dark border px-2 py-1">
+                                <i class="fas fa-ban me-1"></i>{% trans "ملغي" %}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="small fw-semibold text-dark">{{ t.created_by.get_full_name|default:t.created_by.username }}</div>
+                        {% if t.courier_name %}
+                            <small class="text-muted"><i class="fas fa-user-tie me-1"></i>{{ t.courier_name }}</small>
+                        {% elif t.received_by %}
+                            <small class="text-muted"><i class="fas fa-user-check me-1"></i>{{ t.received_by.get_full_name|default:t.received_by.username }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center col-actions">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{% url 'financial:cash_transfer_detail' t.id %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{% url 'financial:cash_transfer_print' t.id %}" target="_blank" class="btn btn-outline-primary" title="{% trans 'طباعة السند' %}">
+                                <i class="fas fa-print"></i>
+                            </a>
+                            {% if t.status == 'in_transit' %}
+                                <button type="button" class="btn btn-outline-success btn-receive-transit" 
+                                        data-id="{{ t.id }}"
+                                        data-number="{{ t.transfer_number }}"
+                                        data-from="{{ t.from_account.name }}"
+                                        data-to="{{ t.to_account.name }}"
+                                        data-amount="{{ t.destination_amount }}"
+                                        data-currency="{{ t.destination_currency.symbol }}"
+                                        data-courier="{{ t.courier_name|default:'' }}"
+                                        title="{% trans 'تأكيد الاستلام' %}">
+                                    <i class="fas fa-truck-loading"></i>
+                                </button>
+                            {% endif %}
+                            {% if t.status == 'completed' and perms.financial.delete_cashtransfer or request.user.is_superuser %}
+                                <button type="button" class="btn btn-outline-danger btn-reverse-transfer" 
+                                        data-id="{{ t.id }}"
+                                        data-number="{{ t.transfer_number }}"
+                                        title="{% trans 'عكس السند' %}">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="9" class="text-center py-5 text-muted">
+                        <i class="fas fa-exchange-alt fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h5>{% trans "لا توجد سندات تحويل مالي مطابقة" %}</h5>
+                        <p class="small mb-0">{% trans "يمكنك إنشاء سند تحويل جديد أو تعديل معايير البحث." %}</p>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

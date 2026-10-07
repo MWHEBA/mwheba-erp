@@ -22,6 +22,9 @@ class PeriodControlService:
         """
         فحص هل التاريخ يقع ضمن فترة محاسبية مفتوحة
         """
+        if not AccountingPeriod.objects.exists():
+            return True, None
+
         period = AccountingPeriod.objects.filter(
             start_date__lte=target_date,
             end_date__gte=target_date
