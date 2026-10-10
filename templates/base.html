@@ -442,9 +442,14 @@
                 }
             });
             
-            // إغلاق أي قائمة مفتوحة بنظافة عند تغيير أبعاد الشاشة
+            // إغلاق أي قائمة مفتوحة بنظافة عند تغيير عرض الشاشة فقط (لتفادي الإغلاق اللحظي عند انبثاق كيبورد الموبايل)
+            var lastSelect2WindowWidth = $(window).width();
             $(window).on('resize.select2 orientationchange.select2', function() {
-                $('select.select2-hidden-accessible').select2('close');
+                var currentWidth = $(window).width();
+                if (currentWidth !== lastSelect2WindowWidth) {
+                    lastSelect2WindowWidth = currentWidth;
+                    $('select.select2-hidden-accessible').select2('close');
+                }
             });
             
             // حماية زر ESC داخل حقل البحث لمنع إغلاق المودال بالخطأ وفقدان البيانات

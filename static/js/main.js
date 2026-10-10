@@ -1118,7 +1118,14 @@ function initDropdowns() {
 // Global Select2 Autofocus Search Field on Dropdown Open
 // ====================================================
 (function() {
+    function isTouchDevice() {
+        return ('ontouchstart' in window) || 
+               (navigator.maxTouchPoints > 0) || 
+               (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+    }
+
     function focusSelect2Search() {
+        if (isTouchDevice()) return;
         const searchInput = document.querySelector('.select2-container--open .select2-search__field') ||
                             document.querySelector('.select2-dropdown .select2-search__field');
         if (searchInput && document.activeElement !== searchInput) {
@@ -1129,6 +1136,7 @@ function initDropdowns() {
     function initSelect2Autofocus() {
         if (typeof $ !== 'undefined') {
             $(document).off('select2:open.autoSearchFocus').on('select2:open.autoSearchFocus', function() {
+                if (isTouchDevice()) return;
                 // محاولة فورية بالـ requestAnimationFrame
                 window.requestAnimationFrame(focusSelect2Search);
                 // محاولة تأكيدية لتخطي أي تأخير في العرض أو داخل النوافذ المنبثقة (Modals)

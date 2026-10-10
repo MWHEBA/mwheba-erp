@@ -139,13 +139,14 @@ def invoice_product_lookup(request):
 
         # 4. جلب كميات المخزون
         stock_map = {}
-        if warehouse_id:
+        if warehouse_id and product_type == "purchase":
             stocks = Stock.objects.filter(
                 warehouse_id=warehouse_id,
                 product__in=qs
             ).values("product_id", "quantity")
             stock_map = {str(s["product_id"]): float(s["quantity"]) for s in stocks}
         else:
+            # في المبيعات، نجلب إجمالي الأرصدة عبر المخازن النشطة لتفادي إخفاء الأصناف المتوفرة بمخازن أخرى
             stocks = Stock.objects.filter(
                 product__in=qs,
                 warehouse__is_active=True
@@ -401,6 +402,15 @@ def invoice_product_lookup(request):
                     v_item["selling_price"] = mv_sell if product_type != "purchase" else base_item["selling_price"]
                     raw_results.append(v_item)
 
+            # إضافة المنتج الأساسي دائماً إلا لو كان البحث exact ومطابق فقط لمتغير دون المنتج الأساسي
+            base_matched_exact = not exact or (query and (
+                (p.sku and p.sku.lower() == query.lower()) or 
+                (p.barcode and p.barcode.lower() == query.lower()) or
+                (str(p.id) == query)
+            )) or not matched_v_for_p
+            if base_matched_exact:
+                raw_results.append(base_item)
+
         # إلحاق تفاصيل أرصدة المخازن والمخزن المقترح دفعة واحدة لكل صنف
         target_product_ids = list({item["id"] for item in raw_results if not item.get("is_service")})
         from product.services.stock_allocation_service import StockAllocationService
@@ -412,10 +422,19 @@ def invoice_product_lookup(request):
         for item in raw_results:
             p_stocks = wh_stocks_map.get(item["id"], [])
             item["warehouse_stocks"] = p_stocks
-            best_wh = next((w for w in p_stocks if w["available_quantity"] > 0), None) or (p_stocks[0] if p_stocks else None)
+            best_wh = next((w for w in p_stocks if float(w.get("available_quantity", 0)) > 0), None) or (p_stocks[0] if p_stocks else None)
             item["suggested_warehouse_id"] = best_wh["warehouse_id"] if best_wh else None
             item["suggested_warehouse_name"] = best_wh["warehouse_name"] if best_wh else ""
-            item["suggested_warehouse_stock"] = best_wh["available_quantity"] if best_wh else 0
+            item["suggested_warehouse_stock"] = float(best_wh["available_quantity"]) if best_wh else 0.0
+
+            # في فواتير البيع: تحديد رصيد الصنف المتاح من أفضل مخزن متاح
+            if product_type != "purchase" and p_stocks:
+                total_avail = sum(float(w.get("available_quantity", 0)) for w in p_stocks)
+                item["total_available_stock"] = total_avail
+                if best_wh and float(best_wh.get("available_quantity", 0)) > 0:
+                    item["stock"] = float(best_wh["available_quantity"])
+                elif total_avail > 0:
+                    item["stock"] = total_avail
 
         # ترتيب النتائج: المنتجات المسعرة بالعملة أولاً، ثم المنتجات غير المسعرة ثانياً
         if is_foreign:

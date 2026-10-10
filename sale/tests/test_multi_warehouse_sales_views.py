@@ -139,3 +139,46 @@ class MultiWarehouseSalesViewsTest(TestCase):
         stock_cable = Stock.objects.get(product=self.prod_cable, warehouse=self.wh_acc)
         self.assertEqual(stock_tv.quantity, Decimal("18.00"))
         self.assertEqual(stock_cable.quantity, Decimal("95.00"))
+
+    def test_invoice_product_lookup_returns_products_with_warehouse_stocks(self):
+        """التحقق من أن استعلام المنتجات يُرجع المنتجات الأساسية وتفاصيل أرصدة المخازن بدقة"""
+        url = reverse("product:invoice_product_lookup")
+        response = self.client.get(f"{url}?product_ids={self.prod_tv.id},{self.prod_cable.id}&show_all=true")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("products", data)
+        self.assertEqual(len(data["products"]), 2)
+
+        tv_data = next((p for p in data["products"] if p["id"] == self.prod_tv.id), None)
+        self.assertIsNotNone(tv_data)
+        self.assertIn("warehouse_stocks", tv_data)
+        self.assertTrue(len(tv_data["warehouse_stocks"]) >= 2)
+        
+        # التأكد من رصيد الشاشة في مخزن الإلكترونيات
+        wh_elec_stock = next((w for w in tv_data["warehouse_stocks"] if w["warehouse_id"] == self.wh_elec.id), None)
+        self.assertIsNotNone(wh_elec_stock)
+        self.assertEqual(wh_elec_stock["available_quantity"], 20.0)
+
+        # التأكد من خاصية stock على مستوى Product
+        self.assertEqual(self.prod_tv.stock, Decimal("20.00"))
+        self.assertEqual(self.prod_cable.stock, Decimal("100.00"))
+
+    def test_sale_edit_get_contains_id_warehouse(self):
+        """التحقق من أن صفحة تعديل الفاتورة تشتمل على حقل id_warehouse لضمان قراءة الواجهة للمخزن"""
+        # إنشاء فاتورة تجريبية أولاً
+        sale = Sale.objects.create(
+            number="SL-TEST-WH",
+            customer=self.customer,
+            date=timezone.now().date(),
+            warehouse=self.wh_elec,
+            payment_method="credit",
+            payment_status="unpaid",
+            status="draft",
+            subtotal=Decimal("100.00"),
+            total=Decimal("100.00"),
+            created_by=self.user,
+        )
+        url = reverse("sale:sale_edit", kwargs={"pk": sale.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="id_warehouse"')

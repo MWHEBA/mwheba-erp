@@ -368,3 +368,27 @@ class TestTreasuryProvisioningSuite:
         acc2 = ChartOfAccounts.objects.get(pk=acc2_id)
         assert acc2.name == "خزينة رقم 2"
 
+    def test_cash_account_creation_with_opening_balance_auto_resolves_equity(self, client):
+        """التحقق من إنشاء خزينة برصيد افتتاحي وحل حساب الأرصدة الافتتاحية تلقائياً"""
+        client.force_login(self.admin_user)
+        # حذف حساب الأرصدة الافتتاحية إن وجد لاختبار الحل التلقائي الجذري
+        ChartOfAccounts.objects.filter(code="31010").delete()
+
+        res = client.post(self.url, {
+            "account_category": "cash",
+            "name": "خزينة المبيعات الجديدة",
+            "work_location_id": self.work_location.id,
+            "opening_balance": "100000.00",
+            "opening_balance_date": "2026-10-08",
+            "currency_id": self.egp.id
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["success"] is True
+
+        # التحقق من إنشاء الحساب والقيد الافتتاحي المقابل
+        new_acc = ChartOfAccounts.objects.get(name="خزينة المبيعات الجديدة")
+        assert new_acc.code in data["message"]
+        assert new_acc.opening_balance == Decimal("100000.00")
+        assert ChartOfAccounts.objects.filter(code="31010").exists()
+

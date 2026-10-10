@@ -10,7 +10,13 @@
             type: 'sale', // 'sale', 'purchase', or 'quotation'
             priceField: 'selling_price',
             currencySymbol: 'ج.م',
-            getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+            getWarehouseId: function($row) {
+                if ($row && $row.length) {
+                    var lineWh = $row.find('.item-warehouse-select').val();
+                    if (lineWh) return lineWh;
+                }
+                return $('#id_warehouse').val() || '';
+            },
             getSupplierId: function() { return $('#id_supplier').val() || ''; },
             getInvoiceId: function() { return '0'; },
             enableMultiSelect: false,
@@ -176,18 +182,34 @@
                     removeBtn +
                 '</div>');
             } else {
-                var whId = itemData.warehouse_id || itemData.warehouse || '';
                 var whList = window._transactionWarehouses || [];
+                var defaultWhId = $('#id_warehouse').val() || (whList.length > 0 ? whList[0].id : '');
+                var whId = itemData.warehouse_id || itemData.warehouse || defaultWhId || '';
                 var whOptionsHtml = '';
-                if (whList && whList.length > 0) {
-                    whList.forEach(function(wh) {
-                        var isSel = (String(wh.id) === String(whId)) ? 'selected' : '';
-                        whOptionsHtml += '<option value="' + wh.id + '" ' + isSel + '>' + wh.name + '</option>';
-                    });
+                if (itemData.warehouse_stocks && itemData.warehouse_stocks.length > 0) {
+                    var availableWs = itemData.warehouse_stocks.filter(function(ws) { return parseFloat(ws.available_quantity || 0) > 0; });
+                    if (availableWs.length > 0) {
+                        var targetWh = availableWs.find(function(ws) { return String(ws.warehouse_id) === String(whId); }) ? whId : availableWs[0].warehouse_id;
+                        whId = targetWh;
+                        availableWs.forEach(function(ws) {
+                            var isSel = (String(ws.warehouse_id) === String(targetWh));
+                            whOptionsHtml += '<option value="' + ws.warehouse_id + '" data-stock="' + ws.available_quantity + '" ' + (isSel ? 'selected' : '') + '>' + ws.warehouse_name + ' (رصيد: ' + ws.available_quantity + ')</option>';
+                        });
+                    } else {
+                        var pStk = parseFloat(itemData.stock || 0);
+                        if (pStk > 0) {
+                            whOptionsHtml = '<option value="' + whId + '" data-stock="' + pStk + '" selected>المخزن (رصيد: ' + pStk + ')</option>';
+                        } else {
+                            whOptionsHtml = '<option value="" data-stock="0" disabled selected>لا يوجد مخزون متاح بأي مخزن</option>';
+                        }
+                    }
                 }
 
+                var hasProduct = Boolean(productId);
+                var showWhSelect = (!isPurchase && !isServiceType && !isService && hasProduct);
+
                 var whSelectHtml = (!isPurchase && !isServiceType) ? (
-                    '<div class="warehouse-select-wrapper mt-1 d-flex align-items-center gap-1 ' + (isService ? 'd-none' : '') + '">' +
+                    '<div class="warehouse-select-wrapper mt-1 d-flex align-items-center gap-1 ' + (showWhSelect ? '' : 'd-none') + '">' +
                         '<i class="fas fa-warehouse text-muted" style="font-size: 0.72rem;" title="المخزن"></i>' +
                         '<select name="warehouse[]" class="form-select form-select-sm item-warehouse-select" tabindex="-1" style="font-size: 0.75rem; padding: 1px 4px; height: 24px; border-radius: 4px;">' +
                             whOptionsHtml +
@@ -230,6 +252,16 @@
                     '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
                     removeBtn +
                 '</div>');
+            }
+
+            if (itemData.warehouse_stocks && itemData.warehouse_stocks.length > 0) {
+                $row.data('warehouse-stocks', itemData.warehouse_stocks);
+                var matchedWh = itemData.warehouse_stocks.find(function(ws) { return String(ws.warehouse_id) === String(whId); });
+                if (matchedWh) {
+                    productStock = matchedWh.available_quantity;
+                    $row.find('.item-wh-stock').text('متاح: ' + productStock);
+                    $row.find('.product-id-input').attr('data-stock', productStock);
+                }
             }
 
             if (productId && typeof this.renderStockState === 'function') {
@@ -480,7 +512,8 @@
                 var $card = $(this);
                 if (!self._activePickerRow) return;
 
-                var product = {
+                var pRaw = $card.data('product-data') || {};
+                var product = $.extend({}, pRaw, {
                     id: $card.data('id'),
                     name: $card.data('name'),
                     code: $card.data('code') || '',
@@ -498,8 +531,12 @@
                     variant_id: $card.data('variant-id') || '',
                     unit_id: $card.data('unit-id') || '',
                     unit_name: $card.data('unit-name') || '',
-                    reorder_point: $card.data('reorder-point') || 0
-                };
+                    reorder_point: $card.data('reorder-point') || 0,
+                    warehouse_stocks: pRaw.warehouse_stocks || [],
+                    suggested_warehouse_id: pRaw.suggested_warehouse_id || null,
+                    suggested_warehouse_name: pRaw.suggested_warehouse_name || '',
+                    suggested_warehouse_stock: pRaw.suggested_warehouse_stock || 0
+                });
 
                 self.applyProductToRow(self._activePickerRow, product, 'modal');
 
@@ -544,7 +581,8 @@
                 $checked.each(function() {
                     var $cb = $(this);
                     var $card = $cb.closest('.product-card');
-                    var pData = {
+                    var pRaw = $card.data('product-data') || {};
+                    var pData = $.extend({}, pRaw, {
                         id: $card.data('id'),
                         name: $card.data('name'),
                         code: $card.data('code') || '',
@@ -557,8 +595,10 @@
                         variant_id: $card.data('variant-id') || '',
                         unit_id: $card.data('unit-id') || '',
                         unit_name: $card.data('unit-name') || '',
-                        quantity: 1
-                    };
+                        quantity: 1,
+                        warehouse_stocks: pRaw.warehouse_stocks || [],
+                        suggested_warehouse_id: pRaw.suggested_warehouse_id || null
+                    });
 
                     var $targetRow = null;
                     if (isFirstRow && self._activePickerRow) {
@@ -805,7 +845,7 @@
         performCodeLookup: function($row, query, isExactRequest, isBlur) {
             var self = this;
             var $input = $row.find('.product-code-input');
-            var warehouseId = self.options.getWarehouseId();
+            var warehouseId = (typeof self.options.getWarehouseId === 'function') ? self.options.getWarehouseId($row) : ($('#id_warehouse').val() || '');
             var invoiceId = self.options.getInvoiceId();
             var currencyId = $('#id_currency').val() || '';
             var supplierId = self.options.getSupplierId();
@@ -877,7 +917,11 @@
                             variant_id: targetProduct.variant_id || '',
                             unit_id: targetProduct.unit_id || '',
                             unit_name: targetProduct.unit_name || '',
-                            reorder_point: targetProduct.reorder_point || 0
+                            reorder_point: targetProduct.reorder_point || 0,
+                            warehouse_stocks: targetProduct.warehouse_stocks || [],
+                            suggested_warehouse_id: targetProduct.suggested_warehouse_id || null,
+                            suggested_warehouse_name: targetProduct.suggested_warehouse_name || '',
+                            suggested_warehouse_stock: targetProduct.suggested_warehouse_stock || 0
                         };
 
                         $input.removeClass('is-invalid').addClass('is-valid');
@@ -926,6 +970,7 @@
                             '<div><span class="code-badge">' + (p.code || p.sku || 'بدون كود') + '</span> <strong class="ms-1">' + p.name + '</strong></div>' +
                             '<span class="badge bg-light text-dark border">' + displayPrice + ' ' + self.options.currencySymbol + '</span>' +
                             '</li>');
+                        $item.data('product-data', p);
                         $dropdown.append($item);
                     });
 
@@ -941,7 +986,8 @@
                     $dropdown.find('.code-lookup-item').on('mousedown click', function(e) {
                         e.preventDefault();
                         var $item = $(this);
-                        var selectedProduct = {
+                        var pData = $item.data('product-data') || {};
+                        var selectedProduct = $.extend({}, pData, {
                             id: $item.data('id'),
                             name: $item.data('name'),
                             code: $item.data('code'),
@@ -956,8 +1002,10 @@
                             is_service: $item.data('is-service') === true || $item.data('is-service') === "true",
                             variant_id: $item.data('variant-id') || '',
                             unit_id: $item.data('unit-id') || '',
-                            unit_name: $item.data('unit-name') || ''
-                        };
+                            unit_name: $item.data('unit-name') || '',
+                            warehouse_stocks: pData.warehouse_stocks || [],
+                            suggested_warehouse_id: pData.suggested_warehouse_id || null
+                        });
 
                         $input.removeClass('is-invalid');
                         self.applyProductToRow($row, selectedProduct, 'input');
@@ -986,14 +1034,28 @@
             
             var effectivePrice = (product.selling_price !== undefined && product.selling_price !== null) ? product.selling_price : product.price;
 
+            // تحديد الرصيد الفعلي للصنف مع فحص أرصدة المخازن لتفادي التصفير الخاطئ
+            var effectiveStock = parseFloat(product.stock !== undefined ? product.stock : 0);
+            var whStocks = product.warehouse_stocks || [];
+            if ((isNaN(effectiveStock) || effectiveStock <= 0) && whStocks.length > 0) {
+                var availWs = whStocks.filter(function(ws) { return parseFloat(ws.available_quantity || 0) > 0; });
+                if (availWs.length > 0) {
+                    effectiveStock = parseFloat(availWs[0].available_quantity || 0);
+                    product.stock = effectiveStock;
+                }
+            }
+
             var $idInput = $row.find('.product-id-input');
             $idInput.val(product.id)
                 .attr('data-price', effectivePrice)
-                .attr('data-stock', product.stock)
+                .attr('data-stock', effectiveStock)
                 .attr('data-is-service', product.is_service)
                 .attr('data-cost-base', (product.cost_price_base !== undefined ? product.cost_price_base : (product.cost_price || 0)))
                 .attr('data-cost', (product.cost_price !== undefined ? product.cost_price : 0))
                 .attr('data-uom-factor', (product.uom_factor !== undefined ? product.uom_factor : 1.0));
+
+            $row.data('warehouse-stocks', product.warehouse_stocks || []);
+            $row.data('product-data', product);
 
             if (product.variant_id) {
                 $row.find('.variant-id-input').val(product.variant_id);
@@ -1081,6 +1143,12 @@
             $row.find('.unit-id-input').val('');
             $row.find('.product-code-input').removeClass('is-valid is-invalid').val('');
             $row.find('.unit-price').val('');
+            $row.find('.warehouse-select-wrapper').addClass('d-none');
+            $row.find('.item-warehouse-select').empty();
+            $row.find('.item-wh-stock').text('');
+            $row.find('.btn-split-item').addClass('d-none');
+            $row.removeData('warehouse-stocks');
+            $row.removeData('product-data');
             this.renderStockState($row, null);
             if (typeof window.calculateRowTotal === 'function') {
                 window.calculateRowTotal($row);
@@ -1098,7 +1166,7 @@
         // تحميل أجهزة ومحتويات المودال
         loadModalProducts: function() {
             var self = this;
-            var warehouseId = self.options.getWarehouseId();
+            var warehouseId = (typeof self.options.getWarehouseId === 'function') ? self.options.getWarehouseId(self._activePickerRow) : ($('#id_warehouse').val() || '');
             var supplierId = self.options.getSupplierId();
             var invoiceId = self.options.getInvoiceId();
             var showAll = $('#modal-show-all-products').is(':checked') || $('#show-all-products').is(':checked');
@@ -1158,19 +1226,30 @@
                         products.forEach(function(p) {
                             var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
                             var isService = p.is_service === true || p.is_service === "true" || p.is_service === "True" || p.is_service === 1;
-                            var stockClass = (!isService && p.stock <= 0 && !isPurchase) ? 'out-of-stock' : '';
+
+                            // فحص الرصيد الفعلي المتاح عبر كافة المخازن
+                            var pStock = parseFloat(p.stock !== undefined ? p.stock : 0);
+                            if (p.warehouse_stocks && p.warehouse_stocks.length > 0 && (isNaN(pStock) || pStock <= 0)) {
+                                var anyAvail = p.warehouse_stocks.find(function(ws) { return parseFloat(ws.available_quantity || 0) > 0; });
+                                if (anyAvail) {
+                                    pStock = parseFloat(anyAvail.available_quantity || 0);
+                                    p.stock = pStock;
+                                }
+                            }
+
+                            var stockClass = (!isService && pStock <= 0 && !isPurchase) ? 'out-of-stock' : '';
                             var stockLabel = '';
 
                             if (isService) {
                                 stockLabel = '<span class="product-stock text-success"><i class="fas fa-tools"></i> خدمة</span>';
                             } else if (isPurchase) {
-                                stockLabel = '<span class="product-stock text-muted">مخزون: ' + p.stock + (p.unit_name ? ' ' + p.unit_name : '') + '</span>';
+                                stockLabel = '<span class="product-stock text-muted">مخزون: ' + pStock + (p.unit_name ? ' ' + p.unit_name : '') + '</span>';
                             } else {
-                                stockLabel = p.stock <= 0
+                                stockLabel = pStock <= 0
                                     ? '<span class="product-stock low-stock">غير متوفر</span>'
-                                    : (p.stock <= 5
-                                        ? '<span class="product-stock low-stock">مخزون: ' + p.stock + '</span>'
-                                        : '<span class="product-stock">مخزون: ' + p.stock + '</span>');
+                                    : (pStock <= 5
+                                        ? '<span class="product-stock low-stock">مخزون: ' + pStock + '</span>'
+                                        : '<span class="product-stock">مخزون: ' + pStock + '</span>');
                             }
 
                             var priceDisplayHtml = '';
@@ -1192,7 +1271,7 @@
                                 ' data-cost="' + (p.cost_price || 0) + '" data-cost-base="' + (p.cost_price_base !== undefined ? p.cost_price_base : (p.cost_price || 0)) + '" data-uom-factor="' + (p.uom_factor || 1.0) + '"';
 
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
-                                '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '"' + discAttr + '>' +
+                                '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + pStock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '"' + discAttr + '>' +
                                     multiSelectCheckbox +
                                     '<div class="product-name">' + p.name + '</div>' +
                                     codeBadge +
@@ -1202,6 +1281,7 @@
                                     '</div>' +
                                 '</div>' +
                             '</div>');
+                            $card.find('.product-card').data('product-data', p);
                             $grid.append($card);
                         });
                     }
@@ -1328,7 +1408,7 @@
 
             $('#items-container .product-id-input').each(function() {
                 var val = $(this).val();
-                if (val) productIds.push(val);
+                if (val && productIds.indexOf(val) === -1) productIds.push(val);
             });
 
             if (productIds.length === 0) return;
@@ -1341,25 +1421,36 @@
                     product_ids: productIds.join(','),
                     warehouse_id: warehouseId,
                     invoice_id: invoiceId,
-                    type: lookupType
+                    type: lookupType,
+                    show_all: 'true'
                 },
                 success: function(response) {
                     var products = response.products || [];
                     products.forEach(function(p) {
-                        var $row = $('#items-container .product-id-input[value="' + p.id + '"]').closest('.item-row');
-                        var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
-                        $row.find('.product-id-input')
-                            .attr('data-price', price)
-                            .attr('data-stock', p.stock)
-                            .attr('data-is-service', p.is_service);
-                        $row.find('.product-code-input').val(p.code);
+                        $('#items-container .product-id-input[value="' + p.id + '"]').each(function() {
+                            var $row = $(this).closest('.item-row');
+                            var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
+                            $row.find('.product-id-input')
+                                .attr('data-price', price)
+                                .attr('data-is-service', p.is_service);
+                            $row.find('.product-code-input').val(p.code);
 
-                        var isService = p.is_service === true || p.is_service === 'true' || p.is_service === 1;
-                        self.renderStockState($row, {
-                            stock: p.stock,
-                            is_service: isService,
-                            quantity: parseFloat($row.find('.quantity').val()) || 1
-                        }, lookupType);
+                            var isService = p.is_service === true || p.is_service === 'true' || p.is_service === 1;
+
+                            if (typeof self.options.onProductSelect === 'function') {
+                                self.options.onProductSelect($row, p, 'initial');
+                            } else {
+                                if (p.stock !== undefined) {
+                                    $row.find('.product-id-input').attr('data-stock', p.stock);
+                                }
+                                self.renderStockState($row, {
+                                    stock: p.stock,
+                                    is_service: isService,
+                                    quantity: parseFloat($row.find('.quantity').val()) || 1,
+                                    unit_name: p.unit_name || ''
+                                }, lookupType);
+                            }
+                        });
                     });
                 }
             });

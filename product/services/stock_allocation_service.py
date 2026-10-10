@@ -120,9 +120,9 @@ class StockAllocationService:
             wh_entries = []
             for wh in all_warehouses:
                 st = stock_lookup.get((pid, wh.id))
-                qty = st.quantity if st else 0
-                res_qty = st.reserved_quantity if st else 0
-                avail_qty = max(0, qty - res_qty)
+                qty = float(st.quantity) if st else 0.0
+                res_qty = float(st.reserved_quantity) if st else 0.0
+                avail_qty = max(0.0, qty - res_qty)
                 avg_cost = float(st.average_cost) if st and st.average_cost else 0.0
 
                 wh_entries.append({

@@ -128,7 +128,8 @@ def sale_create(request, customer_id=None):
 
     # جلب المخزن الافتراضي
     from users.services.data_scoping_service import DataScopingService
-    default_warehouse = DataScopingService.get_transaction_warehouses(request.user).first()
+    user_warehouses = DataScopingService.get_transaction_warehouses(request.user)
+    default_warehouse = user_warehouses.first()
 
     # بناء الفلتر للخدمات والمنتجات حسب الإعداد
     from django.db import models
@@ -138,11 +139,11 @@ def sale_create(request, customer_id=None):
     elif allowed_item_types == 'services':
         products_filter &= models.Q(is_service=True)
 
-    # افتراضياً: المنتجات المادية اللي ليها stock في المخزن الافتراضي فقط (الخدمات تظهر دائماً)
-    if default_warehouse:
+    # المنتجات المادية التي لها مخزون متاح في أي من مخازن المستخدم (الخدمات تظهر دائماً)
+    if user_warehouses.exists():
         from product.models import Stock
         products_with_stock = Stock.objects.filter(
-            warehouse=default_warehouse, quantity__gt=0
+            warehouse__in=user_warehouses, quantity__gt=0
         ).values_list("product_id", flat=True)
         
         if allowed_item_types == 'both':
@@ -2053,9 +2054,12 @@ def sale_duplicate(request, pk):
     elif allowed_item_types == 'services':
         products_filter &= models.Q(is_service=True)
 
+    from users.services.data_scoping_service import DataScopingService
+    warehouses = DataScopingService.get_transaction_warehouses(request.user)
+
     from product.models import Stock as StockModel
     products_with_stock = StockModel.objects.filter(
-        warehouse=original.warehouse, quantity__gt=0
+        warehouse__in=warehouses, quantity__gt=0
     ).values_list("product_id", flat=True)
     
     if allowed_item_types == 'both':
@@ -2070,7 +2074,6 @@ def sale_duplicate(request, pk):
         products = Product.objects.filter(products_filter).order_by("name")
         
     customers = Customer.objects.filter(is_active=True).order_by("name")
-    warehouses = DataScopingService.get_transaction_warehouses(request.user)
 
     # جلب التصنيفات
     from product.models import Category

@@ -55,6 +55,7 @@ class AccountRoleNames(str, Enum):
     WITHHOLDING_TAX_RECEIVABLE = "withholding_tax_receivable"
     BANK_CHARGES_EXPENSE = "bank_charges_expense"
     CASH_IN_TRANSIT_CONTROL = "cash_in_transit_control"
+    OPENING_BALANCE_EQUITY = "opening_balance_equity"
 
 
 # مصفوفة التحقق الدلالي للأدوار المالية (Semantic Type Guard)
@@ -88,6 +89,15 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
     AccountRoleNames.EMPLOYEE_ADVANCE.value: "asset",
     AccountRoleNames.BANK_CHARGES_EXPENSE.value: "expense",
     AccountRoleNames.CASH_IN_TRANSIT_CONTROL.value: "asset",
+    AccountRoleNames.OPENING_BALANCE_EQUITY.value: "equity",
+    "OPENING_BALANCE_EQUITY": "equity",
+    "OPENING_BALANCES": "equity",
+    "RETAINED_EARNINGS": "equity",
+    "CAPITAL_EQUITY": "equity",
+    "OTHER_INCOME": "revenue",
+    "OTHER_INCOME_ACCOUNT": "revenue",
+    "OTHER_EXPENSE": "expense",
+    "OTHER_EXPENSE_ACCOUNT": "expense",
 }
 
 
@@ -198,6 +208,23 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "DEFERRED_REVENUE_ACCOUNT": "21510",
     AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "11410",
     "SUPPLIER_ADVANCE_ASSET": "11410",
+
+    # حقوق الملكية والأرصدة الافتتاحية
+    AccountRoleNames.OPENING_BALANCE_EQUITY.value: "31010",
+    "OPENING_BALANCE_EQUITY": "31010",
+    "OPENING_BALANCE_EQUITY_ACCOUNT": "31010",
+    "OPENING_BALANCES": "31010",
+    "OPENING_BALANCES_ACCOUNT": "31010",
+    "RETAINED_EARNINGS": "32010",
+    "RETAINED_EARNINGS_ACCOUNT": "32010",
+    "CAPITAL_EQUITY": "31000",
+    "CAPITAL_EQUITY_ACCOUNT": "31000",
+
+    # الإيرادات والمصروفات الأخرى
+    "OTHER_INCOME": "42000",
+    "OTHER_INCOME_ACCOUNT": "42000",
+    "OTHER_EXPENSE": "53000",
+    "OTHER_EXPENSE_ACCOUNT": "53000",
 
     # الرواتب والأجور
     AccountRoleNames.SALARY_EXPENSE.value: "52100",
@@ -319,6 +346,11 @@ class AccountRoleRegistry:
                 "21310": ("ضريبة القيمة المضافة - مخرجات (مبيعات)", "liability", "credit"),
                 "10100": ("الصندوق الرئيسي", "asset", "debit"),
                 "10200": ("حساب البنك الرئيسي", "asset", "debit"),
+                "31010": ("الأرصدة الافتتاحية", "equity", "credit"),
+                "31000": ("رأس المال", "equity", "credit"),
+                "32010": ("الأرباح والخسائر المرحلة", "equity", "credit"),
+                "42000": ("إيرادات أخرى", "revenue", "credit"),
+                "53000": ("مصروفات أخرى", "expense", "debit"),
             }
             if account_code in account_defaults:
                 name, category, nature = account_defaults[account_code]

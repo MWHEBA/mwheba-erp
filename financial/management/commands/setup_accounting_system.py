@@ -199,6 +199,7 @@ class Command(BaseCommand):
             ("22110", "قروض بنكية طويلة الأجل", "22", "LIABILITY", 3, True, False, False),
             ("22120", "التزامات إيجار تمويلي", "22", "LIABILITY", 3, True, False, False),
             ("22210", "مخصص مكافأة نهاية الخدمة", "22", "LIABILITY", 3, True, False, False),
+            ("31010", "الأرصدة الافتتاحية", "31", "EQUITY", 3, True, False, False),
             ("31110", "رأس المال", "31", "EQUITY", 3, True, False, False),
             ("312", "جاري الشركاء", "31", "EQUITY", 3, False, False, False),
             ("31310", "الاحتياطيات", "31", "EQUITY", 3, True, False, False),
@@ -648,6 +649,9 @@ class Command(BaseCommand):
             ("fx_realized_loss", "54300", "خسائر فروق العملة المحققة"),
             ("bank_charges_expense", "54100", "عمولات ومصاريف بنكية"),
             ("rounding_difference_account", "54400", "فروق تقريب كسور العملات"),
+
+            # حقوق الملكية والأرصدة الافتتاحية
+            ("opening_balance_equity", "31010", "حساب الأرصدة الافتتاحية للمنشأة"),
 
             # الرواتب والتأمينات
             ("salary_expense", "52100", "مصروف الرواتب والأجور"),

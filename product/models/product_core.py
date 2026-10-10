@@ -490,6 +490,13 @@ class Product(models.Model):
             return self.get_bundle_stock()
         return self.current_stock
 
+    @property
+    def stock(self):
+        """
+        خاصية المخزون الإجمالي للمنتج المتوافقة مع كافة قوالب ومكونات النظام
+        """
+        return self.calculated_stock
+
     def get_bundle_stock(self):
         """
         حساب المخزون المتاح للمنتج المجمع بناءً على توفر المكونات

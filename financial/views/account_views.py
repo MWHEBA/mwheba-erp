@@ -568,12 +568,26 @@ def quick_add_cash_bank_account(request):
                 code="31010", is_active=True
             ).first()
             if not opening_equity_account:
-                opening_equity_account = AccountRoleRegistry.get_account("OPENING_BALANCE_EQUITY")
+                opening_equity_account = AccountRoleRegistry.get_account_by_role("OPENING_BALANCE_EQUITY")
             if not opening_equity_account:
                 opening_equity_account = ChartOfAccounts.objects.filter(
-                    Q(code="30100") | Q(code="30000") | Q(account_type__category="equity"),
+                    Q(code="30100") | Q(code="30000") | Q(code="31000") | Q(account_type__category="equity"),
                     is_active=True, is_leaf=True
                 ).first()
+            if not opening_equity_account:
+                equity_type, _ = AccountType.objects.get_or_create(
+                    code="TYPE_EQUITY",
+                    defaults={"name": "حقوق الملكية", "category": "equity", "nature": "credit"}
+                )
+                opening_equity_account, _ = ChartOfAccounts.objects.get_or_create(
+                    code="31010",
+                    defaults={
+                        "name": "الأرصدة الافتتاحية",
+                        "account_type": equity_type,
+                        "is_active": True,
+                        "is_leaf": True
+                    }
+                )
 
             if opening_equity_account:
                 lines_data = []
