@@ -25,6 +25,7 @@ from hr.models import (
     Payroll, Contract
 )
 from hr.views.attendance_views import (
+    attendance_list,
     attendance_manual_save,
     attendance_import_template,
     attendance_import_excel,
@@ -366,4 +367,35 @@ class TestPhase2LeaveCutoffReconciliation:
         # يجب أن تُحسب الإجازة 3 أيام فقط (10، 11، 12) وليس 5 أيام
         assert summary.annual_leave_days == 3
         assert summary.total_paid_days == 3
+
+    def test_attendance_list_actions_has_attendance_id(self, phase2_setup):
+        """التحقق من تمرير ID سجل الحضور لأزرار الإجراءات وسجل التدقيق لمنع روابط 404"""
+        rf = RequestFactory()
+        user = phase2_setup['user']
+        emp = phase2_setup['emp']
+        shift = phase2_setup['shift']
+
+        att = Attendance.objects.create(
+            employee=emp,
+            date=date(2026, 6, 1),
+            shift=shift,
+            status='present',
+            work_hours=Decimal('8.0')
+        )
+
+        content_type = ContentType.objects.get_for_model(Attendance)
+        perm_view, _ = Permission.objects.get_or_create(
+            codename='view_attendance',
+            content_type=content_type,
+            defaults={'name': 'عرض الحضور'}
+        )
+        user.user_permissions.add(perm_view)
+
+        request = rf.get('/hr/attendance/', {'date_from': '2026-06-01', 'date_to': '2026-06-01'})
+        request.user = user
+
+        response = attendance_list(request)
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+        assert f'data-attendance-id="{att.id}"' in content
 

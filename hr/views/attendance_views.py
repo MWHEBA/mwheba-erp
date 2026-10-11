@@ -2,11 +2,12 @@
 Views إدارة الحضور
 """
 from .base_imports import *
+import json
 from datetime import time, timedelta, datetime, date
 from django.views.decorators.http import require_POST
 from django.db.models import Count
 from decimal import Decimal, ROUND_HALF_UP
-from ..models import Employee, Department, Shift, BiometricLog, AttendanceSummary, Attendance, RamadanSettings, AttendancePenalty
+from ..models import Employee, Department, Shift, BiometricLog, AttendanceSummary, Attendance, RamadanSettings, AttendancePenalty, AttendanceAuditLog
 from ..services.attendance_service import AttendanceService
 from ..services.attendance_summary_service import AttendanceSummaryService
 from ..forms.attendance_forms import RamadanSettingsForm, AttendancePenaltyForm
@@ -131,6 +132,11 @@ def attendance_list(request):
                 status='approved'
             ),
             to_attr='approved_permissions_in_period'
+        ),
+        'biometric_logs',
+        Prefetch(
+            'audit_logs',
+            queryset=AttendanceAuditLog.objects.select_related('changed_by', 'supervisor_witness').order_by('-created_at')
         )
     )
     
@@ -164,10 +170,26 @@ def attendance_list(request):
         # حساب الانصراف المبكر
         early_leave_minutes = attendance.early_leave_minutes if attendance.early_leave_minutes else 0
         
-        # جلب حركات البصمة المرتبطة
-        biometric_logs = attendance.biometric_logs.all().order_by('timestamp')
+        # جلب حركات البصمة المرتبطة (بدون query إضافي بفضل prefetch_related)
+        biometric_logs = sorted(attendance.biometric_logs.all(), key=lambda l: l.timestamp)
         movements = [log.timestamp for log in biometric_logs]
         
+        # جلب وتجهيز سجل التدقيق مسبقاً للعرض اللحظي المباشر
+        audit_logs_list = []
+        for log in attendance.audit_logs.all():
+            changed_by_name = log.changed_by.get_full_name() if log.changed_by else ''
+            if not changed_by_name and log.changed_by:
+                changed_by_name = log.changed_by.username
+            audit_logs_list.append({
+                'field_name': log.field_name,
+                'old_value': log.old_value or '-',
+                'new_value': log.new_value or '-',
+                'changed_by': changed_by_name or 'النظام',
+                'supervisor_witness': log.supervisor_witness.get_full_name_ar() if log.supervisor_witness else '-',
+                'created_at': log.created_at.strftime('%Y-%m-%d %I:%M %p') if log.created_at else '-',
+                'reason': log.reason,
+            })
+
         # الحصول على الملخص الشهري (باستخدام الشهر الصحيح للدورة المرنة)
         from hr.utils.payroll_helpers import get_payroll_month_for_date
         payroll_month = get_payroll_month_for_date(attendance.date)
@@ -195,6 +217,8 @@ def attendance_list(request):
                 }
                 
         attendance_data.append({
+            'id': attendance.id,
+            'attendance_id': attendance.id,
             'employee': attendance.employee,
             'date': attendance.date,
             'check_in': attendance.check_in,
@@ -206,8 +230,12 @@ def attendance_list(request):
             'permission_info': permission_info,
             'total_movements': len(movements),
             'movements': movements,
+            'audit_logs': audit_logs_list,
+            'audit_logs_json': json.dumps(audit_logs_list, ensure_ascii=False),
             'summary_id': summary.id,
             'overtime_hours': float(attendance.overtime_hours) if attendance.overtime_hours else 0,
+            'is_field_visit': attendance.is_field_visit,
+            'location_name': attendance.location_name,
         })
     
     # فلتر الحالة بعد البناء (لأن permission محسوبة بعد الجلب)
@@ -2190,25 +2218,32 @@ def attendance_import_excel(request):
 @login_required
 def attendance_audit_history(request, pk):
     """عرض سجل تدقيق التعديلات لسجل حضور محدد"""
-    attendance = get_object_or_404(Attendance, pk=pk)
+    attendance = get_object_or_404(
+        Attendance.objects.select_related('employee'),
+        pk=pk
+    )
     logs = attendance.audit_logs.select_related('changed_by', 'supervisor_witness').order_by('-created_at')
 
     logs_data = []
     for log in logs:
+        changed_by_name = log.changed_by.get_full_name() if log.changed_by else ''
+        if not changed_by_name and log.changed_by:
+            changed_by_name = log.changed_by.username
+        witness_name = log.supervisor_witness.get_full_name_ar() if log.supervisor_witness else '-'
         logs_data.append({
             'field_name': log.field_name,
             'old_value': log.old_value or '-',
             'new_value': log.new_value or '-',
-            'changed_by': log.changed_by.get_full_name() or log.changed_by.username,
+            'changed_by': changed_by_name or 'النظام',
             'reason': log.reason,
-            'supervisor_witness': log.supervisor_witness.get_full_name_ar() if log.supervisor_witness else '-',
-            'created_at': log.created_at.strftime('%Y-%m-%d %I:%M %p'),
+            'supervisor_witness': witness_name,
+            'created_at': log.created_at.strftime('%Y-%m-%d %I:%M %p') if log.created_at else '-',
         })
 
     return JsonResponse({
         'success': True,
-        'employee_name': attendance.employee.get_full_name_ar(),
-        'date': attendance.date.strftime('%Y-%m-%d'),
+        'employee_name': attendance.employee.get_full_name_ar() if attendance.employee else '',
+        'date': attendance.date.strftime('%Y-%m-%d') if attendance.date else '',
         'logs': logs_data,
     })
 

@@ -90,7 +90,7 @@
                             <td class="custom-field-label">{% if is_english %}Currency / Exchange{% else %}العملة وسعر الصرف{% endif %}</td>
                             <td class="custom-field-value">
                                 {{ so.currency_display }}
-                                {% if so.currency != "EGP" and so.currency != "1" %}
+                                {% if settings.show_foreign_currency_exchange_rate and so.currency != "EGP" and so.currency != "1" %}
                                     (1 = {{ so.exchange_rate|smart_float:4 }})
                                 {% endif %}
                             </td>

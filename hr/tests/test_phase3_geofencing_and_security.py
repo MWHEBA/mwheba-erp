@@ -25,6 +25,7 @@ from hr.models import (
 )
 from hr.services.geofencing_service import GeofencingService
 from hr.views.work_location_views import (
+    work_location_list,
     work_location_save,
     work_location_toggle,
     work_location_delete,
@@ -462,3 +463,40 @@ class TestPhase3WorkLocationViews:
 
         emp.refresh_from_db()
         assert emp.registered_device_uuid is None
+
+    def test_work_location_list_header_buttons_and_context(self, phase3_setup):
+        """التحقق من زر إضافة مقر عمل في الهيدر وسياق العرض"""
+        rf = phase3_setup['rf']
+        user = phase3_setup['user']
+        
+        request = rf.get('/hr/work-locations/')
+        request.user = user
+        response = work_location_list(request)
+        assert response.status_code == 200
+        
+        # التأكد من رندرة زر فتح المودال في الصفحة
+        content = response.content.decode('utf-8')
+        assert 'openWorkLocationModal()' in content
+        assert 'إضافة مقر عمل' in content
+
+    def test_work_location_save_combined_coordinates_parsing(self, phase3_setup):
+        """التحقق من الدعم الذكي للصق الإحداثيات مجتمعة من خرائط جوجل"""
+        rf = phase3_setup['rf']
+        user = phase3_setup['user']
+
+        request = rf.post('/hr/work-locations/save/', {
+            'name_ar': 'فرع التجمع الخامس المنسوخ',
+            'latitude': '30.0123456, 31.2345678',  # لصق الإحداثيات مجتمعة
+            'longitude': '',
+            'radius_meters': '150',
+            'is_active': 'on',
+        })
+        request.user = user
+
+        response = work_location_save(request)
+        assert response.status_code == 200
+        data = json.loads(response.content.decode('utf-8'))
+        assert data['success'] is True
+        loc = WorkLocation.objects.get(pk=data['data']['id'])
+        assert loc.latitude == Decimal('30.0123456')
+        assert loc.longitude == Decimal('31.2345678')

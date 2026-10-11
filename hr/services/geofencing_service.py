@@ -64,11 +64,12 @@ class GeofencingService:
         longitude: float,
         is_field_visit: bool = False,
         accuracy_meters: Optional[float] = None,
+        is_supervisor_override: bool = False,
     ) -> Tuple[bool, Optional[WorkLocation], float, Optional[str]]:
         """
         التحقق الجغرافي الشامل من موقع البصمة:
         - التحقق من دقة إشارة الـ GPS.
-        - دعم الزيارات الميدانية للموظفين المصرح لهم.
+        - دعم الزيارات الميدانية للموظفين المصرح لهم وتجاوز المشرف المعتمد.
         - دعم الموظف المتنقل بين كافة المقرات (allowed_all_locations).
         - دعم الموظف المرتبط بمقر محدد (work_location).
         - الاعتماد على أقرب مقر نشط كـ Fallback.
@@ -86,7 +87,7 @@ class GeofencingService:
 
         # 2. إذا كانت زيارة ميدانية
         if is_field_visit:
-            if getattr(employee, 'allow_field_visits', False):
+            if getattr(employee, 'allow_field_visits', False) or is_supervisor_override:
                 return True, None, 0.0, "زيارة ميدانية معتمدة"
             else:
                 return False, None, 0.0, "الموظف غير مصرح له بتسجيل زيارات أو مأموريات ميدانية"

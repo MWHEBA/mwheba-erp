@@ -1208,4 +1208,33 @@ function initDropdowns() {
             inputs.forEach(sanitizeField);
         }
     }, true);
-})(); 
+})();
+
+// ====================================================
+// إلغاء تفاعل بكرة الماوس (Mouse Wheel) نهائياً مع حقول الأرقام بنسبة 100%
+// لمنع التغيير غير المقصود للأرقام والكميات والأسعار أثناء التمرير في كامل النظام
+// ====================================================
+(function() {
+    function disableNumberInputWheel(e) {
+        const target = e.target;
+        if (target && target.tagName === 'INPUT' && (target.type === 'number' || target.getAttribute('type') === 'number')) {
+            if (document.activeElement === target) {
+                target.blur();
+            }
+        }
+    }
+
+    // 1. التقاط الحدث في مرحلة الـ Capture لضمان إلغاء التركيز فوراً قبل بدء المتصفح في معالجة الخطوة
+    window.addEventListener('wheel', disableNumberInputWheel, { passive: true, capture: true });
+    document.addEventListener('wheel', disableNumberInputWheel, { passive: true, capture: true });
+
+    // 2. ربط احتياطي عبر jQuery إن وُجد لتغطية كافة العناصر الحالية والمضافة ديناميكياً
+    if (typeof jQuery !== 'undefined') {
+        jQuery(document).on('wheel', 'input[type=number]', function() {
+            if (document.activeElement === this) {
+                this.blur();
+            }
+        });
+    }
+})();
+ 

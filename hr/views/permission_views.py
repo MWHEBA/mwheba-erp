@@ -105,6 +105,7 @@ def permission_list(request):
 
     # جلب الموظفين وأنواع الأذونات للفلاتر
     employees = Employee.objects.filter(status='active', is_insurance_only=False)
+    permission_types = PermissionType.objects.filter(is_active=True)
     # Pagination SSR
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(permissions, request, default_per_page=25)

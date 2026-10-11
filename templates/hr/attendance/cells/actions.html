@@ -34,7 +34,10 @@
     <i class="fas fa-edit"></i>
 </button>
 <button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
-        data-attendance-id="{{ object.id }}"
+        data-attendance-id="{{ object.id|default:object.attendance_id }}"
+        data-employee-name="{{ object.employee.get_full_name_ar }}"
+        data-date="{{ object.date|date:'Y-m-d' }}"
+        data-audit-logs='{{ object.audit_logs_json|safe }}'
         title="سجل التدقيق">
     <i class="fas fa-history"></i>
 </button>
@@ -66,7 +69,10 @@
     <i class="fas fa-edit"></i>
 </button>
 <button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
-        data-attendance-id="{{ object.id }}"
+        data-attendance-id="{{ object.id|default:object.attendance_id }}"
+        data-employee-name="{{ object.employee.get_full_name_ar }}"
+        data-date="{{ object.date|date:'Y-m-d' }}"
+        data-audit-logs='{{ object.audit_logs_json|safe }}'
         title="سجل التدقيق">
     <i class="fas fa-history"></i>
 </button>

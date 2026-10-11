@@ -378,7 +378,7 @@ def employee_detail(request, pk):
         'custody_advances': employee.custody_advances.select_related('currency', 'source_treasury').order_by('-issue_date')[:5],
         'total_custody_advances_balance': employee.custody_advances.filter(status__in=['active', 'partially_settled']).aggregate(tot=Sum('current_balance'))['tot'] or Decimal('0.00'),
         'assigned_custody_accounts': employee.assigned_custody_accounts.filter(is_active=True),
-        'asset_custodies': employee.asset_custodies.all().order_by('-received_date'),
+        'asset_custodies': employee.asset_custodies.all().order_by('-delivered_date'),
         'active_asset_custodies_count': employee.asset_custodies.filter(status='active').count(),
         
         # بيانات التأمين للموظفين الخارجيين
@@ -393,8 +393,6 @@ def employee_detail(request, pk):
 
         # بيانات الهيدر
         'page_title': employee.get_full_name_ar(),
-        'page_subtitle': f'{employee.job_title.title_ar} - {employee.department.name_ar}',
-        'page_icon': 'fas fa-user',
         'page_subtitle': f'{employee.job_title.title_ar} - {employee.department.name_ar}',
         'page_icon': 'fas fa-user',
         

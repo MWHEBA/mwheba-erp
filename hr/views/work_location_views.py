@@ -26,9 +26,22 @@ __all__ = [
 
 
 @login_required
-@require_permission('hr.view_attendance')
 def work_location_list(request):
     """عرض قائمة مقرات العمل الجغرافية المعتمدة"""
+    has_perm = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or getattr(request.user, 'is_admin', False)
+        or request.user.has_perm('hr.view_attendance')
+        or request.user.has_perm('hr.view_worklocation')
+        or request.user.has_perm('hr.change_worklocation')
+    )
+    if not has_perm:
+        return render(request, 'core/permission_denied.html', {
+            'title': 'غير مصرح',
+            'message': 'ليس لديك الصلاحية لعرض مقرات العمل.'
+        }, status=403)
+
     locations = WorkLocation.objects.annotate(
         employees_count=Count('employees')
     ).all().order_by('-is_default', 'name_ar')
@@ -51,7 +64,8 @@ def work_location_list(request):
                 'text': 'إضافة مقر عمل',
                 'icon': 'fa-plus',
                 'class': 'btn-primary',
-                'attrs': 'onclick="openWorkLocationModal()"',
+                'onclick': 'openWorkLocationModal()',
+                'id': 'btnOpenWorkLocationModal',
             },
         ],
         'breadcrumb_items': [
@@ -67,21 +81,37 @@ def work_location_list(request):
 @require_POST
 def work_location_save(request):
     """إضافة أو تعديل مقر عمل جغرافي عبر AJAX"""
-    if not (request.user.has_perm('hr.change_worklocation') or request.user.is_staff or request.user.is_superuser):
+    has_perm = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or getattr(request.user, 'is_admin', False)
+        or request.user.has_perm('hr.add_worklocation')
+        or request.user.has_perm('hr.change_worklocation')
+        or request.user.has_perm('hr.change_attendance')
+    )
+    if not has_perm:
         return JsonResponse({'success': False, 'message': 'ليس لديك الصلاحية لإدارة مقرات العمل.'}, status=403)
 
     location_id = request.POST.get('location_id')
     name_ar = request.POST.get('name_ar', '').strip()
     name_en = request.POST.get('name_en', '').strip()
     address = request.POST.get('address', '').strip()
-    latitude_raw = request.POST.get('latitude')
-    longitude_raw = request.POST.get('longitude')
+    latitude_raw = str(request.POST.get('latitude', '')).strip()
+    longitude_raw = str(request.POST.get('longitude', '')).strip()
     radius_raw = request.POST.get('radius_meters', '100')
     is_active = request.POST.get('is_active') == 'on' or request.POST.get('is_active') == 'true'
     is_default = request.POST.get('is_default') == 'on' or request.POST.get('is_default') == 'true'
 
     if not name_ar:
         return JsonResponse({'success': False, 'message': 'يرجى إدخال اسم المقر بالعربية.'}, status=400)
+
+    # معالجة ذكية إذا قام المستخدم بنسخ الإحداثيات مجتمعة ولصقها في حقل خط العرض
+    if (',' in latitude_raw or '،' in latitude_raw) and (not longitude_raw or longitude_raw == 'None'):
+        sep = ',' if ',' in latitude_raw else '،'
+        parts = latitude_raw.split(sep)
+        if len(parts) >= 2:
+            latitude_raw = parts[0].strip()
+            longitude_raw = parts[1].strip()
 
     try:
         latitude = Decimal(str(latitude_raw).strip())

@@ -2039,6 +2039,7 @@ def sale_duplicate(request, pk):
     المستخدم يراجع ويعدّل ثم يحفظ
     """
     import json
+    from users.services.data_scoping_service import DataScopingService
     original = get_object_or_404(DataScopingService.get_scoped_sales(request.user), pk=pk)
 
     # جلب نوع البنود المسموح بها من الإعدادات
@@ -2054,7 +2055,6 @@ def sale_duplicate(request, pk):
     elif allowed_item_types == 'services':
         products_filter &= models.Q(is_service=True)
 
-    from users.services.data_scoping_service import DataScopingService
     warehouses = DataScopingService.get_transaction_warehouses(request.user)
 
     from product.models import Stock as StockModel

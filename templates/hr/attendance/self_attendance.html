@@ -477,8 +477,9 @@
  <div class="mb-3">
  <label class="form-label fw-bold small text-dark">نوع البصمة <span class="text-danger">*</span></label>
  <select name="field_punch_type" id="field_punch_type" class="form-select" required>
- <option value="check_in">حضور مأمورية</option>
- <option value="check_out">انصراف مأمورية</option>
+ <option value="check_in">حضور يومي / بداية مأمورية</option>
+ <option value="field_visit">توثيق زيارة عميل / مأمورية أثناء اليوم</option>
+ <option value="check_out">انصراف يومي من الموقع / نهاية العمل</option>
  </select>
  </div>
  <div class="mb-3">
@@ -730,10 +731,17 @@ $(document).ready(function() {
  $('#geoLocTitle').html(`داخل نطاق: <strong>${nearestLoc.name}</strong>`);
  $('#geoDistanceText').html(`<span class="text-success fw-bold"><i class="fas fa-map-pin me-1"></i>المسافة عن المركز: ${Math.round(minDistance)}م (الحد: ${nearestLoc.radius_meters}م)</span>`);
  } else {
+ if (punchContext && punchContext.employee && punchContext.employee.allow_field_visits) {
+ geoBox.addClass('geo-in-range');
+ geoIcon.html('<i class="fas fa-route fa-lg text-primary"></i>');
+ $('#geoLocTitle').html('وضع الزيارات الميدانية والمأموريات نشط');
+ $('#geoDistanceText').html(`<span class="text-primary fw-bold"><i class="fas fa-map-marker-alt me-1"></i>خارج نطاق المقرات (${Math.round(minDistance)}م عن ${nearestLoc.name}) — البصمة الميدانية متاحة</span>`);
+ } else {
  geoBox.addClass('geo-out-of-range');
  geoIcon.html('<i class="fas fa-exclamation-triangle fa-lg text-danger"></i>');
  $('#geoLocTitle').html(`خارج نطاق: <strong>${nearestLoc.name}</strong>`);
  $('#geoDistanceText').html(`<span class="text-danger fw-bold"><i class="fas fa-route me-1"></i>المسافة الحالية: ${Math.round(minDistance)}م (تتجاوز النطاق بـ ${Math.round(minDistance - nearestLoc.radius_meters)}م)</span>`);
+ }
  }
  }
  } else {
@@ -876,8 +884,9 @@ $(document).ready(function() {
  client_timestamp: new Date().toISOString()
  };
 
- const targetBtn = punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut');
- $('#btnCheckIn, #btnCheckOut').prop('disabled', true);
+ const isFieldVisitType = (punchType === 'field_visit');
+ const targetBtn = isFieldVisitType ? $('#btnOpenFieldVisitModal') : (punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut'));
+ $('#btnCheckIn, #btnCheckOut, #btnOpenFieldVisitModal').prop('disabled', true);
  targetBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التوثيق...');
 
  if (!navigator.onLine) {
@@ -895,6 +904,10 @@ $(document).ready(function() {
  success: function(res) {
  if (res.success) {
  notifyUser(res.message, 'success');
+ if (punchType === 'field_visit') {
+ setTimeout(function() { window.location.reload(); }, 3100);
+ return;
+ }
  const punchTimeFmt = formatTime12H(res.punch_time || new Date(), false);
  if (punchType === 'check_in') {
  $('#todayCheckInVal').text(punchTimeFmt);
@@ -918,24 +931,72 @@ $(document).ready(function() {
  } else {
  notifyUser(res.message, 'error');
  updatePunchButtonStates();
+ $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
  }
  },
  error: function(xhr) {
  const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء معالجة البصمة.';
  notifyUser(msg, 'error');
  updatePunchButtonStates();
+ $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
  }
  });
  }
 
- $('#btnCheckIn').on('click', function() { executePunch('check_in'); });
- $('#btnCheckOut').on('click', function() { executePunch('check_out'); });
+ function isUserOutsideBranches() {
+ if (!currentPosition || !punchContext || !punchContext.locations || punchContext.locations.length === 0) {
+ return false;
+ }
+ const lat = currentPosition.coords.latitude;
+ const lng = currentPosition.coords.longitude;
+ for (let i = 0; i < punchContext.locations.length; i++) {
+ const loc = punchContext.locations[i];
+ const dist = calculateHaversine(lat, lng, loc.latitude, loc.longitude);
+ if (dist <= loc.radius_meters) {
+ return false;
+ }
+ }
+ return true;
+ }
+
+ function openFieldVisitModal(defaultType) {
+ const modalEl = document.getElementById('fieldVisitModal');
+ if (defaultType) {
+ $('#field_punch_type').val(defaultType);
+ } else {
+ if (punchContext && punchContext.attendance_today && punchContext.attendance_today.has_checked_in) {
+ if (!punchContext.attendance_today.has_checked_out) {
+ $('#field_punch_type').val('field_visit');
+ } else {
+ $('#field_punch_type').val('check_out');
+ }
+ } else {
+ $('#field_punch_type').val('check_in');
+ }
+ }
+ const modal = new bootstrap.Modal(modalEl);
+ modal.show();
+ }
+
+ $('#btnCheckIn').on('click', function() {
+ if (isUserOutsideBranches() && punchContext && punchContext.employee && punchContext.employee.allow_field_visits) {
+ openFieldVisitModal('check_in');
+ return;
+ }
+ executePunch('check_in');
+ });
+
+ $('#btnCheckOut').on('click', function() {
+ if (isUserOutsideBranches() && punchContext && punchContext.employee && punchContext.employee.allow_field_visits) {
+ openFieldVisitModal('check_out');
+ return;
+ }
+ executePunch('check_out');
+ });
 
  // 8. المأمورية الميدانية
  $('#btnOpenFieldVisitModal').on('click', function() {
- const modalEl = document.getElementById('fieldVisitModal');
- const modal = new bootstrap.Modal(modalEl);
- modal.show();
+ openFieldVisitModal();
  });
 
  $('#fieldVisitForm').on('submit', function(e) {

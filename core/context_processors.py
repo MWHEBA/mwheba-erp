@@ -72,6 +72,7 @@ def global_settings(request):
         'color_primary_dark': '#033d64',
         'color_primary_light': '#e6f0fa',
         'color_primary_hover': '#0462a0',
+        'show_foreign_currency_exchange_rate': False,
     }
     for def_key, def_val in DEFAULT_SETTINGS.items():
         if def_key not in settings_dict or settings_dict[def_key] is None or settings_dict[def_key] == '':
@@ -95,6 +96,11 @@ def global_settings(request):
     if isinstance(enable_tax_value, str):
         enable_tax_value = enable_tax_value.lower() in ["true", "1", "yes", "نعم"]
     settings_dict["enable_tax"] = enable_tax_value
+
+    fc_rate_value = settings_dict.get("show_foreign_currency_exchange_rate", False)
+    if isinstance(fc_rate_value, str):
+        fc_rate_value = fc_rate_value.lower() in ["true", "1", "yes", "نعم"]
+    settings_dict["show_foreign_currency_exchange_rate"] = fc_rate_value
 
     try:
         settings_dict["default_tax_rate"] = float(settings_dict.get("default_tax_rate", 14.0))

@@ -489,6 +489,7 @@ def operations_settings(request):
         'invoice_title_quotation_en': settings_dict.get('invoice_title_quotation_en', 'QUOTATION'),
         'enable_thermal_printing': settings_dict.get('enable_thermal_printing') == 'true',
         'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
+        'show_foreign_currency_exchange_rate': settings_dict.get('show_foreign_currency_exchange_rate', 'false') == 'true',
         'policy_hide_selling_prices_for_non_privileged': settings_dict.get('policy_hide_selling_prices_for_non_privileged') == 'true',
         'policy_hide_profit_margins_for_non_privileged': settings_dict.get('policy_hide_profit_margins_for_non_privileged') == 'true',
         'policy_work_order_hide_selling_price': settings_dict.get('policy_work_order_hide_selling_price') == 'true',

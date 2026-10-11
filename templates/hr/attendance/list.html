@@ -75,28 +75,29 @@
 
   <!-- Modal موحد لعرض الحركات -->
   <div class="modal fade" id="movementsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-fingerprint me-2"></i>
-                    <span id="modalEmployeeName"></span>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-fingerprint text-primary me-2"></i>حركات بصمة الموظف:
+                    <span id="modalEmployeeName" class="text-primary"></span>
                     <br>
-                    <small class="text-muted" id="modalDate"></small>
+                    <small class="text-muted" style="font-size: 0.8rem;" id="modalDate"></small>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <ul class="list-group" id="movementsList">
                     <!-- سيتم ملؤها ديناميكياً -->
                 </ul>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
             </div>
         </div>
     </div>
   </div>
 
-  <!-- Modal تفاصيل الإذن -->
-  <div class="modal fade" id="permissionModal" tabindex="-1">
   <!-- Modal تفاصيل الإذن -->
   <div class="modal fade" id="permissionModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -126,6 +127,9 @@
                         <td class="text-center" id="permModalDeduction"></td>
                     </tr>
                 </table>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
             </div>
         </div>
     </div>
@@ -267,7 +271,7 @@
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-light border-bottom px-4 py-3">
                 <h5 class="modal-title fw-bold text-dark mb-0">
-                    <i class="fas fa-history text-dark me-2"></i>سجل تدقيق التعديلات: <span id="auditEmpName" class="text-primary"></span>
+                    <i class="fas fa-history text-primary me-2"></i>سجل تدقيق التعديلات: <span id="auditEmpName" class="text-primary"></span>
                     <br><small class="text-muted" style="font-size: 0.8rem;" id="auditDate"></small>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -291,6 +295,9 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
             </div>
         </div>
     </div>
@@ -548,11 +555,50 @@ $(document).ready(function() {
     // زر عرض سجل التدقيق
     $(document).on('click', '.view-audit-btn', function() {
         const attId = $(this).data('attendance-id');
-        const tbody = $('#auditLogsBody');
-        tbody.html('<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>جاري جلب سجل التدقيق...</td></tr>');
+        const empName = $(this).data('employee-name');
+        const date = $(this).data('date');
+        let logs = $(this).data('audit-logs');
 
-        const modal = new bootstrap.Modal(document.getElementById('auditHistoryModal'));
+        if (typeof logs === 'string') {
+            try { logs = JSON.parse(logs); } catch(e) { logs = null; }
+        }
+
+        if (empName) $('#auditEmpName').text(empName);
+        if (date) $('#auditDate').text(date);
+
+        const tbody = $('#auditLogsBody');
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('auditHistoryModal'));
         modal.show();
+
+        // 🚀 عرض فوري لحظي (0ms) بدون أي انتظار إذا كانت البيانات مجهزة مسبقاً
+        if (Array.isArray(logs)) {
+            tbody.empty();
+            if (logs.length > 0) {
+                logs.forEach(function(log) {
+                    tbody.append(`
+                        <tr>
+                            <td class="text-center fw-bold">${log.field_name}</td>
+                            <td class="text-center text-danger">${log.old_value}</td>
+                            <td class="text-center text-success">${log.new_value}</td>
+                            <td class="text-center">${log.changed_by}</td>
+                            <td class="text-center">${log.supervisor_witness}</td>
+                            <td class="text-center"><small>${log.created_at}</small></td>
+                            <td>${log.reason}</td>
+                        </tr>
+                    `);
+                });
+            } else {
+                tbody.html('<tr><td colspan="7" class="text-center text-muted py-3">لا توجد تعديلات سابقة مسجلة على هذا اليوم</td></tr>');
+            }
+            return;
+        }
+
+        if (!attId) {
+            tbody.html('<tr><td colspan="7" class="text-center text-muted py-3">لا توجد تعديلات سابقة مسجلة على هذا اليوم</td></tr>');
+            return;
+        }
+
+        tbody.html('<tr><td colspan="7" class="text-center py-3"><i class="fas fa-spinner fa-spin me-2"></i>جاري جلب سجل التدقيق...</td></tr>');
 
         $.get(`/hr/attendance/${attId}/audit-history/`, function(res) {
             if (res.success) {

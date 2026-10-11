@@ -28,3 +28,7 @@
 {% elif object.source == 'excel' %}
     <br><span class="badge bg-light text-dark border mt-1" style="font-size: 0.65em;" title="استيراد من ملف Excel"><i class="fas fa-file-excel me-1 text-success"></i>إكسيل</span>
 {% endif %}
+
+{% if object.is_field_visit %}
+    <br><span class="badge bg-light text-primary border mt-1" style="font-size: 0.65em;" title="{% if object.location_name %}{{ object.location_name }}{% else %}مأمورية ميدانية معتمدة{% endif %}"><i class="fas fa-route me-1"></i>مأمورية ميدانية</span>
+{% endif %}

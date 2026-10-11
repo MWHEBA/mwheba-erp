@@ -796,7 +796,7 @@
  <td class="fw-bold">{{ asset.item_name }}</td>
  <td><span class="badge bg-light text-dark border">{{ asset.get_category_display }}</span></td>
  <td><code class="text-muted">{{ asset.serial_number|default:"-" }}</code></td>
- <td>{{ asset.received_date|date:"Y-m-d" }}</td>
+ <td>{{ asset.delivered_date|date:"Y-m-d" }}</td>
  <td class="text-end">{{ asset.estimated_value|smart_float }} ج.م</td>
  <td class="text-center">
  <span class="badge bg-light text-dark border">{{ asset.get_status_display }}</span>

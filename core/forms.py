@@ -459,6 +459,12 @@ class OperationsSettingsForm(forms.Form):
         initial='80',
         widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'})
     )
+    show_foreign_currency_exchange_rate = forms.BooleanField(
+        label=_('إظهار سعر الصرف والمعادل بالعملة المحلية في طباعة الفواتير بالعملات الأجنبية'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
 
     # 5. سياسات الخصوصية وسرية الأسعار والأرباح
     policy_hide_selling_prices_for_non_privileged = forms.BooleanField(

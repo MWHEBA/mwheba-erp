@@ -57,6 +57,7 @@ class TestSettingsArchitecture:
             "invoice_title_quotation_en": "QUOTATION",
             "enable_thermal_printing": True,
             "receipt_paper_width": "80",
+            "show_foreign_currency_exchange_rate": True,
         }
         form = OperationsSettingsForm(data=form_data)
         assert form.is_valid(), form.errors
@@ -88,6 +89,7 @@ class TestSettingsArchitecture:
             "invoice_title_quotation_en": "PRICE OFFER",
             "enable_thermal_printing": "on",
             "receipt_paper_width": "58",
+            "show_foreign_currency_exchange_rate": "on",
             "active_tab": "printing",
         }
         post_res = client.post(url, post_data)
@@ -96,6 +98,7 @@ class TestSettingsArchitecture:
         
         assert SystemSetting.get_setting("sale_invoice_item_types") == "services"
         assert SystemSetting.get_setting("receipt_paper_width") == "58"
+        assert SystemSetting.get_setting("show_foreign_currency_exchange_rate") is True
 
     def test_system_settings_password_preservation(self, client):
         """اختبار الحفاظ على كلمة المرور القديمة عند إرسال حقل فارغ"""
@@ -132,3 +135,44 @@ class TestSettingsArchitecture:
         # التأكد من بقاء كلمة المرور دون مسح
         assert SystemSetting.get_setting("email_password") == "SecretP@ss123"
         assert SystemSetting.get_setting("site_name") == "موهبة ERP المحدث"
+
+    def test_foreign_currency_invoice_print_setting_toggle(self):
+        """اختبار تأثير إعداد إظهار/إخفاء سعر الصرف والمعادل بالجنيه في قوالب الطباعة"""
+        from django.template import Context, Template
+        
+        template_str = """
+        {% if sale.currency and not sale.currency.is_functional %}
+        {% if settings.show_foreign_currency_exchange_rate %}
+        <tr><td>سعر الصرف: {{ sale.exchange_rate }}</td></tr>
+        <tr><td>المعادل بالعملة المحلية (ج.م)</td></tr>
+        {% endif %}
+        {% endif %}
+        """
+        
+        class FakeCurrency:
+            code = "USD"
+            is_functional = False
+            
+        class FakeSale:
+            currency = FakeCurrency()
+            exchange_rate = 50.0
+            
+        t = Template(template_str)
+        
+        # 1. مفعل (True)
+        ctx_enabled = Context({
+            "sale": FakeSale(),
+            "settings": {"show_foreign_currency_exchange_rate": True}
+        })
+        rendered_enabled = t.render(ctx_enabled)
+        assert "سعر الصرف" in rendered_enabled
+        assert "المعادل بالعملة المحلية" in rendered_enabled
+        
+        # 2. معطل (False)
+        ctx_disabled = Context({
+            "sale": FakeSale(),
+            "settings": {"show_foreign_currency_exchange_rate": False}
+        })
+        rendered_disabled = t.render(ctx_disabled)
+        assert "سعر الصرف" not in rendered_disabled
+        assert "المعادل بالعملة المحلية" not in rendered_disabled

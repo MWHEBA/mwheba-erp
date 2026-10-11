@@ -433,3 +433,79 @@ class TestPhase4MobilePunchAPIs:
         # كلا الموظفين تم تسجيل حضورهم
         assert Attendance.objects.filter(employee=emp1, date=timezone.now().date()).exists()
         assert Attendance.objects.filter(employee=emp_field, date=timezone.now().date()).exists()
+
+    def test_multiple_field_visits_same_day(self, phase4_setup):
+        """تسجيل زيارات ميدانية متعددة في نفس اليوم مع تحديث سجل الحضور"""
+        emp_field = phase4_setup['emp_field']
+        user = phase4_setup['user_emp']
+
+        # 1. الزيارة الأولى صباحاً (حضور)
+        res1 = MobilePunchService.process_mobile_punch(
+            employee=emp_field,
+            user=user,
+            punch_type='check_in',
+            latitude=30.080000,
+            longitude=31.320000,
+            is_field_visit=True,
+            field_visit_reason='زيارة العميل الأول (شركة النور)',
+            device_uuid='FIELD-PHONE-MULTI',
+        )
+        assert res1['success'] is True
+
+        att = Attendance.objects.get(employee=emp_field, date=timezone.now().date())
+        assert att.is_field_visit is True
+        assert 'شركة النور' in att.location_name
+
+        # 2. الزيارة الثانية ظهراً (field_visit دون رفض البصمة)
+        res2 = MobilePunchService.process_mobile_punch(
+            employee=emp_field,
+            user=user,
+            punch_type='field_visit',
+            latitude=30.090000,
+            longitude=31.330000,
+            is_field_visit=True,
+            field_visit_reason='زيارة العميل الثاني (مجموعة الأمل)',
+            device_uuid='FIELD-PHONE-MULTI',
+        )
+        assert res2['success'] is True
+        assert "توثيق زيارة ميدانية" in res2['message']
+
+        att.refresh_from_db()
+        assert 'شركة النور' in att.location_name
+        assert 'مجموعة الأمل' in att.location_name
+
+        # 3. انصراف من موقع العمل الميداني
+        res3 = MobilePunchService.process_mobile_punch(
+            employee=emp_field,
+            user=user,
+            punch_type='check_out',
+            latitude=30.090000,
+            longitude=31.330000,
+            is_field_visit=True,
+            field_visit_reason='مغادرة موقع مجموعة الأمل',
+            device_uuid='FIELD-PHONE-MULTI',
+        )
+        assert res3['success'] is True
+        att.refresh_from_db()
+        assert att.check_out is not None
+
+    def test_supervisor_crew_remote_site_override(self, phase4_setup):
+        """تسجيل بصمة طاقم عمل في موقع خارجي بعيد عن الفروع بتفويض المشرف"""
+        emp_office = phase4_setup['emp1'] # موظف عادي ليس لديه allow_field_visits
+        assert emp_office.allow_field_visits is False
+        supervisor = phase4_setup['user_supervisor']
+
+        # موقع خارجي بعيد جداً عن مقرات وفروع الشركة
+        res = MobilePunchService.process_supervisor_crew_punch(
+            supervisor_user=supervisor,
+            crew_employee_ids=[emp_office.id],
+            punch_type='check_in',
+            latitude=29.800000,
+            longitude=31.000000,
+            notes='مشروع محطة الطاقة الشمسية - موقع خارجي'
+        )
+        assert res['success'] is True
+        assert res['success_count'] == 1
+        att = Attendance.objects.get(employee=emp_office, date=timezone.now().date())
+        assert att.status in ['present', 'late']
+        assert att.is_field_visit is True

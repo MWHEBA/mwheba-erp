@@ -27,10 +27,16 @@ class Currency(models.Model):
     @property
     def current_rate(self) -> Decimal:
         """سعر الصرف الحالي للعملة مقابل العملة الأساسية"""
+        if hasattr(self, "_current_rate") and self._current_rate is not None:
+            return self._current_rate
         if self.is_functional:
             return Decimal("1.000000")
         from financial.services.exchange_rate_service import ExchangeRateService
         return ExchangeRateService.get_exchange_rate(self)
+
+    @current_rate.setter
+    def current_rate(self, value):
+        self._current_rate = value
 
     class Meta:
         verbose_name = _("عملة")

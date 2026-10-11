@@ -164,7 +164,10 @@
  <tr>
  <td colspan="8" class="text-center py-4 text-muted">
  <i class="fas fa-map-marker-alt fa-3x mb-3 text-secondary d-block"></i>
- لا توجد مقرات عمل مسجلة حتى الآن. اضغط على «إضافة مقر عمل» لإنشاء أول مقر.
+ <p class="mb-2">لا توجد مقرات عمل مسجلة حتى الآن.</p>
+ <button type="button" class="btn btn-primary btn-sm px-3" onclick="openWorkLocationModal()">
+ <i class="fas fa-plus me-1"></i>إضافة مقر عمل جديد
+ </button>
  </td>
  </tr>
  {% endfor %}
@@ -205,18 +208,26 @@
 
  <div class="col-md-6">
  <label class="form-label fw-bold">خط العرض (Latitude) <span class="text-danger">*</span></label>
- <input type="number" step="any" name="latitude" id="loc_latitude" class="form-control" required placeholder="مثال: 30.0123456">
+ <input type="text" inputmode="decimal" dir="ltr" name="latitude" id="loc_latitude" class="form-control" required placeholder="مثال: 30.0123456">
  </div>
  <div class="col-md-6">
  <label class="form-label fw-bold">خط الطول (Longitude) <span class="text-danger">*</span></label>
- <input type="number" step="any" name="longitude" id="loc_longitude" class="form-control" required placeholder="مثال: 31.2345678">
+ <input type="text" inputmode="decimal" dir="ltr" name="longitude" id="loc_longitude" class="form-control" required placeholder="مثال: 31.2345678">
  </div>
 
  <div class="col-12">
+ <div class="d-flex flex-wrap align-items-center gap-2">
  <button type="button" class="btn btn-sm btn-outline-info" id="btnGetCurrentLocation">
  <i class="fas fa-crosshairs me-1"></i>جلب الإحداثيات الحالية من موقع جهازي الآن
  </button>
- <span id="geoStatusText" class="small text-muted ms-2"></span>
+ <a href="https://maps.google.com" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-secondary">
+ <i class="fas fa-external-link-alt me-1"></i>فتح خرائط Google
+ </a>
+ </div>
+ <span id="geoStatusText" class="small text-muted d-block mt-1"></span>
+ <small class="text-muted d-block mt-1">
+ <i class="fas fa-info-circle me-1"></i>يمكنك نسخ الإحداثيات من خرائط جوجل ولصقها في حقل خط العرض أو الطول ليتم توزيعهما تلقائياً.
+ </small>
  </div>
 
  <div class="col-md-6">
@@ -254,116 +265,150 @@
 
 {% block extra_js %}
 <script>
+// فتح المودال لإضافة مقر جديد - متاح فوراً في النطاق العام
+function openWorkLocationModal() {
+    $('#workLocationForm')[0].reset();
+    $('#loc_id').val('');
+    $('#loc_is_active').prop('checked', true);
+    $('#loc_is_default').prop('checked', false);
+    $('#geoStatusText').text('');
+    $('#workLocationModalTitle').html('<i class="fas fa-map-marker-alt text-primary me-2"></i>إضافة مقر عمل جغرافي جديد');
+    const modalEl = document.getElementById('workLocationModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+window.openWorkLocationModal = openWorkLocationModal;
+
+// نظام الإشعارات الموحد
+function notifyMsg(msg, type) {
+    if (window.showNotification) {
+        window.showNotification(msg, type);
+    } else if (window.showToastr) {
+        window.showToastr(msg, type);
+    } else if (typeof toastr !== 'undefined') {
+        toastr[type || 'info'](msg);
+    } else {
+        alert(msg);
+    }
+}
+
 $(document).ready(function() {
- // فتح المودال لإضافة مقر جديد
- window.openWorkLocationModal = function() {
- $('#workLocationForm')[0].reset();
- $('#loc_id').val('');
- $('#loc_is_active').prop('checked', true);
- $('#loc_is_default').prop('checked', false);
- $('#geoStatusText').text('');
- $('#workLocationModalTitle').html('<i class="fas fa-map-marker-alt text-primary me-2"></i>إضافة مقر عمل جغرافي جديد');
- const modal = new bootstrap.Modal(document.getElementById('workLocationModal'));
- modal.show();
- };
+    // استخراج وتوزيع الإحداثيات تلقائياً عند اللصق
+    $('#loc_latitude, #loc_longitude').on('paste', function(e) {
+        const clipboard = e.originalEvent.clipboardData || window.clipboardData;
+        if (!clipboard) return;
+        const pasteData = clipboard.getData('text');
+        if (pasteData && (pasteData.includes(',') || pasteData.includes('،'))) {
+            const sep = pasteData.includes(',') ? ',' : '،';
+            const parts = pasteData.split(sep).map(function(s) { return s.trim(); });
+            if (parts.length >= 2) {
+                e.preventDefault();
+                $('#loc_latitude').val(parts[0]);
+                $('#loc_longitude').val(parts[1]);
+                $('#geoStatusText').html('<span class="text-success"><i class="fas fa-check-circle me-1"></i>تم استخراج خط العرض وخط الطول تلقائياً</span>');
+            }
+        }
+    });
 
- // جلب الإحداثيات الحالية للمستخدم
- $('#btnGetCurrentLocation').on('click', function() {
- const btn = $(this);
- const statusSpan = $('#geoStatusText');
- if (!navigator.geolocation) {
- statusSpan.html('<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>المتصفح لا يدعم تحديد الموقع</span>');
- return;
- }
+    // جلب الإحداثيات الحالية للمستخدم
+    $('#btnGetCurrentLocation').on('click', function() {
+        const btn = $(this);
+        const statusSpan = $('#geoStatusText');
+        if (!navigator.geolocation) {
+            statusSpan.html('<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>المتصفح لا يدعم تحديد الموقع الجغرافي.</span>');
+            return;
+        }
 
- btn.prop('disabled', true);
- statusSpan.html('<span class="text-primary"><i class="fas fa-spinner fa-spin me-1"></i>جاري تحديد الموقع بدقة...</span>');
+        btn.prop('disabled', true);
+        statusSpan.html('<span class="text-primary"><i class="fas fa-spinner fa-spin me-1"></i>جاري تحديد الموقع بدقة...</span>');
 
- navigator.geolocation.getCurrentPosition(
- function(pos) {
- $('#loc_latitude').val(pos.coords.latitude.toFixed(7));
- $('#loc_longitude').val(pos.coords.longitude.toFixed(7));
- statusSpan.html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>تم جلب الموقع بدقة ±${Math.round(pos.coords.accuracy)}م</span>`);
- btn.prop('disabled', false);
- },
- function(err) {
- statusSpan.html(`<span class="text-danger"><i class="fas fa-times-circle me-1"></i>تعذر جلب الموقع: ${err.message}</span>`);
- btn.prop('disabled', false);
- },
- { enableHighAccuracy: true, timeout: 8000 }
- );
- });
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                $('#loc_latitude').val(pos.coords.latitude.toFixed(7));
+                $('#loc_longitude').val(pos.coords.longitude.toFixed(7));
+                statusSpan.html(`<span class="text-success"><i class="fas fa-check-circle me-1"></i>تم جلب الموقع بدقة ±${Math.round(pos.coords.accuracy)}م</span>`);
+                btn.prop('disabled', false);
+            },
+            function(err) {
+                let errText = err.message;
+                if (err.code === 1) {
+                    errText = 'تم رفض إذن الوصول للموقع في المتصفح. يمكنك إدخال الإحداثيات يدوياً أو نسخها من خرائط Google.';
+                } else if (err.code === 2) {
+                    errText = 'تعذر الحصول على إشارة الموقع.';
+                } else if (err.code === 3) {
+                    errText = 'انتهت مهلة البحث عن الموقع.';
+                }
+                statusSpan.html(`<span class="text-danger"><i class="fas fa-times-circle me-1"></i>${errText}</span>`);
+                btn.prop('disabled', false);
+            },
+            { enableHighAccuracy: true, timeout: 8000 }
+        );
+    });
 
- // تعديل مقر
- $(document).on('click', '.edit-location-btn', function() {
- const id = $(this).data('id');
- const nameAr = $(this).data('name-ar');
- const nameEn = $(this).data('name-en');
- const address = $(this).data('address');
- const lat = $(this).data('lat');
- const lng = $(this).data('lng');
- const radius = $(this).data('radius');
- const active = $(this).data('active') === true || $(this).data('active') === 'true';
- const isDefault = $(this).data('default') === true || $(this).data('default') === 'true';
+    // تعديل مقر
+    $(document).on('click', '.edit-location-btn', function() {
+        const id = $(this).data('id');
+        const nameAr = $(this).data('name-ar');
+        const nameEn = $(this).data('name-en');
+        const address = $(this).data('address');
+        const lat = $(this).data('lat');
+        const lng = $(this).data('lng');
+        const radius = $(this).data('radius');
+        const active = $(this).data('active') === true || $(this).data('active') === 'true';
+        const isDefault = $(this).data('default') === true || $(this).data('default') === 'true';
 
- $('#loc_id').val(id);
- $('#loc_name_ar').val(nameAr);
- $('#loc_name_en').val(nameEn);
- $('#loc_address').val(address);
- $('#loc_latitude').val(lat);
- $('#loc_longitude').val(lng);
- $('#loc_radius').val(radius);
- $('#loc_is_active').prop('checked', active);
- $('#loc_is_default').prop('checked', isDefault);
- $('#geoStatusText').text('');
+        $('#loc_id').val(id);
+        $('#loc_name_ar').val(nameAr);
+        $('#loc_name_en').val(nameEn);
+        $('#loc_address').val(address);
+        $('#loc_latitude').val(lat);
+        $('#loc_longitude').val(lng);
+        $('#loc_radius').val(radius);
+        $('#loc_is_active').prop('checked', active);
+        $('#loc_is_default').prop('checked', isDefault);
+        $('#geoStatusText').text('');
 
- $('#workLocationModalTitle').html('<i class="fas fa-edit text-warning me-2"></i>تعديل مقر العمل الجغرافي');
- const modal = new bootstrap.Modal(document.getElementById('workLocationModal'));
- modal.show();
- });
+        $('#workLocationModalTitle').html('<i class="fas fa-edit text-warning me-2"></i>تعديل مقر العمل الجغرافي');
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('workLocationModal'));
+        modal.show();
+    });
 
- // حفظ المقر
- $('#workLocationForm').on('submit', function(e) {
- e.preventDefault();
- const btn = $('#btnSaveLocation');
- btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
+    // حفظ المقر
+    $('#workLocationForm').on('submit', function(e) {
+        e.preventDefault();
+        const btn = $('#btnSaveLocation');
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ...');
 
- $.ajax({
- url: '{% url "hr:work_location_save" %}',
- type: 'POST',
- data: $(this).serialize(),
- success: function(res) {
- if (res.success) {
- if (window.showToastr) {
- window.showToastr(res.message, 'success');
- } else if (typeof toastr !== 'undefined') {
- toastr.success(res.message);
- }
- bootstrap.Modal.getInstance(document.getElementById('workLocationModal')).hide();
- setTimeout(function() {
- window.location.reload();
- }, 3100);
- } else {
- if (window.showToastr) {
- window.showToastr(res.message, 'error');
- } else if (typeof toastr !== 'undefined') {
- toastr.error(res.message);
- }
- }
- },
- error: function(xhr) {
- const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في الخادم';
- if (window.showToastr) {
- window.showToastr(msg, 'error');
- } else if (typeof toastr !== 'undefined') {
- toastr.error(msg);
- }
- },
- complete: function() {
- btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ المقر');
- }
- });
- });
+        $.ajax({
+            url: '{% url "hr:work_location_save" %}',
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(res) {
+                if (res.success) {
+                    notifyMsg(res.message, 'success');
+                    const modalEl = document.getElementById('workLocationModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) {
+                        modalInstance.hide();
+                    } else {
+                        $(modalEl).modal('hide');
+                    }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                } else {
+                    notifyMsg(res.message, 'error');
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON ? xhr.responseJSON.message : 'حدث خطأ في الخادم أثناء حفظ المقر';
+                notifyMsg(msg, 'error');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ المقر');
+            }
+        });
+    });
 
  // تبديل الحالة
  $(document).on('click', '.toggle-location-btn', function() {

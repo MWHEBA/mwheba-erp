@@ -1810,11 +1810,23 @@ application = get_wsgi_application()
             if success and mode not in ('test', 'status'):
                 if files:
                     is_first_deploy = not deployer.hash_file.exists()
+                    # تحميل الـ hashes السابقة للحفاظ على بقية الملفات وعدم مسحها عند رفع ملف فردي
                     current_hashes = {}
+                    if deployer.hash_file.exists():
+                        try:
+                            with open(deployer.hash_file, 'r', encoding='utf-8') as f:
+                                current_hashes = json.load(f)
+                        except Exception:
+                            current_hashes = {}
+
                     for file_path in files:
-                        if file_path.exists():
-                            relative_path = str(file_path.relative_to(deployer.project_root)).replace('\\', '/')
-                            current_hashes[relative_path] = deployer.get_file_hash(file_path)
+                        p = Path(file_path).resolve()
+                        if p.exists():
+                            try:
+                                relative_path = str(p.relative_to(deployer.project_root.resolve())).replace('\\', '/')
+                                current_hashes[relative_path] = deployer.get_file_hash(p)
+                            except ValueError:
+                                pass
                     deployer.hash_file.parent.mkdir(parents=True, exist_ok=True)
                     with open(deployer.hash_file, 'w', encoding='utf-8') as f:
                         json.dump(current_hashes, f, indent=2, ensure_ascii=False)

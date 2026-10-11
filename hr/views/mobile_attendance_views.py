@@ -131,8 +131,10 @@ def api_submit_mobile_punch(request):
         return JsonResponse({'success': False, 'message': 'الإحداثيات الجغرافية غير صالحة.'}, status=400)
 
     punch_type = payload.get('punch_type', 'check_in')
-    if punch_type not in ['check_in', 'check_out']:
-        return JsonResponse({'success': False, 'message': 'نوع البصمة غير صالح (يجب أن يكون check_in أو check_out).'}, status=400)
+    if punch_type not in ['check_in', 'check_out', 'field_visit']:
+        return JsonResponse({'success': False, 'message': 'نوع البصمة غير صالح (يجب أن يكون check_in أو check_out أو field_visit).'}, status=400)
+
+    is_field_visit = bool(payload.get('is_field_visit', False)) or (punch_type == 'field_visit')
 
     res = MobilePunchService.process_mobile_punch(
         employee=employee,
@@ -146,7 +148,7 @@ def api_submit_mobile_punch(request):
         speed_kmh=float(payload.get('speed_kmh', 0.0)) if payload.get('speed_kmh') else None,
         punch_token=payload.get('punch_token'),
         selfie_base64=payload.get('selfie_image'),
-        is_field_visit=bool(payload.get('is_field_visit', False)),
+        is_field_visit=is_field_visit,
         field_visit_reason=payload.get('field_visit_reason', ''),
         customer_id=int(payload.get('customer_id')) if payload.get('customer_id') else None,
         work_order_id=int(payload.get('work_order_id')) if payload.get('work_order_id') else None,

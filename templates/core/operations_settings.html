@@ -212,6 +212,27 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-coins text-success me-2"></i>طباعة فواتير العملات الأجنبية (Foreign Currency)
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.show_foreign_currency_exchange_rate }}
+                                            <label class="form-check-label fw-bold" for="{{ form.show_foreign_currency_exchange_rate.id_for_label }}">
+                                                {{ form.show_foreign_currency_exchange_rate.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">عند التفعيل، سيتم إظهار سعر الصرف والإجمالي المعادل بالعملة المحلية (ج.م) في ملخص الفواتير المطبوعة والـ PDF. عند التعطيل، ستقتصر الفاتورة على العملة الأجنبية فقط.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 4. سياسات الخصوصية وسرية الأسعار والأرباح -->

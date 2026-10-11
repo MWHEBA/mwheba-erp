@@ -140,6 +140,7 @@ class MobilePunchService:
         is_offline_synced: bool = False,
         client_timestamp: Optional[datetime] = None,
         is_emergency: bool = False,
+        is_supervisor_override: bool = False,
     ) -> Dict[str, Any]:
         """
         معالجة بصمة الهاتف المركزية الموثقة:
@@ -148,7 +149,7 @@ class MobilePunchService:
         3. فحص ومكافحة برامج التزييف (Mock Location / Fake GPS).
         4. فحص وحوكمة ربط الجهاز (Device Binding).
         5. التحقق من النطاق الجغرافي (Geofencing Validation).
-        6. حفظ صورة السيلفي وسجل الـ BiometricLog.
+        6. حفظ صورة السيلفي وسجل الـ BiometricLog وتوثيق الزيارة الميدانية.
         7. تحديث / إنشاء سجل الـ Attendance وتشغيل المحرك الحسابي.
         8. توثيق سجل التدقيق (Audit Trail).
         """
@@ -194,6 +195,7 @@ class MobilePunchService:
             longitude=longitude,
             is_field_visit=is_field_visit,
             accuracy_meters=location_accuracy,
+            is_supervisor_override=is_supervisor_override,
         )
         if not is_loc_valid:
             return {'success': False, 'message': loc_msg}
@@ -210,22 +212,53 @@ class MobilePunchService:
             defaults={
                 'shift': effective_shift,
                 'status': 'present',
+                'is_field_visit': is_field_visit,
+                'location_name': field_visit_reason if is_field_visit else (matched_loc.name_ar if matched_loc else ''),
+                'customer_id': customer_id if is_field_visit else None,
+                'work_order_id': work_order_id if is_field_visit else None,
             }
         )
 
         if not attendance.shift:
             attendance.shift = effective_shift
 
+        # تحديث بيانات الزيارة الميدانية إذا كانت البصمة الحالية ميدانية
+        if is_field_visit:
+            attendance.is_field_visit = True
+            if field_visit_reason:
+                if attendance.location_name:
+                    if field_visit_reason not in attendance.location_name:
+                        attendance.location_name = f"{attendance.location_name} | {field_visit_reason}"
+                else:
+                    attendance.location_name = field_visit_reason
+            if customer_id and not attendance.customer_id:
+                attendance.customer_id = customer_id
+            if work_order_id and not attendance.work_order_id:
+                attendance.work_order_id = work_order_id
+        elif matched_loc and not attendance.location_name:
+            attendance.location_name = matched_loc.name_ar
+
         action_label = ''
-        if punch_type == 'check_in':
-            if attendance.check_in and not created:
-                check_in_fmt = timezone.localtime(attendance.check_in).strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')
-                return {
-                    'success': False,
-                    'message': f'لقد تم تسجيل حضورك مسبقاً اليوم في تمام الساعة {check_in_fmt}. لا يمكن إعادة تسجيل الحضور مرة أخرى.',
-                }
-            attendance.check_in = punch_time
-            action_label = 'تسجيل الحضور'
+        if punch_type in ['check_in', 'field_visit']:
+            if punch_type == 'check_in':
+                if attendance.check_in and not created:
+                    # إذا كانت البصمة مأمورية/زيارة ميدانية والموظف حاضر بالفعل اليوم:
+                    # تُسجل كتوثيق لزيارة ميدانية إضافية دون رفض الطلب
+                    if is_field_visit:
+                        action_label = 'توثيق زيارة ميدانية'
+                    else:
+                        check_in_fmt = timezone.localtime(attendance.check_in).strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')
+                        return {
+                            'success': False,
+                            'message': f'لقد تم تسجيل حضورك مسبقاً اليوم في تمام الساعة {check_in_fmt}. لا يمكن إعادة تسجيل الحضور مرة أخرى.',
+                        }
+                else:
+                    attendance.check_in = punch_time
+                    action_label = 'تسجيل الحضور' + (' (مأمورية ميدانية)' if is_field_visit else '')
+            else:
+                action_label = 'توثيق زيارة ميدانية'
+                if not attendance.check_in:
+                    attendance.check_in = punch_time
         elif punch_type == 'check_out':
             if not attendance.check_in:
                 return {
@@ -234,7 +267,7 @@ class MobilePunchService:
                 }
             if not attendance.check_out:
                 attendance.check_out = punch_time
-                action_label = 'تسجيل الانصراف'
+                action_label = 'تسجيل الانصراف' + (' (مأمورية ميدانية)' if is_field_visit else '')
             else:
                 diff_checkout_sec = abs((punch_time - attendance.check_out).total_seconds())
                 if diff_checkout_sec < 60:
@@ -243,7 +276,7 @@ class MobilePunchService:
                         'success': False,
                         'message': f'تم تسجيل انصرافك بالفعل عند الساعة {check_out_fmt}.',
                     }
-                action_label = 'تحديث بصمة الانصراف'
+                action_label = 'تحديث بصمة الانصراف' + (' (مأمورية ميدانية)' if is_field_visit else '')
                 attendance.check_out = max(attendance.check_out, punch_time)
 
         # 7. حفظ صورة السيلفي وسجل الـ BiometricLog
@@ -253,7 +286,7 @@ class MobilePunchService:
             employee=employee,
             user_id=employee.employee_number or str(employee.id),
             timestamp=punch_time,
-            log_type=punch_type,
+            log_type='check_in' if punch_type in ['check_in', 'field_visit'] else 'check_out',
             source='mobile_gps',
             latitude=Decimal(str(round(latitude, 7))),
             longitude=Decimal(str(round(longitude, 7))),
@@ -261,6 +294,7 @@ class MobilePunchService:
             matched_location=matched_loc,
             selfie_image=selfie_file,
             device_uuid=device_uuid,
+            device_info={'reason': field_visit_reason, 'punch_type': punch_type, 'is_field_visit': is_field_visit} if (field_visit_reason or is_field_visit) else None,
             is_device_unverified=is_emergency,
             is_offline_synced=is_offline_synced,
             sync_received_at=timezone.now() if is_offline_synced else None,
@@ -390,9 +424,12 @@ class MobilePunchService:
         failed_employees = []
 
         now = timezone.now()
+        is_supervisor_authorized = bool(
+            supervisor_user.is_staff or supervisor_user.is_superuser or supervisor_user.has_perm('hr.add_attendance')
+        )
 
         for emp in employees:
-            is_field = getattr(emp, 'allow_field_visits', False)
+            is_field = getattr(emp, 'allow_field_visits', False) or is_supervisor_authorized
             res = MobilePunchService.process_mobile_punch(
                 employee=emp,
                 user=supervisor_user,
@@ -407,6 +444,7 @@ class MobilePunchService:
                 is_field_visit=is_field,
                 field_visit_reason=f'بصمة طاقم عمل بإشراف المشرف ({supervisor_user.get_full_name() or supervisor_user.username})' + (f' - {notes}' if notes else ''),
                 is_emergency=True,
+                is_supervisor_override=is_supervisor_authorized,
             )
             if res.get('success'):
                 successful_employees.append(emp.get_full_name_ar())
