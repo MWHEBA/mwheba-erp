@@ -123,6 +123,9 @@ class AccountingGateway:
         'purchase.PurchasePayment',
         'hr.Payroll',
         'hr.PayrollPayment',
+        'hr.Advance',
+        'hr.InsurancePayment',
+        'hr.EndOfServiceBenefit',
         'financial.PartnerTransaction',
         'financial.FinancialTransaction',
         'financial.BankReconciliation',
@@ -411,7 +414,14 @@ class AccountingGateway:
                     elif 'customer' in s_mod or 'customer' in s_model:
                         entry_type = 'customer_payment'
                     elif 'hr' in s_mod or 'payroll' in s_mod or 'payroll' in s_model:
-                        entry_type = 'salary_payment'
+                        if 'advance' in s_model:
+                            entry_type = 'payment_voucher'
+                        elif 'insurance' in s_model:
+                            entry_type = 'receipt_voucher'
+                        elif 'endofservice' in s_model or 'eos' in s_model:
+                            entry_type = 'payment_voucher'
+                        else:
+                            entry_type = 'salary_payment'
                     elif 'inventory' in s_mod or 'stock' in s_mod or 'product' in s_mod:
                         entry_type = 'inventory'
 

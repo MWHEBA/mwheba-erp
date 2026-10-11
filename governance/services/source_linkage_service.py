@@ -31,11 +31,16 @@ class SourceLinkageService:
         'purchase.PurchasePayment',
         'hr.PayrollPayment',
         'hr.Payroll',  # Added for POC testing - HR payroll records
+        'hr.Advance',  # Employee Advances
+        'hr.InsurancePayment',  # External Insurance Payments
+        'hr.EndOfServiceBenefit',  # End of Service Benefits
         'product.StockMovement',
         'product.InventoryMovement',
         'financial.FinancialTransaction',  # Added for TransactionService
         'financial.BankReconciliation',  # Added for BankReconciliationService
         'financial.PartnerTransaction',  # Added for partner transactions
+        'financial.JournalEntry',
+        'financial.ManualJournalEntry',
         'sale.Sale',  # Added for sale invoices
         'sale.SalePayment',  # Added for sale payments
         'sale.SaleReturn',  # Added for sale returns
@@ -49,7 +54,13 @@ class SourceLinkageService:
         'purchase.PurchaseOrder',  # Purchase Order
         'financial.RevenueRecognitionSchedule',  # Revenue Recognition Schedule
         'financial.CashTransfer',  # Central Cash & Bank Transfers
+        'financial.EmployeeCustodyAdvance',
+        'financial.PettyCashSettlement',
+        'financial.CustodyTransfer',
+        'financial.PettyCashCount',
         'hr.PayrollRun',  # Payroll Run
+        'hr.EmployeeAssetCustody',
+        'hr.EmployeeAssetTransfer',
         'product.LandedCostDocument',  # Landed Cost
         'product.BatchVoucher',  # Added for batch vouchers
         'product.BundleSale',  # Added for bundle sale transactions

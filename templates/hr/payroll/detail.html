@@ -615,9 +615,24 @@
               
               {% if payroll.status == 'paid' %}
               <div class="info-item">
-                  <div class="info-label"><i class="fas fa-wallet me-1"></i> طريقة الدفع</div>
-                  <div class="info-value">{{ payroll.get_payment_method_display }}</div>
+                  <div class="info-label"><i class="fas fa-wallet me-1"></i> حساب الصرف (الخزينة/البنك)</div>
+                  <div class="info-value">
+                      {% if payroll.payment_account %}
+                          <span class="badge bg-light text-dark border">{{ payroll.payment_account.code }} - {{ payroll.payment_account.name }}</span>
+                      {% else %}
+                          <span class="text-muted">غير محدد</span>
+                      {% endif %}
+                  </div>
               </div>
+
+              {% if payroll.journal_entry %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-book me-1"></i> القيد المحاسبي بالأستاذ العام</div>
+                  <div class="info-value">
+                      <span class="badge bg-primary text-white"><i class="fas fa-check-circle me-1"></i>{{ payroll.journal_entry.number }}</span>
+                  </div>
+              </div>
+              {% endif %}
               
               {% if payroll.payment_date %}
               <div class="info-item">

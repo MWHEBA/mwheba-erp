@@ -46,10 +46,13 @@ class AccountRoleNames(str, Enum):
     FX_REALIZED_GAIN = "fx_realized_gain"
     FX_REALIZED_LOSS = "fx_realized_loss"
     SALARY_EXPENSE = "salary_expense"
+    SOCIAL_INSURANCE_EXPENSE = "social_insurance_expense"
     SOCIAL_INSURANCE = "social_insurance"
     INCOME_TAX = "income_tax"
     SALARY_PAYABLES = "salary_payables"
     EMPLOYEE_ADVANCE = "employee_advance"
+    END_OF_SERVICE_EXPENSE = "end_of_service_expense"
+    END_OF_SERVICE_PROVISION = "end_of_service_provision"
     ROUNDING_DIFFERENCE_ACCOUNT = "rounding_difference_account"
     WITHHOLDING_TAX_PAYABLE = "withholding_tax_payable"
     WITHHOLDING_TAX_RECEIVABLE = "withholding_tax_receivable"
@@ -83,10 +86,13 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
     AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "liability",
     AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "asset",
     AccountRoleNames.SALARY_EXPENSE.value: "expense",
+    AccountRoleNames.SOCIAL_INSURANCE_EXPENSE.value: "expense",
     AccountRoleNames.SOCIAL_INSURANCE.value: "liability",
     AccountRoleNames.INCOME_TAX.value: "liability",
     AccountRoleNames.SALARY_PAYABLES.value: "liability",
     AccountRoleNames.EMPLOYEE_ADVANCE.value: "asset",
+    AccountRoleNames.END_OF_SERVICE_EXPENSE.value: "expense",
+    AccountRoleNames.END_OF_SERVICE_PROVISION.value: "liability",
     AccountRoleNames.BANK_CHARGES_EXPENSE.value: "expense",
     AccountRoleNames.CASH_IN_TRANSIT_CONTROL.value: "asset",
     AccountRoleNames.OPENING_BALANCE_EQUITY.value: "equity",
@@ -230,6 +236,9 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     AccountRoleNames.SALARY_EXPENSE.value: "52100",
     "SALARY_EXPENSE": "52100",
     "SALARY_EXPENSE_ACCOUNT": "52100",
+    AccountRoleNames.SOCIAL_INSURANCE_EXPENSE.value: "52200",
+    "SOCIAL_INSURANCE_EXPENSE": "52200",
+    "SOCIAL_INSURANCE_EXPENSE_ACCOUNT": "52200",
     AccountRoleNames.SOCIAL_INSURANCE.value: "21420",
     "SOCIAL_INSURANCE": "21420",
     AccountRoleNames.INCOME_TAX.value: "21320",
@@ -238,6 +247,10 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "SALARY_PAYABLES": "21410",
     AccountRoleNames.EMPLOYEE_ADVANCE.value: "11230",
     "EMPLOYEE_ADVANCE": "11230",
+    AccountRoleNames.END_OF_SERVICE_EXPENSE.value: "52300",
+    "END_OF_SERVICE_EXPENSE": "52300",
+    AccountRoleNames.END_OF_SERVICE_PROVISION.value: "21430",
+    "END_OF_SERVICE_PROVISION": "21430",
 }
 
 

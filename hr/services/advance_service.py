@@ -260,10 +260,10 @@ class AdvanceService:
     @transaction.atomic
     def create_disbursement_journal_entry(advance, payment_account, created_by):
         """
-        إنشاء القيد المحاسبي عند صرف السلفة
+        إنشاء القيد المحاسبي عند صرف السلفة عبر AccountingGateway.
 
         القيد:
-            مدين: 10350 - سلف الموظفين (الأصل المتداول)
+            مدين: 11230 - سلف الموظفين (الأصل المتداول)
             دائن: حساب الصرف (الخزينة/البنك)
 
         Args:
@@ -272,66 +272,190 @@ class AdvanceService:
             created_by: المستخدم المنفذ
 
         Returns:
-            JournalEntry أو None لو فشل
+            JournalEntry: القيد المُنشأ
         """
         from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
+        from governance.exceptions import ValidationError as GovValidationError
         from financial.models import ChartOfAccounts
+        from financial.services.role_registry import AccountRoleRegistry
 
-        try:
+        advance_account = AccountRoleRegistry.get_account("EMPLOYEE_ADVANCE")
+        if not advance_account or not advance_account.is_active:
             advance_account = ChartOfAccounts.objects.filter(
-                code='10350', is_active=True
+                code__in=['11230', '10350'], is_active=True
             ).first()
-            if not advance_account:
-                logger.error('حساب سلف الموظفين (10350) غير موجود في دليل الحسابات')
-                return None
 
-            lines = [
-                JournalEntryLineData(
-                    account_code=advance_account.code,
-                    debit=advance.amount,
-                    credit=Decimal('0'),
-                    description=f'سلفة {advance.employee.get_full_name_ar()} - {advance.reason[:50]}'
-                ),
-                JournalEntryLineData(
-                    account_code=payment_account.code,
-                    debit=Decimal('0'),
-                    credit=advance.amount,
-                    description=f'صرف سلفة {advance.employee.get_full_name_ar()}'
-                ),
-            ]
+        if not advance_account:
+            msg = "حساب سلف الموظفين (11230) غير موجود في دليل الحسابات"
+            logger.error(msg)
+            raise GovValidationError(msg)
 
-            gateway = AccountingGateway()
-            idempotency_key = f'JE:hr:Advance:{advance.id}:disburse'
+        if not payment_account:
+            msg = "يجب تحديد حساب الصرف (الخزينة أو البنك)"
+            logger.error(msg)
+            raise GovValidationError(msg)
 
-            financial_category = advance.financial_category
-            if not financial_category:
-                from financial.models import FinancialCategory
-                financial_category = FinancialCategory.objects.filter(
-                    code='salaries', is_active=True
-                ).first()
+        emp_name = advance.employee.get_full_name_ar()
+        reason_str = (advance.reason or '')[:50]
 
-            entry = gateway.create_journal_entry(
-                source_module='hr',
-                source_model='Advance',
-                source_id=advance.id,
-                lines=lines,
-                idempotency_key=idempotency_key,
-                user=created_by,
-                entry_type='automatic',
-                description=f'صرف سلفة - {advance.employee.get_full_name_ar()} - {advance.amount:,.0f} ج.م',
-                reference=f'ADV-{advance.id}',
-                date=advance.payment_date,
-                financial_category=financial_category,
+        lines = [
+            JournalEntryLineData(
+                account_code=advance_account.code,
+                debit=advance.amount,
+                credit=Decimal('0'),
+                description=f"سلفة {emp_name} - {reason_str}"
+            ),
+            JournalEntryLineData(
+                account_code=payment_account.code,
+                debit=Decimal('0'),
+                credit=advance.amount,
+                description=f"صرف سلفة {emp_name}"
+            ),
+        ]
+
+        gateway = AccountingGateway()
+        idempotency_key = f"JE:hr:Advance:{advance.id}:disburse"
+
+        dept = getattr(advance.employee, 'department', None)
+        dept_subcategory = getattr(dept, 'financial_subcategory', None) if dept else None
+        financial_category = advance.financial_category
+        if not financial_category:
+            from financial.models import FinancialCategory
+            financial_category = (
+                FinancialCategory.objects.filter(code='salaries', is_active=True).first()
+                or FinancialCategory.objects.filter(code='payroll_hr', is_active=True).first()
             )
 
-            # ربط القيد بالسلفة
-            advance.journal_entry = entry
-            advance.payment_account = payment_account
-            advance.save(update_fields=['journal_entry', 'payment_account'])
+        financial_subcategory = None
+        if dept_subcategory and financial_category:
+            parent = getattr(dept_subcategory, 'category', None) or getattr(dept_subcategory, 'parent_category', None)
+            if parent and parent.id == financial_category.id:
+                financial_subcategory = dept_subcategory
+            elif parent:
+                financial_subcategory = dept_subcategory
+                financial_category = parent
 
-            logger.info(f'تم إنشاء القيد المحاسبي {entry.number} لسلفة {advance.id}')
-            return entry
+        entry_date = advance.payment_date or timezone.now().date()
 
-        except Exception as e:
-            logger.error(f'فشل إنشاء القيد المحاسبي لسلفة {advance.id}: {e}', exc_info=True)
-            return None
+        entry = gateway.create_journal_entry(
+            source_module='hr',
+            source_model='Advance',
+            source_id=advance.id,
+            lines=lines,
+            idempotency_key=idempotency_key,
+            user=created_by,
+            entry_type='payment_voucher',
+            description=f"صرف سلفة - {emp_name} - {advance.amount:,.0f} ج.م",
+            reference=f"ADV-{advance.id}",
+            date=entry_date,
+            financial_category=financial_category,
+            financial_subcategory=financial_subcategory
+        )
+
+        # ربط القيد وحساب الصرف بالسلفة
+        advance.journal_entry = entry
+        advance.payment_account = payment_account
+        advance.save(update_fields=['journal_entry', 'payment_account'])
+
+        logger.info(f"تم إنشاء القيد المحاسبي {entry.number} لسلفة {advance.id}")
+        return entry
+
+    @staticmethod
+    @transaction.atomic
+    def repay_installment_cash(advance, installment_amount, payment_account, user, payment_date=None, notes=None):
+        """
+        سداد قسط سلفة نقداً عبر الخزينة/البنك وإنشاء القيد المحاسبي عبر AccountingGateway.
+
+        القيد المحاسبي:
+            مدين: حساب التحصيل (الخزينة/البنك)
+            دائن: 11230 - سلف الموظفين (تخفيض مديونية الأصل)
+
+        Args:
+            advance: كائن السلفة
+            installment_amount: مبلغ القسط المسدد
+            payment_account: حساب الخزينة أو البنك المستلم
+            user: المستخدم المنفذ
+            payment_date: تاريخ السداد (اختياري)
+            notes: ملاحظات إضافية
+
+        Returns:
+            tuple: (advance, entry)
+        """
+        from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
+        from governance.exceptions import ValidationError as GovValidationError
+        from financial.models import ChartOfAccounts
+        from financial.services.role_registry import AccountRoleRegistry
+
+        if advance.status not in ['paid', 'in_progress']:
+            raise GovValidationError(f"لا يمكن سداد سلفة في حالة '{advance.get_status_display()}'")
+
+        if advance.remaining_amount <= 0:
+            raise GovValidationError("السلفة مكتملة السداد بالفعل")
+
+        amt = Decimal(str(installment_amount or 0))
+        if amt <= 0:
+            raise GovValidationError("مبلغ السداد يجب أن يكون أكبر من صفر")
+
+        if amt > advance.remaining_amount:
+            raise GovValidationError(
+                f"مبلغ السداد ({amt:,.2f}) أكبر من المبلغ المتبقي على السلفة ({advance.remaining_amount:,.2f})"
+            )
+
+        advance_account = AccountRoleRegistry.get_account("EMPLOYEE_ADVANCE")
+        if not advance_account or not advance_account.is_active:
+            advance_account = ChartOfAccounts.objects.filter(
+                code__in=['11230', '10350'], is_active=True
+            ).first()
+
+        if not advance_account:
+            raise GovValidationError("حساب سلف الموظفين (11230) غير موجود في دليل الحسابات")
+
+        if not payment_account:
+            raise GovValidationError("يجب تحديد حساب التحصيل (الخزينة أو البنك)")
+
+        actual_date = payment_date or timezone.now().date()
+        emp_name = advance.employee.get_full_name_ar()
+
+        lines = [
+            JournalEntryLineData(
+                account_code=payment_account.code,
+                debit=amt,
+                credit=Decimal('0'),
+                description=f"تحصيل قسط سلفة نقداً - {emp_name}"
+            ),
+            JournalEntryLineData(
+                account_code=advance_account.code,
+                debit=Decimal('0'),
+                credit=amt,
+                description=f"سداد سلفة {emp_name}"
+            ),
+        ]
+
+        gateway = AccountingGateway()
+        inst_num = advance.paid_installments + 1
+        idempotency_key = f"JE:hr:Advance:{advance.id}:repay_cash:{inst_num}:{actual_date}"
+
+        entry = gateway.create_journal_entry(
+            source_module='hr',
+            source_model='Advance',
+            source_id=advance.id,
+            lines=lines,
+            idempotency_key=idempotency_key,
+            user=user,
+            entry_type='receipt_voucher',
+            description=f"سداد قسط سلفة نقداً - {emp_name} - {amt:,.2f} ج.م",
+            reference=f"ADV-REC-{advance.id}",
+            date=actual_date,
+        )
+
+        # تسجيل دفعة القسط
+        installment = advance.record_installment_payment(
+            month=actual_date,
+            amount=amt
+        )
+        if notes:
+            installment.notes = notes
+            installment.save(update_fields=['notes'])
+
+        logger.info(f"تم سداد قسط سلفة {advance.id} بمبلغ {amt} بالقيد {entry.number}")
+        return advance, entry

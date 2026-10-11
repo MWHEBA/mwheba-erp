@@ -99,6 +99,14 @@
                 <dt class="col-md-2 col-4 text-muted">تاريخ الاعتماد</dt>
                 <dd class="col-md-4 col-8">{{ advance.approved_at|date:"Y-m-d H:i" }}</dd>
               {% endif %}
+              {% if advance.payment_account %}
+                <dt class="col-md-2 col-4 text-muted">حساب الصرف</dt>
+                <dd class="col-md-4 col-8"><span class="badge bg-light text-dark border">{{ advance.payment_account.code }} - {{ advance.payment_account.name }}</span></dd>
+              {% endif %}
+              {% if advance.journal_entry %}
+                <dt class="col-md-2 col-4 text-muted">القيد المحاسبي</dt>
+                <dd class="col-md-4 col-8"><span class="badge bg-primary text-white"><i class="fas fa-check-circle me-1"></i>{{ advance.journal_entry.number }}</span></dd>
+              {% endif %}
             </dl>
 
             {% if advance.reason %}

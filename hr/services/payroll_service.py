@@ -1411,26 +1411,12 @@ class PayrollService:
         payroll.payment_reference = payment_reference or ''
         payroll.save()
         
-        # ✅ إنشاء القيد المحاسبي (متوازن دائماً مع rounding line)
-        try:
-            from hr.services.payroll_accounting_service import PayrollAccountingService
-            accounting_service = PayrollAccountingService()
-            journal_entry = accounting_service.create_payroll_journal_entry(payroll, paid_by)
-
-            # ✅ ترحيل القيد تلقائياً
-            if journal_entry:
-                try:
-                    from financial.services.expense_income_service import ExpenseIncomeService
-                    ExpenseIncomeService.post_journal_entry(journal_entry, paid_by)
-                except Exception as post_error:
-                    logger.warning(
-                        f"تم إنشاء القيد المحاسبي رقم {journal_entry.id} لكن فشل ترحيله: {str(post_error)}"
-                    )
-
-        except Exception as e:
-            logger.error(
-                f"تم دفع الراتب بنجاح لكن فشل إنشاء القيد المحاسبي: {str(e)}"
-            )
+        # ✅ إنشاء القيد المحاسبي المباشر عبر AccountingGateway
+        from hr.services.payroll_accounting_service import PayrollAccountingService
+        accounting_service = PayrollAccountingService()
+        journal_entry = accounting_service.create_payroll_journal_entry(payroll, paid_by)
+        if not journal_entry:
+            raise ValueError(f"فشل إنشاء القيد المحاسبي لقسيمة الراتب {payroll.id}")
         
         # ✅ تسجيل audit
         from .payroll_audit_service import PayrollAuditService
