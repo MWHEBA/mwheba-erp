@@ -264,9 +264,32 @@ class AttendanceService:
                 attendance.status = 'absent'
             return
 
-        # 2. حساب دقائق التأخير
-        late_min = AttendanceService._calculate_late_minutes(attendance.check_in, shift, target_date, employee=emp)
+        # 2. حساب دقائق التأخير مع حوكمة إعفاء المأموريات الصباحية المعتمدة
+        # يُعفى الموظف من التأخير إذا كانت بصمة الحضور الأولى مأمورية ميدانية،
+        # مع منع استغلال الزيارات الميدانية المسائية لمحو التأخير الصباحي للفرع.
+        first_bio = None
+        if attendance.pk and hasattr(attendance, 'biometric_logs'):
+            first_bio = attendance.biometric_logs.order_by('timestamp').first()
+
+        is_morning_field_mission = False
+        if first_bio:
+            is_morning_field_mission = bool(
+                first_bio.source == 'field_visit' or 
+                (first_bio.device_info and first_bio.device_info.get('is_field_visit'))
+            )
+        elif attendance.is_field_visit and attendance.source == 'field_visit':
+            is_morning_field_mission = True
+
+        if is_morning_field_mission:
+            late_min = 0
+        else:
+            late_min = AttendanceService._calculate_late_minutes(attendance.check_in, shift, target_date, employee=emp)
+
         attendance.late_minutes = late_min
+
+        # مسح ملاحظة الغياب التلقائي عند ثبوت الحضور الفعلي
+        if attendance.notes and ('غياب' in attendance.notes or 'غائب' in attendance.notes):
+            attendance.notes = ''
 
         # 3. معالجة الانصراف وساعات العمل
         if attendance.check_out:
@@ -278,13 +301,13 @@ class AttendanceService:
             check_out_ts = timezone.localtime(attendance.check_out) if timezone.is_aware(attendance.check_out) else attendance.check_out
 
             # تطبيق حدود بداية الوردية (Shift Start Boundary):
-            # الحضور المبكر قبل بداية الوردية لا يحتسب كساعات عمل عادية ولا يولد إضافي (إلا في العطلات)
+            # الحضور المبكر قبل بداية الوردية لا يحتسب كساعات عمل عادية ولا يولد إضافي (إلا في العطلات أو المأموريات الميدانية)
             ref_start, ref_end = AttendanceService._get_reference_times(shift, target_date)
             shift_start_dt = datetime.combine(target_date, ref_start)
             if timezone.is_aware(attendance.check_in):
                 shift_start_dt = timezone.make_aware(shift_start_dt)
 
-            if not (is_holiday or is_weekly_off):
+            if not (is_holiday or is_weekly_off or attendance.is_field_visit):
                 effective_start = max(check_in_ts, shift_start_dt)
             else:
                 effective_start = check_in_ts
@@ -329,9 +352,13 @@ class AttendanceService:
                 # تحديد الحالة (present / late / half_day)
                 half_day_threshold = Decimal(str(shift_req_hours)) / Decimal('2.0')
                 if raw_work_hours <= half_day_threshold and raw_work_hours < Decimal(str(shift_req_hours)):
-                    attendance.status = 'half_day'
-                    # حظر الخصم المزدوج: تصفير دقائق الانصراف المبكر حتى لا يدفع الموظف جزاء نصف يوم + دقائق مبكرة
-                    attendance.early_leave_minutes = 0
+                    if not attendance.is_field_visit:
+                        attendance.status = 'half_day'
+                        # حظر الخصم المزدوج: تصفير دقائق الانصراف المبكر حتى لا يدفع الموظف جزاء نصف يوم + دقائق مبكرة
+                        attendance.early_leave_minutes = 0
+                    else:
+                        # المأمورية الميدانية المعتمدة لا تُحوّل قسرياً إلى نصف يوم
+                        attendance.status = 'late' if late_min > 0 else 'present'
                 elif late_min > 0:
                     attendance.status = 'late'
                 else:

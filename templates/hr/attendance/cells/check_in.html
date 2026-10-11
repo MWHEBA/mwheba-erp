@@ -1,7 +1,14 @@
 {% if object.status == 'absent' or object.status == 'on_leave' %}
     <span class="text-muted">-</span>
 {% elif object.check_in %}
-    <span class="badge bg-success">{{ object.check_in|date:"g:i A" }}</span>
+    <div class="d-inline-flex flex-column align-items-center">
+        <span class="badge bg-success">{{ object.check_in|date:"g:i A" }}</span>
+        {% if object.location_name %}
+            <small class="text-muted mt-1 text-truncate" style="max-width: 120px;" title="{{ object.location_name }}">
+                <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ object.location_name }}
+            </small>
+        {% endif %}
+    </div>
 {% else %}
     <span class="text-muted">-</span>
 {% endif %}

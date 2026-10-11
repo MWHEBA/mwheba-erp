@@ -127,8 +127,9 @@ class Attendance(models.Model):
     ]
 
     SOURCE_CHOICES = [
-        ('device', 'ماكينة'),
+        ('device', 'ماكينة بصمة'),
         ('mobile', 'موبايل'),
+        ('mobile_gps', 'موبايل (GPS)'),
         ('field_visit', 'زيارة ميدانية'),
         ('supervisor', 'مشرف'),
         ('manual', 'يدوي'),

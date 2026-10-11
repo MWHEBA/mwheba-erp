@@ -411,9 +411,14 @@
  </span>
  </div>
 
- <div class="selfie-camera-viewport mb-2">
+ <div class="selfie-camera-viewport mb-2 position-relative">
  <video id="cameraVideo" class="selfie-video" autoplay playsinline muted></video>
  <canvas id="cameraCanvas" class="selfie-canvas"></canvas>
+
+ <!-- زر تبديل الكاميرا (أمامية / خلفية) -->
+ <button type="button" id="btnFlipCamera" class="btn btn-sm btn-dark position-absolute bottom-0 start-0 m-2 shadow-xs" title="تبديل الكاميرا (أمامية/خلفية)" style="z-index: 5; opacity: 0.9; font-size: 0.75rem;">
+ <i class="fas fa-sync-alt me-1"></i><span>تبديل الكاميرا</span>
+ </button>
 
  <!-- علامات زوايا التركيز -->
  <div class="camera-viewfinder-corner corner-tl"></div>
@@ -663,20 +668,43 @@ $(document).ready(function() {
  }
  loadPunchContext();
 
- // 4. تشغيل كاميرا السيلفي الذاتية
- async function startCamera() {
- try {
+ // 4. تشغيل كاميرا السيلفي الذاتية مع دعم التبديل والمرآة الذكية
+ let currentFacingMode = 'user';
+
+ async function startCamera(facingMode) {
+ if (facingMode) {
+ currentFacingMode = facingMode;
+ }
  const video = document.getElementById('cameraVideo');
+ if (!video) return;
+
+ if (cameraStream) {
+ cameraStream.getTracks().forEach(track => track.stop());
+ cameraStream = null;
+ }
+
+ try {
  cameraStream = await navigator.mediaDevices.getUserMedia({
- video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+ video: { facingMode: currentFacingMode, width: { ideal: 640 }, height: { ideal: 480 } },
  audio: false
  });
  video.srcObject = cameraStream;
+ // تطبيق تأثير المرآة لتطابق ما يراه الموظف على الكاميرا الأمامية فقط
+ if (currentFacingMode === 'user') {
+ video.style.transform = 'scaleX(-1)';
+ } else {
+ video.style.transform = 'scaleX(1)';
+ }
  } catch (err) {
  console.warn('تعذر تشغيل الكاميرا المباشرة:', err.message);
  }
  }
- startCamera();
+ startCamera('user');
+
+ $('#btnFlipCamera').on('click', function() {
+ const nextMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+ startCamera(nextMode);
+ });
 
  // التقاط صورة سيلفي مضغوطة عالية الجودة وخفيفة الحجم
  function captureSelfie() {
@@ -687,14 +715,20 @@ $(document).ready(function() {
  canvas.width = 480;
  canvas.height = 360;
  const ctx = canvas.getContext('2d');
- // تطبيق تأثير المرآة لتطابق ما يراه الموظف
+ ctx.save();
+ if (currentFacingMode === 'user') {
+ // تطبيق تأثير المرآة للكاميرا الأمامية فقط
  ctx.translate(canvas.width, 0);
  ctx.scale(-1, 1);
+ }
  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+ ctx.restore();
  return canvas.toDataURL('image/jpeg', 0.7); // ضغط 70% للحجم الخفيف (حوالي 40-60KB)
  }
 
  // 5. تتبع الموقع الجغرافي GPS وحساب النطاق
+ let geoWatchId = null;
+
  function updateGeoStatus(position) {
  currentPosition = position;
  const lat = position.coords.latitude;
@@ -762,8 +796,9 @@ $(document).ready(function() {
  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
  }
 
- if (navigator.geolocation) {
- navigator.geolocation.watchPosition(
+ function startGeoWatcher() {
+ if (navigator.geolocation && !geoWatchId) {
+ geoWatchId = navigator.geolocation.watchPosition(
  updateGeoStatus,
  function(err) {
  $('#geoStatusBox').removeClass('geo-locating geo-in-range').addClass('geo-out-of-range');
@@ -772,9 +807,33 @@ $(document).ready(function() {
  $('#geoDistanceText').text('يرجى تفعيل خدمة الموقع الجغرافي في هاتفك والسماح للمتصفح بالوصول.');
  $('#geoAccuracyBadge').text('GPS معطل').addClass('bg-danger');
  },
- { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+ { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
  );
  }
+ }
+
+ function stopGeoWatcher() {
+ if (geoWatchId !== null && navigator.geolocation) {
+ navigator.geolocation.clearWatch(geoWatchId);
+ geoWatchId = null;
+ }
+ }
+
+ startGeoWatcher();
+
+ // إدارة دورة حياة الصفحة وتوفير الموارد والبطارية
+ document.addEventListener('visibilitychange', function() {
+ if (document.visibilityState === 'hidden') {
+ if (cameraStream) {
+ cameraStream.getTracks().forEach(t => t.stop());
+ cameraStream = null;
+ }
+ stopGeoWatcher();
+ } else if (document.visibilityState === 'visible') {
+ startCamera(currentFacingMode);
+ startGeoWatcher();
+ }
+ });
 
  // 6. إدارة حالة الاتصال بالإنترنت والمزامنة الأوفلاين
  function updateOnlineStatus() {
@@ -814,8 +873,10 @@ $(document).ready(function() {
 
  function saveOfflinePunch(punchData) {
  const punches = getOfflinePunches();
+ if (!punches.some(p => p.client_uuid && p.client_uuid === punchData.client_uuid)) {
  punches.push(punchData);
  localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(punches));
+ }
  updateOfflineBadge();
  notifyUser('تم حفظ البصمة في الذاكرة المحلية (Offline)، وسيتم إرسالها تلقائياً عند عودة الإنترنت.', 'warning');
  }
@@ -846,11 +907,25 @@ $(document).ready(function() {
  data: JSON.stringify({ punches: punches, employee_id: currentEmployeeId }),
  success: function(res) {
  if (res.success) {
+ let remainingPunches = [];
+ if (res.synced_uuids && Array.isArray(res.synced_uuids)) {
+ const currentPunches = getOfflinePunches();
+ remainingPunches = currentPunches.filter(p => !res.synced_uuids.includes(p.client_uuid));
+ }
+ if (remainingPunches.length > 0) {
+ localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(remainingPunches));
+ } else {
  localStorage.removeItem(OFFLINE_STORAGE_KEY);
+ }
  updateOfflineBadge();
  notifyUser(res.message, 'success');
  setTimeout(function() { window.location.reload(); }, 3100);
+ } else {
+ notifyUser(res.message || 'فشلت بعض عمليات المزامنة.', 'error');
  }
+ },
+ error: function(xhr) {
+ notifyUser('حدث خطأ في الاتصال أثناء المزامنة.', 'error');
  },
  complete: function() {
  btn.prop('disabled', false).html('<i class="fas fa-sync-alt me-1"></i>مزامنة الآن');
@@ -864,14 +939,28 @@ $(document).ready(function() {
  isFieldVisit = isFieldVisit || false;
  fieldReason = fieldReason || '';
 
+ const isFieldVisitType = (punchType === 'field_visit');
+ const targetBtn = isFieldVisitType ? $('#btnOpenFieldVisitModal') : (punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut'));
+ 
+ // حماية فورية من النقر المتعدد (Debounce)
+ $('#btnCheckIn, #btnCheckOut, #btnOpenFieldVisitModal').prop('disabled', true);
+ targetBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التوثيق...');
+
  if (!currentPosition) {
  notifyUser('يرجى الانتظار حتى يتم تحديد موقعك الجغرافي بدقة عبر الـ GPS.', 'warning');
+ updatePunchButtonStates();
+ $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
  return;
  }
+
+ const clientUuid = 'PUNCH-' + ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, function(c) {
+ return (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16);
+ }).toUpperCase();
 
  const selfieBase64 = captureSelfie();
  const payload = {
  employee_id: currentEmployeeId,
+ client_uuid: clientUuid,
  punch_type: punchType,
  latitude: currentPosition.coords.latitude,
  longitude: currentPosition.coords.longitude,
@@ -884,14 +973,10 @@ $(document).ready(function() {
  client_timestamp: new Date().toISOString()
  };
 
- const isFieldVisitType = (punchType === 'field_visit');
- const targetBtn = isFieldVisitType ? $('#btnOpenFieldVisitModal') : (punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut'));
- $('#btnCheckIn, #btnCheckOut, #btnOpenFieldVisitModal').prop('disabled', true);
- targetBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التوثيق...');
-
  if (!navigator.onLine) {
  saveOfflinePunch(payload);
  updatePunchButtonStates();
+ $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
  return;
  }
 
@@ -901,7 +986,11 @@ $(document).ready(function() {
  contentType: 'application/json',
  headers: { 'X-CSRFToken': '{{ csrf_token }}' },
  data: JSON.stringify(payload),
+ timeout: 25000,
  success: function(res) {
+ if (res.new_punch_token && punchContext) {
+ punchContext.punch_token = res.new_punch_token;
+ }
  if (res.success) {
  notifyUser(res.message, 'success');
  if (punchType === 'field_visit') {
@@ -934,7 +1023,16 @@ $(document).ready(function() {
  $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
  }
  },
- error: function(xhr) {
+ error: function(xhr, textStatus) {
+ if (xhr.status === 0 || textStatus === 'timeout' || !navigator.onLine) {
+ saveOfflinePunch(payload);
+ updatePunchButtonStates();
+ $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
+ return;
+ }
+ if (xhr.responseJSON && xhr.responseJSON.new_punch_token && punchContext) {
+ punchContext.punch_token = xhr.responseJSON.new_punch_token;
+ }
  const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء معالجة البصمة.';
  notifyUser(msg, 'error');
  updatePunchButtonStates();

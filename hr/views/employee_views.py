@@ -304,7 +304,7 @@ def employee_detail(request, pk):
     # آخر 5 سجلات بصمة
     recent_biometric_logs = BiometricLog.objects.filter(
         employee=employee
-    ).select_related('device').order_by('-timestamp')[:5]
+    ).select_related('device', 'matched_location').order_by('-timestamp')[:5]
     
     # الحصول على ربط البصمة
     biometric_mappings = BiometricUserMapping.objects.filter(

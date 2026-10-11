@@ -1,81 +1,52 @@
-{% if object.permission_info %}
-<a href="{% url 'hr:attendance_summary_detail' object.summary_id %}" class="btn btn-sm btn-outline-primary" title="عرض الملخص الشهري">
-    <i class="fas fa-file-alt"></i>
-</a>
+<div class="btn-group btn-group-sm" role="group">
+    {% if object.summary_id %}
+    <a href="{% url 'hr:attendance_summary_detail' object.summary_id %}" class="btn btn-outline-primary" title="عرض الملخص الشهري">
+        <i class="fas fa-file-alt"></i>
+    </a>
+    {% endif %}
 
-<button type="button" 
-        class="btn btn-sm btn-outline-info show-movements-btn" 
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-movements='[{% for movement in object.movements %}{"time":"{{ movement|date:"g:i:s A" }}","is_first":{% if forloop.first %}true{% else %}false{% endif %},"is_last":{% if forloop.last %}true{% else %}false{% endif %}}{% if not forloop.last %},{% endif %}{% endfor %}]'
-        title="عرض جميع الحركات">
-    <i class="fas fa-list"></i>
-</button>
+    <button type="button" 
+            class="btn btn-outline-info show-movements-btn" 
+            data-id="{{ object.id }}"
+            data-employee-name="{{ object.employee.get_full_name_ar }}"
+            data-date="{{ object.date|date:'Y-m-d' }}"
+            title="عرض جميع الحركات">
+        <i class="fas fa-list"></i>
+    </button>
 
-<button type="button"
-        class="btn btn-sm btn-outline-warning show-permission-btn"
-        data-permission-type="{{ object.permission_info.type }}"
-        data-duration="{{ object.permission_info.duration }}"
-        data-is-extra="{{ object.permission_info.is_extra|yesno:'نعم,لا' }}"
-        data-deduction-hours="{{ object.permission_info.deduction_hours|default:'-' }}"
-        title="تفاصيل الإذن">
-    <i class="fas fa-clock"></i>
-</button>
+    {% if object.permission_info %}
+    <button type="button"
+            class="btn btn-outline-warning show-permission-btn"
+            data-permission-type="{{ object.permission_info.type }}"
+            data-duration="{{ object.permission_info.duration }}"
+            data-is-extra="{{ object.permission_info.is_extra|yesno:'نعم,لا' }}"
+            data-deduction-hours="{{ object.permission_info.deduction_hours|default:'-' }}"
+            title="تفاصيل الإذن">
+        <i class="fas fa-clock"></i>
+    </button>
+    {% endif %}
 
-{% if perms.hr.can_manual_attendance or user.is_superuser %}
-<button type="button" class="btn btn-sm btn-outline-secondary edit-attendance-btn"
-        data-employee-id="{{ object.employee.id }}"
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-status="{{ object.status }}"
-        data-check-in="{{ object.check_in|date:'H:i'|default:'' }}"
-        data-check-out="{{ object.check_out|date:'H:i'|default:'' }}"
-        title="تعديل يدوي">
-    <i class="fas fa-edit"></i>
-</button>
-<button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
-        data-attendance-id="{{ object.id|default:object.attendance_id }}"
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-audit-logs='{{ object.audit_logs_json|safe }}'
-        title="سجل التدقيق">
-    <i class="fas fa-history"></i>
-</button>
-{% endif %}
+    {% if perms.hr.change_attendance or user.is_staff or user.is_superuser %}
+    <button type="button" class="btn btn-outline-secondary edit-attendance-btn"
+            data-employee-id="{{ object.employee.id }}"
+            data-employee-name="{{ object.employee.get_full_name_ar }}"
+            data-date="{{ object.date|date:'Y-m-d' }}"
+            data-status="{{ object.status }}"
+            data-check-in="{{ object.check_in|date:'H:i'|default:'' }}"
+            data-check-out="{{ object.check_out|date:'H:i'|default:'' }}"
+            title="تعديل يدوي">
+        <i class="fas fa-edit"></i>
+    </button>
+    <button type="button" class="btn btn-outline-dark view-audit-btn"
+            data-attendance-id="{{ object.id|default:object.attendance_id }}"
+            data-employee-name="{{ object.employee.get_full_name_ar }}"
+            data-date="{{ object.date|date:'Y-m-d' }}"
+            title="سجل التدقيق">
+        <i class="fas fa-history"></i>
+    </button>
+    {% endif %}
+</div>
 
-{% else %}
-<a href="{% url 'hr:attendance_summary_detail' object.summary_id %}" class="btn btn-sm btn-outline-primary" title="عرض الملخص الشهري">
-    <i class="fas fa-file-alt"></i>
-</a>
-
-<button type="button" 
-        class="btn btn-sm btn-outline-info show-movements-btn" 
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-movements='[{% for movement in object.movements %}{"time":"{{ movement|date:"g:i:s A" }}","is_first":{% if forloop.first %}true{% else %}false{% endif %},"is_last":{% if forloop.last %}true{% else %}false{% endif %}}{% if not forloop.last %},{% endif %}{% endfor %}]'
-        title="عرض جميع الحركات">
-    <i class="fas fa-list"></i>
-</button>
-
-{% if perms.hr.can_manual_attendance or user.is_superuser %}
-<button type="button" class="btn btn-sm btn-outline-secondary edit-attendance-btn"
-        data-employee-id="{{ object.employee.id }}"
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-status="{{ object.status }}"
-        data-check-in="{{ object.check_in|date:'H:i'|default:'' }}"
-        data-check-out="{{ object.check_out|date:'H:i'|default:'' }}"
-        title="تعديل يدوي">
-    <i class="fas fa-edit"></i>
-</button>
-<button type="button" class="btn btn-sm btn-outline-dark view-audit-btn"
-        data-attendance-id="{{ object.id|default:object.attendance_id }}"
-        data-employee-name="{{ object.employee.get_full_name_ar }}"
-        data-date="{{ object.date|date:'Y-m-d' }}"
-        data-audit-logs='{{ object.audit_logs_json|safe }}'
-        title="سجل التدقيق">
-    <i class="fas fa-history"></i>
-</button>
-{% endif %}
-
-{% endif %}
+<!-- حاويات سكريبت آمنة لنقل الـ JSON دون أخطاء في الـ HTML Attributes -->
+<script type="application/json" id="movements-json-{{ object.id }}">{{ object.movements_json|default:'[]'|safe }}</script>
+<script type="application/json" id="audit-logs-{{ object.id }}">{{ object.audit_logs_json|default:'[]'|safe }}</script>

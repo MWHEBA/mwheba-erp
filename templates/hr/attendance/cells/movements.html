@@ -1,1 +1,12 @@
-<span class="badge bg-secondary">{{ object.total_movements }}</span>
+{% if object.total_movements > 0 %}
+<button type="button" class="btn btn-sm btn-outline-secondary show-movements-btn px-2 py-0" 
+        data-id="{{ object.id }}"
+        data-employee-name="{{ object.employee.get_full_name_ar }}"
+        data-date="{{ object.date|date:'Y-m-d' }}"
+        title="عرض تفاصيل {{ object.total_movements }} حركات">
+    <i class="fas fa-fingerprint me-1 text-primary"></i>
+    <span class="fw-bold">{{ object.total_movements }}</span>
+</button>
+{% else %}
+<span class="text-muted">-</span>
+{% endif %}

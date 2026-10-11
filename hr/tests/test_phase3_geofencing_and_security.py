@@ -500,3 +500,151 @@ class TestPhase3WorkLocationViews:
         loc = WorkLocation.objects.get(pk=data['data']['id'])
         assert loc.latitude == Decimal('30.0123456')
         assert loc.longitude == Decimal('31.2345678')
+
+    def test_geofencing_accuracy_confidence_buffer(self, phase3_setup):
+        """التحقق من هامش ثقة دقة الـ GPS عند حدود الفروع وقبول البصمات الملاصقة"""
+        emp_hq = phase3_setup['emp_hq']
+        hq_loc = phase3_setup['hq_loc']
+
+        # نقطة تبعد 105 متراً عن المقر الرئيسي (حيث النطاق 100م)
+        # 0.00095 درجة خط عرض تقريباً 105 أمتار
+        lat_edge = float(hq_loc.latitude) + 0.00095
+        lon_edge = float(hq_loc.longitude)
+
+        raw_dist = GeofencingService.calculate_distance(lat_edge, lon_edge, hq_loc.latitude, hq_loc.longitude)
+        assert raw_dist > 100.0  # خارج النطاق الصارم بقليل
+
+        # مع دقة GPS ممتازة (15 متراً) -> هامش الثقة (7.5م) يجعل المسافة الفعالة <= 100م
+        valid, loc, dist, msg = GeofencingService.validate_location(
+            employee=emp_hq,
+            latitude=lat_edge,
+            longitude=lon_edge,
+            accuracy_meters=15.0,
+        )
+        assert valid is True
+        assert loc.id == hq_loc.id
+
+    def test_inter_branch_flexibility(self, phase3_setup):
+        """التحقق من المرونة بين الفروع لموظف مخصص لفرع وتواجد بفرع آخر معتمد"""
+        emp_hq = phase3_setup['emp_hq']  # مخصص لـ HQ
+        branch_loc = phase3_setup['branch_loc']  # فرع المهندسين
+
+        # الموظف يتواجد داخل فرع المهندسين
+        valid, loc, dist, msg = GeofencingService.validate_location(
+            employee=emp_hq,
+            latitude=float(branch_loc.latitude),
+            longitude=float(branch_loc.longitude),
+            accuracy_meters=10.0,
+        )
+        assert valid is True
+        assert loc.id == branch_loc.id  # تم قبوله وتوثيق الفرع البديل
+
+    def test_field_visit_null_island_rejection(self, phase3_setup):
+        """التحقق من رفض مأموريات الـ GPS الصفرية (Null Island)"""
+        emp_hq = phase3_setup['emp_hq']
+        emp_hq.allow_field_visits = True
+        emp_hq.save(update_fields=['allow_field_visits'])
+
+        # إحداثيات صفرية في المحيط الأطلسي
+        valid, loc, dist, msg = GeofencingService.validate_location(
+            employee=emp_hq,
+            latitude=0.0,
+            longitude=0.0,
+            is_field_visit=True,
+        )
+        assert valid is False
+        assert "تعذر التقاط إحداثيات جغرافية حقيقية" in msg
+
+    def test_cross_employee_device_uniqueness(self, phase3_setup):
+        """التحقق من حظر تسجيل هاتف موظف نشط باسم موظف آخر لمنع بصمة الزميل"""
+        emp_hq = phase3_setup['emp_hq']
+        emp_roam = phase3_setup['emp_roaming']
+
+        # الموظف الأول يربط هاتفه
+        device_phone = "SHARED-SAMSUNG-GALAXY-UUID-1234"
+        valid1, is_new1, _ = GeofencingService.validate_device_binding(emp_hq, device_phone)
+        assert valid1 is True
+
+        # الموظف الثاني يحاول تسجيل نفس الهاتف
+        valid2, is_new2, msg2 = GeofencingService.validate_device_binding(emp_roam, device_phone)
+        assert valid2 is False
+        assert "مرتبط بالفعل بحساب زميل آخر" in msg2
+
+    def test_unknown_browser_rejection(self, phase3_setup):
+        """التحقق من حظر الربط بالمعرفات المجهولة ووضع التصفح المتخفي"""
+        emp_roam = phase3_setup['emp_roaming']
+
+        valid, is_new, msg = GeofencingService.validate_device_binding(emp_roam, "UNKNOWN_BROWSER")
+        assert valid is False
+        assert "وضع التصفح غير مدعوم" in msg
+
+    def test_desktop_user_agent_binding_blocked(self, phase3_setup):
+        """التحقق من حظر ربط الأجهزة من متصفحات الكمبيوتر المكتبي"""
+        emp_roam = phase3_setup['emp_roaming']
+        desktop_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+
+        valid, is_new, msg = GeofencingService.validate_device_binding(
+            emp_roam,
+            "PC-BROWSER-UUID-999",
+            user_agent=desktop_ua,
+        )
+        assert valid is False
+        assert "لا يمكن ربط الهاتف المعتمد من متصفح جهاز كمبيوتر مكتبي" in msg
+
+    def test_single_default_work_location_constraint(self, phase3_setup):
+        """التحقق من تفرد المقر الافتراضي وإلغاء الافتراضي عن السابق تلقائياً"""
+        rf = phase3_setup['rf']
+        user = phase3_setup['user']
+        hq_loc = phase3_setup['hq_loc']
+        assert hq_loc.is_default is True
+
+        # إنشاء فرع جديد وتعيينه كافتراضي
+        request = rf.post('/hr/work-locations/save/', {
+            'name_ar': 'الفرع الافتراضي الجديد - الإسكندرية',
+            'latitude': '31.2000000',
+            'longitude': '29.9000000',
+            'radius_meters': '200',
+            'is_active': 'on',
+            'is_default': 'on',
+        })
+        request.user = user
+
+        response = work_location_save(request)
+        assert response.status_code == 200
+
+        hq_loc.refresh_from_db()
+        assert hq_loc.is_default is False  # تم إلغاؤه تلقائياً
+
+    def test_reset_device_binding_with_change_employee_permission(self, phase3_setup):
+        """التحقق من تمكين مسؤول الموارد البشرية بصلاحية change_employee القياسية"""
+        rf = phase3_setup['rf']
+        emp = phase3_setup['emp_hq']
+        emp.registered_device_uuid = "DEV-TO-RESET-123"
+        emp.save(update_fields=['registered_device_uuid'])
+
+        # إنشاء مستخدم يمتلك صلاحية change_employee فقط وليس can_reset_device_binding
+        hr_user = User.objects.create_user(
+            username='hr_specialist_phase1',
+            email='hr_specialist_phase1@mwheba.com',
+            password='password123',
+            is_staff=True
+        )
+        content_type_emp = ContentType.objects.get_for_model(Employee)
+        perm_change_emp, _ = Permission.objects.get_or_create(
+            codename='change_employee',
+            content_type=content_type_emp,
+            defaults={'name': 'تعديل موظف'}
+        )
+        hr_user.user_permissions.add(perm_change_emp)
+
+        request = rf.post(f'/hr/employees/{emp.id}/reset-device-binding/', {
+            'reason': 'تلف هاتف الموظف'
+        })
+        request.user = hr_user
+
+        response = reset_employee_device_binding(request, emp.id)
+        assert response.status_code == 200
+        data = json.loads(response.content.decode('utf-8'))
+        assert data['success'] is True
+        emp.refresh_from_db()
+        assert emp.registered_device_uuid is None

@@ -7,16 +7,84 @@
 
 {% block extra_css %}
 <!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<style>
+    .movement-timeline-item {
+        position: relative;
+        padding-bottom: 1.25rem;
+        border-right: 2px solid var(--border-color);
+        padding-right: 1.5rem;
+        margin-right: 0.75rem;
+    }
+    .movement-timeline-item:last-child {
+        border-right-color: transparent;
+        padding-bottom: 0;
+    }
+    .movement-timeline-dot {
+        position: absolute;
+        right: -9px;
+        top: 0;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: var(--primary-color);
+        border: 3px solid #fff;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid pb-4">
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
+  <!-- كروت المؤشرات الإحصائية البانورامية (Rule 7) -->
+  <div class="row g-3 mb-4">
+      <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-success">
+              <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-user-check"></i></div>
+                  <div class="stats-card-title">إجمالي الحاضرين</div>
+                  <div class="stats-card-value">{{ present_count|default:0 }}</div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-warning">
+              <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-user-clock"></i></div>
+                  <div class="stats-card-title">إجمالي المتأخرين</div>
+                  <div class="stats-card-value">{{ late_count|default:0 }}</div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-danger">
+              <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-user-times"></i></div>
+                  <div class="stats-card-title">إجمالي الغياب</div>
+                  <div class="stats-card-value">{{ absent_count|default:0 }}</div>
+              </div>
+          </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-info">
+              <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-calendar-minus"></i></div>
+                  <div class="stats-card-title">في إجازة</div>
+                  <div class="stats-card-value">{{ on_leave_count|default:0 }}</div>
+              </div>
+          </div>
+      </div>
+  </div>
+
   <!-- تصفية وبحث -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+  <div class="section-container mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+        <a href="{% url 'hr:attendance_export_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i>تصدير النتائج Excel
+        </a>
+    </div>
     <form method="get" class="row g-3">
         <div class="col-md-2">
             <label for="date_from" class="form-label">من تاريخ</label>
@@ -26,7 +94,7 @@
             <label for="date_to" class="form-label">إلى تاريخ</label>
             <input type="text" name="date_to" id="date_to" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ date_to }}">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
             <label for="department" class="form-label">القسم</label>
             <select name="department" id="department" class="form-select">
                 <option value="">جميع الأقسام</option>
@@ -49,9 +117,21 @@
             </select>
         </div>
         <div class="col-md-2">
+            <label for="source" class="form-label">المصدر</label>
+            <select name="source" id="source" class="form-select">
+                <option value="">جميع المصادر</option>
+                <option value="device" {% if source_filter == 'device' %}selected{% endif %}>ماكينة البصمة</option>
+                <option value="mobile" {% if source_filter == 'mobile' %}selected{% endif %}>موبايل (ذاتي)</option>
+                <option value="field_visit" {% if source_filter == 'field_visit' %}selected{% endif %}>زيارة ميدانية</option>
+                <option value="supervisor" {% if source_filter == 'supervisor' %}selected{% endif %}>طاقم المشرف</option>
+                <option value="manual" {% if source_filter == 'manual' %}selected{% endif %}>يدوي</option>
+                <option value="excel" {% if source_filter == 'excel' %}selected{% endif %}>استيراد إكسيل</option>
+            </select>
+        </div>
+        <div class="col-md-1">
             <label for="status" class="form-label">الحالة</label>
             <select name="status" id="status" class="form-select">
-                <option value="">جميع الحالات</option>
+                <option value="">الكل</option>
                 <option value="present"   {% if status_filter == 'present'   %}selected{% endif %}>حاضر</option>
                 <option value="late"      {% if status_filter == 'late'      %}selected{% endif %}>متأخر</option>
                 <option value="absent"    {% if status_filter == 'absent'    %}selected{% endif %}>غائب</option>
@@ -62,20 +142,25 @@
         </div>
         <div class="col-md-1 d-flex align-items-end">
             <button type="submit" class="btn btn-primary w-100">
-                <i class="fas fa-search me-2"></i>بحث
+                <i class="fas fa-search me-1"></i>بحث
             </button>
         </div>
     </form>
   </div>
 
   <!-- جدول الحضور المحلل -->
-  <div class="section-container">
-    {% include 'components/data_table.html' with table_id="attendance-table" headers=headers data=attendance_data primary_key="id" empty_message="لا توجد سجلات حضور" %}
+  <div class="section-container mb-4">
+    {% include 'components/data_table.html' with table_id="attendance-table" headers=headers data=attendance_data primary_key="id" empty_message="لا توجد سجلات حضور مطابقة لمعايير البحث" %}
+
+    <!-- شريط الترقيم المؤسسي SSR Pagination -->
+    <div id="pagination-wrapper" class="mt-3">
+        {% include "partials/pagination.html" with page_obj=page_obj %}
+    </div>
   </div>
 
-  <!-- Modal موحد لعرض الحركات -->
+  <!-- Modal تفاصيل الحركات والجيوفينسنج الموحد (Rule 8) -->
   <div class="modal fade" id="movementsModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
             <div class="modal-header bg-light border-bottom px-4 py-3">
                 <h5 class="modal-title fw-bold text-dark mb-0">
@@ -87,12 +172,33 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <ul class="list-group" id="movementsList">
+                <div id="movementsTimeline" class="p-2">
                     <!-- سيتم ملؤها ديناميكياً -->
-                </ul>
+                </div>
             </div>
             <div class="modal-footer bg-light border-top px-4 py-3">
                 <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- Modal عارض السيلفي المكبر (Lightbox Viewer) -->
+  <div class="modal fade" id="selfieViewerModal" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-camera text-primary me-2"></i>صورة السيلفي الموثقة
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3 text-center bg-dark">
+                <img id="enlargedSelfieImg" src="" alt="سيلفي البصمة" class="img-fluid rounded" style="max-height: 75vh; object-fit: contain;">
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-2 d-flex justify-content-between">
+                <span class="text-muted small" id="selfieViewerMeta"></span>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إغلاق</button>
             </div>
         </div>
     </div>
@@ -109,21 +215,21 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <table class="table table-bordered">
+                <table class="table table-bordered mb-0">
                     <tr>
-                        <th class="text-center" width="40%">نوع الإذن</th>
+                        <th class="text-center bg-light" width="40%">نوع الإذن</th>
                         <td class="text-center" id="permModalType"></td>
                     </tr>
                     <tr>
-                        <th class="text-center">المدة</th>
+                        <th class="text-center bg-light">المدة</th>
                         <td class="text-center" id="permModalDuration"></td>
                     </tr>
                     <tr>
-                        <th class="text-center">نوع الطلب</th>
+                        <th class="text-center bg-light">نوع الطلب</th>
                         <td class="text-center" id="permModalIsExtra"></td>
                     </tr>
                     <tr id="permModalDeductionRow" style="display:none;">
-                        <th class="text-center">ساعات الخصم</th>
+                        <th class="text-center bg-light">ساعات الخصم</th>
                         <td class="text-center" id="permModalDeduction"></td>
                     </tr>
                 </table>
@@ -342,46 +448,149 @@ $(document).ready(function() {
         });
     }
 
-    // معالجة زر عرض الحركات
+    // معالجة زر عرض الحركات الغنية (Movements Timeline)
     $(document).on('click', '.show-movements-btn', function() {
+        const attId = $(this).data('id');
         const employeeName = $(this).data('employee-name');
         const date = $(this).data('date');
-        const movements = $(this).data('movements');
 
-        $('#modalEmployeeName').text('حركات البصمة - ' + employeeName);
-        $('#modalDate').text(date);
+        $('#modalEmployeeName').text(employeeName || '');
+        $('#modalDate').text(date || '');
 
-        const movementsList = $('#movementsList');
-        movementsList.empty();
-
-        if (movements && movements.length > 0) {
-            movements.forEach(function(movement) {
-                let badgeClass = 'bg-secondary';
-                let badgeText = 'حركة';
-
-                if (movement.is_first) {
-                    badgeClass = 'bg-success';
-                    badgeText = 'حضور';
-                } else if (movement.is_last && movements.length > 1) {
-                    badgeClass = 'bg-info';
-                    badgeText = 'انصراف';
+        let movements = null;
+        if (attId) {
+            const scriptTag = document.getElementById('movements-json-' + attId);
+            if (scriptTag) {
+                try {
+                    movements = JSON.parse(scriptTag.textContent);
+                } catch(e) {
+                    movements = null;
                 }
-
-                const listItem = `
-                    <li class="list-group-item">
-                        <i class="fas fa-fingerprint text-primary me-2"></i>
-                        ${movement.time}
-                        <span class="badge ${badgeClass} float-end">${badgeText}</span>
-                    </li>
-                `;
-                movementsList.append(listItem);
-            });
-        } else {
-            movementsList.append('<li class="list-group-item text-center text-muted">لا توجد حركات مسجلة</li>');
+            }
+        }
+        if (!movements) {
+            movements = $(this).data('movements');
         }
 
-        const modal = new bootstrap.Modal(document.getElementById('movementsModal'));
+        const container = $('#movementsTimeline');
+        container.empty();
+
+        if (Array.isArray(movements) && movements.length > 0) {
+            movements.forEach(function(m, idx) {
+                let badgeClass = 'bg-secondary';
+                if (m.type === 'حضور') badgeClass = 'bg-success';
+                else if (m.type === 'انصراف') badgeClass = 'bg-info';
+
+                let sourceBadge = `<span class="badge bg-light text-dark border"><i class="fas fa-fingerprint me-1"></i>${m.source || 'ماكينة'}</span>`;
+                if (m.source === 'موبايل' || m.source === 'mobile' || m.source === 'mobile_gps' || m.source === 'موبايل (GPS)') {
+                    sourceBadge = `<span class="badge bg-light text-primary border"><i class="fas fa-mobile-alt me-1"></i>موبايل (GPS)</span>`;
+                } else if (m.source === 'زيارة ميدانية' || m.source === 'field_visit' || m.source === 'ميداني') {
+                    sourceBadge = `<span class="badge bg-light text-warning border"><i class="fas fa-route me-1"></i>ميداني</span>`;
+                } else if (m.source === 'طاقم مشرف' || m.source === 'supervisor' || m.source === 'مشرف') {
+                    sourceBadge = `<span class="badge bg-light text-info border"><i class="fas fa-user-shield me-1"></i>طاقم مشرف</span>`;
+                }
+
+                let deviceBadge = '';
+                if (m.device && m.device !== '-') {
+                    const devClass = m.is_unverified ? 'text-danger' : 'text-muted';
+                    deviceBadge = `<span class="badge bg-light ${devClass} border ms-1"><i class="fas fa-microchip me-1"></i>${m.device}</span>`;
+                }
+
+                let mapBtn = '';
+                if (m.lat && m.lng) {
+                    let accBadge = '';
+                    if (m.accuracy) {
+                        const accColor = m.accuracy <= 25 ? 'bg-success' : (m.accuracy <= 100 ? 'bg-warning text-dark' : 'bg-danger');
+                        accBadge = `<span class="badge ${accColor} ms-1" style="font-size:0.65rem;">±${Math.round(m.accuracy)}م</span>`;
+                    }
+                    mapBtn = `
+                        <div class="mt-2 d-flex align-items-center gap-1">
+                            <a href="https://www.google.com/maps?q=${m.lat},${m.lng}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                                <i class="fas fa-map-marker-alt me-1"></i>عرض بالخريطة
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 copy-coords-btn" data-coords="${m.lat},${m.lng}" style="font-size: 0.75rem;" title="نسخ الإحداثيات">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            ${accBadge}
+                        </div>
+                    `;
+                }
+
+                let selfieHtml = '';
+                if (m.selfie_url) {
+                    selfieHtml = `
+                        <div class="ms-3 flex-shrink-0">
+                            <img src="${m.selfie_url}" class="rounded border preview-selfie-img shadow-sm" 
+                                 style="width: 52px; height: 52px; object-fit: cover; cursor: pointer;" 
+                                 data-meta="${m.type} - ${m.time}"
+                                 title="انقر لتكبير السيلفي"
+                                 onerror="this.onerror=null; this.src='/static/images/avatar-placeholder.png';">
+                        </div>
+                    `;
+                }
+
+                let custWoHtml = '';
+                if (m.customer && m.customer !== '-') {
+                    custWoHtml += `<div class="small text-muted mt-1"><i class="fas fa-user-tag me-1 text-primary"></i>العميل: <strong>${m.customer}</strong></div>`;
+                }
+                if (m.work_order && m.work_order !== '-') {
+                    custWoHtml += `<div class="small text-muted"><i class="fas fa-clipboard-list me-1 text-info"></i>أمر شغل: <strong>${m.work_order}</strong></div>`;
+                }
+
+                const item = `
+                    <div class="movement-timeline-item d-flex justify-content-between align-items-start">
+                        <div class="movement-timeline-dot"></div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <span class="badge ${badgeClass}">${m.type || 'حركة'}</span>
+                                <strong class="fs-6">${m.time || ''}</strong>
+                                ${sourceBadge}
+                                ${deviceBadge}
+                            </div>
+                            <div class="small text-dark">
+                                <i class="fas fa-map-pin me-1 text-danger"></i>${m.location || 'المقر الرئيسي'}
+                            </div>
+                            ${custWoHtml}
+                            ${mapBtn}
+                        </div>
+                        ${selfieHtml}
+                    </div>
+                `;
+                container.append(item);
+            });
+        } else {
+            container.html('<div class="text-center text-muted py-4"><i class="fas fa-info-circle fa-2x mb-2 d-block"></i>لا توجد حركات مسجلة لهذا اليوم</div>');
+        }
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('movementsModal'));
         modal.show();
+    });
+
+    // تكبير صورة السيلفي (Lightbox Preview)
+    $(document).on('click', '.preview-selfie-img', function() {
+        const src = $(this).attr('src');
+        const meta = $(this).data('meta') || '';
+        $('#enlargedSelfieImg').attr('src', src);
+        $('#selfieViewerMeta').text(meta);
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('selfieViewerModal'));
+        modal.show();
+    });
+
+    // نسخ الإحداثيات إلى الحافظة بنقرة واحدة
+    $(document).on('click', '.copy-coords-btn', function() {
+        const coords = $(this).data('coords');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(coords).then(() => {
+                if (window.showToastr) window.showToastr('تم نسخ الإحداثيات: ' + coords, 'success');
+                else if (typeof toastr !== 'undefined') toastr.success('تم نسخ الإحداثيات: ' + coords);
+            });
+        } else {
+            const temp = $('<input>').val(coords).appendTo('body').select();
+            document.execCommand('copy');
+            temp.remove();
+            if (window.showToastr) window.showToastr('تم نسخ الإحداثيات: ' + coords, 'success');
+            else if (typeof toastr !== 'undefined') toastr.success('تم نسخ الإحداثيات: ' + coords);
+        }
     });
 
     // معالجة زر عرض تفاصيل الإذن
@@ -403,7 +612,7 @@ $(document).ready(function() {
             $('#permModalDeductionRow').hide();
         }
 
-        const modal = new bootstrap.Modal(document.getElementById('permissionModal'));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('permissionModal'));
         modal.show();
     });
 
@@ -413,7 +622,7 @@ $(document).ready(function() {
         $('#manual_employee_id').val('').trigger('change');
         $('#manual_supervisor_id').val('').trigger('change');
         $('#manualAttendanceModalTitle').html('<i class="fas fa-plus-circle text-primary me-2"></i>تسجيل حضور يدوي جديد');
-        const modal = new bootstrap.Modal(document.getElementById('manualAttendanceModal'));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('manualAttendanceModal'));
         modal.show();
     };
 
@@ -434,7 +643,7 @@ $(document).ready(function() {
         $('#manual_notes').val('');
 
         $('#manualAttendanceModalTitle').html('<i class="fas fa-edit text-warning me-2"></i>تعديل سجل حضور يدوي');
-        const modal = new bootstrap.Modal(document.getElementById('manualAttendanceModal'));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('manualAttendanceModal'));
         modal.show();
     });
 
@@ -442,7 +651,6 @@ $(document).ready(function() {
     $('#manualAttendanceForm').on('submit', function(e) {
         e.preventDefault();
         const btn = $('#btnSaveManualAttendance');
-        const origHtml = btn.innerHTML;
         btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
 
         const formData = $(this).serialize();
@@ -458,7 +666,8 @@ $(document).ready(function() {
                     } else if (typeof toastr !== 'undefined') {
                         toastr.success(res.message || 'تم حفظ وتوثيق سجل الحضور بنجاح');
                     }
-                    bootstrap.Modal.getInstance(document.getElementById('manualAttendanceModal')).hide();
+                    const modalEl = document.getElementById('manualAttendanceModal');
+                    if (modalEl) bootstrap.Modal.getInstance(modalEl).hide();
                     setTimeout(function() {
                         window.location.reload();
                     }, 3100);
@@ -468,6 +677,7 @@ $(document).ready(function() {
                     } else if (typeof toastr !== 'undefined') {
                         toastr.error(res.message || 'حدث خطأ أثناء الحفظ');
                     }
+                    btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ وتوثيق');
                 }
             },
             error: function(xhr) {
@@ -477,8 +687,6 @@ $(document).ready(function() {
                 } else if (typeof toastr !== 'undefined') {
                     toastr.error(msg);
                 }
-            },
-            complete: function() {
                 btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i>حفظ وتوثيق');
             }
         });
@@ -489,7 +697,7 @@ $(document).ready(function() {
         $('#importExcelForm')[0].reset();
         $('#importReportContainer').hide();
         $('#importErrorsTableWrapper').hide();
-        const modal = new bootstrap.Modal(document.getElementById('importExcelModal'));
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('importExcelModal'));
         modal.show();
     };
 
@@ -527,6 +735,9 @@ $(document).ready(function() {
                     } else if (typeof toastr !== 'undefined') {
                         toastr.success(res.message);
                     }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
                 } else {
                     $('#importSummaryBadge').html(`<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>${res.message}</div>`);
                     if (window.showToastr) {
@@ -557,20 +768,28 @@ $(document).ready(function() {
         const attId = $(this).data('attendance-id');
         const empName = $(this).data('employee-name');
         const date = $(this).data('date');
-        let logs = $(this).data('audit-logs');
-
-        if (typeof logs === 'string') {
-            try { logs = JSON.parse(logs); } catch(e) { logs = null; }
-        }
 
         if (empName) $('#auditEmpName').text(empName);
         if (date) $('#auditDate').text(date);
+
+        let logs = null;
+        if (attId) {
+            const scriptTag = document.getElementById('audit-logs-' + attId);
+            if (scriptTag) {
+                try { logs = JSON.parse(scriptTag.textContent); } catch(e) { logs = null; }
+            }
+        }
+        if (!logs) {
+            logs = $(this).data('audit-logs');
+            if (typeof logs === 'string') {
+                try { logs = JSON.parse(logs); } catch(e) { logs = null; }
+            }
+        }
 
         const tbody = $('#auditLogsBody');
         const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('auditHistoryModal'));
         modal.show();
 
-        // 🚀 عرض فوري لحظي (0ms) بدون أي انتظار إذا كانت البيانات مجهزة مسبقاً
         if (Array.isArray(logs)) {
             tbody.empty();
             if (logs.length > 0) {
@@ -633,28 +852,12 @@ $(document).ready(function() {
 });
 
 function processBiometricLogs() {
-    Swal.fire({
-        title: 'تأكيد معالجة البصمات',
-        text: 'هل تريد معالجة جميع سجلات البصمة غير المعالجة؟ سيتم تحويلها إلى سجلات حضور.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: 'var(--primary-color)',
-        cancelButtonColor: 'var(--secondary-color)',
-        confirmButtonText: 'نعم، معالجة',
-        cancelButtonText: 'إلغاء'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            executeBiometricProcessing();
-        }
-    });
+    executeBiometricProcessing();
 }
 
 function executeBiometricProcessing() {
     const btn = document.getElementById('btn-process-biometric');
-    if (!btn) {
-        if (typeof notify === 'function') notify('لا يمكن العثور على زر المعالجة', 'error');
-        return;
-    }
+    if (!btn) return;
 
     const originalText = btn.innerHTML;
     btn.disabled = true;
@@ -672,31 +875,33 @@ function executeBiometricProcessing() {
         }
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error('HTTP ' + response.status);
-        }
+        if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
     })
     .then(data => {
         if (data.success) {
             const stats = data.stats || {};
-            Swal.fire({
-                title: 'نجاح',
-                html: `تمت المعالجة بنجاح!<br>معالج: ${stats.processed || 0}<br>جديد: ${stats.created || 0}<br>محدث: ${stats.updated || 0}`,
-                icon: 'success',
-                confirmButtonColor: 'var(--primary-color)'
-            }).then(() => {
+            const msg = `تمت المعالجة بنجاح! معالج: ${stats.processed || 0}، جديد: ${stats.created || 0}، محدث: ${stats.updated || 0}`;
+            if (window.showToastr) {
+                window.showToastr(msg, 'success');
+            } else if (typeof toastr !== 'undefined') {
+                toastr.success(msg);
+            }
+            setTimeout(function() {
                 window.location.reload();
-            });
+            }, 3100);
         } else {
-            Swal.fire('خطأ', 'حدث خطأ: ' + (data.error || 'غير معروف'), 'error');
+            const errMsg = 'حدث خطأ: ' + (data.error || 'غير معروف');
+            if (window.showToastr) window.showToastr(errMsg, 'error');
+            else if (typeof toastr !== 'undefined') toastr.error(errMsg);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         }
     })
     .catch(error => {
         console.error('Process error:', error);
-        Swal.fire('خطأ', 'حدث خطأ في الاتصال أثناء المعالجة', 'error');
-    })
-    .finally(() => {
+        if (window.showToastr) window.showToastr('حدث خطأ في الاتصال أثناء المعالجة', 'error');
+        else if (typeof toastr !== 'undefined') toastr.error('حدث خطأ في الاتصال أثناء المعالجة');
         btn.disabled = false;
         btn.innerHTML = originalText;
     });

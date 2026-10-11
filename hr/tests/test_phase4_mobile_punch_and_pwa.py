@@ -509,3 +509,203 @@ class TestPhase4MobilePunchAPIs:
         att = Attendance.objects.get(employee=emp_office, date=timezone.now().date())
         assert att.status in ['present', 'late']
         assert att.is_field_visit is True
+
+    def test_night_shift_midnight_crossing_checkout(self, phase4_setup):
+        """حل معضلة عبور منتصف الليل للورديات الليلية: ربط انصراف الفجر بحضور الأمس"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        today = timezone.localdate()
+        yesterday = today - timedelta(days=1)
+
+        # 1. تسجيل حضور ليلة أمس الساعة 22:00
+        check_in_ts = timezone.make_aware(datetime.combine(yesterday, time(22, 0)))
+        res_in = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_in',
+            latitude=30.012000,
+            longitude=31.432000,
+            location_accuracy=10.0,
+            device_uuid='NIGHT-SHIFT-DEV',
+            client_timestamp=check_in_ts,
+            is_offline_synced=True,
+        )
+        assert res_in['success'] is True
+        att_yesterday = Attendance.objects.get(employee=emp, date=yesterday)
+        assert att_yesterday.check_in == check_in_ts
+        assert att_yesterday.check_out is None
+
+        # 2. تسجيل انصراف فجر اليوم الساعة 06:00
+        check_out_ts = timezone.make_aware(datetime.combine(today, time(6, 0)))
+        res_out = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_out',
+            latitude=30.012000,
+            longitude=31.432000,
+            location_accuracy=10.0,
+            device_uuid='NIGHT-SHIFT-DEV',
+            client_timestamp=check_out_ts,
+            is_offline_synced=True,
+        )
+        assert res_out['success'] is True
+        assert res_out['date'] == yesterday.isoformat()
+
+        # التحقق من تحديث سجل الأمس دون إنشاء سجل فارغ لليوم
+        att_yesterday.refresh_from_db()
+        assert att_yesterday.check_out == check_out_ts
+        assert float(att_yesterday.work_hours) == 8.0
+        assert not Attendance.objects.filter(employee=emp, date=today).exists()
+
+    def test_offline_future_timestamp_rejected(self, phase4_setup):
+        """حظر بصمات الأوفلاين التي تحمل توقيتات مستقبلية متلاعبة"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        future_ts = (timezone.now() + timedelta(hours=3)).isoformat()
+
+        res = MobilePunchService.process_offline_sync(
+            employee=emp,
+            user=user,
+            punches=[{
+                'punch_type': 'check_in',
+                'latitude': 30.012000,
+                'longitude': 31.432000,
+                'client_timestamp': future_ts,
+                'client_uuid': 'FUTURE-UUID-999',
+            }]
+        )
+        assert res['synced_count'] == 0
+        assert len(res['results']) == 1
+        assert res['results'][0]['success'] is False
+        assert "في المستقبل" in res['results'][0]['message']
+
+    def test_offline_idempotent_replay_with_uuid(self, phase4_setup):
+        """منع تكرار البصمات في الأوفلاين باستخدام مفتاح التفرد Idempotency Key"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        punch_time = (timezone.now() - timedelta(minutes=30)).isoformat()
+        unique_uuid = 'IDEMPOTENT-UUID-12345'
+
+        punch_payload = [{
+            'punch_type': 'check_in',
+            'latitude': 30.012000,
+            'longitude': 31.432000,
+            'location_accuracy': 10.0,
+            'device_uuid': 'DEVICE-PHONE-IDEMP',
+            'client_timestamp': punch_time,
+            'client_uuid': unique_uuid,
+        }]
+
+        # الإرسال الأول
+        res1 = MobilePunchService.process_offline_sync(emp, user, punch_payload)
+        assert res1['synced_count'] == 1
+        assert unique_uuid in res1['synced_uuids']
+        assert BiometricLog.objects.filter(employee=emp, device_info__client_uuid=unique_uuid).count() == 1
+
+        # إعادة إرسال نفس الحزمة مرة أخرى (شبكة معلقة أو إعادة محاولة)
+        res2 = MobilePunchService.process_offline_sync(emp, user, punch_payload)
+        assert res2['synced_count'] == 1
+        assert unique_uuid in res2['synced_uuids']
+        assert res2['results'][0]['success'] is True
+        assert "Idempotent replay" in res2['results'][0]['message']
+        # التأكد من عدم تكرار السجل في قاعدة البيانات
+        assert BiometricLog.objects.filter(employee=emp, device_info__client_uuid=unique_uuid).count() == 1
+
+    def test_anti_replay_token_replenished_in_response(self, phase4_setup):
+        """تجديد التوكن الأمني تلقائياً في كل استجابة (نجاح أو فشل) لمنع قفل الجلسة"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+
+        # استجابة فشل (خارج المقر)
+        res_fail = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_in',
+            latitude=31.000000,
+            longitude=30.000000,
+            device_uuid='DEV-TEST-TOKEN',
+        )
+        assert res_fail['success'] is False
+        assert 'new_punch_token' in res_fail
+        assert len(res_fail['new_punch_token']) > 10
+
+        # التحقق من صلاحية التوكن المتولد حديثاً
+        is_valid, _ = GeofencingService.verify_secure_punch_token(
+            token=res_fail['new_punch_token'],
+            employee_id=emp.id,
+        )
+        assert is_valid is True
+
+    def test_clear_auto_absence_notes_on_checkin(self, phase4_setup):
+        """مسح ملاحظة الغياب التلقائي فور تسجيل أول حضور فعلي للموظف"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        today = timezone.localdate()
+
+        # إنشاء سجل غياب تلقائي مسبق
+        att = Attendance.objects.create(
+            employee=emp,
+            date=today,
+            shift=emp.shift,
+            status='absent',
+            notes='تم التسجيل كغياب تلقائياً (بدون بصمة)',
+            work_hours=Decimal('0.00')
+        )
+
+        res = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_in',
+            latitude=30.012000,
+            longitude=31.432000,
+            device_uuid='DEV-ABSENT-CLEAR',
+        )
+        assert res['success'] is True
+        att.refresh_from_db()
+        assert att.status in ['present', 'late']
+        assert att.notes == ''
+
+    def test_inter_branch_transition_tracking(self, phase4_setup):
+        """توثيق الانتقال بين فروع الشركة في اسم الموقع (حضور بفرع وانصراف بفرع آخر)"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+
+        # فرع إضافي ثانٍ
+        branch2 = WorkLocation.objects.create(
+            name_ar='فرع الدقي',
+            latitude=Decimal('30.0380000'),
+            longitude=Decimal('31.2120000'),
+            radius_meters=100,
+            is_active=True,
+        )
+        from django.core.cache import cache
+        cache.clear()
+
+        # حضور في المقر الرئيسي
+        res_in = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_in',
+            latitude=30.012000,
+            longitude=31.432000,
+            device_uuid='DEV-BRANCH-JUMP',
+        )
+        assert res_in['success'] is True
+        att = Attendance.objects.get(employee=emp, date=timezone.localdate())
+        assert 'المقر الرئيسي' in att.location_name
+
+        # انصراف من فرع الدقي
+        res_out = MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_out',
+            latitude=30.038000,
+            longitude=31.212000,
+            device_uuid='DEV-BRANCH-JUMP',
+        )
+        assert res_out['success'] is True
+        att.refresh_from_db()
+        assert 'المقر الرئيسي' in att.location_name
+        assert 'فرع الدقي' in att.location_name
+        assert '➔' in att.location_name
+

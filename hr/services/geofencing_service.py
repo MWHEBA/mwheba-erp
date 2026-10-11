@@ -74,7 +74,8 @@ class GeofencingService:
         - دعم الموظف المرتبط بمقر محدد (work_location).
         - الاعتماد على أقرب مقر نشط كـ Fallback.
         """
-        # 1. فحص دقة الـ GPS
+        # 1. فحص دقة الـ GPS وهامش الثقة الجغرافي
+        acc_offset = 0.0
         if accuracy_meters is not None:
             try:
                 acc_val = float(accuracy_meters)
@@ -82,11 +83,17 @@ class GeofencingService:
                     return False, None, 0.0, f"إشارة الـ GPS ضعيفة جداً ({int(acc_val)} متر). يرجى التواجد في مكان مفتوح والمحاولة مجدداً"
                 if acc_val <= 0.0:
                     return False, None, 0.0, "إشارة الـ GPS غير صالحة"
+                # تطبيق هامش ثقة دقة الـ GPS عند حدود الفروع (Confidence Buffer)
+                acc_offset = min(acc_val * 0.5, 25.0)
             except (ValueError, TypeError):
                 pass
 
-        # 2. إذا كانت زيارة ميدانية
+        # 2. إذا كانت زيارة أو مأمورية ميدانية
         if is_field_visit:
+            # فحص سلامة الإحداثيات للمأموريات ورفض الإحداثيات الصفرية وغير المنطقية (Null Island Guard)
+            if (float(latitude) == 0.0 and float(longitude) == 0.0) or not (-90.0 <= float(latitude) <= 90.0 and -180.0 <= float(longitude) <= 180.0):
+                return False, None, 0.0, "تعذر التقاط إحداثيات جغرافية حقيقية للمأمورية الميدانية. يرجى تفعيل الـ GPS."
+
             if getattr(employee, 'allow_field_visits', False) or is_supervisor_override:
                 return True, None, 0.0, "زيارة ميدانية معتمدة"
             else:
@@ -100,20 +107,35 @@ class GeofencingService:
         target_loc = getattr(employee, 'work_location', None)
         allowed_all = getattr(employee, 'allowed_all_locations', False)
 
-        # إذا كان الموظف مخصص له مقر محدد ونشط وليس متجولاً
+        # إذا كان الموظف مخصصاً له مقر محدد ونشط وليس متجولاً
         if target_loc and target_loc.is_active and not allowed_all:
             dist = GeofencingService.calculate_distance(
                 latitude, longitude, target_loc.latitude, target_loc.longitude
             )
-            if dist <= float(target_loc.radius_meters):
-                return True, target_loc, dist, None
-            else:
-                return (
-                    False,
-                    target_loc,
-                    dist,
-                    f"أنت خارج نطاق مقر العمل ({target_loc.name_ar}) بمسافة {int(dist)} متر (المسموح: {target_loc.radius_meters} متر)",
+            clean_dist = round(dist, 2) if math.isfinite(dist) else 0.0
+            effective_dist = max(0.0, dist - acc_offset)
+
+            if effective_dist <= float(target_loc.radius_meters):
+                return True, target_loc, clean_dist, None
+
+            # المرونة بين الفروع: فحص ما إذا كان الموظف متواجداً في فرع آخر معتمد ونشط للشركة
+            for alt_loc in active_locations:
+                if alt_loc.pk == target_loc.pk:
+                    continue
+                alt_dist = GeofencingService.calculate_distance(
+                    latitude, longitude, alt_loc.latitude, alt_loc.longitude
                 )
+                effective_alt = max(0.0, alt_dist - acc_offset)
+                if effective_alt <= float(alt_loc.radius_meters):
+                    clean_alt_dist = round(alt_dist, 2) if math.isfinite(alt_dist) else 0.0
+                    return True, alt_loc, clean_alt_dist, None
+
+            return (
+                False,
+                target_loc,
+                clean_dist,
+                f"أنت خارج نطاق مقر العمل ({target_loc.name_ar}) بمسافة {int(clean_dist)} متر (المسموح: {target_loc.radius_meters} متر)",
+            )
 
         # إذا كان الموظف متجولاً أو غير محدد له مقر بعينه
         nearest_loc = None
@@ -126,15 +148,19 @@ class GeofencingService:
             if dist < min_dist:
                 min_dist = dist
                 nearest_loc = loc
-            if dist <= float(loc.radius_meters):
-                return True, loc, dist, None
+
+            effective_dist = max(0.0, dist - acc_offset)
+            if effective_dist <= float(loc.radius_meters):
+                clean_dist = round(dist, 2) if math.isfinite(dist) else 0.0
+                return True, loc, clean_dist, None
 
         near_name = nearest_loc.name_ar if nearest_loc else "مقر العمل"
+        clean_min_dist = round(min_dist, 2) if math.isfinite(min_dist) else 0.0
         return (
             False,
             nearest_loc,
-            min_dist,
-            f"أنت خارج نطاق جميع مقرات العمل المعتمدة (أقرب مقر: {near_name} بمسافة {int(min_dist)} متر)",
+            clean_min_dist,
+            f"أنت خارج نطاق جميع مقرات العمل المعتمدة (أقرب مقر: {near_name} بمسافة {int(clean_min_dist)} متر)",
         )
 
     @staticmethod
@@ -146,10 +172,21 @@ class GeofencingService:
         """
         كشف ومكافحة برامج تزييف الموقع (Anti-Mock Location & Fake GPS):
         - فحص الراية الصادرة من متصفح/نظام الموبايل.
+        - فحص الدقة الصفرية أو المتباعدة بشكل شاذ.
         - فحص سرعات الانتقال غير الواقعية.
         """
         if is_mock_flag:
             return True, "تم اكتشاف استخدام برنامج تزييف الموقع الجغرافي (Mock Location). البصمة مرفوضة أمنياً."
+
+        if accuracy_meters is not None:
+            try:
+                acc_val = float(accuracy_meters)
+                if acc_val <= 0.0:
+                    return True, "تم رصد إشارة GPS غير حقيقية بدقة صفرية تشير إلى استخدام برامج تزييف الموقع."
+                if acc_val > 2500.0:
+                    return True, "إشارة الموقع الجغرافي متباعدة جداً وغير دقيقة بما يمنع توثيق الحضور."
+            except (ValueError, TypeError):
+                pass
 
         if speed_kmh is not None:
             try:
@@ -166,11 +203,14 @@ class GeofencingService:
         employee: Employee,
         device_uuid: str,
         is_emergency: bool = False,
+        user_agent: Optional[str] = None,
     ) -> Tuple[bool, bool, Optional[str]]:
         """
         فحص وحوكمة ربط عتاد جهاز الموظف (Hardware Device Binding):
         Returns: (is_valid, is_newly_bound, message)
         - أول تسجيل دخول: ربط عتاد الهاتف تلقائياً بحساب الموظف.
+        - فحص تفرد الهاتف ومنع ربطه بأكثر من موظف نشط.
+        - حظر الربط التلقائي من متصفحات الحواسيب المكتبية أو المتصفحات المجهولة.
         - الاستخدامات اللاحقة: مطابقة الـ UUID لمنع تبادل الهواتف.
         - حالات الطوارئ: السماح بالبصمة مع وسمها وتنبيه الـ HR.
         """
@@ -179,8 +219,28 @@ class GeofencingService:
 
         clean_uuid = str(device_uuid).strip()
 
-        # أول استخدام للموظف -> ربط تلقائي
+        # حظر المتصفحات المجهولة أو وضع التصفح المتخفي الذي لا يحمل معرفاً صالحاً
+        if clean_uuid.upper() in ['UNKNOWN_BROWSER', 'UNKNOWN', 'UNDEFINED', 'NULL']:
+            return False, False, "تعذر التعرف على هوية الجهاز أو وضع التصفح غير مدعوم. يرجى فتح الرابط في متصفح الهاتف العادي (مثل Chrome أو Safari)."
+
+        # حظر ربط الأجهزة من أجهزة الكمبيوتر المكتبية (Desktop User-Agent)
+        if user_agent:
+            ua_lower = str(user_agent).lower()
+            if any(desk in ua_lower for desk in ['windows nt', 'macintosh', 'x11; linux x86_64']) and not any(mob in ua_lower for mob in ['mobile', 'android', 'iphone', 'ipad']):
+                if not employee.registered_device_uuid:
+                    return False, False, "لا يمكن ربط الهاتف المعتمد من متصفح جهاز كمبيوتر مكتبي. يرجى البصم من هاتفك الذكي المحمول."
+
+        # أول استخدام للموظف -> التحقق من تفرد الجهاز ثم الربط
         if not employee.registered_device_uuid:
+            # فحص تفرد الهاتف: لا يجوز ربط هاتف مسجل مسبقاً بموظف آخر نشط
+            if not clean_uuid.startswith('SUPERVISOR_'):
+                other_emp = Employee.objects.filter(
+                    registered_device_uuid=clean_uuid,
+                    status='active'
+                ).exclude(id=employee.id).first()
+                if other_emp and not is_emergency:
+                    return False, False, f"هذا الهاتف مرتبط بالفعل بحساب زميل آخر نشط ({other_emp.get_full_name_ar()})."
+
             employee.registered_device_uuid = clean_uuid
             employee.device_bound_at = timezone.now()
             employee.save(update_fields=['registered_device_uuid', 'device_bound_at'])

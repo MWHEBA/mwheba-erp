@@ -3,18 +3,21 @@
     {% if object.device %}
     <i class="fas fa-server text-info me-2"></i>
     <span>{{ object.device.device_name }}</span>
-    {% elif object.source == 'mobile' %}
+    {% elif object.source == 'mobile' or object.source == 'mobile_gps' %}
     <i class="fas fa-mobile-alt text-primary me-2"></i>
-    <span>{% if object.matched_location %}{{ object.matched_location.name_ar }}{% else %}هاتف ذكي{% endif %}</span>
+    <span>{% if object.matched_location %}{{ object.matched_location.name_ar|default:object.matched_location.name }}{% else %}موبايل (GPS){% endif %}</span>
     {% elif object.source == 'supervisor' %}
     <i class="fas fa-user-shield text-warning me-2"></i>
-    <span>طاقم مشرف</span>
+    <span>طاقم مشرف{% if object.matched_location %} - {{ object.matched_location.name_ar|default:object.matched_location.name }}{% endif %}</span>
     {% elif object.source == 'field_visit' %}
     <i class="fas fa-route text-success me-2"></i>
-    <span>زيارة ميدانية</span>
+    <span>زيارة ميدانية{% if object.matched_location %} - {{ object.matched_location.name_ar|default:object.matched_location.name }}{% endif %}</span>
     {% elif object.source == 'manual' %}
     <i class="fas fa-keyboard text-secondary me-2"></i>
     <span>يدوي</span>
+    {% elif object.source == 'excel' %}
+    <i class="fas fa-file-excel text-success me-2"></i>
+    <span>استيراد إكسيل</span>
     {% else %}
     <i class="fas fa-fingerprint text-muted me-2"></i>
     <span>{{ object.get_source_display }}</span>

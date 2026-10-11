@@ -280,11 +280,20 @@
  {% endif %}
  </div>
  <div class="mb-2">
+ <div class="d-flex align-items-center justify-content-between mb-1">
  <small class="text-muted d-block">حالة ربط الهاتف (Device Binding)</small>
+ {% if employee.registered_device_uuid %}
+ <span class="badge bg-light text-success border"><i class="fas fa-check-circle me-1"></i>معتمد</span>
+ {% elif employee.allow_mobile_attendance %}
+ <span class="badge bg-light text-warning text-dark border"><i class="fas fa-clock me-1"></i>بانتظار أول ربط</span>
+ {% else %}
+ <span class="badge bg-light text-muted border">غير مفعل</span>
+ {% endif %}
+ </div>
  {% if employee.registered_device_uuid %}
  <div class="d-flex align-items-center justify-content-between mt-1 p-2 bg-light rounded border">
  <div>
- <code class="small text-truncate d-block" style="max-width: 170px;"
+ <code class="small text-truncate d-block" style="max-width: 150px;"
  title="{{ employee.registered_device_uuid }}">
  <i class="fas fa-mobile-alt text-success me-1"></i>{{ employee.registered_device_uuid }}
  </code>
@@ -294,10 +303,10 @@
  </span>
  {% endif %}
  </div>
- {% if perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
- <button type="button" class="btn btn-sm btn-outline-danger ms-2" data-bs-toggle="modal"
+ {% if perms.hr.change_employee or perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
+ <button type="button" class="btn btn-sm btn-outline-danger ms-2 px-2 fw-bold" data-bs-toggle="modal"
  data-bs-target="#resetDeviceModal" title="فك ارتباط هاتف الموظف">
- <i class="fas fa-unlink"></i>
+ <i class="fas fa-unlink me-1"></i>فك الربط
  </button>
  {% endif %}
  </div>
@@ -963,20 +972,65 @@
 
  {% if recent_biometric_logs %}
  <hr>
- <p class="mb-2"><strong>آخر 5 بصمات:</strong></p>
- <ul class="list-group list-group-flush">
+ <div class="d-flex justify-content-between align-items-center mb-2">
+ <strong class="text-dark small"><i class="fas fa-history me-1 text-primary"></i>آخر 5 حركات بصمة مسجلة:</strong>
+ <span class="badge bg-light text-muted border">محدث لحظياً</span>
+ </div>
+ <div class="list-group list-group-flush border rounded overflow-hidden">
  {% for log in recent_biometric_logs %}
- <li class="list-group-item px-0 py-2">
+ <div class="list-group-item px-3 py-2 bg-card">
  <div class="d-flex justify-content-between align-items-center">
+ <div class="d-flex align-items-center gap-2">
+ {% if log.selfie_image %}
+ <img src="{{ log.selfie_image.url }}" alt="سيلفي" class="rounded-circle border" style="width: 32px; height: 32px; object-fit: cover;" onerror="this.onerror=null; this.src=''; this.classList.add('d-none');">
+ {% else %}
+ <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center text-muted" style="width: 32px; height: 32px;">
+ <i class="fas fa-fingerprint fa-sm text-primary"></i>
+ </div>
+ {% endif %}
  <div>
- <i class="fas fa-fingerprint text-primary me-2"></i>
- <small>{{ log.timestamp|date:"d/m/Y g:i A" }}</small>
+ <div class="small fw-bold text-dark">
+ {{ log.timestamp|date:"Y-m-d g:i A" }}
+ {% if log.punch_type == 'check_in' %}
+ <span class="badge bg-soft-success text-success border border-success-subtle ms-1" style="font-size: 0.68rem;">حضور</span>
+ {% elif log.punch_type == 'check_out' %}
+ <span class="badge bg-soft-danger text-danger border border-danger-subtle ms-1" style="font-size: 0.68rem;">انصراف</span>
+ {% elif log.punch_type == 'field_visit' %}
+ <span class="badge bg-soft-primary text-primary border border-primary-subtle ms-1" style="font-size: 0.68rem;">مأمورية</span>
+ {% endif %}
  </div>
- <span class="badge bg-secondary">{{ log.device.device_name }}</span>
+ <div class="text-muted" style="font-size: 0.72rem;">
+ {% if log.matched_location %}
+ <i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ log.matched_location.name_ar|default:log.matched_location.name }}
+ {% elif log.device_info and log.device_info.reason %}
+ <i class="fas fa-route me-1 text-danger"></i>{{ log.device_info.reason }}
+ {% elif log.device %}
+ <i class="fas fa-desktop me-1 text-secondary"></i>{{ log.device.device_name }}
+ {% elif log.source == 'mobile' or log.source == 'mobile_gps' %}
+ <i class="fas fa-mobile-alt me-1 text-primary"></i>موبايل (GPS)
+ {% else %}
+ <i class="fas fa-route me-1 text-muted"></i>موقع ميداني
+ {% endif %}
  </div>
- </li>
+ </div>
+ </div>
+ <div>
+ {% if log.source == 'mobile' or log.source == 'mobile_gps' %}
+ <span class="badge bg-light text-success border"><i class="fas fa-mobile-alt me-1"></i>موبايل</span>
+ {% elif log.source == 'field_visit' %}
+ <span class="badge bg-light text-primary border"><i class="fas fa-route me-1"></i>مأمورية</span>
+ {% elif log.source == 'supervisor' %}
+ <span class="badge bg-light text-warning text-dark border"><i class="fas fa-user-shield me-1"></i>طاقم مشرف</span>
+ {% elif log.device %}
+ <span class="badge bg-light text-dark border"><i class="fas fa-server me-1"></i>{{ log.device.device_name }}</span>
+ {% else %}
+ <span class="badge bg-light text-secondary border">نظامي</span>
+ {% endif %}
+ </div>
+ </div>
+ </div>
  {% endfor %}
- </ul>
+ </div>
  {% endif %}
 
  <hr>
@@ -1208,7 +1262,8 @@
  </div>
 </div>
 {% endif %}
-{% if employee.registered_device_uuid and perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
+{% if employee.registered_device_uuid %}
+{% if perms.hr.change_employee or perms.hr.can_reset_device_binding or user.is_superuser or user.is_staff %}
 <!-- Modal فك ارتباط هاتف الموظف (Corporate Centered Modal) -->
 <div class="modal fade" id="resetDeviceModal" tabindex="-1">
  <div class="modal-dialog modal-dialog-centered">
@@ -1248,6 +1303,7 @@
  </div>
  </div>
 </div>
+{% endif %}
 {% endif %}
 
 {% endblock %}

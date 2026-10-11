@@ -140,6 +140,8 @@ def work_location_save(request):
         location.is_active = is_active
         location.is_default = is_default
         location.save()
+        if is_default:
+            WorkLocation.objects.filter(is_default=True).exclude(pk=location.pk).update(is_default=False)
         action_msg = 'تم تعديل بيانات مقر العمل بنجاح.'
     else:
         location = WorkLocation.objects.create(
@@ -152,7 +154,12 @@ def work_location_save(request):
             is_active=is_active,
             is_default=is_default,
         )
+        if is_default:
+            WorkLocation.objects.filter(is_default=True).exclude(pk=location.pk).update(is_default=False)
         action_msg = 'تم إنشاء مقر العمل الجغرافي بنجاح.'
+
+    # تفريغ كاش المقرات الجغرافية فورياً ليظهر التعديل اللحظي لكافة الموظفين
+    GeofencingService.invalidate_cache()
 
     return JsonResponse({
         'success': True,
@@ -189,6 +196,8 @@ def work_location_delete(request, pk):
         }, status=400)
 
     location.delete()
+    # تفريغ كاش المقرات الجغرافية فورياً
+    GeofencingService.invalidate_cache()
     return JsonResponse({'success': True, 'message': 'تم حذف مقر العمل بنجاح.'})
 
 
@@ -202,6 +211,8 @@ def work_location_toggle(request, pk):
     location = get_object_or_404(WorkLocation, pk=pk)
     location.is_active = not location.is_active
     location.save()
+    # تفريغ كاش المقرات الجغرافية فورياً
+    GeofencingService.invalidate_cache()
     status_text = 'تفعيل' if location.is_active else 'تعطيل'
     return JsonResponse({'success': True, 'message': f'تم {status_text} مقر العمل بنجاح.', 'is_active': location.is_active})
 
@@ -210,7 +221,15 @@ def work_location_toggle(request, pk):
 @require_POST
 def reset_employee_device_binding(request, employee_id):
     """فك ارتباط هاتف الموظف (Device Binding Reset)"""
-    if not (request.user.has_perm('hr.can_reset_device_binding') or request.user.is_superuser or getattr(request.user, 'is_admin', False)):
+    has_perm = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or getattr(request.user, 'is_admin', False)
+        or request.user.has_perm('hr.can_reset_device_binding')
+        or request.user.has_perm('hr.change_employee')
+        or request.user.has_perm('hr.change_attendance')
+    )
+    if not has_perm:
         return JsonResponse({'success': False, 'message': 'ليس لديك الصلاحية لفك ارتباط أجهزة الموظفين.'}, status=403)
 
     employee = get_object_or_404(Employee, pk=employee_id)

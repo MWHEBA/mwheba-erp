@@ -200,6 +200,26 @@
  </div>
  </div>
 
+ <!-- كاميرا التوثيق الحي للمشرف -->
+ <div class="mb-3">
+ <label class="form-label fw-bold small text-dark d-flex justify-content-between align-items-center">
+ <span><i class="fas fa-camera text-primary me-1"></i>صورة التوثيق الميدانية للمشرف <span class="text-danger">*</span></span>
+ <span class="badge bg-light text-secondary border" style="font-size: 0.7rem;">توثيق إشرافي</span>
+ </label>
+ <div class="position-relative border rounded overflow-hidden" style="height: 180px; background-color: var(--gray-900);">
+ <video id="supCameraVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1);"></video>
+ <canvas id="supCameraCanvas" style="display: none;"></canvas>
+ 
+ <button type="button" id="btnFlipSupCamera" class="btn btn-sm btn-dark position-absolute bottom-0 start-0 m-2 shadow-xs" title="تبديل الكاميرا (أمامية/خلفية)" style="z-index: 5; opacity: 0.9; font-size: 0.75rem;">
+ <i class="fas fa-sync-alt me-1"></i><span>تبديل</span>
+ </button>
+ <div class="position-absolute top-0 end-0 m-2 badge bg-dark text-white px-2 py-1" style="z-index: 5; font-size: 0.7rem;">
+ <span class="d-inline-block rounded-circle bg-success me-1" style="width: 6px; height: 6px;"></span>مباشر
+ </div>
+ </div>
+ <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">يتم توثيق صورة المشرف الميداني كشاهد إثبات لكافة أفراد الطاقم المحدد.</small>
+ </div>
+
  <!-- اختيار نوع البصمة للطاقم -->
  <div class="mb-3">
  <label class="form-label fw-bold small text-dark">نوع البصمة للطاقم <span class="text-danger">*</span></label>
@@ -342,10 +362,67 @@
 <script>
 $(document).ready(function() {
  let supervisorPosition = null;
+ let supGeoWatchId = null;
+ let supCameraStream = null;
+ let supFacingMode = 'user';
+
+ // تشغيل كاميرا المشرف الحية
+ async function startSupervisorCamera(facingMode) {
+ if (facingMode) {
+ supFacingMode = facingMode;
+ }
+ const video = document.getElementById('supCameraVideo');
+ if (!video) return;
+
+ if (supCameraStream) {
+ supCameraStream.getTracks().forEach(t => t.stop());
+ supCameraStream = null;
+ }
+
+ try {
+ supCameraStream = await navigator.mediaDevices.getUserMedia({
+ video: { facingMode: supFacingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+ audio: false
+ });
+ video.srcObject = supCameraStream;
+ if (supFacingMode === 'user') {
+ video.style.transform = 'scaleX(-1)';
+ } else {
+ video.style.transform = 'scaleX(1)';
+ }
+ } catch (err) {
+ console.warn('تعذر تشغيل كاميرا المشرف:', err.message);
+ }
+ }
+ startSupervisorCamera('user');
+
+ $('#btnFlipSupCamera').on('click', function() {
+ const nextMode = (supFacingMode === 'user') ? 'environment' : 'user';
+ startSupervisorCamera(nextMode);
+ });
+
+ function captureSupervisorSelfie() {
+ const video = document.getElementById('supCameraVideo');
+ const canvas = document.getElementById('supCameraCanvas');
+ if (!video || !supCameraStream) return null;
+
+ canvas.width = 480;
+ canvas.height = 360;
+ const ctx = canvas.getContext('2d');
+ ctx.save();
+ if (supFacingMode === 'user') {
+ ctx.translate(canvas.width, 0);
+ ctx.scale(-1, 1);
+ }
+ ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+ ctx.restore();
+ return canvas.toDataURL('image/jpeg', 0.7);
+ }
 
  // 1. تتبع موقع المشرف الجغرافي GPS
- if (navigator.geolocation) {
- navigator.geolocation.watchPosition(
+ function startSupGeoWatcher() {
+ if (navigator.geolocation && !supGeoWatchId) {
+ supGeoWatchId = navigator.geolocation.watchPosition(
  function(pos) {
  supervisorPosition = pos;
  const acc = Math.round(pos.coords.accuracy);
@@ -370,9 +447,32 @@ $(document).ready(function() {
  $('#supGpsKpi').html('<span class="text-danger">معطل</span>');
  $('#supGpsKpiSub').text('يرجى تفعيل صلاحية الموقع');
  },
- { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+ { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
  );
  }
+ }
+
+ function stopSupGeoWatcher() {
+ if (supGeoWatchId !== null && navigator.geolocation) {
+ navigator.geolocation.clearWatch(supGeoWatchId);
+ supGeoWatchId = null;
+ }
+ }
+
+ startSupGeoWatcher();
+
+ document.addEventListener('visibilitychange', function() {
+ if (document.visibilityState === 'hidden') {
+ if (supCameraStream) {
+ supCameraStream.getTracks().forEach(t => t.stop());
+ supCameraStream = null;
+ }
+ stopSupGeoWatcher();
+ } else if (document.visibilityState === 'visible') {
+ startSupervisorCamera(supFacingMode);
+ startSupGeoWatcher();
+ }
+ });
 
  // 2. إدارة التحديد والبحث والتصفية
  function updateSelectedCount() {
@@ -498,6 +598,12 @@ $(document).ready(function() {
  return;
  }
 
+ const selfieBase64 = captureSupervisorSelfie();
+ if (!selfieBase64) {
+ notifyUser('يرجى التأكد من تشغيل الكاميرا لالتقاط صورة التوثيق الإشرافية الميدانية قبل الاعتماد.', 'warning');
+ return;
+ }
+
  const punchType = $('input[name="crew_punch_type"]:checked').val();
  const notes = $('#crewNotes').val().trim();
 
@@ -516,11 +622,22 @@ $(document).ready(function() {
  latitude: supervisorPosition.coords.latitude,
  longitude: supervisorPosition.coords.longitude,
  accuracy: supervisorPosition.coords.accuracy,
- notes: notes
+ notes: notes,
+ selfie_image: selfieBase64
  }),
+ timeout: 30000,
  success: function(res) {
  if (res.success) {
+ if (res.failed_count && res.failed_count > 0) {
+ let warnText = res.message;
+ if (res.failed_details && res.failed_details.length > 0) {
+ const fails = res.failed_details.map(f => `${f.employee_name || f.employee_id}: ${f.reason}`).join(' | ');
+ warnText += ` (المتعذرون: ${fails})`;
+ }
+ notifyUser(warnText, 'warning');
+ } else {
  notifyUser(res.message, 'success');
+ }
  setTimeout(function() {
  window.location.reload();
  }, 3100);

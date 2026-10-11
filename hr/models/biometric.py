@@ -132,6 +132,11 @@ class BiometricDevice(models.Model):
         return f"{self.device_name} ({self.ip_address})"
     
     @property
+    def name(self):
+        """اسم الماكينة لتوحيد العرض مع المقرات والجهات"""
+        return self.device_name
+
+    @property
     def connection_string(self):
         """نص الاتصال"""
         return f"{self.ip_address}:{self.port}"
@@ -161,8 +166,9 @@ class BiometricLog(models.Model):
     ]
 
     SOURCE_CHOICES = [
-        ('device', 'ماكينة'),
+        ('device', 'ماكينة بصمة'),
         ('mobile', 'موبايل'),
+        ('mobile_gps', 'موبايل (GPS)'),
         ('field_visit', 'زيارة ميدانية'),
         ('supervisor', 'مشرف'),
         ('manual', 'يدوي'),
@@ -359,3 +365,16 @@ class BiometricSyncLog(models.Model):
             delta = completed - started
             return round(delta.total_seconds(), 2)
         return None
+
+
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+
+@receiver(post_delete, sender=BiometricLog)
+def delete_biometric_log_selfie_file(sender, instance, **kwargs):
+    """حذف ملف السيلفي الفيزيائي من القرص عند حذف سجل البصمة لمنع تراكم الملفات اليتيمة"""
+    if instance.selfie_image:
+        try:
+            instance.selfie_image.delete(save=False)
+        except Exception:
+            pass

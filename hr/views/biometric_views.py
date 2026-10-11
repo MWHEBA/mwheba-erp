@@ -332,7 +332,7 @@ def biometric_log_list(request):
     from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
     
     logs = BiometricLog.objects.select_related(
-        'device', 'employee', 'attendance'
+        'device', 'employee', 'attendance', 'matched_location'
     )
     
     # فلترة بالتاريخ
@@ -440,7 +440,7 @@ def biometric_log_list(request):
     # إعداد headers للجدول الموحد
     headers = [
         {'key': 'timestamp', 'label': 'التاريخ', 'sortable': True, 'width': '15%', 'template': 'components/cells/biometric_log_timestamp.html'},
-        {'key': 'device', 'label': 'الماكينة', 'sortable': True, 'width': '15%', 'template': 'components/cells/biometric_log_device.html'},
+        {'key': 'device', 'label': 'الماكينة / المصدر', 'sortable': True, 'width': '16%', 'template': 'components/cells/biometric_log_device.html'},
         {'key': 'user_id', 'label': 'معرف المستخدم', 'sortable': False, 'width': '12%', 'class': 'text-center', 'template': 'components/cells/biometric_log_user_id.html'},
         {'key': 'employee', 'label': 'الموظف', 'sortable': True, 'width': '20%', 'class': 'text-center', 'template': 'components/cells/biometric_log_employee.html'},
         {'key': 'log_type', 'label': 'النوع', 'sortable': True, 'width': '12%', 'class': 'text-center', 'template': 'components/cells/biometric_log_punch_type.html'},

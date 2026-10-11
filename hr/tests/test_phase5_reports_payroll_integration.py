@@ -12,12 +12,15 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
 from django.urls import reverse
+from django.utils import timezone
 from hr.models import (
     Employee, Department, JobTitle, Shift, Contract,
-    Attendance, AttendanceSummary, Payroll, BiometricLog, WorkLocation
+    Attendance, AttendanceSummary, Payroll, BiometricLog, WorkLocation, BiometricDevice
 )
 from hr.reports import export_attendance_excel, export_attendance_summary_excel
 from hr.views.attendance_views import override_attendance_summary_overtime, attendance_summary_list
+from hr.services.attendance_service import AttendanceService
+from hr.utils.biometric_utils import bulk_process_logs
 
 User = get_user_model()
 
@@ -289,3 +292,242 @@ class TestPhase5ReportsAndPayrollIntegration:
         assert response_view.status_code == 200
         assert response_view['Content-Type'] == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         assert len(response_view.content) > 1000
+
+    def test_early_field_mission_hours_not_truncated(self, hr_setup):
+        """عدم اقتطاع ساعات العمل للمأموريات الميدانية الصباحية المبكرة قبل بداية الوردية"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift'] # وردية 9:00 إلى 17:00
+        target_date = date(2026, 9, 2) # يوم عمل عادي (الأربعاء)
+
+        # الموظف يبدأ مأمورية الساعة 07:00 ص وينصرف 17:00 (10 ساعات كاملة)
+        check_in_ts = timezone.make_aware(datetime.combine(target_date, time(7, 0)))
+        check_out_ts = timezone.make_aware(datetime.combine(target_date, time(17, 0)))
+
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=check_in_ts,
+            check_out=check_out_ts,
+            is_field_visit=True,
+            location_name='موقع محطة الكهرباء'
+        )
+        AttendanceService.calculate_daily_attendance(att)
+        att.save()
+
+        # التأكد من احتساب 10.00 ساعات كاملة دون بترها بحد الـ 9:00 ص
+        assert float(att.work_hours) == 10.0
+
+    def test_morning_field_mission_late_waiver(self, hr_setup):
+        """إعفاء الموظف من التأخير الصباحي عند بدء يومه بمأمورية ميدانية معتمدة"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift'] # وردية 9:00
+        target_date = date(2026, 9, 3)
+
+        # وصول للموقع الميداني الساعة 10:30 ص
+        check_in_ts = timezone.make_aware(datetime.combine(target_date, time(10, 30)))
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=check_in_ts,
+            is_field_visit=True,
+            source='field_visit',
+            location_name='زيارة ميدانية لشركة النور'
+        )
+        AttendanceService.calculate_daily_attendance(att)
+        att.save()
+
+        # التأكد من تصفير دقائق التأخير واعتبار الحالة حاضر
+        assert att.late_minutes == 0
+        assert att.status == 'present'
+
+    def test_afternoon_field_mission_preserves_morning_office_lateness(self, hr_setup):
+        """منع استغلال الزيارات الميدانية المسائية لمحو التأخير الصباحي في مقر الفرع"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift'] # وردية 9:00 سماح 15 دقيقة
+        target_date = date(2026, 9, 4)
+
+        # 1. حضور متأخر للفرع الساعة 10:15 ص (تأخير 75 دقيقة - 15 سماح = 60 دقيقة صافي)
+        check_in_ts = timezone.make_aware(datetime.combine(target_date, time(10, 15)))
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=check_in_ts,
+            source='device',
+            location_name='المقر الرئيسي'
+        )
+        # تسجيل حركة ماكينة الحضور الصباحي
+        BiometricLog.objects.create(
+            employee=emp,
+            user_id=emp.employee_number,
+            timestamp=check_in_ts,
+            log_type='check_in',
+            source='device',
+            attendance=att
+        )
+
+        # 2. مأمورية بعد الظهر
+        att.is_field_visit = True
+        BiometricLog.objects.create(
+            employee=emp,
+            user_id=emp.employee_number,
+            timestamp=timezone.make_aware(datetime.combine(target_date, time(14, 0))),
+            log_type='check_in',
+            source='field_visit',
+            device_info={'is_field_visit': True, 'reason': 'اجتماع عميل'},
+            attendance=att
+        )
+
+        AttendanceService.calculate_daily_attendance(att)
+        att.save()
+
+        # التأخير الصباحي في الفرع يظل ثابتاً ولا يُمحى
+        assert att.late_minutes > 0
+        assert att.status == 'late'
+
+    def test_field_mission_not_converted_to_half_day(self, hr_setup):
+        """منع تحويل المأموريات الميدانية المعتمدة قسرياً إلى جزاء نصف يوم"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift'] # وردية 8 ساعات (حد النصف يوم 4 ساعات)
+        target_date = date(2026, 9, 7)
+
+        # مأمورية ميدانية لمدة 3 ساعات (أقل من نصف الوردية)
+        check_in_ts = timezone.make_aware(datetime.combine(target_date, time(9, 0)))
+        check_out_ts = timezone.make_aware(datetime.combine(target_date, time(12, 0)))
+
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=check_in_ts,
+            check_out=check_out_ts,
+            is_field_visit=True,
+            source='field_visit',
+            location_name='معاينة فنية سريعة'
+        )
+        AttendanceService.calculate_daily_attendance(att)
+        att.save()
+
+        assert float(att.work_hours) == 3.0
+        assert att.status == 'present' # لم يتم تحويلها إلى half_day
+
+    def test_bulk_process_logs_preserves_mobile_checkout_and_field_info(self, hr_setup):
+        """تحصين bulk_process_logs من مسح انصراف الموبايل وبيانات المأموريات وتفادي AttributeError"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift']
+        target_date = date(2026, 9, 8)
+
+        # بصمة حضور بالماكينة صباحاً
+        ts_in = timezone.make_aware(datetime.combine(target_date, time(9, 0)))
+        device = BiometricDevice.objects.create(
+            device_name='ماكينة الحائط الرئيسية',
+            device_code='BIO-DEV-TEST-01',
+            serial_number='SN-BIO-12345',
+            device_type='fingerprint',
+            ip_address='192.168.1.200',
+            location='المقر الرئيسي',
+            created_by=hr_setup['user'],
+            is_active=True
+        )
+        log_in = BiometricLog.objects.create(
+            employee=emp,
+            user_id=emp.employee_number,
+            device=device,
+            timestamp=ts_in,
+            log_type='check_in',
+            source='device'
+        )
+
+        # سجل حضور تم فيه توثيق انصراف بالموبايل لاحقاً الساعة 17:00
+        ts_out_mobile = timezone.make_aware(datetime.combine(target_date, time(17, 0)))
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=ts_in,
+            check_out=ts_out_mobile,
+            source='mobile',
+            is_field_visit=True,
+            location_name='مأمورية معتمدة'
+        )
+
+        # تشغيل bulk_process_logs لمعالجة سجل الماكينة (الذي ليس به انصراف)
+        stats = bulk_process_logs(date=target_date, employee_id=emp.id)
+        assert stats['processed'] == 1
+
+        att.refresh_from_db()
+        # التأكد من عدم تصفير بصمة الانصراف
+        assert att.check_out == ts_out_mobile
+        # التأكد من الحفاظ على وسم المأمورية
+        assert att.is_field_visit is True
+
+    def test_attendance_summary_preserves_friday_work_and_overtime(self, hr_setup):
+        """شمول عمل الجمع والعطلات في كشف المرتبات الشهري وعدم إهداره"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift']
+
+        # يوم جمعة 2026-09-04
+        friday_date = date(2026, 9, 4)
+        assert friday_date.weekday() == 4 # Friday
+
+        check_in_ts = timezone.make_aware(datetime.combine(friday_date, time(9, 0)))
+        check_out_ts = timezone.make_aware(datetime.combine(friday_date, time(17, 0)))
+
+        att_friday = Attendance.objects.create(
+            employee=emp,
+            date=friday_date,
+            shift=shift,
+            check_in=check_in_ts,
+            check_out=check_out_ts,
+        )
+        AttendanceService.calculate_daily_attendance(att_friday)
+        att_friday.save()
+        assert float(att_friday.overtime_hours) == 8.0
+
+        # حساب ملخص الحضور لشهر 9
+        summary, _ = AttendanceSummary.objects.get_or_create(
+            employee=emp,
+            month=date(2026, 9, 1)
+        )
+        summary.calculate()
+        summary.refresh_from_db()
+
+        # التأكد من شمول عمل الجمعة في الإضافي وساعات العمل وأيام الحضور
+        assert float(summary.total_overtime_hours) >= 8.0
+        assert float(summary.total_work_hours) >= 8.0
+        assert summary.present_days >= 1
+
+    def test_attendance_summary_respects_field_visit_late_waiver(self, hr_setup):
+        """احترام إعفاء المأموريات في كشف المرتبات وتصفير الدقائق القابلة للجزاء"""
+        emp = hr_setup['employee']
+        shift = hr_setup['shift']
+        target_date = date(2026, 9, 9)
+
+        # مأمورية ميدانية صباحية
+        check_in_ts = timezone.make_aware(datetime.combine(target_date, time(10, 0)))
+        check_out_ts = timezone.make_aware(datetime.combine(target_date, time(17, 0)))
+
+        att = Attendance.objects.create(
+            employee=emp,
+            date=target_date,
+            shift=shift,
+            check_in=check_in_ts,
+            check_out=check_out_ts,
+            is_field_visit=True,
+            source='field_visit'
+        )
+        AttendanceService.calculate_daily_attendance(att)
+        att.save()
+
+        summary, _ = AttendanceSummary.objects.get_or_create(
+            employee=emp,
+            month=date(2026, 9, 1)
+        )
+        summary.calculate()
+        summary.refresh_from_db()
+
+        # التأكد من عدم فرض أي دقائق جزاء على يوم المأمورية
+        assert summary.net_penalizable_minutes == 0
+

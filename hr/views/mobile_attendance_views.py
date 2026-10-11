@@ -38,15 +38,10 @@ def self_attendance_view(request):
     """
     employee = _get_current_employee(request)
     if not employee:
-        # إذا كان مدير أو مستخدم بدون بروفايل موظف
-        first_emp = Employee.objects.filter(status='active').first()
-        if (request.user.is_superuser or request.user.is_staff) and first_emp:
-            employee = first_emp
-        else:
-            return render(request, 'hr/attendance/no_employee_profile.html', {
-                'page_title': 'بصمة الهاتف الذكية',
-                'message': 'حسابك غير مرتبط بملف موظف نشط في النظام. يرجى مراجعة إدارة الموارد البشرية لربط حسابك.'
-            })
+        return render(request, 'hr/attendance/no_employee_profile.html', {
+            'page_title': 'بصمة الهاتف الذكية',
+            'message': 'حسابك غير مرتبط بملف موظف نشط في النظام. يرجى مراجعة إدارة الموارد البشرية لربط حسابك بملف موظف.'
+        })
 
     context = {
         'employee': employee,
@@ -92,11 +87,9 @@ def api_get_punch_context(request):
     emp_id = request.GET.get('employee_id')
     if emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
         employee = get_object_or_404(Employee, pk=emp_id)
-    elif not employee and (request.user.is_superuser or request.user.is_staff):
-        employee = Employee.objects.filter(status='active').first()
 
     if not employee:
-        return JsonResponse({'success': False, 'message': 'لا يوجد موظف مرتبط بهذا الحساب.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'لا يوجد ملف موظف نشط مرتبط بهذا الحساب. يرجى مراجعة إدارة الموارد البشرية.'}, status=400)
 
     data = MobilePunchService.get_punch_context(employee, request.user)
     return JsonResponse({'success': True, 'data': data})
@@ -118,11 +111,9 @@ def api_submit_mobile_punch(request):
     target_emp_id = payload.get('employee_id')
     if target_emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
         employee = get_object_or_404(Employee, pk=target_emp_id)
-    elif not employee and (request.user.is_superuser or request.user.is_staff):
-        employee = Employee.objects.filter(status='active').first()
 
     if not employee:
-        return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف. حسابك غير مرتبط بملف موظف نشط.'}, status=400)
 
     try:
         latitude = float(payload.get('latitude', 0.0))
@@ -172,14 +163,12 @@ def api_sync_offline_punches(request):
         return JsonResponse({'success': False, 'message': 'تنسيق حزمة المزامنة غير صالح.'}, status=400)
 
     employee = _get_current_employee(request)
-    target_emp_id = payload.get('employee_id')
+    target_emp_id = payload.get('employee_id') if isinstance(payload, dict) else None
     if target_emp_id and (request.user.is_staff or request.user.is_superuser or request.user.has_perm('hr.add_attendance')):
         employee = Employee.objects.filter(pk=target_emp_id).first()
-    elif not employee and (request.user.is_superuser or request.user.is_staff):
-        employee = Employee.objects.filter(status='active').first()
 
     if not employee:
-        return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف.'}, status=400)
+        return JsonResponse({'success': False, 'message': 'تعذر تحديد هوية الموظف لمزامنة البصمات.'}, status=400)
 
     punches_list = payload.get('punches', payload) if isinstance(payload, dict) else payload
     if not isinstance(punches_list, list):

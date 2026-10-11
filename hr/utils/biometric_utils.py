@@ -258,13 +258,52 @@ def bulk_process_logs(date=None, employee_id=None, unprocessed_only=True, dry_ru
 
                 attendance.shift = shift
                 attendance.check_in = check_in_log.timestamp
-                attendance.check_out = check_out_log.timestamp if check_out_log else None
-                if check_in_log.location_name:
-                    attendance.location_name = check_in_log.location_name
+                
+                # الحفاظ على بصمة الانصراف القائمة من الموبايل أو المأموريات وعدم تصفيرها إذا لم توجد بصمة انصراف بالماكينة
+                if check_out_log:
+                    attendance.check_out = max(attendance.check_out, check_out_log.timestamp) if attendance.check_out else check_out_log.timestamp
+
+                # حل المسار الهجين الآمن لاسم الموقع وتفادي AttributeError
+                loc_name = ''
+                if check_in_log.matched_location:
+                    loc_name = check_in_log.matched_location.name_ar
+                elif check_in_log.device and check_in_log.device.location:
+                    dev_loc = check_in_log.device.location
+                    loc_name = getattr(dev_loc, 'name_ar', str(dev_loc))
+                elif check_in_log.device_info:
+                    loc_name = check_in_log.device_info.get('reason', '')
+
+                if loc_name and not attendance.location_name:
+                    attendance.location_name = loc_name
+
+                # الحفاظ على المأموريات الميدانية والعميل وأمر الشغل والمصدر
+                is_field = attendance.is_field_visit or any(
+                    (l.source == 'field_visit' or (l.device_info and l.device_info.get('is_field_visit')))
+                    for l in day_logs_sorted
+                )
+                attendance.is_field_visit = is_field
+
+                for l in day_logs_sorted:
+                    if l.customer_id and not attendance.customer_id:
+                        attendance.customer_id = l.customer_id
+                    if l.work_order_id and not attendance.work_order_id:
+                        attendance.work_order_id = l.work_order_id
+                    if l.source in ['field_visit', 'mobile', 'supervisor'] and attendance.source == 'device':
+                        attendance.source = l.source
+
+                # مسح ملاحظة الغياب التلقائي فور ثبوت الحضور الفعلي
+                if attendance.notes and ('غياب' in attendance.notes or 'غائب' in attendance.notes):
+                    attendance.notes = ''
 
                 # استدعاء المحرك الحسابي الموحد (Single Source of Truth)
                 AttendanceService.calculate_daily_attendance(attendance)
                 attendance.save()
+
+                # إبطال مسودة الرواتب المفتوحة لتحديث الأرصدة
+                try:
+                    AttendanceService._invalidate_draft_payroll(employee, attendance.date)
+                except Exception as e:
+                    logger.warning(f"Failed to invalidate draft payroll for emp {employee.id}: {e}")
 
                 if is_new:
                     stats["created"] += 1

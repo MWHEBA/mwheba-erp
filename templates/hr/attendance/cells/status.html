@@ -23,10 +23,18 @@
     {% endif %}
 {% endif %}
 
+{% if object.check_in and not object.check_out and object.status != 'absent' and object.status != 'on_leave' %}
+    <br><span class="badge bg-light text-danger border border-danger mt-1" style="font-size: 0.65em;" title="حضر ولم يسجل بصمة انصراف"><i class="fas fa-exclamation-circle me-1 text-danger"></i>بدون انصراف</span>
+{% endif %}
+
 {% if object.is_manual or object.source == 'manual' %}
     <br><span class="badge bg-light text-dark border mt-1" style="font-size: 0.65em;" title="تسجيل/تعديل يدوي"><i class="fas fa-user-edit me-1 text-primary"></i>يدوي</span>
 {% elif object.source == 'excel' %}
     <br><span class="badge bg-light text-dark border mt-1" style="font-size: 0.65em;" title="استيراد من ملف Excel"><i class="fas fa-file-excel me-1 text-success"></i>إكسيل</span>
+{% elif object.source == 'mobile' %}
+    <br><span class="badge bg-light text-primary border mt-1" style="font-size: 0.65em;" title="بصمة هاتف ذكي"><i class="fas fa-mobile-alt me-1 text-primary"></i>موبايل</span>
+{% elif object.source == 'supervisor' %}
+    <br><span class="badge bg-light text-info border mt-1" style="font-size: 0.65em;" title="بصمة طاقم عمل المشرف"><i class="fas fa-users-cog me-1 text-info"></i>طاقم مشرف</span>
 {% endif %}
 
 {% if object.is_field_visit %}

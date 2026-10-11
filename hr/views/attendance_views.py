@@ -112,14 +112,23 @@ def attendance_list(request):
         allowed_dates = [d for d in allowed_dates if d not in official_holiday_dates]
 
     # جلب سجلات الحضور المعالجة مع الأذونات المعتمدة
-    from django.db.models import Prefetch
+    # جلب سجلات الحضور المعالجة مع الأذونات المعتمدة
+    from django.db.models import Prefetch, Q, F, Count
     from hr.models import PermissionRequest
     
-    attendances = Attendance.objects.filter(
-        date__in=allowed_dates,
-        employee__attendance_exempt=False,  # استثناء المعفيين من البصمة
-        employee__status='active'  # استثناء الموظفين المنهية خدمتهم
-    ).select_related(
+    date_filter = Q(date__gte=date_from_obj, date__lte=date_to_obj) & (
+        Q(date__in=allowed_dates) | Q(check_in__isnull=False)
+    )
+    attendances = Attendance.objects.filter(date_filter)
+    
+    # تطبيق فلتر المعفيين والمنتهية خدمتهم فقط في العرض العام (إذا لم يُحدد موظف بعينه)
+    if not employee_id:
+        attendances = attendances.filter(
+            employee__attendance_exempt=False,
+            employee__status='active'
+        )
+
+    attendances = attendances.select_related(
         'employee', 
         'employee__department', 
         'shift'
@@ -133,7 +142,12 @@ def attendance_list(request):
             ),
             to_attr='approved_permissions_in_period'
         ),
-        'biometric_logs',
+        Prefetch(
+            'biometric_logs',
+            queryset=BiometricLog.objects.select_related(
+                'device', 'matched_location', 'customer', 'work_order'
+            ).order_by('timestamp')
+        ),
         Prefetch(
             'audit_logs',
             queryset=AttendanceAuditLog.objects.select_related('changed_by', 'supervisor_witness').order_by('-created_at')
@@ -148,15 +162,37 @@ def attendance_list(request):
     if employee_id:
         attendances = attendances.filter(employee_id=employee_id)
 
-    # تطبيق فلتر الحالة
+    # تطبيق فلتر المصدر
+    source_filter = request.GET.get('source')
+    if source_filter:
+        if source_filter == 'mobile':
+            attendances = attendances.filter(Q(source='mobile') | Q(source='mobile_gps'))
+        else:
+            attendances = attendances.filter(source=source_filter)
+
+    # تطبيق فلتر الحالة على مستوى قاعدة البيانات مباشرة لحفظ الـ Pagination SSR
     if status_filter:
         if status_filter == 'permission':
-            # الأذونات محسوبة بعد الجلب، نفلتر بعدين
-            pass
+            attendances = attendances.filter(
+                Q(status='permission') |
+                Q(employee__permissions__date=F('date'), employee__permissions__status='approved')
+            ).distinct()
         else:
             attendances = attendances.filter(status=status_filter)
     
     attendances = attendances.order_by('-date', 'employee__name')
+
+    # حساب الإحصائيات الشاملة (Panoramic KPIs) على كامل الـ Queryset بدون تقييد بالـ Pagination
+    stats = attendances.aggregate(
+        total_present=Count('id', filter=Q(status='present')),
+        total_late=Count('id', filter=Q(status='late')),
+        total_absent=Count('id', filter=Q(status='absent')),
+        total_on_leave=Count('id', filter=Q(status='on_leave')),
+    )
+    present_count = stats['total_present'] or 0
+    late_count = stats['total_late'] or 0
+    absent_count = stats['total_absent'] or 0
+    on_leave_count = stats['total_on_leave'] or 0
     
     # Pagination SSR
     from core.utils import paginate_queryset
@@ -164,6 +200,21 @@ def attendance_list(request):
     attendances_page = pagination_context["page_obj"]
     
     # تحضير البيانات للعرض - فقط للصفحة الحالية
+    # القضاء على مشكلة N+1 لـ AttendanceSummary عبر جلبه دفعة واحدة بالذاكرة
+    from hr.utils.payroll_helpers import get_payroll_month_for_date
+    emp_month_pairs = {(att.employee_id, get_payroll_month_for_date(att.date)) for att in attendances_page}
+    existing_summaries = {}
+    if emp_month_pairs:
+        summary_q = Q()
+        for emp_id, p_month in emp_month_pairs:
+            summary_q |= Q(employee_id=emp_id, month=p_month)
+        for s in AttendanceSummary.objects.filter(summary_q):
+            existing_summaries[(s.employee_id, s.month)] = s
+        for emp_id, p_month in emp_month_pairs:
+            if (emp_id, p_month) not in existing_summaries:
+                s, _ = AttendanceSummary.objects.get_or_create(employee_id=emp_id, month=p_month)
+                existing_summaries[(emp_id, p_month)] = s
+
     attendance_data = []
     
     for attendance in attendances_page:
@@ -171,9 +222,41 @@ def attendance_list(request):
         early_leave_minutes = attendance.early_leave_minutes if attendance.early_leave_minutes else 0
         
         # جلب حركات البصمة المرتبطة (بدون query إضافي بفضل prefetch_related)
-        biometric_logs = sorted(attendance.biometric_logs.all(), key=lambda l: l.timestamp)
-        movements = [log.timestamp for log in biometric_logs]
+        biometric_logs = list(attendance.biometric_logs.all())
+        movements = [timezone.localtime(log.timestamp) if timezone.is_aware(log.timestamp) else log.timestamp for log in biometric_logs]
         
+        # تجهيز حركات غنية بالتفاصيل تدعم الجيوفينسنج والصور والعملاء
+        movements_rich = []
+        for log in biometric_logs:
+            loc_time = timezone.localtime(log.timestamp) if timezone.is_aware(log.timestamp) else log.timestamp
+            selfie_url = ''
+            try:
+                if log.selfie_image and hasattr(log.selfie_image, 'url'):
+                    selfie_url = log.selfie_image.url
+            except Exception:
+                selfie_url = ''
+            
+            loc_label = log.matched_location.name if log.matched_location else (attendance.location_name or '-')
+            cust_label = log.customer.name if getattr(log, 'customer', None) else '-'
+            wo_label = str(log.work_order.order_number) if getattr(log, 'work_order', None) else '-'
+            dev_label = log.device.name if log.device else (log.device_uuid or '-')
+
+            movements_rich.append({
+                'time': loc_time.strftime('%I:%M %p'),
+                'raw_time': loc_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'type': log.get_log_type_display(),
+                'source': log.get_source_display(),
+                'location': loc_label,
+                'customer': cust_label,
+                'work_order': wo_label,
+                'device': dev_label,
+                'selfie_url': selfie_url,
+                'lat': float(log.latitude) if log.latitude else None,
+                'lng': float(log.longitude) if log.longitude else None,
+                'accuracy': log.location_accuracy,
+                'is_unverified': log.is_device_unverified,
+            })
+
         # جلب وتجهيز سجل التدقيق مسبقاً للعرض اللحظي المباشر
         audit_logs_list = []
         for log in attendance.audit_logs.all():
@@ -190,20 +273,15 @@ def attendance_list(request):
                 'reason': log.reason,
             })
 
-        # الحصول على الملخص الشهري (باستخدام الشهر الصحيح للدورة المرنة)
-        from hr.utils.payroll_helpers import get_payroll_month_for_date
+        # الملخص الشهري من الذاكرة المحملة مسبقاً
         payroll_month = get_payroll_month_for_date(attendance.date)
-        summary, _ = AttendanceSummary.objects.get_or_create(
-            employee=attendance.employee,
-            month=payroll_month
-        )
+        summary = existing_summaries.get((attendance.employee_id, payroll_month))
         
         # Calculate status manually to handle permissions
         status = attendance.status
         permission_info = None
         
         if status not in ['on_leave', 'permission']:
-            # ✅ OPTIMIZED: استخدام الـ prefetched data بدلاً من query جديد
             approved_perms = getattr(attendance.employee, 'approved_permissions_in_period', [])
             matching_perm = next((p for p in approved_perms if p.date == attendance.date), None)
             
@@ -227,26 +305,20 @@ def attendance_list(request):
             'late_minutes': attendance.late_minutes,
             'early_leave_minutes': early_leave_minutes,
             'status': status,
+            'source': attendance.source,
+            'source_display': attendance.get_source_display(),
             'permission_info': permission_info,
             'total_movements': len(movements),
             'movements': movements,
+            'movements_rich': movements_rich,
+            'movements_json': json.dumps(movements_rich, ensure_ascii=False),
             'audit_logs': audit_logs_list,
             'audit_logs_json': json.dumps(audit_logs_list, ensure_ascii=False),
-            'summary_id': summary.id,
+            'summary_id': summary.id if summary else None,
             'overtime_hours': float(attendance.overtime_hours) if attendance.overtime_hours else 0,
             'is_field_visit': attendance.is_field_visit,
             'location_name': attendance.location_name,
         })
-    
-    # فلتر الحالة بعد البناء (لأن permission محسوبة بعد الجلب)
-    if status_filter == 'permission':
-        attendance_data = [a for a in attendance_data if a['status'] == 'permission']
-
-    # حساب الإحصائيات
-    present_count = sum(1 for a in attendance_data if a['status'] == 'present')
-    late_count = sum(1 for a in attendance_data if a['status'] == 'late')
-    absent_count = 0  # سيتم حسابه لاحقاً من قائمة الموظفين
-    on_leave_count = 0  # من نظام الإجازات
     
     # جلب قوائم الفلاتر
     departments = Department.objects.filter(is_active=True).order_by('name_ar')
@@ -282,6 +354,7 @@ def attendance_list(request):
         'departments': departments,
         'employees': employees,
         'status_filter': status_filter or '',
+        'source_filter': source_filter or '',
         'page_obj': attendances_page,
         **pagination_context,
         
@@ -350,6 +423,7 @@ def attendance_export_excel(request):
     department_id = request.GET.get('department')
     employee_id   = request.GET.get('employee')
     status_filter = request.GET.get('status')
+    source_filter = request.GET.get('source')
 
     # أيام الإجازة الأسبوعية والرسمية
     weekly_off_days = SystemSetting.get_setting('hr_weekly_off_days', [4])
@@ -371,22 +445,45 @@ def attendance_export_excel(request):
         allowed_dates = [d for d in allowed_dates if d not in official_holiday_dates]
 
     # الـ queryset الكامل بدون pagination
-    qs = Attendance.objects.filter(
-        date__in=allowed_dates,
-        employee__attendance_exempt=False,  # استثناء المعفيين من البصمة
-        employee__status='active'           # استثناء الموظفين المنهية خدمتهم
-    ).select_related('employee', 'employee__department', 'shift').order_by('date', 'employee__name')
+    from django.db.models import Prefetch, Q, F
+    date_filter = Q(date__gte=date_from_obj, date__lte=date_to_obj) & (
+        Q(date__in=allowed_dates) | Q(check_in__isnull=False)
+    )
+    qs = Attendance.objects.filter(date_filter).select_related(
+        'employee', 'employee__department', 'shift'
+    ).prefetch_related(
+        Prefetch(
+            'biometric_logs',
+            queryset=BiometricLog.objects.select_related(
+                'device', 'matched_location', 'customer', 'work_order'
+            ).order_by('timestamp')
+        )
+    ).order_by('date', 'employee__name')
+
+    if not employee_id:
+        qs = qs.filter(
+            employee__attendance_exempt=False,
+            employee__status='active'
+        )
 
     if department_id:
         qs = qs.filter(employee__department_id=department_id)
     if employee_id:
         qs = qs.filter(employee_id=employee_id)
-    # فلتر الحالة - permission تُعالج بعد جلب الأذونات
-    if status_filter and status_filter != 'permission':
-        qs = qs.filter(status=status_filter)
+    if source_filter:
+        qs = qs.filter(source=source_filter)
+    
+    if status_filter:
+        if status_filter == 'permission':
+            qs = qs.filter(
+                Q(status='permission') |
+                Q(employee__permissions__date=F('date'), employee__permissions__status='approved')
+            ).distinct()
+        else:
+            qs = qs.filter(status=status_filter)
 
     STATUS_MAP = {
-        'present': '', 'absent': 'غائب', 'late': '',
+        'present': 'حاضر', 'absent': 'غائب', 'late': 'متأخر',
         'half_day': 'نصف يوم', 'on_leave': 'في إجازة', 'permission': 'في إذن',
     }
 
@@ -451,13 +548,18 @@ def attendance_export_excel(request):
     ws.sheet_view.rightToLeft = True
 
     # العنوان
-    ws.merge_cells('A1:K1')
+    ws.merge_cells('A1:O1')
     ws['A1'] = f'سجل الحضور — {date_from_obj.strftime("%Y-%m-%d")} إلى {date_to_obj.strftime("%Y-%m-%d")}'
     ws['A1'].font = Font(bold=True, size=13)
     ws['A1'].alignment = Alignment(horizontal='center')
 
     # الهيدر
-    headers = ['التاريخ', 'اليوم', 'الموظف', 'الحضور', 'الانصراف', 'ساعات العمل', 'التأخير (د)', 'الانصراف المبكر (د)', 'الحالة', 'الإجازة', 'الأذونات (س)']
+    headers = [
+        'التاريخ', 'اليوم', 'الموظف', 'الحضور', 'الانصراف', 
+        'ساعات العمل', 'التأخير (د)', 'الانصراف المبكر (د)', 'الحالة', 
+        'المصدر', 'المقر / الموقع', 'العميل / أمر الشغل', 'الجهاز', 
+        'الإجازة', 'الأذونات (س)'
+    ]
     header_fill = PatternFill(start_color='D9E1F2', end_color='D9E1F2', fill_type='solid')
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=2, column=col, value=h)
@@ -479,9 +581,21 @@ def attendance_export_excel(request):
         if actual_status not in ('on_leave', 'permission') and perm_str:
             actual_status = 'permission'
 
-        # فلتر الحالة لـ permission بعد الحساب
-        if status_filter == 'permission' and actual_status != 'permission':
-            continue
+        # موقع وعميل وسيلة البصمة
+        logs = list(att.biometric_logs.all())
+        first_log = logs[0] if logs else None
+        loc_display = att.location_name or (first_log.matched_location.name if first_log and first_log.matched_location else '—')
+        cust_wo = '—'
+        if first_log and first_log.customer:
+            cust_wo = first_log.customer.name
+            if first_log.work_order:
+                cust_wo += f' ({first_log.work_order.order_number})'
+        elif first_log and first_log.work_order:
+            cust_wo = f'أمر شغل {first_log.work_order.order_number}'
+
+        device_name = '—'
+        if first_log:
+            device_name = first_log.device.name if first_log.device else (first_log.device_uuid or '—')
 
         ws.cell(row=row_idx, column=1,  value=att.date.strftime('%Y-%m-%d')).alignment = Alignment(horizontal='center')
         ws.cell(row=row_idx, column=2,  value=DAYS_AR[att.date.weekday()]).alignment   = Alignment(horizontal='center')
@@ -492,12 +606,18 @@ def attendance_export_excel(request):
         ws.cell(row=row_idx, column=7,  value=att.late_minutes or 0).alignment         = Alignment(horizontal='center')
         ws.cell(row=row_idx, column=8,  value=att.early_leave_minutes or 0).alignment  = Alignment(horizontal='center')
         ws.cell(row=row_idx, column=9,  value=STATUS_MAP.get(actual_status, actual_status)).alignment = Alignment(horizontal='center')
-        ws.cell(row=row_idx, column=10, value=leave_name).alignment  = Alignment(horizontal='center')
-        ws.cell(row=row_idx, column=11, value=perm_str).alignment    = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=10, value=att.get_source_display()).alignment      = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=11, value=loc_display).alignment                   = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=12, value=cust_wo).alignment                       = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=13, value=device_name).alignment                   = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=14, value=leave_name).alignment                    = Alignment(horizontal='center')
+        ws.cell(row=row_idx, column=15, value=perm_str).alignment                      = Alignment(horizontal='center')
 
     # عرض الأعمدة
-    for col, width in zip('ABCDEFGHIJK', [14, 12, 22, 10, 10, 14, 14, 18, 12, 18, 14]):
-        ws.column_dimensions[col].width = width
+    col_widths = [14, 12, 22, 10, 10, 14, 14, 18, 12, 12, 18, 20, 18, 18, 14]
+    for col_idx, width in enumerate(col_widths, 1):
+        col_letter = openpyxl.utils.get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = width
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = f'attachment; filename="attendance_{date_from}_{date_to}.xlsx"'
@@ -1905,6 +2025,8 @@ def attendance_manual_save(request):
         try:
             t = datetime.strptime(check_in_str.strip(), '%H:%M').time()
             check_in_dt = datetime.combine(target_date, t)
+            if timezone.is_naive(check_in_dt):
+                check_in_dt = timezone.make_aware(check_in_dt, timezone.get_current_timezone())
         except ValueError:
             pass
 
@@ -1913,8 +2035,15 @@ def attendance_manual_save(request):
             t = datetime.strptime(check_out_str.strip(), '%H:%M').time()
             check_out_dt = datetime.combine(target_date, t)
             # معالجة الوردية الليلية إذا كان الخروج قبل الدخول
-            if check_in_dt and check_out_dt < check_in_dt:
-                check_out_dt += timedelta(days=1)
+            if check_in_str:
+                try:
+                    t_in = datetime.strptime(check_in_str.strip(), '%H:%M').time()
+                    if t < t_in:
+                        check_out_dt += timedelta(days=1)
+                except ValueError:
+                    pass
+            if timezone.is_naive(check_out_dt):
+                check_out_dt = timezone.make_aware(check_out_dt, timezone.get_current_timezone())
         except ValueError:
             pass
 
@@ -2008,6 +2137,9 @@ def attendance_manual_save(request):
             status__in=['draft', 'calculated']
         ).update(is_stale=True)
 
+    check_in_disp = timezone.localtime(attendance.check_in).strftime('%I:%M %p') if (attendance.check_in and timezone.is_aware(attendance.check_in)) else (attendance.check_in.strftime('%I:%M %p') if attendance.check_in else '-')
+    check_out_disp = timezone.localtime(attendance.check_out).strftime('%I:%M %p') if (attendance.check_out and timezone.is_aware(attendance.check_out)) else (attendance.check_out.strftime('%I:%M %p') if attendance.check_out else '-')
+
     return JsonResponse({
         'success': True,
         'message': 'تم حفظ وتوثيق سجل الحضور بنجاح.',
@@ -2017,8 +2149,8 @@ def attendance_manual_save(request):
             'date': attendance.date.strftime('%Y-%m-%d'),
             'status': attendance.status,
             'status_display': attendance.get_status_display(),
-            'check_in': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else '-',
-            'check_out': attendance.check_out.strftime('%I:%M %p') if attendance.check_out else '-',
+            'check_in': check_in_disp,
+            'check_out': check_out_disp,
             'work_hours': float(attendance.work_hours or 0),
             'late_minutes': float(attendance.late_minutes or 0),
         }
@@ -2167,6 +2299,11 @@ def attendance_import_excel(request):
                     check_out_dt += timedelta(days=1)
             except ValueError:
                 pass
+
+        if check_in_dt and timezone.is_naive(check_in_dt):
+            check_in_dt = timezone.make_aware(check_in_dt, timezone.get_current_timezone())
+        if check_out_dt and timezone.is_naive(check_out_dt):
+            check_out_dt = timezone.make_aware(check_out_dt, timezone.get_current_timezone())
 
         status_val = 'present' if check_in_dt else 'absent'
 

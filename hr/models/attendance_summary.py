@@ -250,13 +250,14 @@ class AttendanceSummary(models.Model):
                     _cur += timedelta(days=1)
 
                 # جلب سجلات الحضور مع الوردية (select_related لتجنب N+1 queries)
-                # استثناء أيام الإجازة الأسبوعية والرسمية من الحساب
+                # استثناء أيام الإجازة الأسبوعية والرسمية التي لم يتم العمل بها فقط
+                # (أي يوم عطلة عمل به الموظف فعلياً يُحسب له إضافي وساعات كاملة ولا يُهدر)
                 attendance_records = Attendance.objects.filter(
                     employee=self.employee,
                     date__gte=start_date,
                     date__lte=end_date
                 ).exclude(
-                    date__in=_excluded_dates
+                    Q(date__in=_excluded_dates) & Q(check_in__isnull=True)
                 ).select_related('shift')
 
                 if self.employee.attendance_exempt:
@@ -326,17 +327,20 @@ class AttendanceSummary(models.Model):
                     grace_in = att.shift.grace_period_in if att.shift else 0
                     grace_out = att.shift.grace_period_out if att.shift else 0
 
-                    # حساب دقائق التأخير الخام من check_in مباشرة (بدون الاعتماد على القيمة المحفوظة)
-                    if att.check_in and att.shift:
-                        raw_late = AttendanceService._calculate_late_minutes(att.check_in, att.shift, att.date)
+                    # حساب دقائق التأخير والانصراف المبكر مع احترام إعفاء المأموريات الميدانية
+                    if att.is_field_visit:
+                        raw_late = 0
+                        raw_early = 0
                     else:
-                        raw_late = att.late_minutes or 0
+                        if att.check_in and att.shift:
+                            raw_late = AttendanceService._calculate_late_minutes(att.check_in, att.shift, att.date)
+                        else:
+                            raw_late = att.late_minutes or 0
 
-                    # حساب الانصراف المبكر الخام من check_out مباشرة
-                    if att.check_out and att.shift:
-                        raw_early = AttendanceService._calculate_early_leave(att.check_out, att.shift, att.date)
-                    else:
-                        raw_early = att.early_leave_minutes or 0
+                        if att.check_out and att.shift:
+                            raw_early = AttendanceService._calculate_early_leave(att.check_out, att.shift, att.date)
+                        else:
+                            raw_early = att.early_leave_minutes or 0
 
                     # جلب أذونات هذا اليوم
                     day_perms = perms_by_date.get(att.date, [])
