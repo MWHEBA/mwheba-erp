@@ -1,0 +1,16 @@
+{
+  "clients": {},
+  "template": {
+    "name": "Client Name",
+    "domain": "client.domain.com",
+    "ssh_host": "server_ip",
+    "ssh_port": "22",
+    "ssh_user": "username",
+    "remote_path": "/path/to/deployment",
+    "description": "وصف العميل",
+    "active": true,
+    "created_date": "YYYY-MM-DD",
+    "last_deploy": null,
+    "notes": "ملاحظات"
+  }
+}
