@@ -91,6 +91,8 @@ Note: This template can work with or without custom_filters.
 If custom_filters is available, it will be used for JSON parsing.
 {% endcomment %}
 
+{% load i18n %}
+
 <div class="page-header-container {{ container_class }}">
     <!-- Breadcrumb -->
     {% if show_breadcrumb|default_if_none:True and show_breadcrumb != False and show_breadcrumb != "False" and show_breadcrumb != "false" %}
@@ -225,6 +227,9 @@ If custom_filters is available, it will be used for JSON parsing.
                         {% if buttons and buttons|length > 0 %}
                             {% comment %}Direct list of button objects{% endcomment %}
                             {% for button in buttons %}
+                                {% if not settings.whatsapp_enabled and 'whatsapp' in button.icon or not settings.whatsapp_enabled and 'openWhatsAppModal' in button.onclick or not settings.whatsapp_enabled and 'whatsapp' in button.id %}
+                                    {# إخفاء زر الواتساب تلقائياً عند تعطيل المنظومة #}
+                                {% else %}
                                     {% if button.dropdown %}
                                         {% comment %}Dropdown button{% endcomment %}
                                         <div class="btn-group me-2" role="group">
@@ -238,9 +243,11 @@ If custom_filters is available, it will be used for JSON parsing.
                                                 {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
                                                 {{ button.text }}
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end{% if button.chic_dropdown %} p-2{% endif %}"{% if button.chic_dropdown %} style="min-width: 320px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e9ecef;"{% endif %}>
+                                            <ul class="dropdown-menu dropdown-menu-end{% if button.chic_dropdown %} p-2{% endif %}"{% if button.chic_dropdown %} style="min-width: 320px; border-radius: var(--border-radius); box-shadow: var(--shadow-md); border: 1px solid var(--border-color);"{% endif %}>
                                                 {% for item in button.items %}
-                                                    {% if item.divider %}
+                                                    {% if not settings.whatsapp_enabled and 'whatsapp' in item.icon or not settings.whatsapp_enabled and 'openWhatsAppModal' in item.onclick or not settings.whatsapp_enabled and 'whatsapp' in item.id %}
+                                                        {# إخفاء خيار الواتساب تلقائياً عند تعطيل المنظومة #}
+                                                    {% elif item.divider %}
                                                         <li><hr class="dropdown-divider{% if button.chic_dropdown %} my-2{% endif %}"></li>
                                                     {% elif button.chic_dropdown %}
                                                         <li>
@@ -252,7 +259,7 @@ If custom_filters is available, it will be used for JSON parsing.
                                                                {% if item.target %}target="{{ item.target }}"{% endif %}
                                                                {% if item.data_toggle %}data-bs-toggle="{{ item.data_toggle }}"{% endif %}
                                                                {% if item.data_target %}data-bs-target="{{ item.data_target }}"{% endif %}
-                                                               style="border: 1px solid #e9ecef; transition: all 0.2s; white-space: normal;">
+                                                               style="border: 1px solid var(--border-color); transition: var(--transition-fast, all 0.2s ease); white-space: normal;">
                                                                 <div class="me-3 d-flex align-items-center justify-content-center rounded {{ item.icon_class|default:'text-primary bg-primary-subtle' }}" 
                                                                      style="width: 36px; height: 36px; flex-shrink: 0;">
                                                                     <i class="fas {{ item.icon }} fa-md"></i>
@@ -341,6 +348,7 @@ If custom_filters is available, it will be used for JSON parsing.
                                             {{ button.text }}
                                         </a>
                                     {% endif %}
+                                {% endif %}
                             {% endfor %}
                         {% endif %}
                     {% endwith %}
@@ -738,6 +746,15 @@ function showToastNotification(msg) {
  */
 if (typeof window.openWhatsAppModal !== 'function') {
     window.openWhatsAppModal = function(optionsOrPhone, docNumber, docTitle, pdfUrl, printUrl) {
+        const isWhatsAppEnabled = "{{ settings.whatsapp_enabled|yesno:'true,false' }}" === "true";
+        if (!isWhatsAppEnabled) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام", "warning");
+            } else if (typeof window.showToastNotification === 'function') {
+                window.showToastNotification("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام");
+            }
+            return false;
+        }
         if (optionsOrPhone && typeof optionsOrPhone === 'object') {
             shareWhatsAppPDF(optionsOrPhone);
         } else {
@@ -752,6 +769,15 @@ if (typeof window.openWhatsAppModal !== 'function') {
 if (typeof window.triggerWhatsAppModal !== 'function') {
     window.triggerWhatsAppModal = function(btn) {
         if (!btn) return;
+        const isWhatsAppEnabled = "{{ settings.whatsapp_enabled|yesno:'true,false' }}" === "true";
+        if (!isWhatsAppEnabled) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام", "warning");
+            } else if (typeof window.showToastNotification === 'function') {
+                window.showToastNotification("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام");
+            }
+            return false;
+        }
         const ctId = btn.getAttribute('data-ct-id') || btn.getAttribute('data-content-type-id');
         const objId = btn.getAttribute('data-obj-id') || btn.getAttribute('data-object-id');
         const partnerId = btn.getAttribute('data-partner-id') || null;

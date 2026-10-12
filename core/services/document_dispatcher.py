@@ -1136,6 +1136,35 @@ class DocumentDispatcher:
         extra_params = extra_params or {}
         info = cls.get_document_info(content_object, partner=partner, extra_params=extra_params)
 
+        # 0. التحقق من تفعيل منظومة WhatsApp مركزياً في إدارة تطبيقات النظام
+        if not WhatsAppService.is_enabled():
+            if is_automatic:
+                try:
+                    from ..models import WhatsAppMessageLog
+                    target_partner = partner or info.get("partner")
+                    target_template = template_name or info.get("template_name", "document_send_ar")
+                    WhatsAppMessageLog.objects.create(
+                        recipient_phone=recipient_phone or "",
+                        recipient_name=getattr(target_partner, 'name', '') if target_partner else "",
+                        template_name=target_template,
+                        direction='OUTBOUND_ERP',
+                        message_type='document' if info.get('has_pdf') else 'template',
+                        status='SKIPPED',
+                        error_code='BLOCKED_BY_ADMIN',
+                        error_message="تم إلغاء الإرسال التلقائي: منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام",
+                        document_object=content_object,
+                        customer=target_partner if info.get("partner_type") == "customer" else None,
+                        supplier=target_partner if info.get("partner_type") == "supplier" else None,
+                        created_by=created_by,
+                        is_automatic=True
+                    )
+                except Exception:
+                    pass
+            return {
+                "success": False,
+                "error": "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام"
+            }
+
         # 1. التحقق من شروط الحالة (State Guard)
         if not info["can_send"]:
             return {

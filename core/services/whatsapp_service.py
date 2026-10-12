@@ -152,7 +152,7 @@ class WhatsAppService:
         config = {
             "account_id": account_id_val,
             "account": account_obj,
-            "enabled": SystemSetting.get_setting("whatsapp_enabled", True) if (phone_number_id and access_token) else False,
+            "enabled": SystemSetting.get_bool("whatsapp_enabled", True) if (phone_number_id and access_token) else False,
             "access_token": access_token,
             "phone_number_id": phone_number_id,
             "waba_id": waba_id,
@@ -173,6 +173,9 @@ class WhatsAppService:
     @classmethod
     def is_enabled(cls, account: Optional[Any] = None, account_id: Optional[int] = None) -> bool:
         """هل خدمة WhatsApp مفعلة ومربوطة بحساب صالح؟"""
+        from ..models import SystemSetting
+        if not SystemSetting.get_bool("whatsapp_enabled", True):
+            return False
         config = cls.get_config(account=account, account_id=account_id)
         return bool(config.get("enabled") and config.get("access_token") and config.get("phone_number_id"))
 
@@ -453,7 +456,31 @@ class WhatsAppService:
         POST /v21.0/{phone_number_id}/messages
         """
         if not cls.is_enabled():
-            return {"success": False, "error": "خدمة WhatsApp غير مفعلة في إعدادات النظام"}
+            if is_automatic:
+                try:
+                    from ..models import WhatsAppMessageLog
+                    from customer.models import Customer
+                    from supplier.models import Supplier
+                    c_obj = partner if isinstance(partner, Customer) else None
+                    s_obj = partner if isinstance(partner, Supplier) else None
+                    WhatsAppMessageLog.objects.create(
+                        recipient_phone=cls.normalize_phone(phone, partner=partner) or phone or "",
+                        recipient_name=getattr(partner, 'name', '') if partner else "",
+                        template_name=template_name,
+                        direction='OUTBOUND_ERP',
+                        message_type='template',
+                        status='SKIPPED',
+                        error_code='BLOCKED_BY_ADMIN',
+                        error_message="تم إلغاء الإرسال التلقائي: منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام",
+                        document_object=content_object,
+                        customer=c_obj,
+                        supplier=s_obj,
+                        created_by=created_by,
+                        is_automatic=True
+                    )
+                except Exception as log_err:
+                    logger.warning(f"Failed to log skipped automatic WhatsApp message: {log_err}")
+            return {"success": False, "error": "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام"}
 
         # استرجاع الحساب المخصص إذا تم تحديده
         from ..models import WhatsAppAccount
@@ -508,7 +535,7 @@ class WhatsAppService:
 
         config = cls.get_config(account=account, account_id=account_id)
         if not config.get('enabled'):
-            return {"success": False, "error": "منظومة WhatsApp السحابية معطلة حالياً في إعدادات النظام"}
+            return {"success": False, "error": "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام"}
 
         token = account.decrypted_access_token if (account and account.decrypted_access_token) else config.get('access_token')
         phone_id = account.phone_number_id if (account and account.phone_number_id) else config.get('phone_number_id')
@@ -765,7 +792,7 @@ class WhatsAppService:
             return {"success": False, "error": "نص الرسالة لا يمكن أن يكون فارغاً"}
 
         if not cls.is_enabled():
-            return {"success": False, "error": "خدمة WhatsApp غير مفعلة في إعدادات النظام"}
+            return {"success": False, "error": "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام"}
 
         normalized_phone = cls.normalize_phone(phone)
         if not normalized_phone:

@@ -258,6 +258,19 @@
     <!-- Page Header المركزي (بدون مسار التنقل) -->
     {% include "shared/page_header.html" with show_breadcrumb=False %}
 
+    {% if not is_service_enabled %}
+    <div class="alert alert-warning d-flex align-items-center mb-2 py-2 px-3 border-0 shadow-sm rounded" role="alert">
+        <i class="fas fa-exclamation-triangle fs-5 me-2 text-warning"></i>
+        <div>
+            <strong>{% trans "تنبيه إداري:" %}</strong>
+            {% trans "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام. يمكنك استعراض المحادثات السابقة والرسائل الواردة، بينما تم تعليق إرسال الرسائل الجديدة مؤقتاً." %}
+            {% if request.user.is_superuser %}
+            <a href="{% url 'core:module_management' %}" class="btn btn-sm btn-outline-dark ms-2 py-0">{% trans "إدارة التطبيقات" %}</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card border-0 shadow-sm live-chat-card">
         <div class="row g-0 h-100">
             
@@ -405,6 +418,23 @@
                     <!-- مساحة الإدخال والإرسال (Chat Input Area) -->
                     <div class="chat-input-area" id="chatInputArea">
                         
+                        {% if not is_service_enabled %}
+                        <div class="alert alert-warning border-0 p-3 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                            <div>
+                                <h6 class="fw-bold mb-1 text-dark">
+                                    <i class="fas fa-pause-circle text-warning me-2"></i>{% trans "منظومة WhatsApp معطلة حالياً" %}
+                                </h6>
+                                <p class="small text-muted mb-0">
+                                    {% trans "تم إيقاف إرسال الرسائل من النظام مؤقتاً عبر إدارة التطبيقات. تظل المحادثات والرسائل الواردة متاحة للقراءة فقط." %}
+                                </p>
+                            </div>
+                            {% if request.user.is_superuser %}
+                            <a href="{% url 'core:module_management' %}" class="btn btn-outline-dark btn-sm fw-bold px-3">
+                                <i class="fas fa-cubes me-1"></i>{% trans "تفعيل الموديول" %}
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% else %}
                         <!-- في حال انتهاء نافذة الـ 24 ساعة -->
                         <div id="windowExpiredArea" style="display:none;">
                             <div class="alert alert-secondary border-0 p-3 mb-0 d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -438,6 +468,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                     </div>
 

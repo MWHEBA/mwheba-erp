@@ -55,6 +55,17 @@
  <!-- ==================== 1. الربط وحسابات الواتساب ==================== -->
  <div class="tab-pane fade show active" id="connection" role="tabpanel" aria-labelledby="connection-tab">
  
+ <!-- Warning Banner if Module is Disabled -->
+ {% if not config.enabled %}
+ <div class="alert alert-warning py-2 px-3 mb-4 small d-flex align-items-center justify-content-between border-0 rounded shadow-sm">
+ <div class="d-flex align-items-center">
+ <i class="fas fa-pause-circle me-2 text-warning fs-5"></i>
+ <span>{% trans "منظومة WhatsApp معطلة حالياً. يمكنك ضبط إعدادات الربط أو تفعيل المنظومة من هذا السويتش أو عبر" %}</span>
+ <a href="{% url 'core:module_management' %}" class="fw-bold text-dark text-decoration-underline ms-1">{% trans "إدارة تطبيقات النظام" %}</a>.
+ </div>
+ </div>
+ {% endif %}
+
  <!-- Header Action Bar for Meta Tech Provider & Accounts -->
  <div class="card border-0 shadow-sm mb-4 bg-light">
  <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -69,13 +80,18 @@
  </div>
  <div class="d-flex align-items-center gap-2 flex-wrap">
  <!-- Main API Toggle Switch -->
- <div class="form-check form-switch me-3 d-flex align-items-center gap-2 bg-white px-3 py-2 rounded border">
+ <div class="form-check form-switch me-3 d-flex align-items-center gap-2 bg-white px-3 py-2 rounded border" title="{% trans 'مرتبط ومتزامن تلقائياً مع إدارة تطبيقات النظام' %}">
  <input class="form-check-input fs-5 m-0" type="checkbox" role="switch"
  name="whatsapp_enabled" id="whatsapp_enabled"
  {% if config.enabled %}checked{% endif %}>
- <label class="form-check-label fw-bold small text-dark" for="whatsapp_enabled">
+ <div class="d-flex flex-column text-start">
+ <label class="form-check-label fw-bold small text-dark mb-0 cursor-pointer" for="whatsapp_enabled">
  {% trans "تشغيل المنظومة" %}
  </label>
+ <span class="text-muted" style="font-size: 0.68rem;">
+ <i class="fas fa-sync-alt me-1 text-primary"></i>{% trans "متزامن مع تطبيقات النظام" %}
+ </span>
+ </div>
  </div>
 
  <!-- 1-Click Embedded Signup Button -->

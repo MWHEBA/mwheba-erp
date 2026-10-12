@@ -22,6 +22,11 @@ def module_management(request):
         module_code = request.POST.get('module_code')
         action = request.POST.get('action')
         
+        # حماية الصلاحيات: التحكم في منظومة WhatsApp مقتصر حصرياً على المدير العام Superuser
+        if module_code == 'whatsapp' and not request.user.is_superuser:
+            messages.error(request, 'عذراً، التحكم في منظومة WhatsApp مقتصر حصرياً على المدير العام (Superuser)')
+            return redirect('core:module_management')
+
         try:
             module = SystemModule.objects.get(code=module_code)
             
@@ -33,6 +38,13 @@ def module_management(request):
                     messages.error(request, 
                         f'يجب تفعيل التطبيقات التالية أولاً: {missing_names}')
                 else:
+                    # فحص الجاهزية الفنية لمنظومة WhatsApp
+                    if module.code == 'whatsapp':
+                        from core.services.whatsapp_service import WhatsAppService
+                        config = WhatsAppService.get_config()
+                        if not (config.get('phone_number_id') and config.get('access_token')):
+                            messages.warning(request, 'تنبيه: تم تفعيل الموديول، ولكن لا يوجد حساب WhatsApp مربوط وجاهز بعد. يرجى إعداد بيانات الربط والـ API.')
+
                     module.is_enabled = True
                     module.save()
                     _log_module_audit(request, module, 'ENABLE')
@@ -49,6 +61,16 @@ def module_management(request):
                             messages.error(request, 
                                 f'لا يمكن تعطيل هذا التطبيق لأن "{dependent.name_ar}" يعتمد عليه')
                 else:
+                    # إيقاف الحملات النشطة مؤقتاً بأمان عند تعطيل منظومة WhatsApp
+                    if module.code == 'whatsapp':
+                        try:
+                            from core.models import WhatsAppCampaign
+                            paused_count = WhatsAppCampaign.objects.filter(status='RUNNING').update(status='PAUSED')
+                            if paused_count > 0:
+                                messages.info(request, f'تم إيقاف مؤقت لـ {paused_count} حملة تسويقية نشطة لحماية رصيد ورقم الحساب')
+                        except Exception:
+                            pass
+
                     module.is_enabled = False
                     module.save()
                     _log_module_audit(request, module, 'DISABLE')
@@ -67,10 +89,20 @@ def module_management(request):
     core_modules = modules.filter(module_type='core')
     optional_modules = modules.filter(module_type='optional')
     
+    # فحص الجاهزية الفنية للواتساب لعرض الشارة الحية
+    whatsapp_is_connected = False
+    try:
+        from core.services.whatsapp_service import WhatsAppService
+        cfg = WhatsAppService.get_config()
+        whatsapp_is_connected = bool(cfg.get('access_token') and cfg.get('phone_number_id'))
+    except Exception:
+        pass
+
     context = {
         'title': 'إدارة تطبيقات النظام',
         'core_modules': core_modules,
         'optional_modules': optional_modules,
+        'whatsapp_is_connected': whatsapp_is_connected,
         'active_menu': 'settings',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
@@ -107,7 +139,13 @@ def _clear_modules_cache():
     cache.delete('enabled_modules_dict')
     cache.delete('enabled_modules_dict_v2')
     cache.delete('enabled_modules_set')
+    cache.delete('module_enabled_whatsapp')
     SystemSetting.invalidate_all_system_caches()
+    try:
+        from core.services.whatsapp_service import WhatsAppService
+        WhatsAppService.reset_session()
+    except Exception:
+        pass
     try:
         cache.delete_pattern('module_enabled_*')
     except AttributeError:

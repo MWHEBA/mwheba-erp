@@ -121,6 +121,13 @@ class WhatsAppCampaignService:
         if not campaign:
             return {"success": False, "error": "الحملة غير موجودة"}
 
+        from core.services.whatsapp_service import WhatsAppService
+        if not WhatsAppService.is_enabled():
+            return {
+                "success": False,
+                "error": "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام"
+            }
+
         account = campaign.account or WhatsAppAccount.objects.filter(is_default=True).first()
 
         # 1. درع حماية تقييم الجودة (Quality Score Shield - Standard 127)

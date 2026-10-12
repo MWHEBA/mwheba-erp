@@ -287,6 +287,15 @@ def process_whatsapp_webhook_task(self, payload: dict):
                         from ..models import WhatsAppAccount
                         account_obj = WhatsAppAccount.objects.filter(phone_number_id=business_phone_id).first()
 
+                    is_wa_enabled = WhatsAppService.is_enabled()
+                    msg_status = 'DELIVERED' if direction == 'INBOUND' else 'SENT'
+                    msg_error_code = None
+                    msg_error_message = None
+                    if not is_wa_enabled:
+                        msg_status = 'SUSPENDED'
+                        msg_error_code = 'SUSPENDED'
+                        msg_error_message = 'وارد أثناء تعطيل منظومة WhatsApp في إدارة تطبيقات النظام'
+
                     with transaction.atomic():
                         log_defaults = {
                             "account": account_obj,
@@ -298,7 +307,9 @@ def process_whatsapp_webhook_task(self, payload: dict):
                             "sent_via": 'MOBILE_APP' if direction == 'OUTBOUND_MOBILE' else 'SYSTEM',
                             "message_type": msg_type if msg_type in dict(WhatsAppMessageLog.MESSAGE_TYPE_CHOICES) else 'unknown',
                             "body_text": body_text[:2000],
-                            "status": 'DELIVERED' if direction == 'INBOUND' else 'SENT',
+                            "status": msg_status,
+                            "error_code": msg_error_code,
+                            "error_message": msg_error_message,
                             "has_media": bool(media_id),
                             "media_id": media_id,
                             "is_automatic": False,
@@ -343,6 +354,12 @@ def execute_whatsapp_campaign_task(self, campaign_id: int):
     campaign = WhatsAppCampaign.objects.filter(pk=campaign_id).first()
     if not campaign or campaign.status != 'RUNNING':
         return {"success": False, "error": "الحملة غير نشطة"}
+
+    from core.services.whatsapp_service import WhatsAppService
+    if not WhatsAppService.is_enabled():
+        campaign.status = 'PAUSED'
+        campaign.save(update_fields=['status'])
+        return {"success": False, "error": "تم إيقاف الحملة: منظومة WhatsApp معطلة في إدارة تطبيقات النظام"}
 
     pending_recipients = list(campaign.recipients.filter(status='PENDING').values_list('id', flat=True))
     throttle_rate = max(1, campaign.throttle_rate)  # عدد الرسائل في الثانية (افتراضياً 15)

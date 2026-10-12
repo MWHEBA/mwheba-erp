@@ -101,10 +101,11 @@ class SystemSetting(models.Model):
                 'enable_quotations': ('quotations', 'customers_sales'),
                 'enable_sales_orders': ('sales_orders', 'customers_sales'),
                 'enable_purchase_orders': ('purchase_orders', 'suppliers_purchases'),
+                'whatsapp_enabled': ('whatsapp', None),
             }
             try:
                 # Check if SystemModule has any matching submodule records
-                existing_submodules = {m.code: m.is_enabled for m in SystemModule.objects.filter(code__in=['quotations', 'sales_orders', 'purchase_orders', 'customers_sales', 'suppliers_purchases'])}
+                existing_submodules = {m.code: m.is_enabled for m in SystemModule.objects.filter(code__in=['quotations', 'sales_orders', 'purchase_orders', 'customers_sales', 'suppliers_purchases', 'whatsapp'])}
                 for setting_key, (sub_code, parent_code) in MODULE_BRIDGE_MAP.items():
                     if sub_code in existing_submodules:
                         is_sub_on = existing_submodules[sub_code]
@@ -129,6 +130,7 @@ class SystemSetting(models.Model):
         cache.delete('company_info_v1')
         cache.delete('default_currency_symbol')
         cache.delete('default_currency_symbol_en')
+        cache.delete('module_enabled_whatsapp')
 
     @classmethod
     def invalidate_cache(cls):
@@ -179,6 +181,7 @@ class SystemSetting(models.Model):
             'enable_quotations': ('quotations', 'customers_sales'),
             'enable_sales_orders': ('sales_orders', 'customers_sales'),
             'enable_purchase_orders': ('purchase_orders', 'suppliers_purchases'),
+            'whatsapp_enabled': ('whatsapp', None),
         }
         if key in MODULE_BRIDGE_MAP:
             sub_code, parent_code = MODULE_BRIDGE_MAP[key]
@@ -233,12 +236,26 @@ class SystemSetting(models.Model):
             'enable_quotations': 'quotations',
             'enable_sales_orders': 'sales_orders',
             'enable_purchase_orders': 'purchase_orders',
+            'whatsapp_enabled': 'whatsapp',
         }
         if self.key in MODULE_BRIDGE_MAP:
             sub_code = MODULE_BRIDGE_MAP[self.key]
             is_true = str(self.value).strip().lower() in ("true", "1", "yes", "on", "نعم")
             try:
-                SystemModule.objects.filter(code=sub_code).update(is_enabled=is_true)
+                if sub_code == 'whatsapp':
+                    updated = SystemModule.objects.filter(code='whatsapp').update(is_enabled=is_true)
+                    if not updated:
+                        SystemModule.objects.bulk_create([
+                            SystemModule(
+                                code='whatsapp',
+                                name_ar='رسائل WhatsApp',
+                                name_en='WhatsApp Messaging',
+                                module_type='optional',
+                                is_enabled=is_true
+                            )
+                        ], ignore_conflicts=True)
+                else:
+                    SystemModule.objects.filter(code=sub_code).update(is_enabled=is_true)
             except Exception:
                 pass
 
@@ -1415,6 +1432,42 @@ class SystemModule(models.Model):
             'missing': [dep for dep in deps if not dep.is_enabled]
         }
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # مزامنة SystemSetting التلقائية إذا كان الموديول هو WhatsApp
+        if self.code == 'whatsapp':
+            try:
+                updated = SystemSetting.objects.filter(key='whatsapp_enabled').update(
+                    value='true' if self.is_enabled else 'false'
+                )
+                if not updated:
+                    SystemSetting.objects.bulk_create([
+                        SystemSetting(
+                            key='whatsapp_enabled',
+                            value='true' if self.is_enabled else 'false',
+                            data_type='boolean',
+                            group='whatsapp',
+                            is_active=True
+                        )
+                    ], ignore_conflicts=True)
+            except Exception:
+                pass
+        try:
+            from django.core.cache import cache
+            cache.delete(f'module_enabled_{self.code}')
+            SystemSetting.invalidate_all_system_caches()
+        except Exception:
+            pass
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        try:
+            from django.core.cache import cache
+            cache.delete(f'module_enabled_{self.code}')
+            SystemSetting.invalidate_all_system_caches()
+        except Exception:
+            pass
+
 
 # ============================================================
 # ENTERPRISE DOCUMENT MANAGEMENT SYSTEM (DMS) MODELS
@@ -1803,6 +1856,7 @@ class WhatsAppMessageLog(models.Model):
         ('READ', _('تمت القراءة 👁️')),
         ('FAILED', _('فشل الإرسال')),
         ('SKIPPED', _('تم التخطي (رقم غير صالح / Opt-Out)')),
+        ('SUSPENDED', _('وارد أثناء التعطيل ⏸️')),
     ]
 
     # مصفوفة التدرج الآمن لمنع ارتداد الحالات للخلف
@@ -1813,6 +1867,7 @@ class WhatsAppMessageLog(models.Model):
         'READ': 3,
         'FAILED': 99,
         'SKIPPED': 99,
+        'SUSPENDED': 2,
     }
 
     DIRECTION_CHOICES = [

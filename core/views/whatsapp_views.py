@@ -49,9 +49,36 @@ def _check_whatsapp_permission(user, content_object=None):
     return True
 
 
+from functools import wraps
+
+
+def _require_whatsapp_module_enabled(view_func):
+    """
+    حارس إغلاق موديول الواتساب من بابه:
+    يمنع الوصول إلى أي صفحة من صفحات الواتساب نهائياً إذا كان الموديول معطلاً في إدارة تطبيقات النظام
+    حتى للمدير العام (Superuser)، ويقوم بتحويله فوراً إلى صفحة تطبيقات النظام لتفعيل الموديول أولاً.
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        from core.models import SystemModule, SystemSetting
+        mod = SystemModule.objects.filter(code='whatsapp').first()
+        is_enabled = mod.is_enabled if mod else SystemSetting.get_bool("whatsapp_enabled", True)
+        if not is_enabled:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.path.startswith('/api/'):
+                return JsonResponse({
+                    'success': False,
+                    'error': _('منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام.')
+                }, status=403)
+            messages.error(request, _('عذراً، تطبيق WhatsApp معطّل حالياً في تطبيقات النظام ويجب تفعيله أولاً من إدارة تطبيقات النظام.'))
+            return redirect('core:module_management')
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
 # ==================== 1. شاشة الإعدادات المؤسسية بـ 5 تبويبات ====================
 
 @login_required
+@_require_whatsapp_module_enabled
 def whatsapp_settings_view(request):
     """
     شاشة إدارة إعدادات WhatsApp Business Cloud API الرسمية
@@ -61,12 +88,11 @@ def whatsapp_settings_view(request):
         from django.http import Http404
         raise Http404()
 
-    active_tab = request.GET.get('tab') or request.POST.get('active_tab') or 'connection'
+    active_tab = request.GET.get('tab') or request.POST.get('active_tab') or request.POST.get('tab') or 'connection'
 
     # معالجة حفظ الإعدادات عبر النموذج
     if request.method == "POST":
         whatsapp_settings_map = {
-            "whatsapp_enabled":              ("boolean", request.POST.get("whatsapp_enabled") == "on"),
             "whatsapp_app_id":               ("string",  request.POST.get("whatsapp_app_id", "").strip()),
             "whatsapp_embedded_config_id":   ("string",  request.POST.get("whatsapp_embedded_config_id", "").strip()),
             "whatsapp_app_secret":            ("string",  request.POST.get("whatsapp_app_secret", "").strip()),
@@ -81,6 +107,10 @@ def whatsapp_settings_view(request):
             "whatsapp_skip_landlines":       ("boolean", request.POST.get("whatsapp_skip_landlines") == "on"),
             "whatsapp_honor_opt_out":        ("boolean", request.POST.get("whatsapp_honor_opt_out") == "on"),
         }
+
+        # حماية سويتش تشغيل المنظومة من المسح الصامت عند حفظ تبويبات فرعية
+        if active_tab == 'connection' or "whatsapp_enabled" in request.POST:
+            whatsapp_settings_map["whatsapp_enabled"] = ("boolean", request.POST.get("whatsapp_enabled") == "on")
 
         # حماية بيانات الاعتماد الحساسة من المسح التلقائي إذا لم يتم إرسالها في النموذج
         for cred_key in ["whatsapp_access_token", "whatsapp_phone_number_id", "whatsapp_waba_id"]:
@@ -358,6 +388,9 @@ def whatsapp_send_test_message_api(request):
     phone = data.get("phone", "").strip()
     template_name = data.get("template_name", "").strip() or None
 
+    if not WhatsAppService.is_enabled():
+        return JsonResponse({"success": False, "error": _("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام")}, status=400)
+
     if not phone:
         return JsonResponse({"success": False, "error": _("يرجى إدخال رقم هاتف المستلم التجريبي")}, status=400)
 
@@ -474,7 +507,7 @@ def whatsapp_prepare_send(request):
     can_send = doc_info['can_send'] and is_service_enabled
     cannot_send_reason = ""
     if not is_service_enabled:
-        cannot_send_reason = _("خدمة WhatsApp غير مفعلة في إعدادات النظام")
+        cannot_send_reason = _("منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام")
     elif is_opt_out and honor_opt_out:
         can_send = False
         cannot_send_reason = _("تم إيقاف الإرسال: العميل قام بإلغاء الاشتراك مسبقاً (Opt-Out)")
@@ -532,7 +565,7 @@ def whatsapp_send_document(request):
             account_id = None
 
         if not WhatsAppService.is_enabled():
-            return JsonResponse({'success': False, 'error': _('خدمة WhatsApp السحابية معطلة حالياً في إعدادات النظام')}, status=400)
+            return JsonResponse({'success': False, 'error': _('منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام')}, status=400)
 
         if not ct_id or not obj_id or not phone:
             return JsonResponse({'success': False, 'error': _('البيانات غير مكتملة (رقم الهاتف والمستند مطلوبان)')}, status=400)
@@ -741,10 +774,6 @@ def whatsapp_webhook_view(request):
     if request.method != "POST":
         return HttpResponse(status=405)
 
-    # إسقاط الـ Payload في الذاكرة والرد بـ 200 OK صامتاً إذا كانت المنظومة مقفولة
-    if not WhatsAppService.is_enabled():
-        return HttpResponse("EVENT_RECEIVED", status=200)
-
     payload_bytes = request.body
 
     # 2. فحص توقيع HMAC-SHA256
@@ -790,6 +819,7 @@ def whatsapp_webhook_view(request):
 # ==================== 5. سجل المراقبة والتحكم المؤسسي الشامل (Phase 4 Logs & Resend) ====================
 
 @login_required
+@_require_whatsapp_module_enabled
 def whatsapp_logs_list(request):
     """
     سجل ومراقبة رسائل الواتساب السحابية الموحد مع التصفية والفرز والـ KPI
@@ -961,6 +991,9 @@ def whatsapp_resend_message_api(request, log_id):
     """
     if not _check_whatsapp_permission(request.user):
         return JsonResponse({'success': False, 'error': _('ليس لديك الصلاحية لإعادة إرسال رسائل الواتساب')}, status=403)
+
+    if not WhatsAppService.is_enabled():
+        return JsonResponse({'success': False, 'error': _('منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام')}, status=400)
 
     log_entry = get_object_or_404(WhatsAppMessageLog, pk=log_id)
 
@@ -1221,6 +1254,7 @@ def whatsapp_embedded_signup_callback_api(request):
 # ==================== 6. واجهات الشات الحي والمحادثات المباشرة (Phase 4 Live Chat & APIs) ====================
 
 @login_required
+@_require_whatsapp_module_enabled
 def whatsapp_live_chat_view(request):
     """
     شاشة المحادثات الحية المباشرة مع العملاء والموردين وتعدد الحسابات
@@ -1281,6 +1315,7 @@ def whatsapp_live_chat_view(request):
         'customer_tiers': customer_tiers,
         'header_buttons': header_buttons,
         'show_breadcrumb': False,
+        'is_service_enabled': WhatsAppService.is_enabled(),
     }
 
     return render(request, "core/whatsapp_live_chat.html", context)
@@ -1562,8 +1597,11 @@ def whatsapp_chat_send_text_api(request):
     إرسال رسالة نصية حرة داخل نافذة الـ 24 ساعة من واجهة الشات الحي
     POST /api/whatsapp/chat/send-text/
     """
-    if not request.user.is_superuser and not request.user.has_perm('core.can_use_whatsapp_live_chat') and not request.user.has_perm('core.can_send_whatsapp'):
+    if not _check_whatsapp_permission(request.user) and not request.user.has_perm('core.can_use_whatsapp_live_chat'):
         return JsonResponse({'success': False, 'error': _('غير مصرح لك بإرسال الرسائل')}, status=403)
+
+    if not WhatsAppService.is_enabled():
+        return JsonResponse({'success': False, 'error': _('منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام')}, status=400)
 
     try:
         data = json.loads(request.body) if request.body else request.POST
@@ -1719,6 +1757,7 @@ def whatsapp_chat_convert_lead_api(request):
 # ==================== 7. إدارة الحملات والإشعارات الجماعية وخنق التدفق (Phase 5 Campaigns) ====================
 
 @login_required
+@_require_whatsapp_module_enabled
 def whatsapp_campaigns_list_view(request):
     """
     شاشة إدارة الحملات والإشعارات الجماعية وكشوف الحسابات عبر WhatsApp
@@ -1803,7 +1842,7 @@ def whatsapp_campaigns_list_view(request):
     ]
 
     context = {
-        'title': _('إدارة الحملات — WhatsApp Campaigns'),
+        'title': _('إدارة الحملات والإشعارات الجماعية — WhatsApp Campaigns'),
         'subtitle': _('إدارة ومتابعة بث الرسائل الجماعية عبر خنق التدفق ومراقبة الجودة'),
         'icon': 'fab fa-whatsapp',
         'page_obj': page_obj,
@@ -1819,6 +1858,7 @@ def whatsapp_campaigns_list_view(request):
         'filter_q': search_q,
         'filter_status': status,
         'filter_campaign_type': campaign_type,
+        'is_service_enabled': WhatsAppService.is_enabled(),
         **pagination_context,
     }
 
@@ -1911,6 +1951,9 @@ def whatsapp_campaign_launch_api(request, campaign_id):
     """
     if not request.user.is_superuser and not request.user.has_perm('core.can_broadcast_whatsapp_campaigns') and not request.user.has_perm('core.can_send_whatsapp'):
         return JsonResponse({'success': False, 'error': _('غير مصرح لك بإطلاق الحملات')}, status=403)
+
+    if not WhatsAppService.is_enabled():
+        return JsonResponse({'success': False, 'error': _('منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام')}, status=400)
 
     from ..services.whatsapp_campaign_service import WhatsAppCampaignService
     res = WhatsAppCampaignService.launch_campaign(campaign_id, triggered_by=request.user)

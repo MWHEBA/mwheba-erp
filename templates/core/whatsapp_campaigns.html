@@ -9,6 +9,19 @@
     <!-- Page Header المركزي (Rule 6) -->
     {% include "shared/page_header.html" %}
 
+    {% if not is_service_enabled %}
+    <div class="alert alert-warning d-flex align-items-center mb-3 py-2 px-3 border-0 shadow-sm rounded" role="alert">
+        <i class="fas fa-exclamation-triangle fs-5 me-2 text-warning"></i>
+        <div>
+            <strong>{% trans "تنبيه إداري:" %}</strong>
+            {% trans "منظومة WhatsApp معطلة حالياً في إدارة تطبيقات النظام. تم إيقاف بث الحملات مؤقتاً لحماية رصيد Meta وتقييم جودة الرقم." %}
+            {% if request.user.is_superuser %}
+            <a href="{% url 'core:module_management' %}" class="btn btn-sm btn-outline-dark ms-2 py-0">{% trans "إدارة التطبيقات" %}</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 1. بطاقات الإحصائيات الحيوية KPI Cards (Rule 7: Never wrapped in .section-container) -->
     <div class="row g-3 mb-4" id="whatsappCampaignsKPI">
         <!-- Total Campaigns -->
