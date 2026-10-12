@@ -276,7 +276,7 @@
                 var self = this;
 
                 // ضبط العملة الحالية إن وجدت
-                var currencySymbol = this._currentOptions.currencySymbol || $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
+                var currencySymbol = this._currentOptions.currencySymbol || (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
                 $('.qp-currency-symbol').text('(' + currencySymbol + ')');
 
                 // قراءة نوع المورد أو الخيار الممرر لضبط التبويب الافتراضي
@@ -744,7 +744,7 @@
 
                                 // تحديث كاش الأصناف العام
                                 window._allProducts = window._allProducts || [];
-                                window._allProducts.push({
+                                var newProductObj = {
                                     id: p.id,
                                     name: p.name,
                                     code: p.code || p.sku || '',
@@ -757,7 +757,11 @@
                                     stock: p.stock || 0,
                                     category_id: p.category_id,
                                     category_name: p.category_name
-                                });
+                                };
+                                window._allProducts.push(newProductObj);
+                                if (window._stockData) {
+                                    window._stockData[String(p.id)] = newProductObj;
+                                }
 
                                 // إغلاق المودال
                                 var modalEl = document.getElementById('quickProductModal');
@@ -795,17 +799,21 @@
                 var $container = $('#items-container');
                 if (!$container.length) return;
 
-                // البحث عن سطر فارغ أو استخدام السطر الأخير
+                // البحث عن سطر فارغ أو استخدام السطر الذي فُتح منه المودال
                 var $targetRow = null;
-                $container.find('.item-row').each(function() {
-                    var $row = $(this);
-                    var prodId = $row.find('.product-id-input').val();
-                    var codeVal = $row.find('.product-code-input').val();
-                    if (!prodId && (!codeVal || codeVal.trim() === '')) {
-                        $targetRow = $row;
-                        return false;
-                    }
-                });
+                if (window.ProductPicker && window.ProductPicker._activePickerRow && window.ProductPicker._activePickerRow.length && window.ProductPicker._activePickerRow.closest('body').length) {
+                    $targetRow = window.ProductPicker._activePickerRow;
+                } else {
+                    $container.find('.item-row').each(function() {
+                        var $row = $(this);
+                        var prodId = $row.find('.product-id-input').val();
+                        var codeVal = $row.find('.product-code-input').val();
+                        if (!prodId && (!codeVal || codeVal.trim() === '')) {
+                            $targetRow = $row;
+                            return false;
+                        }
+                    });
+                }
 
                 // لو مفيش سطر فارغ، نضغط على إضافة بند
                 if (!$targetRow) {
@@ -815,6 +823,9 @@
 
                 if ($targetRow && $targetRow.length && window.ProductPicker) {
                     window.ProductPicker.applyProductToRow($targetRow, product, 'modal');
+                    if (window.ProductPicker) {
+                        window.ProductPicker._activePickerRow = null;
+                    }
                     
                     // نقل التركيز فورياً لحقل الكمية
                     setTimeout(function() {

@@ -34,7 +34,7 @@
                     </div>
                     <!-- زر إضافة صنف جديد سريع -->
                     <div class="col-md-3 col-6 text-md-center">
-                        <button type="button" class="btn btn-sm btn-outline-success w-100" id="btn-picker-add-product" onclick="if(window.openQuickProductModal){$('#productPickerModal').modal('hide'); window.openQuickProductModal();}">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100" id="btn-picker-add-product" onclick="if(typeof openQuickProductFromPicker === 'function'){openQuickProductFromPicker();}else if(window.openQuickProductModal){$('#productPickerModal').modal('hide'); window.openQuickProductModal();}">
                             <i class="fas fa-plus-circle me-1"></i> {% trans "إضافة صنف جديد" %}
                         </button>
                     </div>

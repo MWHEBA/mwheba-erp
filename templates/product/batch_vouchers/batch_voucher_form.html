@@ -318,6 +318,9 @@
             <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
                 <i class="fa fa-plus me-1"></i> <span id="add-btn-text">إضافة بند</span>
             </button>
+            <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-batch-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
+                <i class="fas fa-box-open me-1"></i> إضافة صنف جديد
+            </button>
         </div>
 
         <!-- القسم الثالث: الملخص والملاحظات -->
@@ -381,6 +384,7 @@
 
 <!-- Product Picker Modal -->
 {% include 'components/product_picker_modal.html' %}
+{% include 'components/quick_product_modal.html' %}
 {% endblock %}
 
 {% block extra_js %}

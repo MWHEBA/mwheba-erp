@@ -60,6 +60,10 @@ class TestBatchVoucherViews:
         assert 'form' in response.context
         assert 'warehouses' in response.context
         assert b'id="batch-voucher-form"' in response.content
+        assert b'id="productPickerModal"' in response.content
+        assert b'id="quickProductModal"' in response.content
+        assert b'btn-picker-add-product' in response.content
+        assert b'btn-batch-new-product' in response.content
 
     def test_batch_voucher_create_post(self, client):
         client.login(username='voucher_user', password='password123')

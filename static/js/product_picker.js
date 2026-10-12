@@ -1031,8 +1031,12 @@
             } else {
                 $codeInput.removeClass('is-valid is-invalid');
             }
-            
-            var effectivePrice = (product.selling_price !== undefined && product.selling_price !== null) ? product.selling_price : product.price;
+            var effectivePrice;
+            if (self.options && self.options.priceField === 'cost_price') {
+                effectivePrice = (product.cost_price !== undefined && product.cost_price !== null) ? product.cost_price : ((product.price !== undefined && product.price !== null) ? product.price : product.selling_price);
+            } else {
+                effectivePrice = (product.selling_price !== undefined && product.selling_price !== null) ? product.selling_price : product.price;
+            }
 
             // تحديد الرصيد الفعلي للصنف مع فحص أرصدة المخازن لتفادي التصفير الخاطئ
             var effectiveStock = parseFloat(product.stock !== undefined ? product.stock : 0);
@@ -1464,6 +1468,27 @@
 
     window.renderStockInfo = function($row, stock) {
         ProductPicker.renderStockInfo($row, stock);
+    };
+
+    window.openQuickProductFromPicker = function() {
+        if (!window.openQuickProductModal) {
+            console.warn('openQuickProductModal is not defined.');
+            return;
+        }
+        var pickerEl = document.getElementById('productPickerModal');
+        if (pickerEl && $(pickerEl).hasClass('show')) {
+            $(pickerEl).one('hidden.bs.modal', function () {
+                window.openQuickProductModal();
+            });
+            var bsModal = (window.bootstrap && bootstrap.Modal) ? (bootstrap.Modal.getInstance(pickerEl) || new bootstrap.Modal(pickerEl)) : null;
+            if (bsModal) {
+                bsModal.hide();
+            } else {
+                $(pickerEl).modal('hide');
+            }
+        } else {
+            window.openQuickProductModal();
+        }
     };
 
     window.ProductPicker = ProductPicker;
