@@ -90,6 +90,7 @@ class WhatsAppService:
         cache.delete("whatsapp_config")
         cache.delete("whatsapp_health_status")
         cache.delete("whatsapp_health_cache")
+        cache.delete("global_settings_dict_v2")
 
     # ==================== قراءة وتشفير الإعدادات (3-Tier Backward Compatible Resolution) ====================
 
@@ -313,16 +314,12 @@ class WhatsAppService:
 
     @classmethod
     def _format_num_clean(cls, val: Any) -> str:
-        """تنسيق الأرقام مع إزالة العلامة العشرية للأرقام الصحيحة تماماً وفواصل الآلاف"""
+        """تنسيق الأرقام مع الحفاظ الصارم على منزلتين عشريتين وفواصل الآلاف وفق القاعدة الثالثة Rule 3"""
         if val is None or val == "":
-            return "0"
+            return "0.00"
         try:
             d = Decimal(str(val))
-            if d == d.to_integral():
-                return f"{int(d):,}"
-            else:
-                # إذا كان به كسور فعلية تظهر بمنزلتين
-                return f"{d:,.2f}"
+            return f"{d:,.2f}"
         except Exception:
             return str(val)
 
@@ -382,6 +379,23 @@ class WhatsAppService:
             add_opt(label, contact_phone)
 
         return options
+
+    @classmethod
+    def get_partner_best_mobile(cls, partner: Any) -> str:
+        """
+        استخراج أفضل رقم محمول للشريك للواتساب وتجاوز الأرقام الأرضية
+        يعيد رقماً مطبعاً بالصيغة الدولية E.164، أو نصاً فارغاً إذا لم يتوفر
+        """
+        if not partner:
+            return ""
+        contact_options = cls.get_partner_contact_options(partner)
+        for opt in contact_options:
+            if not opt.get("is_landline") and opt.get("phone"):
+                return opt["phone"]
+        # إذا كانت كل الأرقام أرضية أو لا توجد خيارات واضحة، نأخذ أول خيار متاح
+        if contact_options and contact_options[0].get("phone"):
+            return contact_options[0]["phone"]
+        return ""
 
     # ==================== عمليات الرفع والإرسال لـ Meta Cloud ====================
 
@@ -492,7 +506,10 @@ class WhatsAppService:
         if cache.get(lock_key) or not cache.add(lock_key, "locked", timeout=15):
             return {"success": False, "error": "جاري إرسال نفس الرسالة لهذا الرقم بالفعل، يرجى الانتظار بضع ثوانٍ"}
 
-        config = cls.get_config()
+        config = cls.get_config(account=account, account_id=account_id)
+        if not config.get('enabled'):
+            return {"success": False, "error": "منظومة WhatsApp السحابية معطلة حالياً في إعدادات النظام"}
+
         token = account.decrypted_access_token if (account and account.decrypted_access_token) else config.get('access_token')
         phone_id = account.phone_number_id if (account and account.phone_number_id) else config.get('phone_number_id')
 
@@ -1464,9 +1481,14 @@ class WhatsAppService:
     def send_async(cls, **kwargs):
         """
         إرسال غير متزامن يدعم المحرك المزدوج (Dual-Engine):
-        1. يحاول إدراج المهمة في Celery Queue 'notifications'.
-        2. في حال عدم توفر البروكر أو حدوث OperationalError، يتحول تلقائياً لـ Daemon Thread.
+        1. قاطع الدائرة الفوري في المهد إذا كانت المنظومة مقفولة.
+        2. يحاول إدراج المهمة في Celery Queue 'notifications'.
+        3. في حال عدم توفر البروكر أو حدوث OperationalError، يتحول تلقائياً لـ Daemon Thread.
         """
+        account = kwargs.get('account')
+        account_id = kwargs.get('account_id')
+        if not cls.is_enabled(account=account, account_id=account_id):
+            return False
         try:
             from ..tasks.whatsapp_tasks import send_whatsapp_task
             send_whatsapp_task.delay(**kwargs)

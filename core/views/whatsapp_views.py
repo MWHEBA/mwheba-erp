@@ -57,12 +57,9 @@ def whatsapp_settings_view(request):
     شاشة إدارة إعدادات WhatsApp Business Cloud API الرسمية
     بمعمارية الـ 5 تبويبات (Rule 6, Rule 7, Rule 8, Rule 10)
     """
-    if not request.user.is_superuser and not request.user.has_perm('core.can_send_whatsapp'):
-        if not getattr(request.user, 'is_admin', False):
-            return render(request, "core/permission_denied.html", {
-                "title": _("غير مصرح"),
-                "message": _("ليس لديك صلاحية للوصول إلى إعدادات الواتساب السحابية")
-            })
+    if not request.user.is_superuser:
+        from django.http import Http404
+        raise Http404()
 
     active_tab = request.GET.get('tab') or request.POST.get('active_tab') or 'connection'
 
@@ -72,9 +69,6 @@ def whatsapp_settings_view(request):
             "whatsapp_enabled":              ("boolean", request.POST.get("whatsapp_enabled") == "on"),
             "whatsapp_app_id":               ("string",  request.POST.get("whatsapp_app_id", "").strip()),
             "whatsapp_embedded_config_id":   ("string",  request.POST.get("whatsapp_embedded_config_id", "").strip()),
-            "whatsapp_access_token":          ("string",  request.POST.get("whatsapp_access_token", "").strip()),
-            "whatsapp_phone_number_id":      ("string",  request.POST.get("whatsapp_phone_number_id", "").strip()),
-            "whatsapp_waba_id":               ("string",  request.POST.get("whatsapp_waba_id", "").strip()),
             "whatsapp_app_secret":            ("string",  request.POST.get("whatsapp_app_secret", "").strip()),
             "whatsapp_default_country_code":  ("string",  request.POST.get("whatsapp_default_country_code", "+20").strip()),
             "whatsapp_fallback_template":    ("string",  request.POST.get("whatsapp_fallback_template", "document_send_ar").strip()),
@@ -87,6 +81,13 @@ def whatsapp_settings_view(request):
             "whatsapp_skip_landlines":       ("boolean", request.POST.get("whatsapp_skip_landlines") == "on"),
             "whatsapp_honor_opt_out":        ("boolean", request.POST.get("whatsapp_honor_opt_out") == "on"),
         }
+
+        # حماية بيانات الاعتماد الحساسة من المسح التلقائي إذا لم يتم إرسالها في النموذج
+        for cred_key in ["whatsapp_access_token", "whatsapp_phone_number_id", "whatsapp_waba_id"]:
+            if cred_key in request.POST:
+                val = request.POST.get(cred_key, "").strip()
+                if val:
+                    whatsapp_settings_map[cred_key] = ("string", val)
 
         for key, (data_type, value) in whatsapp_settings_map.items():
             str_value = str(value).lower() if isinstance(value, bool) else str(value)
@@ -114,7 +115,7 @@ def whatsapp_settings_view(request):
         "app_secret": SystemSetting.get_setting("whatsapp_app_secret", ""),
         "skip_landlines": SystemSetting.get_setting("whatsapp_skip_landlines", True),
         "honor_opt_out": SystemSetting.get_setting("whatsapp_honor_opt_out", True),
-        "webhook_verify_token": SystemSetting.get_setting("whatsapp_webhook_verify_token", "MWHEBA_ERP_SECURE_TOKEN_2026"),
+        "webhook_verify_token": SystemSetting.get_setting("whatsapp_webhook_verify_token", getattr(settings, "WHATSAPP_WEBHOOK_VERIFY_TOKEN", "")),
     })
 
     # بناء رابط الـ Webhook العام
@@ -530,6 +531,9 @@ def whatsapp_send_document(request):
         else:
             account_id = None
 
+        if not WhatsAppService.is_enabled():
+            return JsonResponse({'success': False, 'error': _('خدمة WhatsApp السحابية معطلة حالياً في إعدادات النظام')}, status=400)
+
         if not ct_id or not obj_id or not phone:
             return JsonResponse({'success': False, 'error': _('البيانات غير مكتملة (رقم الهاتف والمستند مطلوبان)')}, status=400)
 
@@ -573,6 +577,52 @@ def whatsapp_send_document(request):
     except Exception as exc:
         logger.exception(f"Unexpected error in whatsapp_send_document: {exc}")
         return JsonResponse({'success': False, 'error': f"حدث خطأ أثناء الإرسال: {str(exc)}"}, status=500)
+
+
+@login_required
+@require_GET
+def whatsapp_download_document_pdf(request):
+    """
+    تحميل ملف PDF للمستند لغرض المشاركة اليدوية عبر واتساب
+    GET /api/whatsapp/pdf-download/?content_type_id=X&object_id=Y
+    """
+    ct_id = request.GET.get('content_type_id')
+    obj_id = request.GET.get('object_id')
+    if not ct_id or not obj_id:
+        return HttpResponseBadRequest("معرف المستند غير مكتمل")
+
+    try:
+        content_type = ContentType.objects.get(id=ct_id)
+        model_class = content_type.model_class()
+        content_object = model_class.objects.get(pk=obj_id)
+    except Exception as e:
+        return HttpResponseBadRequest(f"المستند غير موجود: {e}")
+
+    # التحقق من صلاحية مشاهدة المستند نفسه دون اشتراط صلاحية الواتساب السحابية
+    if content_object and not request.user.is_superuser and not request.user.is_staff:
+        app_label = content_object._meta.app_label
+        model_name = content_object._meta.model_name
+        view_perm = f"{app_label}.view_{model_name}"
+        change_perm = f"{app_label}.change_{model_name}"
+        if not request.user.has_perm(view_perm) and not request.user.has_perm(change_perm):
+            return HttpResponseForbidden("ليس لديك الصلاحية لتحميل هذا المستند")
+
+    extra_params = {
+        'from_date': request.GET.get('from_date', ''),
+        'to_date': request.GET.get('to_date', ''),
+    }
+
+    try:
+        pdf_bytes, filename = DocumentDispatcher.render_document_pdf_bytes(content_object, extra_params=extra_params)
+        if not pdf_bytes:
+            return HttpResponseBadRequest("تعذر توليد ملف الـ PDF لهذا المستند")
+
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        logger.exception(f"Error rendering PDF for manual WhatsApp: {e}")
+        return HttpResponseBadRequest(f"خطأ أثناء توليد الـ PDF: {e}")
 
 
 @login_required
@@ -680,9 +730,9 @@ def whatsapp_webhook_view(request):
         mode = request.GET.get("hub.mode")
         token = request.GET.get("hub.verify_token")
         challenge = request.GET.get("hub.challenge")
-        expected_token = SystemSetting.get_setting("whatsapp_webhook_verify_token", "MWHEBA_ERP_SECURE_TOKEN_2026")
+        expected_token = SystemSetting.get_setting("whatsapp_webhook_verify_token", getattr(settings, "WHATSAPP_WEBHOOK_VERIFY_TOKEN", ""))
         
-        if mode == "subscribe" and token == expected_token:
+        if mode == "subscribe" and expected_token and token == expected_token:
             logger.info("✅ تم التحقق من اشتراك Meta Webhook بنجاح")
             return HttpResponse(challenge, content_type="text/plain")
         logger.warning(f"❌ فشل التحقق من Meta Webhook token: {token}")
@@ -690,6 +740,10 @@ def whatsapp_webhook_view(request):
 
     if request.method != "POST":
         return HttpResponse(status=405)
+
+    # إسقاط الـ Payload في الذاكرة والرد بـ 200 OK صامتاً إذا كانت المنظومة مقفولة
+    if not WhatsAppService.is_enabled():
+        return HttpResponse("EVENT_RECEIVED", status=200)
 
     payload_bytes = request.body
 

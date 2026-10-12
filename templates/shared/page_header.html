@@ -451,48 +451,155 @@ function generateBrowserPDF(fileName) {
 
 function formatInternationalPhone(phone) {
     if (!phone) return "";
-    let cleaned = phone.replace(/[^\d+]/g, '');
+    let easternDigits = '٠١٢٣٤٥٦٧٨٩';
+    let s = String(phone);
+    for (let i = 0; i < easternDigits.length; i++) {
+        s = s.split(easternDigits[i]).join(i.toString());
+    }
+    let cleaned = s.replace(/[^\d+]/g, '').trim();
     if (cleaned.startsWith('00')) cleaned = cleaned.substring(2);
     if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
     if (cleaned.startsWith('01') && cleaned.length === 11) {
         cleaned = '2' + cleaned;
+    } else if (cleaned.startsWith('05') && cleaned.length === 10) {
+        cleaned = '966' + cleaned.substring(1);
     }
     return cleaned;
 }
 
-function shareWhatsAppPDF(phone, docNumber, docTitle, pdfUrl, printUrl) {
-    let formattedPhone = formatInternationalPhone(phone);
-    let targetPdfUrl = pdfUrl || (window.location.pathname.replace(/\/$/, '') + '/pdf/');
-    let fileName = (docNumber || 'Document') + '.pdf';
+function shareWhatsAppPDF(phoneOrOpts, docNumber, docTitle, pdfUrl, printUrl) {
+    let opts = {};
+    if (phoneOrOpts && typeof phoneOrOpts === 'object') {
+        opts = phoneOrOpts;
+    } else {
+        opts = {
+            phone: phoneOrOpts,
+            docNumber: docNumber,
+            docTitle: docTitle,
+            pdfUrl: pdfUrl,
+            printUrl: printUrl,
+            hasPdf: true
+        };
+    }
+
+    let rawPhone = opts.phone || '';
+    let formattedPhone = formatInternationalPhone(rawPhone);
+    let docNum = opts.docNumber || '';
+    let title = opts.docTitle || '{% if is_english %}Document{% else %}مستند{% endif %}';
+    let targetPdfUrl = opts.pdfUrl || (window.location.pathname.replace(/\/$/, '') + '/pdf/');
+    let hasPdf = (opts.hasPdf !== undefined && opts.hasPdf !== null) ? Boolean(opts.hasPdf) : true;
+    let fileName = (docNum || 'Document') + '.pdf';
+
+    // توريث معايير الفلترة الحالية لكشف الحساب
+    if (targetPdfUrl.indexOf('statement-pdf') !== -1 && window.location.search) {
+        let separator = targetPdfUrl.indexOf('?') === -1 ? '?' : '&';
+        targetPdfUrl += separator + window.location.search.replace(/^\?/, '');
+    }
+
+    let defaultMsg = `مستند ${title} رقم ${docNum}`.trim();
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    // روابط الواتساب الذكية (التطبيق المكتبي/المحمول مقابل واتساب ويب)
+    let appUrl = formattedPhone ? 
+        `whatsapp://send?phone=${formattedPhone}&text=${encodeURIComponent(defaultMsg)}` : 
+        `whatsapp://send?text=${encodeURIComponent(defaultMsg)}`;
+    let webUrl = formattedPhone ? 
+        `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(defaultMsg)}` : 
+        `https://web.whatsapp.com/send?text=${encodeURIComponent(defaultMsg)}`;
+
+    // 1. حالة الموبايل: فتح تطبيق الواتساب مباشرة
+    if (isMobile && !hasPdf) {
+        showToastNotification("{% if is_english %}Opening WhatsApp...{% else %}جاري فتح تطبيق الواتساب...{% endif %}");
+        window.location.href = appUrl;
+        return;
+    }
+
+    // 2. حالة الكمبيوتر: فتح المودال المؤسسي الموحد داخل نفس الصفحة دون أي صفحة فارغة
+    function showDesktopModal() {
+        let waModalEl = document.getElementById('waManualShareModal');
+        if (waModalEl && typeof bootstrap !== 'undefined') {
+            let docTitleEl = document.getElementById('waModalDocTitle');
+            if (docTitleEl) docTitleEl.textContent = `${title} ${docNum}`.trim();
+            
+            let btnApp = document.getElementById('waModalBtnApp');
+            if (btnApp) {
+                btnApp.href = appUrl;
+                btnApp.onclick = function() {
+                    window.location.href = appUrl;
+                    bootstrap.Modal.getOrCreateInstance(waModalEl).hide();
+                    return false;
+                };
+            }
+            
+            let btnWeb = document.getElementById('waModalBtnWeb');
+            if (btnWeb) {
+                btnWeb.href = webUrl;
+                btnWeb.onclick = function() {
+                    window.open(webUrl, '_blank');
+                    bootstrap.Modal.getOrCreateInstance(waModalEl).hide();
+                    return false;
+                };
+            }
+            
+            let bsModal = bootstrap.Modal.getOrCreateInstance(waModalEl);
+            bsModal.show();
+
+            // محاولة استدعاء برنامج الويندوز تلقائياً عبر iframe مخفي
+            setTimeout(function() {
+                try {
+                    let hiddenFrame = document.getElementById('waHiddenProtocolFrame');
+                    if (!hiddenFrame) {
+                        hiddenFrame = document.createElement('iframe');
+                        hiddenFrame.id = 'waHiddenProtocolFrame';
+                        hiddenFrame.style.display = 'none';
+                        document.body.appendChild(hiddenFrame);
+                    }
+                    hiddenFrame.src = appUrl;
+                } catch(e) {}
+            }, 300);
+        } else {
+            window.open(webUrl, '_blank');
+        }
+    }
+
+    if (!isMobile) {
+        showDesktopModal();
+    }
+
+    // في حال عدم وجود ملف PDF (مثل إشعارات وسندات القبض المالية) - قفز فوري
+    if (!hasPdf) {
+        showToastNotification("{% if is_english %}Opening WhatsApp...{% else %}جاري فتح محادثة الواتساب...{% endif %}");
+        if (isMobile) {
+            window.location.href = appUrl;
+        }
+        return;
+    }
+
     showToastNotification("{% if is_english %}Preparing PDF document for WhatsApp...{% else %}جاري إرفاق وتجهيز مستند الـ PDF للواتساب...{% endif %}");
-    
+
     fetch(targetPdfUrl, { credentials: 'same-origin' })
         .then(response => {
-            if (!response.ok) throw new Error("Network error");
+            if (!response.ok) throw new Error("Network error fetching PDF");
             return response.blob();
         })
         .then(async blob => {
             let file = new File([blob], fileName, { type: 'application/pdf' });
-            
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
                         files: [file],
-                        title: `${docTitle} #${docNumber}`,
-                        text: `مستند ${docTitle} رقم #${docNumber}`
+                        title: `${title} ${docNum}`.trim(),
+                        text: defaultMsg
                     });
                     showToastNotification("{% if is_english %}PDF file shared successfully!{% else %}تمت مشاركة مستند الـ PDF بنجاح!{% endif %}");
                     return;
                 } catch (shareErr) {
-                    if (shareErr.name !== 'AbortError') {
-                        console.log('Share API fallback:', shareErr);
-                    } else {
-                        return;
-                    }
+                    if (shareErr.name === 'AbortError') return;
                 }
             }
-            
+
+            // Local-First Guarantee: تنزيل الملف محلياً أولاً
             let blobUrl = URL.createObjectURL(blob);
             let link = document.createElement('a');
             link.href = blobUrl;
@@ -501,25 +608,21 @@ function shareWhatsAppPDF(phone, docNumber, docTitle, pdfUrl, printUrl) {
             link.click();
             document.body.removeChild(link);
             setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-            
-            try {
-                if (navigator.clipboard && window.ClipboardItem) {
-                    await navigator.clipboard.write([
-                        new ClipboardItem({ [blob.type]: blob })
-                    ]);
-                }
-            } catch (clipErr) {}
-            
-            showToastNotification("{% if is_english %}PDF downloaded! Paste (Ctrl+V) or attach in WhatsApp chat.{% else %}تم تنزيل المستند! اضغط (Ctrl+V) أو أرفق الملف المحمل جوة محادثة الواتساب.{% endif %}");
-            
-            let waUrl = formattedPhone ? `https://api.whatsapp.com/send?phone=${formattedPhone}` : `https://web.whatsapp.com/`;
-            setTimeout(function() {
-                window.open(waUrl, '_blank');
-            }, 800);
+
+            showToastNotification("{% if is_english %}PDF downloaded! Attach file in WhatsApp chat.{% else %}تم تنزيل المستند! أرفق الملف المحمل داخل محادثة الواتساب.{% endif %}");
+
+            if (isMobile) {
+                setTimeout(function() {
+                    window.location.href = appUrl;
+                }, 500);
+            }
         })
         .catch(err => {
-            let waUrl = formattedPhone ? `https://api.whatsapp.com/send?phone=${formattedPhone}` : `https://web.whatsapp.com/`;
-            window.open(waUrl, '_blank');
+            console.warn("PDF Fetch Fallback:", err);
+            showToastNotification("{% if is_english %}Could not load PDF automatically, opening WhatsApp directly.{% else %}تعذر تحميل ملف الـ PDF تلقائياً، جاري فتح المحادثة مباشرة.{% endif %}");
+            if (isMobile) {
+                window.location.href = appUrl;
+            }
         });
 }
 
@@ -608,17 +711,79 @@ function getCsrfTokenHeader() {
 }
 
 function showToastNotification(msg) {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(msg, 'info');
+        return;
+    }
+    if (typeof toastr !== 'undefined' && typeof toastr.info === 'function') {
+        toastr.info(msg);
+        return;
+    }
     let toast = document.getElementById("headerToast");
     if (!toast) {
         toast = document.createElement("div");
         toast.id = "headerToast";
-        toast.style.cssText = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: #ffffff; padding: 10px 22px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 9999; box-shadow: 0 4px 14px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s ease;";
+        toast.style.cssText = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: var(--primary-dark, #1f2937); color: var(--color-white, #ffffff); padding: 10px 22px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 9999; box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,0.2)); opacity: 0; transition: opacity 0.3s ease;";
         document.body.appendChild(toast);
     }
     toast.innerText = msg;
     toast.style.opacity = "1";
     setTimeout(() => { toast.style.opacity = "0"; }, 3000);
 }
+
+/**
+ * معترض استدعاءات مودال الواتساب عند إغلاق المنظومة السحابية
+ * يحول الطلبات تلقائياً وبسلاسة تامة إلى مشاركة المستند المباشرة (Zero-Trace Fallback)
+ * يدعم التوقيع الهجين (Polymorphic Signature)
+ */
+if (typeof window.openWhatsAppModal !== 'function') {
+    window.openWhatsAppModal = function(optionsOrPhone, docNumber, docTitle, pdfUrl, printUrl) {
+        if (optionsOrPhone && typeof optionsOrPhone === 'object') {
+            shareWhatsAppPDF(optionsOrPhone);
+        } else {
+            shareWhatsAppPDF(optionsOrPhone, docNumber, docTitle, pdfUrl, printUrl);
+        }
+    };
+}
+
+/**
+ * دالة تشغيل المودال أو المشاركة المباشرة عبر الأزرار الحاملة لـ data-attributes
+ */
+if (typeof window.triggerWhatsAppModal !== 'function') {
+    window.triggerWhatsAppModal = function(btn) {
+        if (!btn) return;
+        const ctId = btn.getAttribute('data-ct-id') || btn.getAttribute('data-content-type-id');
+        const objId = btn.getAttribute('data-obj-id') || btn.getAttribute('data-object-id');
+        const partnerId = btn.getAttribute('data-partner-id') || null;
+        const partnerType = btn.getAttribute('data-partner-type') || 'customer';
+        const phone = btn.getAttribute('data-phone') || '';
+        const docNumber = btn.getAttribute('data-doc-number') || '';
+        const docTitle = btn.getAttribute('data-doc-title') || '';
+        const pdfUrl = btn.getAttribute('data-pdf-url') || '';
+        const hasPdf = btn.getAttribute('data-has-pdf') !== 'false';
+
+        window.openWhatsAppModal({
+            contentTypeId: ctId,
+            objectId: objId,
+            partnerId: partnerId,
+            partnerType: partnerType,
+            phone: phone,
+            docNumber: docNumber,
+            docTitle: docTitle,
+            pdfUrl: pdfUrl,
+            hasPdf: hasPdf
+        });
+    };
+}
+
+// مستمع النقرات العام لأزرار [data-wa-trigger] لضمان عدم موت أي زر نهائياً
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-wa-trigger]');
+    if (btn) {
+        e.preventDefault();
+        window.triggerWhatsAppModal(btn);
+    }
+});
 </script>
 
 <style>
@@ -640,6 +805,54 @@ function showToastNotification(msg) {
   }
 </style>
 
+{% if settings.whatsapp_enabled %}
 {% include "components/whatsapp_send_modal.html" %}
+{% endif %}
+
+<!-- مودال المشاركة الذكية للواتساب على الكمبيوتر (Rule 8 & Rule 2 Compliant) -->
+<div class="modal fade" id="waManualShareModal" tabindex="-1" aria-labelledby="waManualShareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="waManualShareModalLabel">
+                    <i class="fab fa-whatsapp text-success me-2"></i>{% if is_english %}Share via WhatsApp{% else %}مشاركة عبر WhatsApp{% endif %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-light text-success" style="width: 60px; height: 60px; font-size: 28px;">
+                        <i class="fab fa-whatsapp"></i>
+                    </span>
+                </div>
+                <h5 class="fw-bold mb-2 text-dark" id="waModalDocTitle">{% if is_english %}Document Ready to Share{% else %}المستند جاهز للمشاركة{% endif %}</h5>
+                <p class="text-muted small mb-4">
+                    {% if is_english %}
+                        Click "Open Desktop App" to use the installed WhatsApp application, or continue with WhatsApp Web:
+                    {% else %}
+                        يرجى النقر على «فتح تطبيق WhatsApp» لتشغيل برنامج الكمبيوتر، أو استخدام واتساب ويب مباشرة:
+                    {% endif %}
+                </p>
+
+                <div class="d-grid gap-2">
+                    <a id="waModalBtnApp" href="#" class="btn btn-success py-2 fw-bold">
+                        <i class="fas fa-desktop me-2"></i>{% if is_english %}Open WhatsApp Desktop App{% else %}فتح تطبيق WhatsApp للكمبيوتر{% endif %}
+                    </a>
+                    <a id="waModalBtnWeb" href="#" target="_blank" class="btn btn-outline-secondary py-2">
+                        <i class="fas fa-globe me-2"></i>{% if is_english %}Use WhatsApp Web{% else %}استخدام واتساب ويب (Web){% endif %}
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3 d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    <i class="fas fa-paperclip me-1"></i>{% if is_english %}Attach downloaded PDF in chat{% else %}أرفق الملف المنزَّل داخل الشات{% endif %}
+                </small>
+                <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">
+                    {% if is_english %}Close{% else %}إغلاق{% endif %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 

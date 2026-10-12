@@ -510,3 +510,24 @@ class TestWhatsAppPhase3API:
         assert acc.quality_rating == "GREEN"
         assert acc.account_status == "CONNECTED"
 
+    def test_partner_best_mobile_selection(self):
+        """التحقق من انتقاء أفضل رقم محمول للشريك وتجاوز الأرقام الأرضية"""
+        cust = Customer.objects.create(
+            name="عميل تجريبي بأرقام متعددة",
+            code="CUST-PHASE3-TEST",
+            phone="0223456789",          # أرضي القاهرة
+            phone_primary="01099887766"   # محمول فودافون مصر
+        )
+        best_mobile = WhatsAppService.get_partner_best_mobile(cust)
+        assert best_mobile == "201099887766"
+
+        # اختبار الشريك بدون محمول ولكن برقم أرضي
+        supp = Supplier.objects.create(
+            name="مورد بأرضي فقط",
+            code="SUPP-LANDLINE-ONLY",
+            phone="034567890"             # أرضي إسكندرية
+        )
+        supp_mobile = WhatsAppService.get_partner_best_mobile(supp)
+        assert supp_mobile != ""  # يعيد الرقم المطبع كـ fallback إذا لم يتوفر محمول
+
+

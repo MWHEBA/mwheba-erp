@@ -2,6 +2,7 @@
 Delivery Note Views - Warehouse & Sales Fulfillment Management
 إدارة إذون تسليم البضائع والربط المخزني والمحاسبي وقيد تكلفة البضاعة المباعة
 """
+import json
 import logging
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
@@ -23,6 +24,7 @@ from sale.models import Sale
 from sale.services.sales_service import SalesService
 from product.models.stock_management import Warehouse
 from customer.models import Customer
+from core.services.whatsapp_service import WhatsAppService
 from financial.models import JournalEntry
 from financial.exceptions import FinancialCoreError
 from users.services.data_scoping_service import DataScopingService
@@ -282,7 +284,7 @@ def delivery_note_detail(request, pk):
             "class": "btn-outline-success",
             "items": [
                 {
-                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(DeliveryNote).id}, objectId: {dn.pk}, partnerId: {dn.customer.pk if dn.customer else 'null'}, partnerType: 'customer'}})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(DeliveryNote).id, 'objectId': dn.pk, 'partnerId': dn.customer.pk if dn.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(dn.customer), 'docNumber': dn.delivery_number or str(dn.pk), 'docTitle': 'إذن تسليم بضاعة', 'pdfUrl': reverse('sale:delivery_note_pdf', kwargs={'pk': dn.pk}), 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

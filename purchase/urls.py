@@ -33,6 +33,7 @@ from .views import (
     grn_approve,
     grn_post,
     grn_reverse,
+    grn_pdf,
     # Purchase Order Views
     po_list,
     po_create,
@@ -125,6 +126,7 @@ urlpatterns = [
     path("grn/create/", grn_create, name="grn_create"),
     path("grn/create/<int:purchase_id>/", grn_create, name="grn_create_for_purchase"),
     path("grn/<int:pk>/", grn_detail, name="grn_detail"),
+    path("grn/<int:pk>/pdf/", grn_pdf, name="grn_pdf"),
     path("grn/<int:pk>/submit/", grn_submit, name="grn_submit"),
     path("grn/<int:pk>/approve/", grn_approve, name="grn_approve"),
     path("grn/<int:pk>/post/", grn_post, name="grn_post"),

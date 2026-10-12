@@ -7,6 +7,7 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils import timezone
 from django.http import JsonResponse
+import json
 from decimal import Decimal
 from django.db.models import Sum, ProtectedError, Q
 
@@ -14,6 +15,7 @@ from .models import WorkOrder
 from .forms import WorkOrderForm
 from .decorators import check_work_orders_enabled
 from customer.models import Customer, CustomerPayment
+from core.services.whatsapp_service import WhatsAppService
 from sale.models import Sale, SalePayment, Quotation
 from sale.models.return_model import SaleReturn
 from purchase.models import Purchase
@@ -616,7 +618,7 @@ def work_order_detail(request, pk):
         "icon": "fab fa-whatsapp",
         "text": _("إرسال واتساب"),
         "class": "btn-success",
-        "onclick": f"openWhatsAppModal({{contentTypeId: {wo_ct_id}, objectId: {work_order.pk}, partnerId: {cust_id or 'null'}, partnerType: 'customer'}}); return false;",
+        "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': wo_ct_id, 'objectId': work_order.pk, 'partnerId': cust_id or None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(work_order.customer), 'docNumber': work_order.number or str(work_order.pk), 'docTitle': 'أمر شغل تصنيع', 'pdfUrl': reverse('work_order:work_order_pdf', kwargs={'pk': work_order.pk}), 'hasPdf': True})}); return false;",
     })
 
     context.update({

@@ -10,6 +10,7 @@ from rest_framework import status
 import json
 
 User = get_user_model()
+TEST_USER_PASSWORD = "test_user_key"
 
 
 class APIAuthenticationTest(APITestCase):
@@ -20,7 +21,7 @@ class APIAuthenticationTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             email="api@test.com"
         )
         
@@ -52,7 +53,7 @@ class APIEndpointsTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )
@@ -95,7 +96,7 @@ class APIResponseFormatTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True
         )
         self.client.force_authenticate(user=self.user)
@@ -139,14 +140,14 @@ class APIPermissionsTest(APITestCase):
         self.regular_user = User.objects.create_user(
             username="regular",
             email="regular@test.com",
-            password="regular123"
+            password=TEST_USER_PASSWORD
         )
         
         # مستخدم موظف
         self.staff_user = User.objects.create_user(
             username="staff",
             email="staff@test.com",
-            password="staff123",
+            password=TEST_USER_PASSWORD,
             is_staff=True
         )
         
@@ -154,7 +155,7 @@ class APIPermissionsTest(APITestCase):
         self.admin_user = User.objects.create_user(
             username="admin",
             email="admin@test.com",
-            password="admin123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )
@@ -196,7 +197,7 @@ class APICRUDOperationsTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )
@@ -259,7 +260,7 @@ class APIErrorHandlingTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )
@@ -299,7 +300,7 @@ class APIVersioningTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )
@@ -370,7 +371,7 @@ class APIIntegrationTest(APITestCase):
         self.client = APIClient()
         self.user = User.objects.create_user(
             username="apiuser",
-            password="apipass123",
+            password=TEST_USER_PASSWORD,
             is_staff=True,
             is_superuser=True
         )

@@ -1,3 +1,4 @@
+import json
 import uuid
 import logging
 from decimal import Decimal
@@ -11,6 +12,7 @@ from django.core.paginator import Paginator
 from django.contrib.contenttypes.models import ContentType
 
 from customer.models import Customer
+from core.services.whatsapp_service import WhatsAppService
 from sale.models import Sale, CreditNote
 from sale.services.sales_reversal_service import SalesReversalService
 from users.decorators import require_permission
@@ -262,7 +264,7 @@ def credit_note_detail(request, pk):
                 "class": "btn-outline-success",
                 "items": [
                     {
-                        "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(CreditNote).id}, objectId: {credit_note.pk}, partnerId: {credit_note.customer.pk if credit_note.customer else 'null'}, partnerType: 'customer'}})",
+                        "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(CreditNote).id, 'objectId': credit_note.pk, 'partnerId': credit_note.customer.pk if credit_note.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(credit_note.customer), 'docNumber': credit_note.credit_note_number or str(credit_note.pk), 'docTitle': 'إشعار خصم دائن', 'pdfUrl': reverse('sale:credit_note_pdf', kwargs={'pk': credit_note.pk}), 'hasPdf': True})})",
                         "icon": "fab fa-whatsapp text-success",
                         "text": _("إرسال واتساب")
                     },

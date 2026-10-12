@@ -23,6 +23,7 @@ from product.models import Product, Warehouse
 from supplier.models import Supplier
 from django.contrib.contenttypes.models import ContentType
 from core.models import SystemSetting
+from core.services.whatsapp_service import WhatsAppService
 from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
@@ -821,7 +822,7 @@ def purchase_detail(request, pk):
                             "text": "تحميل PDF"
                         },
                         {
-                            "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Purchase).id}, objectId: {purchase.pk}, partnerId: {purchase.supplier.pk if purchase.supplier else 'null'}, partnerType: 'supplier'}})",
+                            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(Purchase).id, 'objectId': purchase.pk, 'partnerId': purchase.supplier.pk if purchase.supplier else None, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(purchase.supplier), 'docNumber': purchase.number or str(purchase.pk), 'docTitle': 'فاتورة مشتريات', 'pdfUrl': reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk}), 'hasPdf': True})})",
                             "icon": "fab fa-whatsapp text-success",
                             "text": "إرسال واتساب"
                         },

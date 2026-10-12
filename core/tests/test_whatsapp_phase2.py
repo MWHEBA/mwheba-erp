@@ -586,3 +586,36 @@ class TestWhatsAppViewsAPI:
         data = response.json()
         assert data["success"] is False
         assert "الصلاحية" in data["error"]
+
+    def test_clean_customer_statement_pdf_endpoint(self, client):
+        """التحقق من عمل مسار كشف حساب العميل النظيف بدون لمس مسارات الواتساب"""
+        perm = Permission.objects.get(codename="view_customer")
+        self.user.user_permissions.add(perm)
+        client.force_login(self.user)
+
+        url = reverse("customer:customer_statement_pdf", kwargs={"pk": self.customer.pk})
+        resp = client.get(url)
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/pdf"
+        assert "filename=" in resp["Content-Disposition"]
+
+    def test_clean_grn_pdf_endpoint(self, client):
+        """التحقق من عمل مسار إذن الاستلام النظيف"""
+        from purchase.models.procurement_models import GoodsReceivedNote
+        from supplier.models import Supplier
+        perm = Permission.objects.get(codename="view_goodsreceivednote")
+        self.user.user_permissions.add(perm)
+        client.force_login(self.user)
+
+        supplier = Supplier.objects.create(name="مورد أذون الاستلام", code="SUPP-GRN-01")
+        grn = GoodsReceivedNote.objects.create(
+            supplier=supplier,
+            warehouse=self.warehouse,
+            grn_number="GRN-TEST-PHASE4-01",
+            status="DRAFT"
+        )
+        url = reverse("purchase:grn_pdf", kwargs={"pk": grn.pk})
+        resp = client.get(url)
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "application/pdf"
+        assert "GRN" in resp["Content-Disposition"]

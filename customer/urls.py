@@ -12,6 +12,7 @@ urlpatterns = [
     path("<int:pk>/delete/", views.customer_delete, name="customer_delete"),
     path("<int:pk>/reactivate/", views.customer_reactivate, name="customer_reactivate"),
     path("<int:pk>/detail/", views.customer_detail, name="customer_detail"),
+    path("<int:pk>/statement-pdf/", views.customer_statement_pdf, name="customer_statement_pdf"),
     path(
         "<int:pk>/change-account/",
         views.customer_change_account,

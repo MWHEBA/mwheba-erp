@@ -25,6 +25,7 @@ from purchase.services.procurement_service import ProcurementService
 from supplier.models import Supplier
 from product.models import Warehouse, Product, ProductVariant, Unit
 from core.services.sequence_service import SequenceService
+from core.services.whatsapp_service import WhatsAppService
 from core.enums.document_types import DocumentType
 from financial.exceptions import FinancialCoreError
 
@@ -670,7 +671,7 @@ def po_detail(request, pk):
                 "text": _("تحميل PDF")
             },
             {
-                "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(PurchaseOrder).id}, objectId: {po.pk}, partnerId: {po.supplier.pk if po.supplier else 'null'}, partnerType: 'supplier'}})",
+                "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(PurchaseOrder).id, 'objectId': po.pk, 'partnerId': po.supplier.pk if po.supplier else None, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(po.supplier), 'docNumber': po.order_number or str(po.pk), 'docTitle': 'أمر شراء', 'pdfUrl': reverse('purchase:po_pdf_download', kwargs={'pk': po.pk}), 'hasPdf': True})})",
                 "icon": "fab fa-whatsapp text-success",
                 "text": _("إرسال واتساب")
             },

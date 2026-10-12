@@ -552,3 +552,28 @@ class TestWhatsAppPhase1SalesAndFinancialDocuments:
         assert res["message_id"] == "wamid.INV9988"
         mock_send.assert_called_once()
 
+    def test_circuit_breaker_when_disabled(self):
+        """التحقق من قاطع الدائرة في send_async عند تعطيل الخدمة"""
+        SystemSetting.objects.update_or_create(
+            key="whatsapp_enabled",
+            defaults={"value": "false", "data_type": "boolean", "group": "whatsapp", "is_active": True}
+        )
+        from django.core.cache import cache
+        cache.clear()
+        WhatsAppService.reset_session()
+
+        result = WhatsAppService.send_async(
+            phone="01012345678",
+            template_name="document_send_ar"
+        )
+        assert result is False
+
+    def test_reset_session_cache_invalidation(self):
+        """التحقق من مسح كاش الإعدادات فوراً في 0 ثانية عند reset_session"""
+        from django.core.cache import cache
+        cache.set("global_settings_dict_v2", {"whatsapp_enabled": True}, 300)
+        assert cache.get("global_settings_dict_v2") is not None
+
+        WhatsAppService.reset_session()
+        assert cache.get("global_settings_dict_v2") is None
+

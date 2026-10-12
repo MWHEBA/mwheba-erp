@@ -17,6 +17,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
+import json
 from utils.templatetags.utils_extras import smart_float
 from .models import (
     Supplier,
@@ -25,6 +26,7 @@ from .models import (
 )
 from .forms import SupplierForm, SupplierAccountChangeForm
 from purchase.models import Purchase, PurchaseItem
+from core.services.whatsapp_service import WhatsAppService
 from financial.models import ChartOfAccounts, Currency
 from users.decorators import require_permission
 from .decorators import require_printing_pricing_enabled
@@ -2187,7 +2189,7 @@ def supplier_detail(request, pk):
             "icon": "fab fa-whatsapp",
             "text": _("إرسال كشف الحساب واتساب"),
             "class": "btn-success",
-            "onclick": f"openWhatsAppModal({{contentTypeId: {supplier_ct_id}, objectId: {supplier.pk}, partnerId: {supplier.pk}, partnerType: 'supplier'}}); return false;",
+            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': supplier_ct_id, 'objectId': supplier.pk, 'partnerId': supplier.pk, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier), 'docNumber': supplier.code or str(supplier.name), 'docTitle': 'كشف حساب مورد', 'pdfUrl': reverse('supplier:supplier_statement_pdf', kwargs={'pk': supplier.pk}), 'hasPdf': True})}); return false;",
         },
     ]
 

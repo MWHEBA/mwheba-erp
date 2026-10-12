@@ -469,7 +469,7 @@
                         </a>
                         {% endif %}
                         
-                        <button type="button" class="btn btn-outline-success" data-wa-trigger data-content-type-id="{{ payment_content_type_id }}" data-object-id="{{ payment.pk }}" data-partner-id="{{ sale.customer.pk }}" data-partner-type="customer">
+                        <button type="button" class="btn btn-outline-success btn-wa-action" data-wa-trigger data-content-type-id="{{ payment_content_type_id }}" data-object-id="{{ payment.pk }}" data-partner-id="{{ payment.customer.pk|default:sale.customer.pk }}" data-partner-type="customer" data-has-pdf="false" data-doc-number="{{ payment.payment_code|default:payment.pk }}" data-doc-title="{% trans 'سند قبض مالي' %}" data-phone="{{ payment.customer.phone_primary|default:payment.customer.phone|default:sale.customer.phone_primary|default:sale.customer.phone }}">
                             <i class="fab fa-whatsapp me-1"></i>{% trans "إرسال إشعار سداد (واتساب)" %}
                         </button>
                         
@@ -493,7 +493,6 @@
     </div>
 </div>
 
-{% include "components/whatsapp_send_modal.html" %}
 {% endblock %}
 
 {% block extra_js %}

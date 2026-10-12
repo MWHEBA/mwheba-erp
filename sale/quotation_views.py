@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 
 from functools import wraps
 from core.models import SystemSetting
+from core.services.whatsapp_service import WhatsAppService
 from customer.models import Customer
 from product.models import Product, Warehouse, Stock
 from sale.models import Quotation, QuotationItem, Sale
@@ -782,7 +783,7 @@ def quotation_detail(request, pk):
                     "text": _("تحميل PDF")
                 },
                 {
-                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Quotation).id}, objectId: {quotation.pk}, partnerId: {quotation.customer.pk if quotation.customer else 'null'}, partnerType: 'customer'}})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(Quotation).id, 'objectId': quotation.pk, 'partnerId': quotation.customer.pk if quotation.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(quotation.customer), 'docNumber': quotation.number or str(quotation.pk), 'docTitle': 'عرض أسعار', 'pdfUrl': reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk}), 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

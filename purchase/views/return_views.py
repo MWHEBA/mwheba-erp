@@ -12,6 +12,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from django.urls import reverse
 from decimal import Decimal
+import json
 import logging
 
 from django.core.paginator import Paginator
@@ -20,6 +21,7 @@ from supplier.models import Supplier
 from purchase.models import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from purchase.forms import PurchaseReturnForm
 from core.models import SystemSetting
+from core.services.whatsapp_service import WhatsAppService
 from users.services.data_scoping_service import DataScopingService
 
 logger = logging.getLogger(__name__)
@@ -400,12 +402,13 @@ def purchase_return_detail(request, pk):
             },
         ])
     elif purchase_return.status == 'confirmed':
+        supplier_obj = getattr(purchase_return.purchase, 'supplier', None) if getattr(purchase_return, 'purchase', None) else None
         header_buttons.append({
             "url": "#",
             "icon": "fab fa-whatsapp",
             "text": "إرسال واتساب",
             "class": "btn-success",
-            "onclick": f"openWhatsAppModal({{contentTypeId: {ct_id}, objectId: {purchase_return.pk}, partnerId: {supplier_id or 'null'}, partnerType: 'supplier'}}); return false;",
+            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ct_id, 'objectId': purchase_return.pk, 'partnerId': supplier_id or None, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier_obj), 'docNumber': purchase_return.number or str(purchase_return.pk), 'docTitle': 'مرتجع مشتريات', 'pdfUrl': reverse('purchase:purchase_return_pdf', kwargs={'pk': purchase_return.pk}), 'hasPdf': True})}); return false;",
         })
 
     context = {

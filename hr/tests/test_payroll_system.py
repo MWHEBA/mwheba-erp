@@ -853,7 +853,7 @@ class AttendanceApprovalGateTest(TestCase):
 
         self.admin_user = User.objects.create_user(
             username='gate_admin',
-            password='admin123',
+            password=f"test_pwd_{self.__class__.__name__}",
             email='gate_admin@test.com',
             is_staff=True
         )

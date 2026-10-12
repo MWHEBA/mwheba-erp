@@ -1911,3 +1911,22 @@ def allocate_customer_prepaid(request, pk):
     return redirect("customer:customer_detail", pk=pk)
 
 
+@login_required
+@require_permission('customer.view_customer')
+def customer_statement_pdf(request, pk):
+    """
+    تحميل كشف حساب العميل بصيغة PDF بشكل معياري ونظيف مع توريث فلاتر الفترة والعملة
+    """
+    from django.http import HttpResponse, HttpResponseBadRequest
+    from core.services.document_dispatcher import DocumentDispatcher
+    customer = get_object_or_404(Customer, pk=pk)
+    try:
+        pdf_bytes, filename = DocumentDispatcher.render_document_pdf_bytes(customer, extra_params=request.GET)
+        if not pdf_bytes:
+            return HttpResponseBadRequest(_("تعذر توليد ملف PDF لكشف الحساب"))
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        logger.exception(f"Error generating customer statement PDF: {e}")
+        return HttpResponseBadRequest(f"خطأ أثناء توليد الـ PDF: {e}")

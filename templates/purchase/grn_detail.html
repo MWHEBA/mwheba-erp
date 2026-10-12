@@ -84,7 +84,7 @@
       </button>
 
       {% if grn.supplier %}
-      <button type="button" class="btn btn-outline-success" data-wa-trigger data-content-type-id="{{ grn_content_type_id }}" data-object-id="{{ grn.pk }}" data-partner-id="{{ grn.supplier.pk }}" data-partner-type="supplier">
+      <button type="button" class="btn btn-outline-success btn-wa-action" data-wa-trigger data-content-type-id="{{ grn_content_type_id }}" data-object-id="{{ grn.pk }}" data-partner-id="{{ grn.supplier.pk }}" data-partner-type="supplier" data-has-pdf="true" data-doc-number="{{ grn.grn_number|default:grn.pk }}" data-doc-title="{% trans 'إذن استلام بضاعة' %}" data-pdf-url="{% url 'purchase:grn_pdf' grn.pk %}" data-phone="{{ grn.supplier.phone_primary|default:grn.supplier.phone }}">
         <i class="fab fa-whatsapp me-1"></i> {% trans "إرسال واتساب" %}
       </button>
       {% endif %}
@@ -292,5 +292,4 @@
 </div>
 {% endif %}
 
-{% include "components/whatsapp_send_modal.html" %}
 {% endblock %}

@@ -28,6 +28,7 @@ from sale.services import SaleService
 from product.models import Product, Warehouse, SerialNumber
 from customer.models import Customer
 from core.models import SystemSetting
+from core.services.whatsapp_service import WhatsAppService
 from financial.models import CostCenter
 from users.decorators import require_permission
 from users.services.data_scoping_service import DataScopingService
@@ -860,7 +861,7 @@ def sale_detail(request, pk):
                             "text": "تحميل PDF"
                         },
                         {
-                            "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(Sale).id}, objectId: {sale.pk}, partnerId: {sale.customer.pk if sale.customer else 'null'}, partnerType: 'customer'}})",
+                            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(Sale).id, 'objectId': sale.pk, 'partnerId': sale.customer.pk if sale.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(sale.customer), 'docNumber': sale.number or str(sale.pk), 'docTitle': 'فاتورة مبيعات', 'pdfUrl': reverse('sale:sale_pdf_download', kwargs={'pk': sale.pk}), 'hasPdf': True})})",
                             "icon": "fab fa-whatsapp text-success",
                             "text": "إرسال واتساب"
                         },
@@ -1941,7 +1942,7 @@ def sale_return_detail(request, pk):
             "class": "btn-outline-success",
             "items": [
                 {
-                    "onclick": f"openWhatsAppModal({{contentTypeId: {ContentType.objects.get_for_model(SaleReturn).id}, objectId: {sale_return.pk}, partnerId: {sale_return.sale.customer.pk if sale_return.sale and sale_return.sale.customer else 'null'}, partnerType: 'customer'}})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(SaleReturn).id, 'objectId': sale_return.pk, 'partnerId': sale_return.sale.customer.pk if sale_return.sale and sale_return.sale.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(sale_return.sale.customer if sale_return.sale else None), 'docNumber': sale_return.number or str(sale_return.pk), 'docTitle': 'مرتجع مبيعات', 'pdfUrl': reverse('sale:sale_return_pdf', kwargs={'pk': sale_return.pk}), 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

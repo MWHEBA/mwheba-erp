@@ -626,7 +626,7 @@
                 <i class="fas fa-book-open me-1"></i>{% trans "كشف الأستاذ العام (GL)" %}
               </a>
               {% endif %}
-              <button type="button" class="btn btn-sm btn-outline-success" data-wa-trigger data-content-type-id="{{ customer_content_type_id }}" data-object-id="{{ customer.pk }}" data-partner-id="{{ customer.pk }}" data-partner-type="customer">
+              <button type="button" class="btn btn-sm btn-outline-success btn-wa-action" data-wa-trigger data-content-type-id="{{ customer_content_type_id }}" data-object-id="{{ customer.pk }}" data-partner-id="{{ customer.pk }}" data-partner-type="customer" data-has-pdf="true" data-doc-number="{{ customer.code|default:customer.name }}" data-doc-title="{% trans 'كشف حساب عميل' %}" data-pdf-url="{% url 'customer:customer_statement_pdf' customer.pk %}" data-phone="{{ customer.phone_primary|default:customer.phone }}">
                 <i class="fab fa-whatsapp me-1"></i>{% trans "إرسال كشف الحساب عبر الواتساب" %}
               </button>
               <button class="btn btn-sm btn-outline-primary" onclick="window.print()">

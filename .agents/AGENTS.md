@@ -96,5 +96,14 @@
   2. Running precise safety checks/dry-runs prior to execution.
   3. Fully verifying the integrity of all modified files with `pytest` and Django check immediately afterwards.
 
+## 12. Git & Secrets Health Inspection Directive
+- **Automatic Execution on User Command**: Whenever the user asks for Git issues, secrets, leaks, or health (e.g. «هاتلي اخطاء ال git / مصايب الـ git / فحص الجيت / مشاكل gitguardian»), the agent MUST immediately run `python scripts/check_git_issues.py` (or `python manage.py check_git_issues`).
+- **Strict Single-Project Scope**: The tool and reporting MUST exclusively target this repository (`MWHEBA/mwheba-erp`), ignoring any unrelated projects on the GitGuardian account.
+- **Reporting Format**: Output must be presented concisely in Egyptian Arabic, highlighting:
+  1. Open/Triggered incidents count and severity breakdown.
+  2. Detector/secret types and impacted file paths in this project.
+  3. Direct resolution dashboard links.
+  4. Local Git cleanliness (uncommitted changes or untracked sensitive files).
+
 
 

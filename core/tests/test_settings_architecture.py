@@ -121,12 +121,12 @@ class TestSettingsArchitecture:
             "password_policy": "strong",
             "failed_login_attempts": 4,
             "account_lockout_time": 25,
-            "email_host": "smtp.office365.com",
+            "email_host": "smtp.example.com",
             "email_port": 587,
-            "email_username": "erp@mwheba.com",
+            "email_username": "test_erp@example.com",
             "email_password": "",  # فارغ عمداً
             "email_encryption": "tls",
-            "email_from": "erp@mwheba.com",
+            "email_from": "test_erp@example.com",
             "active_tab": "integration",
         }
         response = client.post(url, post_data)

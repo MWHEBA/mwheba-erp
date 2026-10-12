@@ -262,3 +262,23 @@ def grn_reverse(request, pk):
     except Exception as e:
         messages.error(request, _("حدث خطأ أثناء إجراء العكس: {}").format(str(e)))
     return redirect("purchase:grn_detail", pk=pk)
+
+
+@login_required
+@require_permission("purchase.view_goodsreceivednote")
+def grn_pdf(request, pk):
+    """تحميل إذن استلام البضاعة (GRN) بصيغة PDF بشكل معياري ونظيف"""
+    from django.http import HttpResponse, HttpResponseBadRequest
+    from core.services.document_dispatcher import DocumentDispatcher
+    grn = get_object_or_404(GoodsReceivedNote, pk=pk)
+    try:
+        pdf_bytes, filename = DocumentDispatcher.render_document_pdf_bytes(grn, extra_params=request.GET)
+        if not pdf_bytes:
+            return HttpResponseBadRequest(_("تعذر توليد ملف PDF لإذن الاستلام"))
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"Error generating GRN PDF: {e}")
+        return HttpResponseBadRequest(f"خطأ أثناء توليد الـ PDF: {e}")

@@ -69,7 +69,7 @@ class DocumentDispatcher:
             "cannot_send_reason": "",
             "has_pdf": True,
             "pdf_filename": "Document.pdf",
-            "template_name": "document_share_ar",
+            "template_name": "document_send_ar",
             "language_code": "ar",
             "financial_summary": "",
             "components": [],
@@ -117,7 +117,7 @@ class DocumentDispatcher:
             currency_code = getattr(getattr(content_object, "currency", None), "symbol", "ج.م")
 
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, currency_code)} | المتبقي: {WhatsAppService.format_currency_amount(remaining, currency_code)}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 2. عرض أسعار (Quotation)
@@ -138,7 +138,7 @@ class DocumentDispatcher:
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             currency_code = getattr(getattr(content_object, "currency", None), "symbol", "ج.م")
             info["financial_summary"] = f"إجمالي العرض: {WhatsAppService.format_currency_amount(grand_total, currency_code)}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 3. أمر بيع / طلبية (SalesOrder)
@@ -154,7 +154,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "grand_total", getattr(content_object, "total", 0))) or 0))
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 4. إذن تسليم بضاعة (DeliveryNote)
@@ -168,7 +168,7 @@ class DocumentDispatcher:
             info["status_display"] = getattr(content_object, "get_status_display", lambda: info["status"])()
             info["pdf_filename"] = f"DeliveryNote_{info['doc_number']}.pdf"
             info["financial_summary"] = "إذن تسليم واستلام بضاعة معتمد"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 5. مرتجع مبيعات (SaleReturn)
@@ -188,7 +188,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"إجمالي المرتجع: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 6. إشعار دائن (CreditNote)
@@ -204,24 +204,34 @@ class DocumentDispatcher:
 
             amount = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "amount", 0)) or 0))
             info["financial_summary"] = f"مبلغ الإشعار الدائن: {WhatsAppService.format_currency_amount(amount, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 7. كشف حساب عميل (Customer Statement)
         # ----------------------------------------------------
         elif model_name == "Customer":
-            info["doc_title"] = "كشف حساب عميل"
-            info["partner"] = content_object
-            info["partner_type"] = "customer"
-            from_date = extra_params.get("from_date", "")
-            to_date = extra_params.get("to_date", "")
-            date_label = f"{from_date} إلى {to_date}" if from_date and to_date else "الفترة الشاملة"
-            info["doc_number"] = f"{content_object.code} ({date_label})"
-            info["pdf_filename"] = f"Statement_{content_object.code}.pdf"
+            if extra_params.get("intent") == "welcome":
+                info["doc_title"] = "بطاقة ترحيب عميل جديد"
+                info["doc_number"] = getattr(content_object, "code", str(getattr(content_object, "pk", "")))
+                info["partner"] = partner or content_object
+                info["partner_type"] = "customer"
+                info["has_pdf"] = False
+                info["template_name"] = "welcome_new_customer"
+                info["status_display"] = "حساب عميل نشط ومسجل"
+                info["financial_summary"] = "ترحيب بتسجيل عميل جديد"
+            else:
+                info["doc_title"] = "كشف حساب عميل"
+                info["partner"] = content_object
+                info["partner_type"] = "customer"
+                from_date = extra_params.get("from_date", "")
+                to_date = extra_params.get("to_date", "")
+                date_label = f"{from_date} إلى {to_date}" if from_date and to_date else "الفترة الشاملة"
+                info["doc_number"] = f"{content_object.code} ({date_label})"
+                info["pdf_filename"] = f"Statement_{content_object.code}.pdf"
 
-            bal = Decimal(str(getattr(content_object, "balance", 0) or 0))
-            info["financial_summary"] = f"الرصيد الحالي: {WhatsAppService.format_currency_amount(bal, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+                bal = Decimal(str(getattr(content_object, "balance", 0) or 0))
+                info["financial_summary"] = f"الرصيد الحالي: {WhatsAppService.format_currency_amount(bal, 'ج.م')}"
+                info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 8 & 9. سندات القبض والدفع (Payment Vouchers / Receipts)
@@ -255,7 +265,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"DebitNote_{info['doc_number']}.pdf"
             amount = Decimal(str(getattr(content_object, "amount", 0) or 0))
             info["financial_summary"] = f"مبلغ الإشعار المدين: {WhatsAppService.format_currency_amount(amount, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 10.b قيد يومية معتمد (JournalEntry)
@@ -267,7 +277,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"JV_{info['doc_number']}.pdf"
             total_dr = Decimal(str(getattr(content_object, "total_debit", 0) or 0))
             info["financial_summary"] = f"إجمالي القيد: {WhatsAppService.format_currency_amount(total_dr, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 10.c مناقلات الخزائن والعهد (CustodyTransfer)
@@ -299,7 +309,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total_amount", getattr(content_object, "grand_total", getattr(content_object, "total", 0))) or 0))
             info["financial_summary"] = f"إجمالي أمر الشراء: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 12. إذن استلام بضاعة بالمخزن (GoodsReceivedNote / GRN)
@@ -313,7 +323,7 @@ class DocumentDispatcher:
             info["status_display"] = getattr(content_object, "get_status_display", lambda: info["status"])()
             info["pdf_filename"] = f"GRN_{info['doc_number']}.pdf"
             info["financial_summary"] = "إذن استلام بضاعة معتمد بالمخزن"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 12.b فاتورة مشتريات / مطالبة مورد (Purchase / SupplierBill)
@@ -329,7 +339,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"الإجمالي: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 13. مرتجع مشتريات (PurchaseReturn)
@@ -345,7 +355,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "total", getattr(content_object, "grand_total", 0)) or 0))
             info["financial_summary"] = f"إجمالي المرتجع: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 14. كشف حساب مورد (Supplier Statement)
@@ -362,7 +372,7 @@ class DocumentDispatcher:
 
             bal = Decimal(str(getattr(content_object, "balance", 0) or 0))
             info["financial_summary"] = f"الرصيد الحالي: {WhatsAppService.format_currency_amount(bal, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 15. أمر شغل تصنيع وإنتاج (WorkOrder)
@@ -377,7 +387,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"WorkOrder_{info['doc_number']}.pdf"
             cost = Decimal(str(getattr(content_object, "estimated_cost", 0) or 0))
             info["financial_summary"] = f"الحالة: {info['status_display']} | التكلفة التقديرية: {WhatsAppService.format_currency_amount(cost, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 16. عرض تسعير مطبوعات (PrintingOrder)
@@ -391,7 +401,7 @@ class DocumentDispatcher:
 
             grand_total = Decimal(str(getattr(content_object, "final_price", getattr(content_object, "grand_total", getattr(content_object, "total_price", 0))) or 0))
             info["financial_summary"] = f"إجمالي العرض: {WhatsAppService.format_currency_amount(grand_total, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 17. إذن تحويل بين المخازن (StockTransfer)
@@ -404,7 +414,7 @@ class DocumentDispatcher:
             product_name = getattr(getattr(content_object, "product", None), "name", "")
             qty = getattr(content_object, "quantity", 0)
             info["financial_summary"] = f"تحويل: {product_name} (كمية: {qty})" if product_name else "إذن تحويل مخزني معتمد"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 18. سلفة / عهدة مالية (EmployeeAdvance / EmployeeCustodyAdvance / Advance)
@@ -432,7 +442,7 @@ class DocumentDispatcher:
             info["pdf_filename"] = f"Payslip_{slip_no}.pdf"
             net_salary = Decimal(str(getattr(content_object, "net_salary", 0) or 0))
             info["financial_summary"] = f"صافي الراتب: {WhatsAppService.format_currency_amount(net_salary, 'ج.م')}"
-            info["template_name"] = "document_share_ar"
+            info["template_name"] = "document_send_ar"
 
         # ----------------------------------------------------
         # 20. إشعار الموافقة على طلب إجازة (LeaveRequest / Leave)
@@ -601,18 +611,6 @@ class DocumentDispatcher:
             info["status_display"] = "أمر الشغل مكتمل وجاهز للتسليم والشحن 🚚"
             info["financial_summary"] = "جاهز للتسليم"
 
-        # ----------------------------------------------------
-        # 33. ترحيب بعميل جديد وفتح حساب (Customer)
-        # ----------------------------------------------------
-        elif model_name == "Customer":
-            info["doc_title"] = "بطاقة ترحيب عميل جديد"
-            info["doc_number"] = getattr(content_object, "code", str(getattr(content_object, "pk", "")))
-            info["partner"] = partner or content_object
-            info["partner_type"] = "customer"
-            info["has_pdf"] = False
-            info["template_name"] = "welcome_new_customer"
-            info["status_display"] = "حساب عميل نشط ومسجل"
-            info["financial_summary"] = "ترحيب بتسجيل عميل جديد"
 
         # ----------------------------------------------------
         # Fallback لأي مستند آخر
@@ -647,7 +645,7 @@ class DocumentDispatcher:
         """
         بناء مصفوفة معاملات القالب بمطابقة 100% لعقد Meta البرمجي الصارم
         """
-        template_name = info.get("template_name", "document_share_ar")
+        template_name = info.get("template_name", "document_send_ar")
         recipient_name = info.get("partner_name") or "عميلنا العزيز"
         doc_label = info.get("doc_number_bidi") or WhatsAppService.isolate_bidi(info.get("doc_number", ""))
         financial_sum = info.get("financial_summary") or "مستند صادر معتمد"

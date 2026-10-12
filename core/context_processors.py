@@ -54,6 +54,13 @@ def global_settings(request):
 
                 settings_dict[key] = value
 
+            # الربط بالجاهزية التشغيلية الحقيقية الكاملة لمنظومة WhatsApp
+            try:
+                from core.services.whatsapp_service import WhatsAppService
+                settings_dict['whatsapp_enabled'] = WhatsAppService.is_enabled()
+            except Exception:
+                settings_dict['whatsapp_enabled'] = False
+
             cache.set(cache_key, settings_dict, 15)
 
         except Exception as e:

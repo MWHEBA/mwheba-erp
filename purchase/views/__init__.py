@@ -46,6 +46,7 @@ from .grn_views import (
     grn_approve,
     grn_post,
     grn_reverse,
+    grn_pdf,
 )
 
 # Landed Cost Views

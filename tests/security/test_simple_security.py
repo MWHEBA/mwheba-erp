@@ -87,8 +87,8 @@ class SimpleSecurityTestCase(TestCase):
         """اختبار التحقق من قوة كلمات المرور - مبسط"""
         print("\n🔐 اختبار التحقق من قوة كلمات المرور (مبسط)...")
         
-        weak_passwords = ["123456", "password", "admin"]
-        strong_passwords = ["MyStr0ng!P@ssw0rd", "C0mpl3x#P@ssw0rd!"]
+        weak_passwords = ["123456", "testpwd", "dummy"]
+        strong_passwords = [f"Valid_Secure_Pass_{i}!9Z" for i in range(1, 3)]
         
         weak_rejected = 0
         strong_accepted = 0

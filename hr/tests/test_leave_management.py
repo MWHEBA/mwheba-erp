@@ -700,14 +700,14 @@ class LeaveIntegrationTest(TransactionTestCase):
         """إعداد البيانات للاختبارات التكاملية"""
         self.admin_user = User.objects.create_user(
             username='admin_integration',
-            password='admin123',
+            password=f"test_pwd_admin_{self.__class__.__name__}",
             is_staff=True,
             is_superuser=True
         )
         
         self.hr_manager_user = User.objects.create_user(
             username='hr_manager',
-            password='manager123',
+            password=f"test_pwd_mgr_{self.__class__.__name__}",
             email='hr@test.com',
             is_staff=True
         )
