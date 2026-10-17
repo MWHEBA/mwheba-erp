@@ -36,6 +36,7 @@ from financial.models import Currency, CostCenter
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.exceptions import FinancialCoreError
 from users.services.data_scoping_service import DataScopingService
+from utils.text_sanitizer import normalize_line_details
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +290,7 @@ def sales_order_create(request, quotation_id=None):
         quantities = request.POST.getlist("quantity[]")
         unit_prices = request.POST.getlist("unit_price[]")
         discounts = request.POST.getlist("discount[]")
+        details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
 
         try:
             customer = get_object_or_404(Customer, pk=customer_id)
@@ -309,11 +311,18 @@ def sales_order_create(request, quotation_id=None):
                     if qty <= 0:
                         raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
 
+                    line_detail = details_list[i] if i < len(details_list) else ""
+                    if not line_detail and quotation:
+                        q_item = quotation.items.filter(product_id=p_id).first()
+                        if q_item and q_item.details:
+                            line_detail = q_item.details
+
                     items_data.append({
                         "product": prod,
                         "ordered_qty": qty,
                         "unit_price": price,
                         "discount_percentage": disc,
+                        "details": line_detail,
                     })
 
             if not items_data:
@@ -492,6 +501,7 @@ def sales_order_create(request, quotation_id=None):
         "currency_symbol": selected_curr.symbol if selected_curr and selected_curr.symbol else (selected_curr.code if selected_curr else "ج.م"),
         "next_order_number": next_order_number,
         "allowed_item_types": "both",
+        "show_line_details": SystemSetting.get_bool("show_sales_order_line_details", False),
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
@@ -648,6 +658,11 @@ def sales_order_edit(request, pk):
                     doc_type='sales_order'
                 )
 
+                details_list = request.POST.getlist("details[]")
+                item_ids = request.POST.getlist("item_id[]")
+                existing_items_details = {item.id: (item.details or "") for item in so.items.all()}
+                fallback_details_by_product = {item.product_id: (item.details or "") for item in so.items.all() if item.details}
+
                 so.items.all().delete()
                 subtotal_val = Decimal("0.00")
 
@@ -659,6 +674,16 @@ def sales_order_edit(request, pk):
                         price = Decimal(str(unit_prices[i]).replace(',', '').strip())
                         disc = Decimal(str(discounts[i]).replace(',', '').strip() if discounts[i] else "0")
 
+                        raw_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
+                        item_id_val = int(raw_item_id) if raw_item_id and str(raw_item_id).isdigit() else None
+                        raw_detail = details_list[i] if i < len(details_list) else None
+                        if raw_detail is not None:
+                            line_detail = normalize_line_details(raw_detail)
+                        elif item_id_val and item_id_val in existing_items_details:
+                            line_detail = existing_items_details[item_id_val]
+                        else:
+                            line_detail = fallback_details_by_product.get(p_id, "")
+
                         line_total = (qty * price * (Decimal("1.00") - (disc / Decimal("100.00")))).quantize(Decimal("0.01"))
                         subtotal_val += line_total
 
@@ -668,7 +693,8 @@ def sales_order_edit(request, pk):
                             ordered_qty=qty,
                             unit_price=price,
                             discount_percentage=disc,
-                            line_total=line_total
+                            line_total=line_total,
+                            details=line_detail
                         )
 
                 so.subtotal = subtotal_val
@@ -751,6 +777,7 @@ def sales_order_edit(request, pk):
         "functional_currency": functional_curr,
         "currency_symbol": currency_symbol,
         "allowed_item_types": "both",
+        "show_line_details": so.show_line_details if so.show_line_details is not None else SystemSetting.get_bool("show_sales_order_line_details", False),
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),

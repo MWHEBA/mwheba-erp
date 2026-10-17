@@ -448,7 +448,7 @@ $(document).ready(function() {
  if (window.sessionStorage) {
  var savedTab = sessionStorage.getItem('active_treasury_tab');
  if (savedTab) {
- var tabTrigger = document.querySelector('button[data-bs-target="' + savedTab + '"]');
+ var tabTrigger = document.querySelector(savedTab) || document.querySelector('button[data-bs-target="' + savedTab + '"]');
  if (tabTrigger && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
  var tab = new bootstrap.Tab(tabTrigger);
  tab.show();

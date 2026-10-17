@@ -25,6 +25,7 @@ from django.contrib.contenttypes.models import ContentType
 from core.models import SystemSetting
 from core.services.whatsapp_service import WhatsAppService
 from users.services.data_scoping_service import DataScopingService
+from utils.text_sanitizer import normalize_line_details
 
 logger = logging.getLogger(__name__)
 
@@ -333,7 +334,8 @@ def purchase_create(request, supplier_id=None):
                     "unit_price": float(item.unit_price),
                     "discount": float(item.discount),
                     "total": float(item.total_price),
-                    "unit": item.unit.name if item.unit else (item.product.unit.name if getattr(item.product, 'unit', None) else "")
+                    "unit": item.unit.name if item.unit else (item.product.unit.name if getattr(item.product, 'unit', None) else ""),
+                    "details": getattr(item, "details", "") or "",
                 })
             duplicate_items = json.dumps(po_items_list)
         except PurchaseOrder.DoesNotExist:
@@ -364,7 +366,8 @@ def purchase_create(request, supplier_id=None):
                     "unit_price": float(item.unit_price),
                     "discount": 0.0,
                     "total": float(Decimal(str(qty)) * item.unit_price),
-                    "unit": item.product.unit.name if getattr(item.product, 'unit', None) else ""
+                    "unit": item.product.unit.name if getattr(item.product, 'unit', None) else "",
+                    "details": getattr(item, "details", "") or "",
                 })
             duplicate_items = json.dumps(grn_items_list)
         except GoodsReceivedNote.DoesNotExist:
@@ -447,6 +450,7 @@ def purchase_create(request, supplier_id=None):
                         purchase.total_foreign = Decimal("0.00")
                         purchase.total_functional = purchase.total
 
+                    purchase.show_line_details = SystemSetting.get_bool("show_purchase_line_details", False)
                     purchase.save()
 
                     # إضافة بنود الفاتورة
@@ -454,6 +458,7 @@ def purchase_create(request, supplier_id=None):
                     quantities = request.POST.getlist("quantity[]")
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
+                    details_list = request.POST.getlist("details[]")
 
                     for i in range(len(product_ids)):
                         if product_ids[i] and str(product_ids[i]).isdigit():
@@ -482,6 +487,9 @@ def purchase_create(request, supplier_id=None):
                             except (ValueError, TypeError):
                                 discount = Decimal("0")
 
+                            raw_det = details_list[i] if i < len(details_list) and details_list[i] else ""
+                            clean_details = normalize_line_details(raw_det, row_index=i + 1)
+
                             # إنشاء بند فاتورة
                             item = PurchaseItem(
                                 purchase=purchase,
@@ -490,6 +498,7 @@ def purchase_create(request, supplier_id=None):
                                 unit_price=unit_price,
                                 discount=discount,
                                 total=(quantity * unit_price) - discount,
+                                details=clean_details,
                             )
                             item.save()
 
@@ -511,7 +520,6 @@ def purchase_create(request, supplier_id=None):
 
                     tax_active = request.POST.get('tax_active') in ['on', 'true', True]
                     vat_active = request.POST.get('vat_active') in ['on', 'true', True] or tax_active
-                    from core.models import SystemSetting
                     default_tax_rate_str = str(SystemSetting.get_setting('default_tax_rate', '14.00') or '14.00')
                     vat_rate = Decimal(str(request.POST.get('vat_rate', default_tax_rate_str) or default_tax_rate_str))
                     wht_active = request.POST.get('wht_active') in ['on', 'true', True]
@@ -725,6 +733,7 @@ def purchase_create(request, supplier_id=None):
         "duplicate_adjustment_name": selected_po.adjustment_name if selected_po else "",
         "duplicate_adjustment_type": selected_po.adjustment_type if selected_po else "add",
         "duplicate_adjustment_amount": str(selected_po.adjustment_amount) if selected_po else "0",
+        "show_line_details": SystemSetting.get_bool("show_purchase_invoice_line_details", False) or SystemSetting.get_bool("show_purchase_line_details", False),
         "page_title": "إضافة فاتورة مشتريات" + (f" - {selected_supplier.name}" if selected_supplier else ""),
         "page_subtitle": "إضافة فاتورة مشتريات جديدة إلى النظام",
         "page_icon": "fas fa-plus-circle",
@@ -971,10 +980,14 @@ def purchase_update(request, pk):
     # حفظ القيم الأصلية للمقارنة (قبل التعديل)
     original_total = purchase.total
 
-    # الحصول على البنود الأصلية قبل التعديل
+    # تجميع الكميات الأصلية حسب الصنف لفحص الأرصدة المخزنية بدقة
     original_items = {}
     for item in purchase.items.all():
-        original_items[item.product.id] = item.quantity
+        original_items[item.product_id] = original_items.get(item.product_id, Decimal('0')) + Decimal(str(item.quantity))
+
+    # درع الحماية من مسح التفاصيل عند إرسال النموذج بدون حقول التفاصيل (Server-Side Snapshot Shield)
+    existing_items_details = {item.id: item.details for item in purchase.items.all()}
+    fallback_details_by_product = {item.product_id: item.details for item in purchase.items.all() if item.details}
 
     if request.method == "POST":
         from purchase.forms import PurchaseUpdateForm
@@ -991,10 +1004,13 @@ def purchase_update(request, pk):
                     tax_value = Decimal(form.cleaned_data.get("tax", 0) or 0)
 
                     # معالجة بنود الفاتورة
+                    item_ids = request.POST.getlist("item_id[]")
                     product_ids = request.POST.getlist("product[]")
                     quantities = request.POST.getlist("quantity[]")
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
+                    details_list = request.POST.getlist("details[]")
+                    has_details_in_post = "details[]" in request.POST
 
                     # تتبع البنود المحفوظة لحذف أي بنود محذوفة
                     saved_item_ids = []
@@ -1002,7 +1018,7 @@ def purchase_update(request, pk):
                     # حساب المجموع الفرعي
                     subtotal = Decimal("0")
 
-                    # إنشاء قاموس للكميات الجديدة
+                    # إنشاء قاموس للكميات الجديدة مجمعة حسب الصنف للفحص المخزني
                     new_items = {}
 
                     # حفظ البنود
@@ -1035,25 +1051,51 @@ def purchase_update(request, pk):
                         except (ValueError, TypeError):
                             discount = Decimal("0")
 
+                        # معالجة تفاصيل السطر مع درع الحماية
+                        raw_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
+                        if has_details_in_post:
+                            raw_det = details_list[i] if i < len(details_list) and details_list[i] else ""
+                            clean_details = normalize_line_details(raw_det, row_index=i + 1)
+                        else:
+                            if raw_item_id and str(raw_item_id).isdigit() and int(raw_item_id) in existing_items_details:
+                                clean_details = existing_items_details[int(raw_item_id)]
+                            elif product.id in fallback_details_by_product:
+                                clean_details = fallback_details_by_product[product.id]
+                            else:
+                                clean_details = ""
+
                         # حساب إجمالي البند
                         item_total = (quantity * unit_price) - discount
                         subtotal += item_total
 
-                        # البحث عن البند الموجود أو إنشاء بند جديد
-                        item, created = PurchaseItem.objects.update_or_create(
-                            purchase=purchase,
-                            product=product,
-                            defaults={
-                                "quantity": quantity,
-                                "unit_price": unit_price,
-                                "discount": discount,
-                                "total": item_total,
-                            },
-                        )
+                        # التحديث الدقيق للبند القائم أو إنشاء سطر جديد بدون تصادم الأصناف المتكررة
+                        item = None
+                        if raw_item_id and str(raw_item_id).isdigit():
+                            item = PurchaseItem.objects.filter(id=int(raw_item_id), purchase=purchase).first()
+
+                        if item:
+                            item.product = product
+                            item.quantity = quantity
+                            item.unit_price = unit_price
+                            item.discount = discount
+                            item.total = item_total
+                            item.details = clean_details
+                            item.save()
+                        else:
+                            item = PurchaseItem.objects.create(
+                                purchase=purchase,
+                                product=product,
+                                quantity=quantity,
+                                unit_price=unit_price,
+                                discount=discount,
+                                total=item_total,
+                                details=clean_details,
+                            )
 
                         saved_item_ids.append(item.id)
-                        # حفظ الكمية وسعر الوحدة الجديدة في القاموس
-                        new_items[product.id] = (quantity, unit_price)
+                        # تجميع الكمية الإجمالية للصنف الواحد في المخزن للتحقق الدقيق من فروق الرصيد
+                        prev_qty = new_items[product.id][0] if product.id in new_items else Decimal('0')
+                        new_items[product.id] = (prev_qty + quantity, unit_price)
 
                     # التحقق المسبق من كفاية الرصيد قبل إنقاص أو حذف أي بند من بنود المشتريات
                     from product.models import Stock
@@ -1266,6 +1308,7 @@ def purchase_update(request, pk):
         "selected_currency_id": selected_curr_id,
         "selected_currency_is_foreign": selected_curr_is_foreign,
         "current_exchange_rate": purchase.exchange_rate or "1.000000",
+        "show_line_details": purchase.show_line_details if purchase.show_line_details is not None else (SystemSetting.get_bool("show_purchase_invoice_line_details", False) or SystemSetting.get_bool("show_purchase_line_details", False)),
         "title": "تعديل فاتورة مشتريات",
         "page_title": f"تعديل فاتورة مشتريات - {purchase.number}",
         "page_icon": "fas fa-edit",
@@ -1556,6 +1599,7 @@ def purchase_duplicate(request, pk):
             "discount": float(item.discount),
             "total": float(item.total),
             "is_service": item.product.is_service,
+            "details": item.details or "",
         }
         for item in original.items.all()
     ])
@@ -1600,6 +1644,7 @@ def purchase_duplicate(request, pk):
         "duplicate_adjustment_name": adj_name,
         "duplicate_adjustment_type": adj_type,
         "duplicate_adjustment_amount": abs_adj_amount,
+        "show_line_details": original.show_line_details if original.show_line_details is not None else (SystemSetting.get_bool("show_purchase_invoice_line_details", False) or SystemSetting.get_bool("show_purchase_line_details", False)),
         "page_title": f"نسخ فاتورة - {original.number}",
         "page_subtitle": f"نسخة من فاتورة {original.number} | {original.supplier.name}",
         "page_icon": "fas fa-copy",

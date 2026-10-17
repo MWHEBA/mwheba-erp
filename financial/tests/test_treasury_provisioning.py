@@ -13,8 +13,9 @@ from django.utils import timezone
 from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
 from financial.models.currency import Currency
 from financial.models import AccountingPeriod
-from financial.models.treasury_access import UserTreasuryAccess
+from financial.models.treasury_access import UserTreasuryAccess, TreasuryAccessAuditLog
 from financial.models.custody_history import CustodyAssignmentHistory
+from users.models import Role
 from hr.models.employee import Employee
 from hr.models.work_location import WorkLocation
 
@@ -391,4 +392,213 @@ class TestTreasuryProvisioningSuite:
         assert new_acc.code in data["message"]
         assert new_acc.opening_balance == Decimal("100000.00")
         assert ChartOfAccounts.objects.filter(code="31010").exists()
+
+    def test_custody_creation_by_non_superuser_financial_manager(self, client, django_user_model):
+        """التحقق من إنشاء عهدة بواسطة مدير مالي غير superuser والتأكد من قلب is_leaf للأب وإسناد الصلاحيات وعدم رصد TAMPER_ATTEMPT"""
+        parent_11130, _ = ChartOfAccounts.objects.get_or_create(
+            code="11130",
+            defaults={
+                "name": "عهد نقدية مستديمة ومؤقتة",
+                "account_type": self.asset_type,
+                "is_leaf": True,
+                "is_active": True,
+            }
+        )
+        parent_11130.is_leaf = True
+        parent_11130.save()
+
+        fin_mgr = django_user_model.objects.create_user(
+            username="fin_mgr_user",
+            email="fm_user@mwheba.com",
+            password="FMPassword123!"
+        )
+        role, _ = Role.objects.get_or_create(name="financial_manager")
+        fin_mgr.role = role
+        fin_mgr.save()
+
+        client.force_login(fin_mgr)
+        response = client.post(self.url, {
+            "account_category": "custody",
+            "name": "عهدة المشتريات الخارجية - تجربة المدير المالي",
+            "employee_id": self.employee.id,
+            "custody_type": "permanent",
+            "currency_id": self.egp.id,
+            "opening_balance": "200000.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+        acc = ChartOfAccounts.objects.get(pk=data["account"]["id"])
+        assert acc.code.startswith("11130")
+        assert acc.opening_balance == Decimal("200000.00")
+        assert acc.is_custody_account is True
+
+        # التأكد من قلب حساب الأب لـ is_leaf=False
+        parent_11130.refresh_from_db()
+        assert parent_11130.is_leaf is False
+
+        # التأكد من إنشاء صلاحيات للمنشئ (المدير المالي) وللموظف المسؤول
+        mgr_access = UserTreasuryAccess.objects.filter(user=fin_mgr, treasury=acc).first()
+        assert mgr_access is not None
+        assert mgr_access.can_deposit is True
+        assert mgr_access.can_disburse is True
+
+        emp_access = UserTreasuryAccess.objects.filter(user=self.emp_user, treasury=acc).first()
+        assert emp_access is not None
+        assert emp_access.employee == self.employee
+
+        # التأكد من عدم تسجيل أي محاولة اختراق وهمية في سجل الرقابة
+        assert not TreasuryAccessAuditLog.objects.filter(treasury=acc, action="TAMPER_ATTEMPT").exists()
+
+    def test_custody_creation_by_accountant_with_add_perm(self, client, django_user_model):
+        """التحقق من إنشاء عهدة بواسطة محاسب يحمل صلاحية add_chartofaccounts"""
+        accountant = django_user_model.objects.create_user(
+            username="accountant_ops",
+            email="acct_ops@mwheba.com",
+            password="AcctPassword123!"
+        )
+        perm_add_coa = Permission.objects.get(codename="add_chartofaccounts")
+        accountant.user_permissions.add(perm_add_coa)
+
+        client.force_login(accountant)
+        response = client.post(self.url, {
+            "account_category": "custody",
+            "name": "عهدة صيانة الفرع - محاسب",
+            "employee_id": self.employee.id,
+            "custody_type": "permanent",
+            "currency_id": self.egp.id,
+            "opening_balance": "50000.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+        acc = ChartOfAccounts.objects.get(pk=data["account"]["id"])
+        assert acc.opening_balance == Decimal("50000.00")
+        assert UserTreasuryAccess.objects.filter(user=accountant, treasury=acc).exists()
+
+    def test_custody_creation_with_no_user_employee(self, client):
+        """التحقق من إنشاء عهدة لموظف غير مرتبط بحساب مستخدم نظام دون حدوث أخطاء"""
+        emp_no_user = Employee.objects.create(
+            name="سائق مندوب بدون حساب",
+            employee_number="EMP-9999",
+            national_id="29001019999999",
+            birth_date=timezone.now().date().replace(year=1995),
+            gender="male",
+            marital_status="single",
+            department=self.dept,
+            job_title=self.job,
+            hire_date=timezone.now().date(),
+            created_by=self.admin_user,
+            user=None,
+            status="active"
+        )
+
+        client.force_login(self.admin_user)
+        response = client.post(self.url, {
+            "account_category": "custody",
+            "name": "عهدة وقود السيارات",
+            "employee_id": emp_no_user.id,
+            "custody_type": "temporary",
+            "currency_id": self.egp.id,
+            "opening_balance": "10000.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+
+        acc = ChartOfAccounts.objects.get(pk=data["account"]["id"])
+        assert acc.assigned_employee == emp_no_user
+
+        # التحقق من توثيق سجل التسليم للموظف
+        history = CustodyAssignmentHistory.objects.filter(account=acc, employee=emp_no_user).first()
+        assert history is not None
+        assert history.opening_balance_on_handover == Decimal("10000.00")
+
+        # التحقق من منح الصلاحية لمنشئ الحساب دون انهيار النظام بسبب user=None
+        assert UserTreasuryAccess.objects.filter(user=self.admin_user, treasury=acc).exists()
+
+    def test_custody_negative_opening_balance_rejection(self, client):
+        """التحقق من رفض فتح عهدة برصيد افتتاحي سالب مع إرجاع 400"""
+        client.force_login(self.admin_user)
+        response = client.post(self.url, {
+            "account_category": "custody",
+            "name": "عهدة غير قانونية برصيد سالب",
+            "employee_id": self.employee.id,
+            "custody_type": "permanent",
+            "currency_id": self.egp.id,
+            "opening_balance": "-25000.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert response.status_code == 400
+        data = response.json()
+        assert data["success"] is False
+        assert "سالب" in data["error"]
+
+    def test_custom_exchange_rate_invalid_rejection(self, client):
+        """التحقق من رفض سعر الصرف الصفري أو السالب لحسابات العملات الأجنبية"""
+        client.force_login(self.admin_user)
+        
+        # اختبار سعر صرف صفري
+        res_zero = client.post(self.url, {
+            "account_category": "bank",
+            "name": "بنك أجنبي بسعر صرف صفري",
+            "bank_name": "HSBC",
+            "account_number": "5544332211",
+            "currency_id": self.usd.id,
+            "opening_balance": "1000.00",
+            "exchange_rate": "0",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert res_zero.status_code == 400
+        assert res_zero.json()["success"] is False
+        assert "\u0633\u0639\u0631 \u0627\u0644\u0635\u0631\u0641" in res_zero.json()["error"]
+
+        # اختبار سعر صرف سالب
+        res_neg = client.post(self.url, {
+            "account_category": "bank",
+            "name": "بنك أجنبي بسعر صرف سالب",
+            "bank_name": "HSBC",
+            "account_number": "5544332212",
+            "currency_id": self.usd.id,
+            "opening_balance": "1000.00",
+            "exchange_rate": "-50.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert res_neg.status_code == 400
+        assert res_neg.json()["success"] is False
+        assert "\u0633\u0639\u0631 \u0627\u0644\u0635\u0631\u0641" in res_neg.json()["error"]
+
+    def test_atomic_rollback_on_failure_leaves_no_ghost_account(self, client, monkeypatch):
+        """التحقق من التراجع الذري للعملية وعدم ترك حساب شبحي يتيم عند فشل إنشاء القيد الافتتاحي"""
+        from django.core.exceptions import ValidationError
+        from governance.services.accounting_gateway import AccountingGateway
+
+        def mock_create_journal_entry(*args, **kwargs):
+            raise ValidationError("فشل متعمد لمحاكاة خطأ أثناء توليد القيد الافتتاحي")
+
+        monkeypatch.setattr(AccountingGateway, "create_journal_entry", mock_create_journal_entry)
+
+        client.force_login(self.admin_user)
+        response = client.post(self.url, {
+            "account_category": "custody",
+            "name": "عهدة ستفشل عمداً",
+            "employee_id": self.employee.id,
+            "custody_type": "permanent",
+            "currency_id": self.egp.id,
+            "opening_balance": "75000.00",
+            "opening_balance_date": timezone.now().date().strftime("%Y-%m-%d"),
+        })
+        assert response.status_code == 400
+        data = response.json()
+        assert data["success"] is False
+        assert "فشل متعمد" in data["error"]
+
+        # التأكد من التراجع التام وعدم وجود الحساب في قاعدة البيانات نهائياً
+        assert not ChartOfAccounts.objects.filter(name="عهدة ستفشل عمداً").exists()
+
 

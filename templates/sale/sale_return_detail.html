@@ -230,6 +230,11 @@
                                         {% endif %}
                                         <br>
                                         <small class="text-muted">{{ item.product.sku }}</small>
+                                        {% if item.sale_item and item.sale_item.details %}
+                                        <div class="text-muted small ps-2 mt-1" style="white-space: pre-wrap; border-right: 2px solid var(--border-color); padding-right: 6px;">
+                                            <i class="fas fa-info-circle me-1"></i>{{ item.sale_item.details }}
+                                        </div>
+                                        {% endif %}
                                     </td>
                                     <td class="fw-bold">
                                         {{ item.quantity|smart_float }}

@@ -79,6 +79,11 @@
     </td>
     <td class="col-desc">
         <div style="font-weight: 700;">{{ item.so_item.product.name }}</div>
+        {% if item.so_item.details %}
+        <div class="item-line-details text-muted small mt-1 ps-2" style="white-space: pre-wrap; font-size: 0.85em; border-right: 2px solid var(--border-color); padding-right: 6px;">
+            {{ item.so_item.details }}
+        </div>
+        {% endif %}
     </td>
     <td style="text-align: center; font-weight: 700; font-size: 14px;">
         {{ item.delivered_qty|smart_float:2 }} {{ item.so_item.product.unit.name|default:"" }}

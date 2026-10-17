@@ -313,7 +313,7 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         model = PurchaseItem
         fields = [
             'id', 'product', 'product_name', 'quantity',
-            'unit_price', 'discount', 'tax_rate', 'total'
+            'unit_price', 'discount', 'tax_rate', 'total', 'details'
         ]
         read_only_fields = ['id', 'total']
 

@@ -15,6 +15,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError, PermissionDenied
 import logging
 
+from utils.text_sanitizer import normalize_line_details
+from core.models import SystemSetting
 from sale.services.pricing_validator import PricingSecurityValidator
 
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
@@ -147,6 +149,7 @@ class SaleService:
                 total=Decimal('0'),
                 notes=data.get('notes', ''),
                 status='confirmed',
+                show_line_details=data.get('show_line_details') if 'show_line_details' in data else SystemSetting.get_bool("show_sale_line_details", False),
                 created_by=user,
                 salesman=data.get('salesman') or user,
                 financial_category_id=data.get('financial_category_id'),
@@ -266,6 +269,8 @@ class SaleService:
         elif not item_warehouse_id and getattr(sale, 'warehouse_id', None):
             item_warehouse_id = sale.warehouse_id
 
+        line_details = normalize_line_details(item_data.get('details', ''))
+
         item = SaleItem.objects.create(
             sale=sale,
             product_id=item_data['product_id'],
@@ -280,7 +285,8 @@ class SaleService:
             table_tax_amount=table_tax_amount,
             price_snapshot=price_snapshot or {},
             cost_center_id=cc_id if cc_id else None,
-            total=(qty * unit_p) - disc
+            total=(qty * unit_p) - disc,
+            details=line_details,
         )
         logger.info(f"✅ تم إضافة بند: {item.product.name} للفاتورة: {sale.number}")
         return item
@@ -394,7 +400,73 @@ class SaleService:
         if not items_data:
             raise ValidationError("يجب أن تحتوي الفاتورة على بند واحد على الأقل")
 
-        # 0.2 قفل المنتجات والمخزون والعميل تصاعدياً لمنع الـ Deadlocks
+        # 0.2 مسار التعديل المقتصر على تفاصيل البنود والملاحظات (Details-Only In-Place Guard)
+        existing_items = list(sale.items.all())
+        existing_items_by_id = {item.id: item for item in existing_items}
+
+        is_details_only = False
+        if len(items_data) == len(existing_items) and all(it.get('item_id') and int(it['item_id']) in existing_items_by_id for it in items_data):
+            header_financial_unchanged = (
+                (data.get('customer_id') is None or int(data['customer_id']) == (sale.customer_id or 0)) and
+                (data.get('warehouse_id') is None or int(data['warehouse_id']) == (sale.warehouse_id or 0)) and
+                (data.get('payment_method') is None or str(data['payment_method']) == str(sale.payment_method)) and
+                (Decimal(str(data.get('discount', sale.discount))) == sale.discount) and
+                (str(data.get('discount_type', sale.discount_type)) == str(sale.discount_type)) and
+                (Decimal(str(data.get('adjustment_amount', sale.adjustment_amount))) == sale.adjustment_amount) and
+                (Decimal(str(data.get('tax', sale.tax))) == sale.tax) and
+                (data.get('cost_center_id') is None or str(data.get('cost_center_id')) == str(sale.cost_center_id or '')) and
+                (data.get('price_list_id') is None or str(data.get('price_list_id')) == str(sale.price_list_id or '')) and
+                (data.get('financial_category_id') is None or str(data.get('financial_category_id')) == str(sale.financial_category_id or '')) and
+                (data.get('work_order_id') is None or str(data.get('work_order_id')) == str(sale.work_order_id or ''))
+            )
+
+            if header_financial_unchanged:
+                lines_financial_unchanged = True
+                for it in items_data:
+                    orig_item = existing_items_by_id[int(it['item_id'])]
+                    if int(it.get('product_id', orig_item.product_id)) != orig_item.product_id:
+                        lines_financial_unchanged = False
+                        break
+                    if Decimal(str(it.get('quantity', orig_item.quantity))) != orig_item.quantity:
+                        lines_financial_unchanged = False
+                        break
+                    if Decimal(str(it.get('unit_price', orig_item.unit_price))) != orig_item.unit_price:
+                        lines_financial_unchanged = False
+                        break
+                    if Decimal(str(it.get('discount', orig_item.discount))) != orig_item.discount:
+                        lines_financial_unchanged = False
+                        break
+                    it_wh = it.get('warehouse_id') or it.get('warehouse') or sale.warehouse_id
+                    orig_wh = orig_item.warehouse_id or sale.warehouse_id
+                    if it_wh and orig_wh and int(it_wh) != int(orig_wh):
+                        lines_financial_unchanged = False
+                        break
+
+                if lines_financial_unchanged:
+                    is_details_only = True
+
+        if is_details_only:
+            # قفل الفاتورة وتحديث التفاصيل في مكانها دون أي حركات مخزنية أو قيود محاسبية إضافية
+            locked_sale = Sale.objects.select_for_update().get(id=sale.id)
+            for it in items_data:
+                clean_details = normalize_line_details(it.get('details', ''))
+                SaleItem.objects.filter(id=it['item_id'], sale=locked_sale).update(details=clean_details)
+
+            # تحديث الملاحظات إن وجدت دون التأثير على الحسابات
+            if 'notes' in data and data['notes'] != locked_sale.notes:
+                locked_sale.notes = data['notes']
+                locked_sale.save(update_fields=['notes'])
+
+            from core.services.document_dispatcher import DocumentDispatcher
+            DocumentDispatcher.invalidate_attachment_cache(locked_sale)
+            logger.info(f"✅ تم تحديث تفاصيل بنود الفاتورة {locked_sale.number} بنجاح في مكانها بدون أي تأثيرات مالية أو مخزنية")
+            return locked_sale
+
+        # درع حفظ التفاصيل قبل الحذف (Pre-Delete Snapshot Shield for Standard Updates)
+        existing_items_details = {item.id: item.details for item in existing_items if item.details}
+        fallback_details_by_product = {item.product_id: item.details for item in existing_items if item.details}
+
+        # 0.3 قفل المنتجات والمخزون والعميل تصاعدياً لمنع الـ Deadlocks
         product_ids = sorted(list({int(it['product_id']) for it in items_data if it.get('product_id')}))
         if product_ids:
             from product.models import Product, Stock
@@ -503,9 +575,15 @@ class SaleService:
                 sale.work_order_id = None
         sale.save()
 
-        # 3. إزالة البنود القديمة وإضافة البنود الجديدة
+        # 3. إزالة البنود القديمة وإضافة البنود الجديدة (مع استعادة التفاصيل من الدرع إن تم إغفالها)
         sale.items.all().delete()
         for item_data in items_data:
+            line_id = int(item_data['item_id']) if item_data.get('item_id') and str(item_data['item_id']).isdigit() else None
+            p_id = int(item_data.get('product_id', 0))
+            if 'details' not in item_data or item_data.get('details') is None or item_data.get('details') == '':
+                restored_details = existing_items_details.get(line_id) or fallback_details_by_product.get(p_id, '')
+                if restored_details:
+                    item_data['details'] = restored_details
             SaleService._add_sale_item(sale, item_data, user)
 
         # 4. إعادة حساب الإجماليات

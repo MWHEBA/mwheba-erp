@@ -691,3 +691,7 @@ def generate_unique_slug(model, title, slug_field="slug", instance=None):
         counter += 1
 
     return unique_slug
+
+
+# Transactional Line Details Sanitizer
+from utils.text_sanitizer import normalize_line_details

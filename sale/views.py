@@ -56,6 +56,8 @@ def _extract_posted_items(request):
     unit_prices = request.POST.getlist("unit_price[]")
     discounts = request.POST.getlist("discount[]")
     tax_rates = request.POST.getlist("tax_rate[]")
+    details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
+    item_ids = request.POST.getlist("item_id[]")
 
     posted_items = []
     if product_ids:
@@ -97,8 +99,11 @@ def _extract_posted_items(request):
 
                         is_exempt = bool(getattr(prod_obj, 'is_tax_exempt', False))
                         product_code = getattr(prod_obj, 'code', None) or getattr(prod_obj, 'sku', '') or ""
+                        line_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
+                        item_detail = details_list[i] if i < len(details_list) else ""
                         posted_items.append({
                             "id": prod_obj.id,
+                            "item_id": line_item_id,
                             "product_id": prod_obj.id,
                             "code": product_code,
                             "name": prod_obj.name,
@@ -113,6 +118,7 @@ def _extract_posted_items(request):
                             "warehouse_id": item_wh,
                             "is_service": prod_obj.is_service,
                             "unit": prod_obj.unit.name if prod_obj.unit else "",
+                            "details": item_detail,
                         })
     return posted_items
 
@@ -179,6 +185,18 @@ def sale_create(request, customer_id=None):
             if not selected_customer:
                 selected_customer = selected_so.customer
         except SalesOrder.DoesNotExist:
+            pass
+
+    # قراءة إذن التسليم إذا تم تمريره
+    dn_id = request.GET.get('from_dn') or request.POST.get('from_dn')
+    selected_dn = None
+    if dn_id:
+        from sale.models.sales_models import DeliveryNote
+        try:
+            selected_dn = DeliveryNote.objects.select_related('customer', 'warehouse', 'sales_order').prefetch_related('items__so_item__product', 'items__so_item').get(id=dn_id)
+            if not selected_customer:
+                selected_customer = selected_dn.customer
+        except DeliveryNote.DoesNotExist:
             pass
 
     # قراءة أمر الشغل إذا تم تمريره
@@ -255,6 +273,7 @@ def sale_create(request, customer_id=None):
                     'exchange_rate_override_reason': request.POST.get("exchange_rate_override_reason", ""),
                     'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else (selected_work_order.id if selected_work_order else None),
                     'sales_order_id': selected_so.id if selected_so else (request.POST.get('sales_order') or None),
+                    'delivery_note_id': selected_dn.id if selected_dn else (request.POST.get('delivery_note_id') or None),
                     'custom_fields': SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]')),
                     'items': []
                 }
@@ -286,6 +305,8 @@ def sale_create(request, customer_id=None):
                 discounts = request.POST.getlist("discount[]")
                 cost_centers = request.POST.getlist("item_cost_center[]")
                 warehouses = request.POST.getlist("warehouse[]") or request.POST.getlist("item_warehouse[]")
+                details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
+                item_ids = request.POST.getlist("item_id[]")
                 
                 # التحقق من أن المستخدم لديه صلاحية تغيير أسعار المنتجات
                 if not request.user.has_perm('sale.change_unit_price'):
@@ -301,13 +322,17 @@ def sale_create(request, customer_id=None):
                     if product_ids[i]:
                         item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
                         item_wh = int(warehouses[i]) if (i < len(warehouses) and warehouses[i] and str(warehouses[i]).isdigit()) else sale_data.get('warehouse_id')
+                        item_detail = details_list[i] if i < len(details_list) else ""
+                        line_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
                         sale_data['items'].append({
+                            'item_id': line_item_id,
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                             'cost_center_id': item_cc,
                             'warehouse_id': item_wh,
+                            'details': item_detail,
                         })
                 
                 # إنشاء الفاتورة مع معالجة الدفعة في وحدة تزامنية قواعد بيانات (Atomic Transaction)
@@ -434,7 +459,39 @@ def sale_create(request, customer_id=None):
                     "discount": str(item.discount_percentage),
                     "unit_id": item.product.unit_id if hasattr(item.product, 'unit_id') else None,
                     "unit_name": item.product.unit.name if hasattr(item.product, 'unit') and item.product.unit else "",
-                    "so_item_id": item.id
+                    "so_item_id": item.id,
+                    "details": item.details or "",
+                })
+        elif selected_dn:
+            initial_data["customer"] = selected_dn.customer
+            initial_data["warehouse"] = selected_dn.warehouse
+            if selected_dn.sales_order:
+                initial_data["salesman"] = selected_dn.sales_order.salesman
+                initial_data["cost_center"] = selected_dn.sales_order.cost_center
+                initial_data["currency"] = selected_dn.sales_order.currency
+                initial_data["exchange_rate"] = selected_dn.sales_order.exchange_rate
+                initial_data["discount"] = selected_dn.sales_order.discount_amount
+                initial_data["discount_type"] = selected_dn.sales_order.discount_type
+
+            posted_items = []
+            for dn_item in selected_dn.items.all():
+                prod = dn_item.so_item.product if (dn_item.so_item and dn_item.so_item.product) else None
+                if not prod:
+                    continue
+                so_line_details = dn_item.so_item.details if (dn_item.so_item and dn_item.so_item.details) else ""
+                dn_price = str(dn_item.so_item.unit_price if dn_item.so_item else prod.selling_price)
+                dn_discount = str(dn_item.so_item.discount_percentage if dn_item.so_item else "0")
+                posted_items.append({
+                    "product_id": prod.id,
+                    "product_name": prod.name,
+                    "product_code": getattr(prod, "code", "") or getattr(prod, "barcode", "") or getattr(prod, "sku", "") or "",
+                    "quantity": str(dn_item.delivered_qty),
+                    "unit_price": dn_price,
+                    "discount": dn_discount,
+                    "unit_id": prod.unit_id if hasattr(prod, 'unit_id') else None,
+                    "unit_name": prod.unit.name if hasattr(prod, 'unit') and prod.unit else "",
+                    "so_item_id": dn_item.so_item_id,
+                    "details": so_line_details,
                 })
         
         warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
@@ -494,6 +551,7 @@ def sale_create(request, customer_id=None):
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
+        "show_line_details": SystemSetting.get_bool("show_sale_invoice_line_details", False) or SystemSetting.get_bool("show_sale_line_details", False),
         "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
         "page_subtitle": "إضافة فاتورة مبيعات جديدة إلى النظام",
         "page_icon": "fas fa-file-invoice-dollar",
@@ -1351,7 +1409,7 @@ def sale_print_thermal(request, pk):
     import io
     import base64
     
-    enable_thermal = SystemSetting.get_setting('enable_thermal_printing', 'false') == 'true'
+    enable_thermal = SystemSetting.get_bool('enable_thermal_printing', False) or str(SystemSetting.get_setting('enable_thermal_printing', 'false')).lower() in ('true', '1')
     if not enable_thermal:
         messages.error(request, "الطباعة الحرارية غير مفعلة في إعدادات النظام")
         return redirect("sale:sale_detail", pk=pk)
@@ -1481,18 +1539,24 @@ def sale_edit(request, pk):
                 discounts = request.POST.getlist("discount[]")
                 cost_centers = request.POST.getlist("item_cost_center[]")
                 warehouses = request.POST.getlist("warehouse[]") or request.POST.getlist("item_warehouse[]")
+                details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
+                item_ids = request.POST.getlist("item_id[]")
 
                 for i in range(len(product_ids)):
                     if product_ids[i]:
                         item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
                         item_wh = int(warehouses[i]) if (i < len(warehouses) and warehouses[i] and str(warehouses[i]).isdigit()) else sale_data.get('warehouse_id')
+                        item_detail = details_list[i] if i < len(details_list) else ""
+                        line_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
                         sale_data['items'].append({
+                            'item_id': line_item_id,
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                             'cost_center_id': item_cc,
                             'warehouse_id': item_wh,
+                            'details': item_detail,
                         })
 
                 updated_sale = SaleService.update_sale(sale=sale, data=sale_data, user=request.user)
@@ -1514,6 +1578,7 @@ def sale_edit(request, pk):
         is_exempt = bool(getattr(item.product, 'is_tax_exempt', False))
         duplicate_items.append({
             "id": item.product.id,
+            "item_id": item.id,
             "product_id": item.product.id,
             "code": product_code,
             "name": item.product.name,
@@ -1529,6 +1594,7 @@ def sale_edit(request, pk):
             "warehouse_id": item.warehouse_id,
             "is_service": item.product.is_service,
             "unit": item.product.unit.name if item.product.unit else "",
+            "details": item.details or "",
         })
 
     products = Product.objects.filter(is_active=True).select_related("unit")
@@ -1571,6 +1637,7 @@ def sale_edit(request, pk):
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
+        "show_line_details": sale.show_line_details if sale.show_line_details is not None else (SystemSetting.get_bool("show_sale_invoice_line_details", False) or SystemSetting.get_bool("show_sale_line_details", False)),
         "duplicate_invoice_type": getattr(sale, 'payment_method', 'credit'),
         "currency_symbol": sale.currency_symbol,
         "page_title": f"تعديل فاتورة مبيعات {sale.number}",
@@ -2149,6 +2216,7 @@ def sale_duplicate(request, pk):
             "cost_center": item.cost_center_id or "",
             "warehouse_id": item.warehouse_id,
             "is_service": item.product.is_service,
+            "details": item.details or "",
         }
         for item in original.items.all().select_related('product', 'product__tax_code', 'product__unit')
     ])

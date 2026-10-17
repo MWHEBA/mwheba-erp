@@ -773,10 +773,40 @@ class DocumentDispatcher:
             "is_bilingual": False,
         }
 
+        # Resolve show_line_details from document snapshot or system setting
+        model_name = content_object.__class__.__name__ if content_object else ""
+        doc_show_details = getattr(content_object, "show_line_details", None)
+        if doc_show_details is None:
+            if model_name == "Sale":
+                doc_show_details = SystemSetting.get_bool("show_sale_invoice_line_details", False) or SystemSetting.get_bool("show_sale_line_details", False)
+            elif model_name == "Quotation":
+                doc_show_details = SystemSetting.get_bool("show_quotation_line_details", False)
+            elif model_name == "SalesOrder":
+                doc_show_details = SystemSetting.get_bool("show_sales_order_line_details", False)
+            elif model_name == "PurchaseOrder":
+                doc_show_details = SystemSetting.get_bool("show_purchase_order_line_details", False)
+            elif model_name in ("Purchase", "SupplierBill"):
+                doc_show_details = SystemSetting.get_bool("show_purchase_invoice_line_details", False) or SystemSetting.get_bool("show_purchase_line_details", False)
+            else:
+                doc_show_details = False
+
+        base_ctx["show_line_details"] = bool(doc_show_details)
+
         if extra_params:
             base_ctx.update(extra_params)
 
         return base_ctx
+
+    @staticmethod
+    def _extract_valid_pdf(resp_obj) -> Optional[bytes]:
+        """
+        التحقق من صحة بايتات ملف الـ PDF ورفض الملفات الهيكلية أو التالفة
+        """
+        if resp_obj and hasattr(resp_obj, 'content') and resp_obj.content:
+            c = resp_obj.content
+            if len(c) >= 500 and c.startswith(b"%PDF"):
+                return c
+        return None
 
     @classmethod
     def render_document_pdf_bytes(cls, content_object: Any, extra_params: Dict[str, Any] = None) -> Tuple[Optional[bytes], str]:
@@ -789,6 +819,8 @@ class DocumentDispatcher:
         model_name = content_object.__class__.__name__
         from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
         from ..models import SystemSetting
+
+        _extract_valid_pdf = cls._extract_valid_pdf
 
         # 1. فاتورة مبيعات
         if model_name == "Sale":
@@ -804,12 +836,14 @@ class DocumentDispatcher:
                 })
                 html = render_to_string("sale/sale_print.html", ctx)
                 resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="sale", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"Invoice_{content_object.number}.pdf"
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"Invoice_{content_object.number}.pdf"
             except Exception as e:
                 logger.warning(f"Sale HTML PDF render exception ({e}), generating guaranteed fallback")
             resp = generate_guaranteed_pdf_response("sale", {"sale": content_object}, filename=f"{content_object.number}.pdf")
-            return getattr(resp, 'content', None), f"Invoice_{content_object.number}.pdf"
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"Invoice_{content_object.number}.pdf"
 
         # 2. عرض أسعار
         elif model_name == "Quotation":
@@ -828,12 +862,14 @@ class DocumentDispatcher:
                 })
                 html = render_to_string("sale/quotation_print.html", ctx)
                 resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="quotation", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"Quotation_{content_object.number}.pdf"
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"Quotation_{content_object.number}.pdf"
             except Exception as e:
                 logger.warning(f"Quotation HTML PDF render exception ({e}), generating guaranteed fallback")
             resp = generate_guaranteed_pdf_response("quotation", {"quotation": content_object}, filename=f"{content_object.number}.pdf")
-            return getattr(resp, 'content', None), f"Quotation_{content_object.number}.pdf"
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"Quotation_{content_object.number}.pdf"
 
         # 3. أمر بيع (SalesOrder)
         elif model_name == "SalesOrder":
@@ -848,12 +884,14 @@ class DocumentDispatcher:
                 })
                 html = render_to_string("sale/sales_order_print.html", ctx)
                 resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="sales_order", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"SalesOrder_{order_no}.pdf"
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"SalesOrder_{order_no}.pdf"
             except Exception as e:
                 logger.warning(f"SalesOrder HTML PDF render exception ({e}), generating guaranteed fallback")
             resp = generate_guaranteed_pdf_response("sales_order", {"so": content_object}, filename=f"{order_no}.pdf")
-            return getattr(resp, 'content', None), f"SalesOrder_{order_no}.pdf"
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"SalesOrder_{order_no}.pdf"
 
         # 4. إذن تسليم بضاعة (DeliveryNote)
         elif model_name == "DeliveryNote":
@@ -868,12 +906,14 @@ class DocumentDispatcher:
                 })
                 html = render_to_string("sale/delivery_note_print.html", ctx)
                 resp = generate_pdf_from_html(html, None, filename=f"{dn_no}.pdf", doc_type="delivery_note", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"DeliveryNote_{dn_no}.pdf"
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"DeliveryNote_{dn_no}.pdf"
             except Exception as e:
                 logger.warning(f"DeliveryNote HTML PDF render exception ({e}), generating guaranteed fallback")
             resp = generate_guaranteed_pdf_response("delivery_note", {"dn": content_object}, filename=f"{dn_no}.pdf")
-            return getattr(resp, 'content', None), f"DeliveryNote_{dn_no}.pdf"
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"DeliveryNote_{dn_no}.pdf"
 
         # 5. مرتجع مبيعات (SaleReturn)
         elif model_name == "SaleReturn":
@@ -929,18 +969,21 @@ class DocumentDispatcher:
                 items = content_object.items.all().select_related('product', 'product__unit')
                 ctx.update({
                     "order": content_object,
+                    "po": content_object,
                     "items": items,
                     "title": f"أمر شراء - {order_no}",
                     "document_title": "أمر شراء",
                 })
                 html = render_to_string("purchase/po_print.html", ctx)
-                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="po", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"PO_{order_no}.pdf"
+                resp = generate_pdf_from_html(html, None, filename=f"{order_no}.pdf", doc_type="purchase_order", context=ctx)
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"PO_{order_no}.pdf"
             except Exception as e:
                 logger.warning(f"PO HTML PDF render exception ({e}), generating guaranteed fallback")
-            resp = generate_guaranteed_pdf_response("po", {"po": content_object}, filename=f"{content_object.pk}.pdf")
-            return getattr(resp, 'content', None), f"PO_{content_object.pk}.pdf"
+            resp = generate_guaranteed_pdf_response("purchase_order", {"po": content_object, "order": content_object}, filename=f"{content_object.pk}.pdf")
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"PO_{content_object.pk}.pdf"
 
         # 9. إذن استلام بضاعة (GoodsReceivedNote / GRN)
         elif model_name in ("GoodsReceivedNote", "GoodsReceiptNote"):
@@ -975,12 +1018,14 @@ class DocumentDispatcher:
                 })
                 html = render_to_string("purchase/purchase_print.html", ctx)
                 resp = generate_pdf_from_html(html, None, filename=f"{content_object.number}.pdf", doc_type="purchase", context=ctx)
-                if resp and hasattr(resp, 'content') and resp.content:
-                    return resp.content, f"Purchase_{content_object.number}.pdf"
+                valid_bytes = _extract_valid_pdf(resp)
+                if valid_bytes:
+                    return valid_bytes, f"Purchase_{content_object.number}.pdf"
             except Exception as e:
                 logger.warning(f"Purchase HTML PDF render exception ({e}), generating guaranteed fallback")
             resp = generate_guaranteed_pdf_response("purchase", {"purchase": content_object}, filename=f"{content_object.number}.pdf")
-            return getattr(resp, 'content', None), f"Purchase_{content_object.number}.pdf"
+            valid_bytes = _extract_valid_pdf(resp)
+            return valid_bytes, f"Purchase_{content_object.number}.pdf"
 
         # 11. مرتجع مشتريات (PurchaseReturn)
         elif model_name == "PurchaseReturn":
@@ -1112,6 +1157,26 @@ class DocumentDispatcher:
 
         logger.error(f"❌ فشل رفع ملف PDF الثنائي لـ Meta: {res.get('error')}")
         return None
+
+    @classmethod
+    def invalidate_attachment_cache(cls, content_object: Any) -> None:
+        """
+        إبطال كاش المرفقات وملفات الـ PDF الزمني للمستند فور تحديث بياناته
+        """
+        if not content_object:
+            return
+        try:
+            from django.core.cache import cache
+            ct_id = ContentType.objects.get_for_model(content_object).id
+            obj_id = getattr(content_object, "pk", 0)
+            updated_at = getattr(content_object, "updated_at", None)
+            if updated_at:
+                ts = int(updated_at.timestamp())
+                cache.delete(f"wa_media_{ct_id}_{obj_id}_{ts}")
+            cache.delete(f"doc_pdf_{ct_id}_{obj_id}")
+            cache.delete(f"doc_info_{ct_id}_{obj_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ يتعذر إبطال كاش المرفق للمستند {content_object}: {e}")
 
     # ==================== 5. الإرسال الشامل والتنفيذ ====================
 

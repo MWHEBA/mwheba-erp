@@ -140,9 +140,16 @@
       {% for item in po.items.all %}
       <tr>
         <td class="text-center">{{ forloop.counter }}</td>
-        <td class="fw-bold">
+        <td class="fw-bold col-desc">
           {{ item.product.name }}
           <div class="small text-muted fw-normal">كود: {{ item.product.sku|default:item.product.id }}</div>
+          {% if item.details %}
+          {% if po.show_line_details or show_line_details %}
+          <div class="item-line-details text-muted small mt-1 ps-2 fw-normal" style="white-space: pre-wrap; font-size: 0.85em; border-right: 2px solid var(--border-color, #dee2e6); padding-right: 6px;">
+            {{ item.details }}
+          </div>
+          {% endif %}
+          {% endif %}
         </td>
         <td class="text-center">{{ item.unit.name|default:item.product.unit.name|default:"-" }}</td>
         <td class="text-center fw-bold">{{ item.ordered_qty|floatformat:2 }}</td>

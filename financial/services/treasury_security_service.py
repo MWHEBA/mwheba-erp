@@ -100,8 +100,8 @@ class TreasurySecurityService:
             elif hasattr(currency, "id"):
                 base_qs = base_qs.filter(currency=currency)
 
-        # السوبر أدمن والمدير المالي ليهم وصول كامل لجميع الخزن
-        if user.is_superuser:
+        # السوبر أدمن والمدير المالي والمسؤول الإداري ليهم وصول كامل لجميع الخزن
+        if user.is_superuser or getattr(user, 'is_financial_manager', False) or getattr(user, 'is_admin', False):
             return base_qs
 
         # جلب الصلاحيات السارية للمستخدم
@@ -176,7 +176,7 @@ class TreasurySecurityService:
         """هل يملك المستخدم صلاحية الإيداع على الخزينة"""
         if not user or not user.is_authenticated:
             return False
-        if user.is_superuser:
+        if user.is_superuser or getattr(user, 'is_financial_manager', False) or getattr(user, 'is_admin', False):
             return True
 
         today = target_date or timezone.now().date()
@@ -203,7 +203,7 @@ class TreasurySecurityService:
         """
         if not user or not user.is_authenticated:
             return False, _("المستخدم غير مسجل أو غير مصرح له.")
-        if user.is_superuser:
+        if user.is_superuser or getattr(user, 'is_financial_manager', False) or getattr(user, 'is_admin', False):
             return True, ""
 
         today = target_date or timezone.now().date()

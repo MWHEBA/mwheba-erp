@@ -537,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             // حفظ التبويب المستهدف لفتحه تلقائياً بعد التحديث
                             if (window.sessionStorage) {
-                                var targetTab = (resp.account_category === 'custody') ? '#custody-tab' : '#treasuries-tab';
+                                var targetTab = (resp.account_category === 'custody') ? '#custody-tab' : '#treasury-tab';
                                 sessionStorage.setItem('active_treasury_tab', targetTab);
                             }
 

@@ -298,7 +298,13 @@
                                 <span class="selected-text">{{ item.product.name }}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
+                            <input type="hidden" name="item_id[]" class="item-id-input" value="{{ item.id }}">
                             <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.cost_price }}" data-stock="{{ item.product.stock|default:0 }}" data-cost="{{ item.product.cost_price|default:0 }}" data-cost-base="{{ item.product.cost_price|default:0 }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" required>
+                            {% if show_line_details %}
+                            <div class="item-details-wrapper mt-1">
+                                <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="تفاصيل ومواصفات البند..." style="resize: vertical; font-size: 0.85rem;">{{ item.details|default:'' }}</textarea>
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">الكمية</label>
@@ -328,6 +334,7 @@
                     {% endfor %}
                 {% else %}
                 <div class="item-row row g-2 align-items-center">
+                    <input type="hidden" name="item_id[]" class="item-id-input" value="">
                     <div class="col-12 col-md-2">
                         <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                         <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
@@ -342,6 +349,11 @@
                             <i class="fas fa-th-large text-muted small"></i>
                         </button>
                         <input type="hidden" name="product[]" class="product-id-input" required>
+                        {% if show_line_details %}
+                        <div class="item-details-wrapper mt-1">
+                            <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="تفاصيل ومواصفات البند..." style="resize: vertical; font-size: 0.85rem;"></textarea>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-6 col-md-1">
                         <label class="form-label form-label-sm required-field">الكمية</label>
@@ -716,6 +728,7 @@
             type: isServiceInvoice ? 'service' : 'purchase',
             priceField: isServiceInvoice ? 'selling_price' : 'cost_price',
             currencySymbol: '{{ currency_symbol }}',
+            showLineDetails: '{{ show_line_details|yesno:"true,false" }}' === 'true',
             getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
             getInvoiceId: function() { return $('#django-purchase-form-data').data('purchase-id') || '0'; },
             onProductSelect: function($row, product, matchType) {

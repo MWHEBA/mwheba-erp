@@ -82,6 +82,11 @@ class SalesOrder(models.Model):
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sales_orders_created", verbose_name=_("أنشئ بواسطة"))
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    show_line_details = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار تفاصيل البنود في الطباعة"),
+        help_text=_("حالة إظهار تفاصيل البنود لحظة إنشاء/إصدار المستند لمنع تأثر الطباعة بتغيير الإعدادات لاحقاً"),
+    )
 
     class Meta:
         verbose_name = _("أمر بيع")
@@ -210,6 +215,13 @@ class SalesOrderItem(models.Model):
     table_tax_amount = models.DecimalField(_("مبلغ ضريبة الجدول"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     line_total = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
     price_snapshot = models.JSONField(_("لقطة التسعير المحوكمة"), default=dict, blank=True)
+    details = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name=_("التفاصيل"),
+        help_text=_("تفاصيل ومواصفات إضافية خاصة بالبند (مثل المقاسات، الخامات، أو شروط التوريد)"),
+    )
 
     class Meta:
         verbose_name = _("بند أمر بيع")
@@ -302,6 +314,11 @@ class SalesInvoice(models.Model):
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القيد المحاسبي للإيراد"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name=_("أنشئ بواسطة"))
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    show_line_details = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار تفاصيل البنود في الطباعة"),
+        help_text=_("حالة إظهار تفاصيل البنود لحظة إنشاء/إصدار المستند لمنع تأثر الطباعة بتغيير الإعدادات لاحقاً"),
+    )
 
     class Meta:
         verbose_name = _("فاتورة مبيعات")
@@ -322,6 +339,13 @@ class SalesInvoiceItem(models.Model):
     billed_qty = models.DecimalField(_("الكمية المفوترة"), max_digits=15, decimal_places=4)
     unit_price = models.DecimalField(_("سعر الوحدة"), max_digits=15, decimal_places=2)
     line_total = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
+    details = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name=_("التفاصيل"),
+        help_text=_("تفاصيل ومواصفات إضافية خاصة بالبند (مثل المقاسات، الخامات، أو شروط التوريد)"),
+    )
 
     class Meta:
         verbose_name = _("بند فاتورة مبيعات")

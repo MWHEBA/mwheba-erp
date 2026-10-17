@@ -20,6 +20,7 @@
             getSupplierId: function() { return $('#id_supplier').val() || ''; },
             getInvoiceId: function() { return '0'; },
             enableMultiSelect: false,
+            showLineDetails: false,
             onProductSelect: null // function($row, product, matchType) {}
         },
         _activePickerRow: null,
@@ -28,6 +29,16 @@
         _searchTerm: '',
         _lookupTimeout: null,
         _modalSearchTimeout: null,
+
+        escapeHtml: function(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        },
 
         init: function(userOptions) {
             this.options = $.extend({}, this.options, userOptions);
@@ -156,6 +167,12 @@
             var costPrice = itemData.cost_price !== undefined ? itemData.cost_price : (itemData.cost !== undefined ? itemData.cost : '');
             var uomFactor = itemData.uom_factor !== undefined ? itemData.uom_factor : (itemData.conversion_factor || 1.0);
 
+            var itemDetails = itemData.details || '';
+            var showLineDetails = (opts.showLineDetails === true || opts.showLineDetails === 'true');
+            var detailsHtml = '<div class="item-details-wrapper mt-1 ' + (showLineDetails || itemDetails ? '' : 'd-none') + '">' +
+                '<textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="1" placeholder="تفاصيل ومواصفات البند (اختياري)..." style="font-size: 0.75rem; resize: vertical; min-height: 26px; border-color: var(--border-color);">' + self.escapeHtml(itemDetails) + '</textarea>' +
+            '</div>';
+
             var $row;
             if (isBatchVoucher) {
                 $row = $('<div class="item-row row g-2 align-items-center">' +
@@ -172,6 +189,7 @@
                             '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                        detailsHtml +
                         '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" data-cost-base="' + costPriceBase + '" data-cost="' + costPrice + '" data-uom-factor="' + uomFactor + '" required>' +
                         '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
                         '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
@@ -236,6 +254,7 @@
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
                         whSelectHtml +
+                        detailsHtml +
                         '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" data-cost-base="' + costPriceBase + '" data-cost="' + costPrice + '" data-uom-factor="' + uomFactor + '" required>' +
                         '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
                         '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
@@ -1020,8 +1039,57 @@
             });
         },
 
-        // تطبيق المنتج المختار على الصف
+        // تطبيق المنتج المختار على الصف مع حماية التفاصيل عند التغيير (FIN-GAP-019)
         applyProductToRow: function($row, product, matchType) {
+            var self = this;
+            var currentProductId = $row.find('.product-id-input').val();
+            var $detailsTextarea = $row.find('.item-details-textarea');
+            var currentDetails = ($detailsTextarea.val() || '').trim();
+
+            // فحص ما إذا كان البند يحتوي على منتج وتفاصيل مسجلة مسبقاً وتم اختيار منتج مختلف
+            if (currentProductId && String(currentProductId) !== String(product.id) && currentDetails.length > 0) {
+                var prevCode = $row.find('.product-code-input').val();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: 'تغيير المنتج للبند',
+                        text: 'هذا البند يحتوي على تفاصيل ومواصفات مسجلة مسبقاً. هل ترغب في الاحتفاظ بها للمنتج الجديد أم مسحها؟',
+                        icon: 'question',
+                        showCancelButton: true,
+                        showDenyButton: true,
+                        confirmButtonText: 'الاحتفاظ بالتفاصيل',
+                        denyButtonText: 'مسح التفاصيل',
+                        cancelButtonText: 'إلغاء التغيير',
+                        confirmButtonColor: 'var(--primary, #0d6efd)',
+                        denyButtonColor: 'var(--danger, #dc3545)',
+                        cancelButtonColor: 'var(--secondary, #6c757d)'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            self._executeApplyProductToRow($row, product, matchType);
+                        } else if (result.isDenied) {
+                            $detailsTextarea.val('');
+                            self._executeApplyProductToRow($row, product, matchType);
+                        } else {
+                            // إلغاء: التراجع الكامل عن التحديد وإبقاء المنتج السابق وتفاصيله دون أي تعديل
+                            if (prevCode) {
+                                $row.find('.product-code-input').val(prevCode);
+                            }
+                        }
+                    });
+                    return;
+                } else {
+                    var keep = confirm('هذا البند يحتوي على مواصفات مسجلة. هل ترغب في الاحتفاظ بالتفاصيل للمنتج الجديد؟\n(اضغط "موافق" للاحتفاظ بها، أو "إلغاء" لمسحها)');
+                    if (!keep) {
+                        $detailsTextarea.val('');
+                    }
+                    self._executeApplyProductToRow($row, product, matchType);
+                    return;
+                }
+            }
+
+            self._executeApplyProductToRow($row, product, matchType);
+        },
+
+        _executeApplyProductToRow: function($row, product, matchType) {
             var self = this;
             $row.find('.product-picker-btn').html('<span class="selected-text">' + product.name + '</span><i class="fas fa-th-large text-muted small"></i>');
             var $codeInput = $row.find('.product-code-input');

@@ -312,7 +312,7 @@ def quick_add_cash_bank_account(request):
     والإسناد التلقائي للصلاحيات وسجل تاريخ العهدة.
     """
     # 1. التحقق الصارم من الصلاحية الأمنية (Zero-Trust RBAC)
-    if not (request.user.is_superuser or getattr(request.user, "is_admin", False) or request.user.has_perm("financial.add_chartofaccounts")):
+    if not (request.user.is_superuser or getattr(request.user, "is_admin", False) or getattr(request.user, "is_financial_manager", False) or request.user.has_perm("financial.add_chartofaccounts")):
         return JsonResponse({
             "success": False,
             "error": "غير مصرح لك بإضافة خزن أو حسابات بنكية أو عهد جديدة."
@@ -321,6 +321,7 @@ def quick_add_cash_bank_account(request):
     try:
         from decimal import Decimal
         from datetime import datetime
+        from django.core.exceptions import ValidationError
         from django.db.models import Q
         from financial.models.currency import Currency
         from financial.models import AccountingPeriod
@@ -377,6 +378,28 @@ def quick_add_cash_bank_account(request):
         except (ValueError, TypeError):
             op_balance = Decimal("0.00")
 
+        # منع الرصيد الافتتاحي السالب للعهد النقدية
+        if account_type == "custody" and op_balance < Decimal("0.00"):
+            return JsonResponse({
+                "success": False,
+                "error": "لا يمكن إنشاء صندوق أو بطاقة عهدة برصيد افتتاحي سالب."
+            }, status=400)
+
+        # التحقق من إيجابية سعر الصرف المخصص في حال إدخاله
+        if custom_exchange_rate is not None and str(custom_exchange_rate).strip() != "":
+            try:
+                parsed_rate = Decimal(str(custom_exchange_rate))
+                if parsed_rate <= Decimal("0.00"):
+                    return JsonResponse({
+                        "success": False,
+                        "error": "سعر الصرف يجب أن يكون أكبر من الصفر."
+                    }, status=400)
+            except (ValueError, TypeError):
+                return JsonResponse({
+                    "success": False,
+                    "error": "سعر الصرف المحدد غير صالح."
+                }, status=400)
+
         # التحقق من سريان الفترة المحاسبية في حال وجود رصيد افتتاحي
         if op_balance != Decimal("0.00"):
             open_period = AccountingPeriod.objects.filter(
@@ -411,9 +434,10 @@ def quick_add_cash_bank_account(request):
             if not parent_account:
                 parent_account = AccountRoleRegistry.get_account("CASH_CONTROL_ACCOUNT")
         elif account_type == "custody":
-            parent_account = ChartOfAccounts.objects.filter(code="11180", is_active=True).first()
+            # العهد النقدية تتفرع تحت 11130 (العهد النقدية) مع مسار fallback آمن
+            parent_account = ChartOfAccounts.objects.filter(code="11130", is_active=True).first()
             if not parent_account:
-                parent_account = AccountRoleRegistry.get_account("CUSTODY_CONTROL_ACCOUNT")
+                parent_account = ChartOfAccounts.objects.filter(Q(code="11180") | Q(code__startswith="1113"), is_active=True).first()
         else:  # bank
             if is_foreign:
                 parent_account = ChartOfAccounts.objects.filter(code="11170", is_active=True).first()
@@ -427,6 +451,11 @@ def quick_add_cash_bank_account(request):
                 "success": False,
                 "error": f"لم يتم العثور على الحساب الرقابي الرئيسي لـ {account_type} في دليل الحسابات."
             }, status=400)
+
+        # تحديث حالة الحساب الأب ليكون غير نهائي لحماية الشجرة الهرمية
+        if parent_account.is_leaf:
+            parent_account.is_leaf = False
+            parent_account.save(update_fields=['is_leaf'])
 
         # منع تكرار اسم الخزنة / الحساب البنكي / صندوق العهدة
         if account_type == "cash":
@@ -547,6 +576,33 @@ def quick_add_cash_bank_account(request):
                 notes="إسناد تلقائي عند إنشاء حساب العهدة"
             )
 
+        # الإسناد التلقائي للصلاحيات في UserTreasuryAccess قبل إنشاء القيد الافتتاحي
+        UserTreasuryAccess.objects.get_or_create(
+            user=request.user,
+            treasury=account,
+            defaults={
+                'can_deposit': True,
+                'can_disburse': True,
+                'assigned_by': request.user,
+                'notes': 'إسناد تلقائي عند إنشاء الحساب'
+            }
+        )
+
+        if account_type == "custody" and account.assigned_employee:
+            emp_user = getattr(account.assigned_employee, 'user', None)
+            if emp_user and emp_user != request.user:
+                UserTreasuryAccess.objects.get_or_create(
+                    user=emp_user,
+                    treasury=account,
+                    defaults={
+                        'can_deposit': True,
+                        'can_disburse': True,
+                        'employee': account.assigned_employee,
+                        'assigned_by': request.user,
+                        'notes': 'إسناد مسؤول صندوق العهدة'
+                    }
+                )
+
         # توليد القيد الافتتاحي المحوكم عبر AccountingGateway في حال وجود رصيد
         if op_balance != Decimal("0.00"):
             curr_code = account.currency_code
@@ -641,39 +697,13 @@ def quick_add_cash_bank_account(request):
                     source_module="financial",
                     source_model="JournalEntry",
                     source_id=account.id,
+                    entry_type="opening",
                     date=account.opening_balance_date,
                     description=f"قيد رصيد افتتاحي محوكم لـ {account.name}",
                     reference=f"OPB-{account.code}",
                     lines=lines_data,
                     idempotency_key=f"JE:financial:OpeningBalance:{account.id}:create",
                     user=request.user
-                )
-
-        # الإسناد التلقائي للصلاحيات في UserTreasuryAccess
-        UserTreasuryAccess.objects.get_or_create(
-            user=request.user,
-            treasury=account,
-            defaults={
-                'can_deposit': True,
-                'can_disburse': True,
-                'assigned_by': request.user,
-                'notes': 'إسناد تلقائي عند إنشاء الحساب'
-            }
-        )
-
-        if account_type == "custody" and account.assigned_employee:
-            emp_user = getattr(account.assigned_employee, 'user', None)
-            if emp_user and emp_user != request.user:
-                UserTreasuryAccess.objects.get_or_create(
-                    user=emp_user,
-                    treasury=account,
-                    defaults={
-                        'can_deposit': True,
-                        'can_disburse': True,
-                        'employee': account.assigned_employee,
-                        'assigned_by': request.user,
-                        'notes': 'إسناد مسؤول صندوق العهدة'
-                    }
                 )
 
         # إبطال الكاش الأمني فورياً
@@ -691,8 +721,16 @@ def quick_add_cash_bank_account(request):
                 "currency": account.currency_code
             }
         })
+    except ValidationError as ve:
+        transaction.set_rollback(True)
+        err_msg = ve.messages[0] if hasattr(ve, 'messages') and ve.messages else str(ve)
+        return JsonResponse({"success": False, "error": err_msg}, status=400)
     except Exception as e:
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+        transaction.set_rollback(True)
+        err_msg = str(e)
+        if hasattr(e, 'messages') and e.messages:
+            err_msg = e.messages[0]
+        return JsonResponse({"success": False, "error": err_msg}, status=500)
 
 
 

@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from functools import wraps
+from utils.text_sanitizer import normalize_line_details
 from core.models import SystemSetting
 from core.services.whatsapp_service import WhatsAppService
 from customer.models import Customer
@@ -162,6 +163,7 @@ def quotation_create(request, customer_id=None):
                     if not quotation.work_order_id and selected_work_order:
                         quotation.work_order = selected_work_order
                     quotation.custom_fields = SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]'))
+                    quotation.show_line_details = SystemSetting.get_bool("show_quotation_line_details", False)
                     quotation.save()
 
                     # حفظ البنود
@@ -170,6 +172,7 @@ def quotation_create(request, customer_id=None):
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
                     tax_rates = request.POST.getlist("tax_rate[]")
+                    details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
 
                     # فحص حالة إعفاء العميل
                     customer_is_exempt = False
@@ -203,6 +206,7 @@ def quotation_create(request, customer_id=None):
 
                             is_exempt = bool(getattr(product, 'is_tax_exempt', False))
                             is_taxable = (not is_exempt) and (line_tax_rate > Decimal("0.00"))
+                            line_details = normalize_line_details(details_list[i] if i < len(details_list) else "")
 
                             parsed_items.append({
                                 "product": product,
@@ -212,6 +216,7 @@ def quotation_create(request, customer_id=None):
                                 "tax_rate": line_tax_rate,
                                 "is_taxable": is_taxable,
                                 "is_service": product.is_service,
+                                "details": line_details,
                             })
 
                     # التدقيق السعري وحوكمة الخصومات في عروض الأسعار
@@ -261,7 +266,8 @@ def quotation_create(request, customer_id=None):
                             is_taxable=p_item["is_taxable"],
                             table_tax_rate=res_item["effective_table_rate"],
                             table_tax_amount=res_item["line_table_tax"],
-                            total=res_item["line_total"]
+                            total=res_item["line_total"],
+                            details=p_item["details"],
                         )
 
                     # تحديث قيم الإجماليات والأوعية والعملة
@@ -360,6 +366,7 @@ def quotation_create(request, customer_id=None):
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
+        "show_line_details": SystemSetting.get_bool("show_quotation_line_details", False),
         "allowed_item_types": allowed_item_types,
         "product_categories": product_categories,
         "page_title": _("إضافة عرض سعر"),
@@ -440,6 +447,10 @@ def quotation_edit(request, pk):
                     quotation.custom_fields = SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]'))
                     quotation.save()
 
+                    # درع حفظ التفاصيل قبل الحذف (Pre-Delete Snapshot Shield)
+                    existing_items_details = {item.id: item.details for item in quotation.items.all() if item.details}
+                    fallback_details_by_product = {item.product_id: item.details for item in quotation.items.all() if item.details}
+
                     # مسح البنود السابقة وحفظ الجديدة
                     quotation.items.all().delete()
 
@@ -448,6 +459,8 @@ def quotation_edit(request, pk):
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
                     tax_rates = request.POST.getlist("tax_rate[]")
+                    details_list = request.POST.getlist("details[]") or request.POST.getlist("item_details[]")
+                    item_ids = request.POST.getlist("item_id[]")
 
                     # فحص حالة إعفاء العميل
                     customer_is_exempt = False
@@ -482,6 +495,13 @@ def quotation_edit(request, pk):
                             is_exempt = bool(getattr(product, 'is_tax_exempt', False))
                             is_taxable = (not is_exempt) and (line_tax_rate > Decimal("0.00"))
 
+                            raw_detail = details_list[i] if i < len(details_list) else None
+                            if raw_detail is not None and str(raw_detail).strip() != "":
+                                line_details = normalize_line_details(raw_detail)
+                            else:
+                                line_id = int(item_ids[i]) if (i < len(item_ids) and item_ids[i] and str(item_ids[i]).isdigit()) else None
+                                line_details = existing_items_details.get(line_id) or fallback_details_by_product.get(prod_id, "")
+
                             parsed_items.append({
                                 "product": product,
                                 "quantity": qty,
@@ -490,6 +510,7 @@ def quotation_edit(request, pk):
                                 "tax_rate": line_tax_rate,
                                 "is_taxable": is_taxable,
                                 "is_service": product.is_service,
+                                "details": line_details,
                             })
 
                     # التدقيق السعري وحوكمة الخصومات في تعديل عروض الأسعار
@@ -539,7 +560,8 @@ def quotation_edit(request, pk):
                             is_taxable=p_item["is_taxable"],
                             table_tax_rate=res_item["effective_table_rate"],
                             table_tax_amount=res_item["line_table_tax"],
-                            total=res_item["line_total"]
+                            total=res_item["line_total"],
+                            details=p_item["details"],
                         )
 
                     # تحديث قيم الإجماليات والأوعية والعملة
@@ -605,6 +627,7 @@ def quotation_edit(request, pk):
     for item in quotation.items.all().select_related('product', 'product__tax_code', 'product__unit'):
         eff_tax = float(item.tax_rate if item.tax_rate is not None else getattr(item.product, 'effective_tax_rate', 14.0))
         current_items.append({
+            'item_id': item.id,
             'product_id': item.product.id,
             'product_name': item.product.name,
             'quantity': float(item.quantity),
@@ -618,6 +641,7 @@ def quotation_edit(request, pk):
             'table_tax_amount': float(item.table_tax_amount or 0.0),
             'total': float(item.total),
             'is_service': item.product.is_service,
+            'details': item.details or '',
         })
     import json
     current_items_json = json.dumps(current_items)
@@ -635,6 +659,7 @@ def quotation_edit(request, pk):
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
+        "show_line_details": quotation.show_line_details if quotation.show_line_details is not None else SystemSetting.get_bool("show_quotation_line_details", False),
         "allowed_item_types": allowed_item_types,
         "product_categories": product_categories,
         "page_title": _("تعديل عرض سعر: {}").format(quotation.number),
@@ -1161,6 +1186,7 @@ def quotation_convert_to_sale(request, pk):
                     'is_taxable': item.is_taxable,
                     'table_tax_rate': getattr(item, 'table_tax_rate', Decimal("0.00")),
                     'table_tax_amount': getattr(item, 'table_tax_amount', Decimal("0.00")),
+                    'details': item.details or "",
                 })
 
             # إنشاء الفاتورة من خلال SaleService

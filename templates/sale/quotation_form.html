@@ -206,6 +206,7 @@
                 {% if quotation.id and quotation.items.exists %}
                     {% for item in quotation.items.all %}
                     <div class="item-row row g-2 align-items-center">
+                        <input type="hidden" name="item_id[]" class="item-id-input" value="{{ item.id }}">
                         <div class="col-12 col-md-2">
                             <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                             <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
@@ -220,6 +221,11 @@
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
                             <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-cost-base="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-cost="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" required>
+                            {% if show_line_details %}
+                            <div class="item-details-wrapper mt-1">
+                                <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="تفاصيل ومواصفات البند..." style="resize: vertical; font-size: 0.85rem;">{{ item.details|default:'' }}</textarea>
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">الكمية</label>
@@ -252,6 +258,7 @@
                     {% endfor %}
                 {% else %}
                 <div class="item-row row g-2 align-items-center">
+                    <input type="hidden" name="item_id[]" class="item-id-input" value="">
                     <div class="col-12 col-md-2">
                         <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                         <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
@@ -266,6 +273,11 @@
                             <i class="fas fa-th-large text-muted small"></i>
                         </button>
                         <input type="hidden" name="product[]" class="product-id-input" required>
+                        {% if show_line_details %}
+                        <div class="item-details-wrapper mt-1">
+                            <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="تفاصيل ومواصفات البند..." style="resize: vertical; font-size: 0.85rem;"></textarea>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-6 col-md-1">
                         <label class="form-label form-label-sm required-field">الكمية</label>
@@ -823,6 +835,7 @@
             type: 'sale',
             priceField: 'selling_price',
             currencySymbol: '{{ currency_symbol }}',
+            showLineDetails: '{{ show_line_details|yesno:"true,false" }}' === 'true',
             getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
             getCustomerId: function() { return $('#id_customer').val() || ''; },
             getPriceListId: function() { return $('#id_price_list').val() || ''; },

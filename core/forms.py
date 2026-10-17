@@ -401,6 +401,38 @@ class OperationsSettingsForm(forms.Form):
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '15'})
     )
 
+    # 2. سياسات تفاصيل ومواصفات البنود (Line Details)
+    show_quotation_line_details = forms.BooleanField(
+        label=_('إظهار تفاصيل ومواصفات البنود في عروض الأسعار'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    show_sales_order_line_details = forms.BooleanField(
+        label=_('إظهار تفاصيل ومواصفات البنود في أوامر البيع'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    show_sale_invoice_line_details = forms.BooleanField(
+        label=_('إظهار تفاصيل ومواصفات البنود في فواتير المبيعات'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    show_purchase_order_line_details = forms.BooleanField(
+        label=_('إظهار تفاصيل ومواصفات البنود في أوامر الشراء'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    show_purchase_invoice_line_details = forms.BooleanField(
+        label=_('إظهار تفاصيل ومواصفات البنود في فواتير المشتريات'),
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
     # 3. الشروط والأحكام الافتراضية
     default_sale_invoice_notes = forms.CharField(
         label=_('الشروط والأحكام الافتراضية لفواتير المبيعات (عربي)'),

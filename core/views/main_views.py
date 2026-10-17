@@ -480,6 +480,11 @@ def operations_settings(request):
         'enable_custom_fields': settings_dict.get('enable_custom_fields', 'true') == 'true',
         'custom_fields_display_mode': settings_dict.get('custom_fields_display_mode', 'expanded'),
         'default_quotation_validity_days': int(settings_dict.get('default_quotation_validity_days', 15)) if settings_dict.get('default_quotation_validity_days') else 15,
+        'show_quotation_line_details': settings_dict.get('show_quotation_line_details') == 'true',
+        'show_sales_order_line_details': settings_dict.get('show_sales_order_line_details') == 'true',
+        'show_sale_invoice_line_details': (settings_dict.get('show_sale_invoice_line_details') or settings_dict.get('show_sale_line_details')) == 'true',
+        'show_purchase_order_line_details': settings_dict.get('show_purchase_order_line_details') == 'true',
+        'show_purchase_invoice_line_details': (settings_dict.get('show_purchase_invoice_line_details') or settings_dict.get('show_purchase_line_details')) == 'true',
         'default_sale_invoice_notes': settings_dict.get('default_sale_invoice_notes', settings_dict.get('invoice_notes', '')),
         'default_sale_invoice_notes_en': settings_dict.get('default_sale_invoice_notes_en', ''),
         'default_quotation_notes': settings_dict.get('default_quotation_notes', ''),
@@ -514,6 +519,18 @@ def operations_settings(request):
                         key=key,
                         defaults={"value": db_value, "group": "sales", "data_type": data_type, "is_active": True}
                     )
+
+                # مزامنة المفاتيح البديلة لفواتير البيع والشراء لضمان توافق الخدمات الخلفية
+                sale_details_val = 'true' if form.cleaned_data.get('show_sale_invoice_line_details') else 'false'
+                SystemSetting.objects.update_or_create(
+                    key='show_sale_line_details',
+                    defaults={"value": sale_details_val, "group": "sales", "data_type": "boolean", "is_active": True}
+                )
+                purchase_details_val = 'true' if form.cleaned_data.get('show_purchase_invoice_line_details') else 'false'
+                SystemSetting.objects.update_or_create(
+                    key='show_purchase_line_details',
+                    defaults={"value": purchase_details_val, "group": "sales", "data_type": "boolean", "is_active": True}
+                )
 
                 # تفريغ الكاش الموحد فوراً
                 SystemSetting.invalidate_all_system_caches()

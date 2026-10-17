@@ -27,7 +27,9 @@ from product.models import Warehouse, Product, ProductVariant, Unit
 from core.services.sequence_service import SequenceService
 from core.services.whatsapp_service import WhatsAppService
 from core.enums.document_types import DocumentType
+from core.models import SystemSetting
 from financial.exceptions import FinancialCoreError
+from utils.text_sanitizer import normalize_line_details
 
 from functools import wraps
 
@@ -225,6 +227,7 @@ def po_create(request):
         item_discounts = request.POST.getlist("discount[]") or request.POST.getlist("item_discount[]")
         variants = request.POST.getlist("variant[]")
         units = request.POST.getlist("unit[]")
+        details_list = request.POST.getlist("details[]")
 
         valid_indices = [i for i in range(len(product_ids)) if product_ids[i]]
         if not supplier_id or not order_date or not valid_indices:
@@ -248,6 +251,7 @@ def po_create(request):
             with transaction.atomic():
                 po_num = ProcurementService.generate_po_number(date=order_date, warehouse=warehouse)
 
+                has_line_details = any(bool(normalize_line_details(details_list[i])) for i in valid_indices if i < len(details_list))
                 po = PurchaseOrder.objects.create(
                     order_number=po_num,
                     supplier=supplier,
@@ -261,6 +265,7 @@ def po_create(request):
                     payment_terms=payment_terms,
                     notes=notes,
                     status="DRAFT",
+                    show_line_details=SystemSetting.get_bool("show_purchase_order_line_details", False) or has_line_details,
                     custom_fields=custom_fields_data,
                     subtotal=Decimal("0.00"),
                     total_amount=Decimal("0.00"),
@@ -281,6 +286,7 @@ def po_create(request):
                     unit_id = units[i] if i < len(units) and units[i] else None
                     unit_obj = Unit.objects.filter(pk=unit_id).first() if unit_id else getattr(product, "unit", None)
                     line_total = max(Decimal("0.00"), (qty * price) - line_disc).quantize(Decimal("0.01"))
+                    line_detail = normalize_line_details(details_list[i]) if i < len(details_list) else ""
                     PurchaseOrderItem.objects.create(
                         purchase_order=po,
                         product=product,
@@ -289,7 +295,8 @@ def po_create(request):
                         ordered_qty=qty,
                         unit_price=price,
                         discount=line_disc,
-                        total_price=line_total
+                        total_price=line_total,
+                        details=line_detail
                     )
                     subtotal_amt += line_total
 
@@ -370,6 +377,7 @@ def po_create(request):
         "current_exchange_rate": selected_ex_rate,
         "currency_symbol": currency_symbol,
         "settings": settings_dict,
+        "show_line_details": SystemSetting.get_bool("show_purchase_order_line_details", False),
         "custom_fields_json": json.dumps(duplicate_po.custom_fields if duplicate_po else []),
         "breadcrumb_items": breadcrumb_items,
         "page_title": _("إنشاء أمر شراء جديد"),
@@ -432,6 +440,7 @@ def po_edit(request, pk):
         item_discounts = request.POST.getlist("discount[]") or request.POST.getlist("item_discount[]")
         variants = request.POST.getlist("variant[]")
         units = request.POST.getlist("unit[]")
+        details_list = request.POST.getlist("details[]")
 
         valid_indices = [i for i in range(len(product_ids)) if product_ids[i]]
         if not supplier_id or not order_date or not valid_indices:
@@ -466,6 +475,8 @@ def po_edit(request, pk):
                 po.custom_fields = custom_fields_data
 
                 existing_items = {item.id: item for item in po.items.all()}
+                existing_items_details = {item.id: (item.details or "") for item in po.items.all()}
+                fallback_details_by_product = {item.product_id: (item.details or "") for item in po.items.all() if item.details}
                 submitted_item_ids = set()
                 subtotal_amt = Decimal("0.00")
 
@@ -486,6 +497,14 @@ def po_edit(request, pk):
                     unit_obj = Unit.objects.filter(pk=unit_id).first() if unit_id else getattr(product, "unit", None)
                     line_total = max(Decimal("0.00"), (qty * price) - line_disc).quantize(Decimal("0.01"))
 
+                    raw_detail = details_list[i] if i < len(details_list) else None
+                    if raw_detail is not None:
+                        line_detail = normalize_line_details(raw_detail)
+                    elif item_id_val and item_id_val in existing_items_details:
+                        line_detail = existing_items_details[item_id_val]
+                    else:
+                        line_detail = fallback_details_by_product.get(p_id, "")
+
                     if item_id_val and item_id_val in existing_items:
                         item = existing_items[item_id_val]
                         submitted_item_ids.add(item.id)
@@ -498,6 +517,7 @@ def po_edit(request, pk):
                         item.total_price = line_total
                         item.unit = unit_obj
                         item.variant_id = variant_id
+                        item.details = line_detail
                         item.save()
                     else:
                         new_item = PurchaseOrderItem.objects.create(
@@ -508,7 +528,8 @@ def po_edit(request, pk):
                             ordered_qty=qty,
                             unit_price=price,
                             discount=line_disc,
-                            total_price=line_total
+                            total_price=line_total,
+                            details=line_detail
                         )
                         submitted_item_ids.add(new_item.id)
                     subtotal_amt += line_total
@@ -602,6 +623,7 @@ def po_edit(request, pk):
         "current_exchange_rate": str(po.exchange_rate),
         "currency_symbol": currency_symbol,
         "settings": settings_dict,
+        "show_line_details": po.show_line_details if po.show_line_details is not None else SystemSetting.get_bool("show_purchase_order_line_details", False),
         "custom_fields_json": json.dumps(po.custom_fields or []),
         "breadcrumb_items": breadcrumb_items,
         "page_title": _(f"تعديل أمر الشراء #{po.order_number}"),

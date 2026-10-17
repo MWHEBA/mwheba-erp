@@ -441,10 +441,10 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             story.append(sm_table)
         else:
             # 2. Document Title & Details for Invoices & Orders
-            doc_obj = context.get('sale') or context.get('quotation') or context.get('purchase')
-            doc_title = context.get('document_title') or ('فاتورة مبيعات' if doc_type == 'sale' else 'عرض سعر' if doc_type == 'quotation' else 'فاتورة مشتريات')
-            doc_num = getattr(doc_obj, 'number', '')
-            doc_date = str(getattr(doc_obj, 'date', ''))
+            doc_obj = context.get('sale') or context.get('quotation') or context.get('purchase') or context.get('so') or context.get('order') or context.get('po')
+            doc_title = context.get('document_title') or ('فاتورة مبيعات' if doc_type == 'sale' else 'عرض سعر' if doc_type == 'quotation' else 'أمر بيع' if doc_type in ('sales_order', 'so', 'order') else 'أمر شراء' if doc_type in ('purchase_order', 'po') else 'فاتورة مشتريات')
+            doc_num = getattr(doc_obj, 'number', getattr(doc_obj, 'order_number', ''))
+            doc_date = str(getattr(doc_obj, 'date', getattr(doc_obj, 'order_date', '')))
             status_txt = context.get('translated_status', '')
 
             title_p = Paragraph(f"<b>{reshape_ar(doc_title)} #{doc_num}</b>", style_title)
@@ -455,7 +455,7 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             party = getattr(doc_obj, 'customer', None) or getattr(doc_obj, 'supplier', None)
             party_name = getattr(party, 'name', '') if party else ''
             party_phone = getattr(party, 'phone', '') if party else ''
-            party_label = 'فاتورة إلى (العميل):' if doc_type != 'purchase' else 'المورد / فاتورة من:'
+            party_label = 'المورد / فاتورة من:' if doc_type in ('purchase', 'purchase_order', 'po') else 'فاتورة إلى (العميل):'
 
             info_data = [
                 [Paragraph(f"<b>{reshape_ar(party_label)}</b> {reshape_ar(party_name)}", style_ar_right),
@@ -474,7 +474,13 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             story.append(Spacer(1, 12))
 
             # 4. Items Table
-            items = context.get('items', [])
+            items = context.get('items')
+            if not items and doc_obj and hasattr(doc_obj, 'items'):
+                try:
+                    items = list(doc_obj.items.all())
+                except Exception:
+                    items = []
+            items = items or []
             curr_symbol = context.get('currency_symbol_active', 'ج.م')
             
             items_data = [
@@ -488,13 +494,22 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             for idx, item in enumerate(items, 1):
                 product_obj = getattr(item, 'product', None)
                 p_name = (getattr(product_obj, 'name', '') if product_obj else None) or getattr(item, 'item_name', '') or getattr(item, 'description', '') or 'منتج'
-                qty = str(getattr(item, 'quantity', 1))
+                qty = str(getattr(item, 'quantity', getattr(item, 'ordered_qty', 1)))
                 price = f"{getattr(item, 'unit_price', 0)} {curr_symbol}"
-                total = f"{getattr(item, 'total', 0)} {curr_symbol}"
+                total = f"{getattr(item, 'total', getattr(item, 'line_total', getattr(item, 'total_price', 0)))} {curr_symbol}"
                 
+                # Check for line details (Gap 11)
+                item_details = getattr(item, 'details', '') or ''
+                show_details = getattr(doc_obj, 'show_line_details', False) or context.get('show_line_details', False)
+                if show_details and item_details:
+                    clean_det = reshape_ar(str(item_details).strip()).replace('\n', '<br/>')
+                    product_cell_html = f"<b>{reshape_ar(p_name)}</b><br/><font size='7' color='#475569'>{clean_det}</font>"
+                else:
+                    product_cell_html = f"<b>{reshape_ar(p_name)}</b>"
+
                 items_data.append([
                     Paragraph(str(idx), style_ar_center),
-                    Paragraph(reshape_ar(p_name), style_ar_right),
+                    Paragraph(product_cell_html, style_ar_right),
                     Paragraph(qty, style_ar_center),
                     Paragraph(price, style_ar_center),
                     Paragraph(total, style_ar_center)

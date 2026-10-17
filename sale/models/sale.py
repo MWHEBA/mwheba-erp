@@ -181,6 +181,11 @@ class Sale(models.Model):
 
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    show_line_details = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار تفاصيل البنود في الطباعة"),
+        help_text=_("حالة إظهار تفاصيل البنود لحظة إنشاء/إصدار المستند لمنع تأثر الطباعة بتغيير الإعدادات لاحقاً"),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,

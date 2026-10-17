@@ -124,6 +124,11 @@ class PurchaseOrder(models.Model):
         related_name="purchase_orders_approved"
     )
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    show_line_details = models.BooleanField(
+        default=False,
+        verbose_name=_("إظهار تفاصيل البنود في الطباعة"),
+        help_text=_("حالة إظهار تفاصيل البنود لحظة إنشاء/إصدار المستند لمنع تأثر الطباعة بتغيير الإعدادات لاحقاً"),
+    )
 
     class Meta:
         verbose_name = _("أمر شراء")
@@ -150,6 +155,13 @@ class PurchaseOrderItem(models.Model):
     tax_amount = models.DecimalField(_("مبلغ الضريبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     is_taxable = models.BooleanField(_("خاضع للضريبة"), default=True)
     total_price = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
+    details = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name=_("التفاصيل"),
+        help_text=_("تفاصيل ومواصفات إضافية خاصة بالبند (مثل المقاسات، الخامات، أو شروط التوريد)"),
+    )
 
     class Meta:
         verbose_name = _("بند أمر شراء")
@@ -309,6 +321,13 @@ class SupplierBillItem(models.Model):
     total_amount = models.DecimalField(_("إجمالي مبلغ السطر"), max_digits=15, decimal_places=2)
 
     ppv_variance = models.DecimalField(_("مبلغ فروق أسعار الشراء (PPV Variance)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    details = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name=_("التفاصيل"),
+        help_text=_("تفاصيل ومواصفات إضافية خاصة بالبند (مثل المقاسات، الخامات، أو شروط التوريد)"),
+    )
 
     class Meta:
         verbose_name = _("بند فاتورة مورد")

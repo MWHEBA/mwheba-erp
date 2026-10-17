@@ -72,6 +72,13 @@
         {% if item.notes %}
         <div class="item-description">{{ item.notes }}</div>
         {% endif %}
+        {% if item.details %}
+        {% if quotation.show_line_details or show_line_details %}
+        <div class="item-line-details text-muted small mt-1 ps-2" style="white-space: pre-wrap; font-size: 0.85em; border-right: 2px solid var(--border-color); padding-right: 6px;">
+            {{ item.details }}
+        </div>
+        {% endif %}
+        {% endif %}
     </td>
     <td style="text-align: center;">
         <span style="font-weight: 700;">{{ item.quantity|smart_float }}</span>

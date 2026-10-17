@@ -124,6 +124,11 @@ class ProcurementService:
                 created_by=user
             )
 
+            from utils.text_sanitizer import normalize_line_details
+            from core.models import SystemSetting
+            po.show_line_details = SystemSetting.get_bool("show_purchase_line_details", False)
+            po.save(update_fields=["show_line_details"])
+
             subtotal_amt = Decimal("0.00")
             for item in items_data:
                 product = item["product"]
@@ -131,6 +136,7 @@ class ProcurementService:
                 unit_price = Decimal(str(item["unit_price"]))
                 item_discount = Decimal(str(item.get("discount", "0.00")))
                 line_total = ((ordered_qty * unit_price) - item_discount).quantize(Decimal("0.01"))
+                line_details = normalize_line_details(item.get("details", ""))
 
                 PurchaseOrderItem.objects.create(
                     purchase_order=po,
@@ -140,7 +146,8 @@ class ProcurementService:
                     ordered_qty=ordered_qty,
                     unit_price=unit_price,
                     discount=item_discount,
-                    total_price=line_total
+                    total_price=line_total,
+                    details=line_details,
                 )
                 subtotal_amt += line_total
 
@@ -352,6 +359,12 @@ class ProcurementService:
                 unit_price = Decimal(str(item["unit_price"]))
                 line_total = (billed_qty * unit_price).quantize(Decimal("0.01"))
 
+                item_details = ""
+                if item.get("details"):
+                    item_details = normalize_line_details(item.get("details"))
+                elif grn_item.po_item and grn_item.po_item.details:
+                    item_details = grn_item.po_item.details
+
                 bill_item = SupplierBillItem.objects.create(
                     bill=bill,
                     grn_item=grn_item,
@@ -359,7 +372,8 @@ class ProcurementService:
                     product=grn_item.product,
                     billed_qty=billed_qty,
                     unit_price=unit_price,
-                    total_amount=line_total
+                    total_amount=line_total,
+                    details=item_details,
                 )
 
                 # إجراء المطابقة الثلاثية الخطية (Line-Level 3-Way Matching)

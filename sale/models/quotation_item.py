@@ -67,6 +67,13 @@ class QuotationItem(models.Model):
         decimal_places=2,
         default=Decimal("0.00")
     )
+    details = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name=_("التفاصيل"),
+        help_text=_("تفاصيل ومواصفات إضافية خاصة بالبند (مثل المقاسات، الخامات، أو شروط التوريد)"),
+    )
 
     class Meta:
         verbose_name = _("بند عرض السعر")

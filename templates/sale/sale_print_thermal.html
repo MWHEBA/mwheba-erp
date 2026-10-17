@@ -198,6 +198,15 @@
             color: var(--gray-700);
         }
 
+        .item-spec-note {
+            display: block;
+            font-size: 10px;
+            color: var(--gray-600);
+            white-space: pre-wrap;
+            margin-top: 2px;
+            padding-right: 4px;
+        }
+
         .item-calc {
             direction: ltr;
         }
@@ -410,6 +419,13 @@
                         {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                         {% endif %}
                     </span>
+                    {% endif %}
+                    {% if item.details %}
+                    {% if sale.show_line_details or show_line_details %}
+                    <div class="item-spec-note text-muted">
+                        {{ item.details }}
+                    </div>
+                    {% endif %}
                     {% endif %}
                 </div>
                 <div class="item-details">

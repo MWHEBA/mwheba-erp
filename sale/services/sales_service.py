@@ -22,6 +22,8 @@ from governance.services.movement_service import MovementService
 from customer.services.customer_subledger_service import CustomerSubledgerService
 from financial.services.ledger_core_service import LedgerCoreService
 from financial.exceptions import FinancialCoreError
+from utils.text_sanitizer import normalize_line_details
+from core.models import SystemSetting
 
 logger = logging.getLogger("sale.services.sales_service")
 
@@ -115,6 +117,7 @@ class SalesService:
                 notes=notes or "",
                 custom_fields=custom_fields or [],
                 status="DRAFT",
+                show_line_details=SystemSetting.get_bool("show_sales_order_line_details", False),
                 created_by=user
             )
 
@@ -149,6 +152,7 @@ class SalesService:
 
                 prod_rate = getattr(product, 'effective_tax_rate', Decimal('14.00')) or Decimal('14.00')
                 is_taxable_val = not getattr(product, 'is_tax_exempt', False)
+                line_details = normalize_line_details(item.get("details", ""))
 
                 SalesOrderItem.objects.create(
                     sales_order=so,
@@ -161,7 +165,8 @@ class SalesService:
                     tax_rate=prod_rate,
                     is_taxable=is_taxable_val,
                     line_total=line_total,
-                    price_snapshot=price_snap_serializable
+                    price_snapshot=price_snap_serializable,
+                    details=line_details,
                 )
 
             # Calculation of Net Totals
@@ -431,6 +436,7 @@ class SalesService:
                 currency=so.currency,
                 exchange_rate=so.exchange_rate,
                 status="POSTED",
+                show_line_details=SystemSetting.get_bool("show_sales_invoice_line_details", False),
                 created_by=user
             )
 
@@ -445,13 +451,20 @@ class SalesService:
                 line_total = (billed_qty * price).quantize(Decimal("0.01"))
                 total_inv_val += line_total
 
+                item_details = ""
+                if item.get("details"):
+                    item_details = normalize_line_details(item.get("details"))
+                elif so_item and so_item.details:
+                    item_details = so_item.details
+
                 SalesInvoiceItem.objects.create(
                     sales_invoice=inv,
                     dn_item=dn_item,
                     so_item=so_item,
                     billed_qty=billed_qty,
                     unit_price=price,
-                    line_total=line_total
+                    line_total=line_total,
+                    details=item_details,
                 )
 
                 so_item.invoiced_qty += billed_qty

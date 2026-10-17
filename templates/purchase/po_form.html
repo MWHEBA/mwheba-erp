@@ -286,6 +286,11 @@
                             <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.unit_price }}" data-cost="{{ item.product.cost_price|default:0 }}" data-cost-base="{{ item.product.cost_price|default:0 }}" data-stock="{{ item.product.stock|default:0 }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" required>
                             <input type="hidden" name="variant[]" class="variant-id-input" value="{{ item.variant_id|default:'' }}">
                             <input type="hidden" name="unit[]" class="unit-id-input" value="{{ item.unit_id|default:'' }}">
+                            {% if show_line_details %}
+                            <div class="item-details-wrapper mt-1">
+                                <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="{% trans 'تفاصيل ومواصفات البند...' %}" style="resize: vertical; font-size: 0.85rem;">{{ item.details|default:'' }}</textarea>
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
@@ -336,6 +341,11 @@
                         <input type="hidden" name="product[]" class="product-id-input" required>
                         <input type="hidden" name="variant[]" class="variant-id-input">
                         <input type="hidden" name="unit[]" class="unit-id-input">
+                        {% if show_line_details %}
+                        <div class="item-details-wrapper mt-1">
+                            <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="2" placeholder="{% trans 'تفاصيل ومواصفات البند...' %}" style="resize: vertical; font-size: 0.85rem;"></textarea>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
@@ -620,6 +630,7 @@ $(document).ready(function() {
         type: 'purchase',
         priceField: 'cost_price',
         currencySymbol: currentCurrencySymbol,
+        showLineDetails: '{{ show_line_details|yesno:"true,false" }}' === 'true',
         enableMultiSelect: true,
         getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
         getSupplierId: function() { return $('#id_supplier').val() || ''; },

@@ -543,7 +543,7 @@ class AccountingGateway:
         with DatabaseLockManager.atomic_operation():
             # Validate and prepare data
             validated_lines = self._validate_and_prepare_lines(lines, source_info=source_info)
-            self._validate_treasury_permissions(validated_lines, user, source_info)
+            self._validate_treasury_permissions(validated_lines, user, source_info, entry_type=entry_type, reference=reference)
             entry_date = date or timezone.now().date()
             
             from financial.services.ledger_core_service import LedgerCoreService
@@ -712,17 +712,27 @@ class AccountingGateway:
         self,
         validated_lines: List[Dict],
         user: User,
-        source_info: Optional[SourceInfo] = None
+        source_info: Optional[SourceInfo] = None,
+        entry_type: Optional[str] = None,
+        reference: Optional[str] = None
     ) -> None:
         """
         Kernel-level validation to enforce user treasury deposit and disbursement permissions.
         Prevents unauthorized debit/credit on cash, bank, and custody accounts before database commit.
         Autonomous system tasks (Closing runs, FX revaluation, revenue recognition) pass under system authority.
+        Opening balance entries (entry_type='opening' or reference starts with OPB-) pass under accounting provisioning authority.
         """
         if not user or user.is_superuser:
             return
 
-        if source_info and source_info.module in ['period_close', 'fx_revaluation', 'revenue_recognition', 'closing_engine']:
+        # Opening balance provisioning entries are exempt from front-office cashier deposit/disbursement checks
+        if entry_type == 'opening' or (reference and str(reference).startswith('OPB-')):
+            return
+
+        if source_info and source_info.module in [
+            'period_close', 'fx_revaluation', 'revenue_recognition',
+            'closing_engine', 'opening_balance', 'treasury_provisioning'
+        ]:
             return
 
         from financial.services.treasury_security_service import TreasurySecurityService
@@ -747,7 +757,9 @@ class AccountingGateway:
 
             # Debit to cash/bank is an Inflow / Deposit
             if debit_amt > Decimal('0.00'):
-                TreasurySecurityService.enforce_deposit(user, acc.id)
+                # Custody accounts do not receive client cashier deposits; skip deposit cashier enforcement for custody
+                if not getattr(acc, 'is_custody_account', False):
+                    TreasurySecurityService.enforce_deposit(user, acc.id)
 
             # Credit to cash/bank is an Outflow / Disbursement
             if credit_amt > Decimal('0.00'):

@@ -348,6 +348,7 @@
                         {% if sale.id and sale.items.exists %}
                             {% for item in sale.items.all %}
                             <div class="item-row row g-2 align-items-center">
+                                <input type="hidden" name="item_id[]" class="item-id-input" value="{{ item.id }}">
                                 <div class="col-12 col-md-2">
                                     <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                                     <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
@@ -372,6 +373,9 @@
                                         <button type="button" class="btn btn-xs btn-outline-warning btn-split-item d-none" tabindex="-1" title="توزيع الكمية على المخازن" style="font-size: 0.65rem; padding: 1px 4px; white-space: nowrap;">
                                             <i class="fas fa-code-branch"></i> تقسيم
                                         </button>
+                                    </div>
+                                    <div class="item-details-wrapper mt-1 {% if not show_line_details and not item.details %}d-none{% endif %}">
+                                        <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="1" placeholder="تفاصيل ومواصفات البند (اختياري)..." style="font-size: 0.75rem; resize: vertical; min-height: 26px; border-color: var(--border-color);">{{ item.details|default:'' }}</textarea>
                                     </div>
                                     <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-cost-base="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-cost="{% if can_view_profit_margin %}{{ item.product.cost_price|default:0 }}{% else %}0{% endif %}" data-is-service="{{ item.product.is_service|yesno:'true,false' }}" data-uom-factor="{{ item.uom.conversion_factor|default:1.0 }}" required>
                                 </div>
@@ -406,6 +410,7 @@
                             {% endfor %}
                         {% else %}
                         <div class="item-row row g-2 align-items-center">
+                            <input type="hidden" name="item_id[]" class="item-id-input" value="">
                             <div class="col-12 col-md-2">
                                 <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                                 <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
@@ -427,6 +432,9 @@
                                     <button type="button" class="btn btn-xs btn-outline-warning btn-split-item d-none" tabindex="-1" title="توزيع الكمية على المخازن" style="font-size: 0.65rem; padding: 1px 4px; white-space: nowrap;">
                                         <i class="fas fa-code-branch"></i> تقسيم
                                     </button>
+                                </div>
+                                <div class="item-details-wrapper mt-1 {% if not show_line_details %}d-none{% endif %}">
+                                    <textarea name="details[]" class="form-control form-control-sm item-details-textarea" rows="1" placeholder="تفاصيل ومواصفات البند (اختياري)..." style="font-size: 0.75rem; resize: vertical; min-height: 26px; border-color: var(--border-color);"></textarea>
                                 </div>
                                 <input type="hidden" name="product[]" class="product-id-input" required>
                             </div>
@@ -1329,6 +1337,7 @@
                 unit_price: parseFloat(String($row.find('.unit-price').val() || '0').replace(/,/g, '')),
                 discount: 0,
                 warehouse_id: nextWh.warehouse_id,
+                details: $row.find('.item-details-textarea').val() || $row.find('input[name="details[]"]').val() || '',
                 stock: nextWh.available_quantity,
                 is_service: false,
                 tax_rate: parseFloat($row.find('.item-tax-rate').val() || 14),
@@ -1366,6 +1375,7 @@
             type: 'sale',
             priceField: 'selling_price',
             currencySymbol: '{{ currency_symbol }}',
+            showLineDetails: '{{ show_line_details|yesno:"true,false" }}' === 'true',
             getWarehouseId: function($row) {
                 if ($row && $row.length) {
                     var rowWh = $row.find('.item-warehouse-select').val();
