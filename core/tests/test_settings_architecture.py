@@ -176,3 +176,59 @@ class TestSettingsArchitecture:
         rendered_disabled = t.render(ctx_disabled)
         assert "سعر الصرف" not in rendered_disabled
         assert "المعادل بالعملة المحلية" not in rendered_disabled
+
+    def test_admin_sidebar_settings_visibility_and_module_management_restriction(self, client):
+        """
+        التحقق من ظهور الإعدادات لمدير النظام (admin) في القائمة الجانبية
+        مع حجب تطبيقات النظام (module_management) عنه وقصرها على superuser
+        """
+        from users.models import Role
+        from django.template.loader import render_to_string
+        
+        admin_role, _ = Role.objects.get_or_create(
+            name="admin",
+            defaults={"display_name": "مدير النظام", "is_system_role": True}
+        )
+        admin_user = User.objects.create_user(
+            username="system_admin_no_super",
+            email="sysadmin@example.com",
+            password="Password123!",
+            role=admin_role,
+            is_staff=True,
+            is_superuser=False
+        )
+
+        assert admin_user.is_admin is True
+        assert admin_user.is_superuser is False
+
+        from django.test import RequestFactory
+        rf = RequestFactory()
+
+        # 1. فحص القالب الجانبي لمدير النظام
+        req_admin = rf.get("/")
+        req_admin.user = admin_user
+        rendered_admin = render_to_string("partials/sidebar.html", {"user": admin_user, "request": req_admin})
+        assert "إعدادات المنشـأة" in rendered_admin
+        assert "سياسات التشغيل" in rendered_admin
+        assert "إعدادات النظام" in rendered_admin
+        assert "إدارة النسخ الاحتياطية" in rendered_admin
+        # تطبيقات النظام محجوبة عن مدير النظام
+        assert "تطبيقات النظام" not in rendered_admin
+
+        # 2. فحص القالب الجانبي للمدير العام (Superuser)
+        req_super = rf.get("/")
+        req_super.user = self.superuser
+        rendered_super = render_to_string("partials/sidebar.html", {"user": self.superuser, "request": req_super})
+        assert "إعدادات المنشـأة" in rendered_super
+        assert "تطبيقات النظام" in rendered_super
+
+        # 3. محاولة الدخول المباشر لرابط تطبيقات النظام بواسطة مدير النظام
+        client.force_login(admin_user)
+        mod_res = client.get(reverse("core:module_management"))
+        assert mod_res.status_code == 302  # تم الحظر وإعادة التوجيه
+
+        # 4. دخول المدير العام للرابط
+        client.force_login(self.superuser)
+        mod_super_res = client.get(reverse("core:module_management"))
+        assert mod_super_res.status_code == 200
+

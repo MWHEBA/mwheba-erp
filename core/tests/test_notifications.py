@@ -1632,3 +1632,72 @@ class NotificationSecurityTest(TestCase):
         
         self.assertTrue(pref1.enable_inventory_alerts)
         self.assertFalse(pref2.enable_inventory_alerts)
+
+
+class NotificationSettingsViewTest(TestCase):
+    """اختبارات صفحة إعدادات الإشعارات"""
+
+    def setUp(self):
+        from django.test import Client
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="settings_user",
+            email="settings_user@example.com",
+            password="password123"
+        )
+        self.url = reverse('core:notification_settings')
+
+    def test_notification_settings_requires_login(self):
+        """التحقق من اشتراط تسجيل الدخول"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_notification_settings_get_renders_successfully(self):
+        """التحقق من تحميل الصفحة وحساب الإحصائيات بنجاح دون أي خطأ في القالب"""
+        self.client.login(username="settings_user", password="password123")
+        Notification.objects.create(
+            user=self.user,
+            title="إشعار 1",
+            message="نص",
+            is_read=True,
+            type="info"
+        )
+        Notification.objects.create(
+            user=self.user,
+            title="إشعار 2",
+            message="نص 2",
+            is_read=False,
+            type="warning"
+        )
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("form", response.context)
+        self.assertIn("preference", response.context)
+        self.assertEqual(response.context["total_notifications"], 2)
+        self.assertEqual(response.context["read_notifications"], 1)
+        self.assertEqual(response.context["unread_notifications"], 1)
+        self.assertEqual(response.context["read_percentage"], 50)
+        self.assertEqual(response.context["unread_percentage"], 50)
+
+    def test_notification_settings_post_updates_preferences(self):
+        """التحقق من حفظ إعدادات الإشعارات بنجاح"""
+        self.client.login(username="settings_user", password="password123")
+        post_data = {
+            'enable_inventory_alerts': 'on',
+            'enable_invoice_notifications': 'on',
+            'enable_payment_notifications': 'on',
+            'enable_return_notifications': 'on',
+            'notify_in_app': 'on',
+            'inventory_check_frequency': 'daily',
+            'invoice_check_frequency': 'daily',
+            'daily_summary_time': '09:00',
+            'invoice_due_days_before': 3,
+            'invoice_overdue_days_after': 1,
+            'auto_delete_after_days': 30,
+            'auto_archive_after_months': 6,
+        }
+        response = self.client.post(self.url, data=post_data)
+        self.assertRedirects(response, self.url)
+        pref = NotificationPreference.objects.get(user=self.user)
+        self.assertEqual(pref.inventory_check_frequency, 'daily')
+

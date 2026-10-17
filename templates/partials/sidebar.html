@@ -1053,7 +1053,7 @@
                 {% endif %}
 
                 <!-- الإعدادات -->
-                {% if user.is_superuser %}
+                {% if user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#settingsMenu"
                         class="sidebar-link collapsed {% if active_menu == 'settings' %}active{% endif %}"
@@ -1084,11 +1084,13 @@
                                 <i class="fas fa-balance-scale me-2"></i>{% trans "الأرصدة الافتتاحية" %}
                             </a>
                         </li>
+                        {% if user.is_superuser %}
                         <li>
                             <a href="{% url 'core:module_management' %}" class="submenu-link">
                                 <i class="fas fa-cubes me-2"></i>{% trans "تطبيقات النظام" %}
                             </a>
                         </li>
+                        {% endif %}
                         {% if 'whatsapp'|is_module_enabled %}
                         <li>
                             <a href="{% url 'core:whatsapp_settings' %}" class="submenu-link {% if request.resolver_match.url_name == 'whatsapp_settings' %}active{% endif %}">

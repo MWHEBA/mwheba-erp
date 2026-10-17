@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@user_passes_test(lambda u: u.is_authenticated and (u.is_superuser or getattr(u, 'is_admin', False)))
+@user_passes_test(lambda u: u.is_authenticated and u.is_superuser)
 def module_management(request):
     """
     صفحة إدارة تطبيقات النظام

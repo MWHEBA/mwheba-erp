@@ -382,7 +382,7 @@
                                 <a href="{% url 'core:whatsapp_settings' %}" class="btn btn-outline-success">
                                     <i class="fas fa-external-link-alt me-1"></i>{% trans "إعدادات واتساب" %}
                                 </a>
-                                {% else %}
+                                {% elif user.is_superuser %}
                                 <a href="{% url 'core:module_management' %}" class="btn btn-outline-secondary">
                                     <i class="fas fa-cubes me-1"></i>{% trans "تطبيقات النظام" %}
                                 </a>

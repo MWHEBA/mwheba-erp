@@ -20,6 +20,10 @@
         display: block;
         margin-top: 0.25rem;
     }
+    
+    .conditional-field.is-hidden {
+        display: none;
+    }
 </style>
 {% endblock %}
 
@@ -180,7 +184,7 @@
                                     </label>
                                 </div>
                                 
-                                <div class="mt-2 email-field" style="{% if not preference.notify_email %}display: none;{% endif %}">
+                                <div class="mt-2 email-field conditional-field{% if not preference.notify_email %} is-hidden{% endif %}">
                                     <label for="{{ form.email_for_notifications.id_for_label }}" class="form-label">
                                         {{ form.email_for_notifications.label }}
                                     </label>
@@ -204,7 +208,7 @@
                                     </label>
                                 </div>
                                 
-                                <div class="mt-2 sms-field" style="{% if not preference.notify_sms %}display: none;{% endif %}">
+                                <div class="mt-2 sms-field conditional-field{% if not preference.notify_sms %} is-hidden{% endif %}">
                                     <label for="{{ form.phone_for_notifications.id_for_label }}" class="form-label">
                                         {{ form.phone_for_notifications.label }}
                                     </label>
@@ -257,7 +261,7 @@
                                     </label>
                                 </div>
                                 
-                                <div class="mt-2 daily-summary-field" style="{% if not preference.send_daily_summary %}display: none;{% endif %}">
+                                <div class="mt-2 daily-summary-field conditional-field{% if not preference.send_daily_summary %} is-hidden{% endif %}">
                                     <label for="{{ form.daily_summary_time.id_for_label }}" class="form-label">
                                         {{ form.daily_summary_time.label }}
                                     </label>
@@ -364,7 +368,7 @@
                             </label>
                         </div>
                         
-                        <div class="dnd-fields" style="{% if not preference.enable_do_not_disturb %}display: none;{% endif %}">
+                        <div class="dnd-fields conditional-field{% if not preference.enable_do_not_disturb %} is-hidden{% endif %}">
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="{{ form.do_not_disturb_start.id_for_label }}" class="form-label">
@@ -402,7 +406,7 @@
                             </label>
                         </div>
                         
-                        <div class="auto-delete-field" style="{% if not preference.auto_delete_read_notifications %}display: none;{% endif %}">
+                        <div class="auto-delete-field conditional-field{% if not preference.auto_delete_read_notifications %} is-hidden{% endif %}">
                             <label for="{{ form.auto_delete_after_days.id_for_label }}" class="form-label">
                                 {{ form.auto_delete_after_days.label }}
                             </label>
@@ -420,7 +424,7 @@
                             </label>
                         </div>
                         
-                        <div class="auto-archive-field" style="{% if not preference.auto_archive_old_notifications %}display: none;{% endif %}">
+                        <div class="auto-archive-field conditional-field{% if not preference.auto_archive_old_notifications %} is-hidden{% endif %}">
                             <label for="{{ form.auto_archive_after_months.id_for_label }}" class="form-label">
                                 {{ form.auto_archive_after_months.label }}
                             </label>
@@ -464,7 +468,7 @@
                     <div class="stat-item mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-muted">إجمالي الإشعارات</span>
-                            <strong class="h4 mb-0">{{ total_notifications }}</strong>
+                            <strong class="h4 mb-0">{{ total_notifications|default:0 }}</strong>
                         </div>
                         <div class="progress" style="height: 5px;">
                             <div class="progress-bar bg-primary" style="width: 100%"></div>
@@ -474,20 +478,20 @@
                     <div class="stat-item mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-muted">المقروءة</span>
-                            <strong class="text-success">{{ read_notifications }}</strong>
+                            <strong class="text-success">{{ read_notifications|default:0 }}</strong>
                         </div>
                         <div class="progress" style="height: 5px;">
-                            <div class="progress-bar bg-success" style="width: {{ read_percentage }}%"></div>
+                            <div class="progress-bar bg-success" data-width="{{ read_percentage|default:0 }}%" style="width: 0%;"></div>
                         </div>
                     </div>
                     
                     <div class="stat-item mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="text-muted">غير المقروءة</span>
-                            <strong class="text-danger">{{ unread_notifications }}</strong>
+                            <strong class="text-danger">{{ unread_notifications|default:0 }}</strong>
                         </div>
                         <div class="progress" style="height: 5px;">
-                            <div class="progress-bar bg-danger" style="width: {{ 100|add:read_percentage|add:'-100' }}%"></div>
+                            <div class="progress-bar bg-danger" data-width="{{ unread_percentage|default:0 }}%" style="width: 0%;"></div>
                         </div>
                     </div>
                     

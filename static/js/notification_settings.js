@@ -19,9 +19,11 @@
         
         checkbox.addEventListener('change', function() {
             if (this.checked) {
+                field.classList.remove('is-hidden');
                 field.style.display = 'block';
                 field.style.animation = 'slideDown 0.3s ease';
             } else {
+                field.classList.add('is-hidden');
                 field.style.display = 'none';
             }
         });
@@ -162,7 +164,7 @@
         const progressBars = document.querySelectorAll('.progress-bar');
         
         progressBars.forEach(bar => {
-            const width = bar.style.width;
+            const width = bar.getAttribute('data-width') || bar.style.width || '0%';
             bar.style.width = '0%';
             
             setTimeout(() => {

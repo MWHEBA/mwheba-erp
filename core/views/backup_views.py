@@ -33,9 +33,9 @@ BACKUP_ID_REGEX = re.compile(r'^backup_\d{8}_\d{6}$')
 
 
 def superuser_required(view_func):
-    """Decorator ensuring only active superusers can access backup views"""
+    """Decorator ensuring active superusers or admins can access backup views"""
     actual_decorator = user_passes_test(
-        lambda u: u.is_authenticated and u.is_active and u.is_superuser,
+        lambda u: u.is_authenticated and u.is_active and (u.is_superuser or getattr(u, 'is_admin', False)),
         login_url='core:dashboard'
     )
     return actual_decorator(view_func)

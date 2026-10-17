@@ -885,14 +885,57 @@ def notification_settings(request):
     """
     إعدادات الإشعارات للمستخدم
     """
+    from datetime import timedelta
     from django.contrib import messages
-    
+    from django.db.models import Count
+    from django.utils import timezone
+    from core.forms import NotificationSettingsForm
+    from core.models import Notification, NotificationPreference
+
+    preference = NotificationPreference.get_or_create_for_user(request.user)
+
     if request.method == "POST":
-        # حفظ إعدادات الإشعارات
-        messages.success(request, "تم حفظ إعدادات الإشعارات بنجاح")
-        return redirect("core:notification_settings")
-    
-    # إعداد الهيدر
+        form = NotificationSettingsForm(request.POST, instance=preference)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم حفظ إعدادات الإشعارات بنجاح")
+            return redirect("core:notification_settings")
+        else:
+            messages.error(request, "يرجى تصحيح الأخطاء الموضحة أدناه")
+    else:
+        form = NotificationSettingsForm(instance=preference)
+
+    # إحصائيات آخر 30 يوم
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    user_notifications = Notification.objects.filter(
+        user=request.user,
+        created_at__gte=thirty_days_ago
+    )
+    total_notifications = user_notifications.count()
+    read_notifications = user_notifications.filter(is_read=True).count()
+    unread_notifications = total_notifications - read_notifications
+
+    if total_notifications > 0:
+        read_percentage = round((read_notifications / total_notifications) * 100)
+        unread_percentage = 100 - read_percentage
+    else:
+        read_percentage = 0
+        unread_percentage = 0
+
+    type_counts = (
+        user_notifications.values('type')
+        .annotate(count=Count('id'))
+        .order_by('-count')[:5]
+    )
+    type_choices_dict = dict(Notification.TYPE_CHOICES)
+    type_stats = [
+        {
+            'label': type_choices_dict.get(item['type'], item['type']),
+            'count': item['count']
+        }
+        for item in type_counts
+    ]
+
     header_buttons = [
         {
             'url': reverse('core:notifications_list'),
@@ -902,7 +945,6 @@ def notification_settings(request):
         }
     ]
 
-    # مسار التنقل
     breadcrumb_items = [
         {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
         {'title': 'الإشعارات', 'url': reverse('core:notifications_list'), 'icon': 'fas fa-bell'},
@@ -910,11 +952,20 @@ def notification_settings(request):
     ]
 
     context = {
+        "page_title": "إعدادات الإشعارات",
         "title": "إعدادات الإشعارات",
         "subtitle": "إدارة تفضيلات الإشعارات",
         "icon": "fas fa-cog",
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
+        "form": form,
+        "preference": preference,
+        "total_notifications": total_notifications,
+        "read_notifications": read_notifications,
+        "unread_notifications": unread_notifications,
+        "read_percentage": read_percentage,
+        "unread_percentage": unread_percentage,
+        "type_stats": type_stats,
     }
 
     return render(request, "core/notification_settings.html", context)
