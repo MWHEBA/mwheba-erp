@@ -558,8 +558,12 @@
           <!-- 3. تعطيل / تفعيل الخزينة -->
           {% if can_manage_treasury %}
             {% if account.is_active %}
-            <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmToggleCashAccount('{{ account.id }}', false);"
-              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger">
+            <a href="javascript:void(0)"
+              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger"
+              data-account-id="{{ account.id }}"
+              data-is-zero-balance="{{ is_zero_balance|yesno:'true,false' }}"
+              data-balance="{{ current_balance|floatformat:2 }} {{ account_currency_symbol }}"
+              onclick="handleToggleCashAccountClick(this, false);">
               <div class="me-3">
                 <i class="fas fa-ban fa-2x text-danger"></i>
               </div>
@@ -569,8 +573,12 @@
               </div>
             </a>
             {% else %}
-            <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmToggleCashAccount('{{ account.id }}', true);"
-              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-success">
+            <a href="javascript:void(0)"
+              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-success"
+              data-account-id="{{ account.id }}"
+              data-is-zero-balance="true"
+              data-balance="0"
+              onclick="handleToggleCashAccountClick(this, true);">
               <div class="me-3">
                 <i class="fas fa-check-circle fa-2x text-success"></i>
               </div>
@@ -584,8 +592,10 @@
 
           <!-- 4. حذف الخزينة (إذا كانت معطلة ورصيدها صفراً) -->
           {% if is_zero_balance and can_delete_treasury and not account.is_active %}
-          <a href="javascript:void(0)" onclick="bootstrap.Modal.getInstance(document.getElementById('actionsModal'))?.hide(); confirmDeleteCashAccount('{{ account.id }}');"
-            class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger">
+          <a href="javascript:void(0)"
+            class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger"
+            data-account-id="{{ account.id }}"
+            onclick="handleDeleteCashAccountClick(this);">
             <div class="me-3">
               <i class="fas fa-trash-alt fa-2x text-danger"></i>
             </div>
@@ -1281,7 +1291,47 @@
     
   }
 
-  function confirmToggleCashAccount(accountId, isActivate) {
+  function handleToggleCashAccountClick(el, isActivate) {
+    const modalEl = document.getElementById('actionsModal');
+    if (modalEl) {
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+    }
+    const accountId = el.getAttribute('data-account-id');
+    const isZeroBalance = el.getAttribute('data-is-zero-balance') === 'true';
+    const balanceVal = el.getAttribute('data-balance') || '0';
+    confirmToggleCashAccount(accountId, isActivate, isZeroBalance, balanceVal);
+  }
+
+  function handleDeleteCashAccountClick(el) {
+    const modalEl = document.getElementById('actionsModal');
+    if (modalEl) {
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+    }
+    const accountId = el.getAttribute('data-account-id');
+    confirmDeleteCashAccount(accountId);
+  }
+
+  function confirmToggleCashAccount(accountId, isActivate, isZeroBalance, balanceVal) {
+    if (isZeroBalance === undefined) isZeroBalance = true;
+    if (balanceVal === undefined) balanceVal = '0';
+    if (!isActivate && !isZeroBalance) {
+      Swal.fire({
+        title: '<i class="fas fa-exclamation-triangle text-warning me-2"></i>تعذر تعطيل الخزينة',
+        html: `لا يمكن إلغاء تنشيط أو تعطيل خزينة رصيدها غير صفري (الرصيد الحالي: <b>${balanceVal}</b>).<br><br><span class="text-muted">يجب تسوية وتصفية رصيد الخزينة أولاً (نقل الرصيد إلى خزينة أخرى أو تسويته) قبل التعطيل.</span>`,
+        icon: 'warning',
+        confirmButtonText: 'حسناً',
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-3 shadow-lg border-0 p-4',
+          title: 'fs-5 fw-bold text-dark mb-2',
+          confirmButton: 'btn btn-primary px-4'
+        }
+      });
+      return;
+    }
+
     const actionText = isActivate ? 'تفعيل' : 'تعطيل';
     const actionIcon = isActivate ? 'fa-check-circle text-success' : 'fa-ban text-warning';
     const confirmBtnClass = isActivate ? 'btn btn-success px-4 fw-bold ms-2' : 'btn btn-warning px-4 fw-bold ms-2';

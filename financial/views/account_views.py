@@ -3383,21 +3383,36 @@ def cash_account_edit(request, pk):
 @require_permission('financial.change_chartofaccounts')
 def cash_account_toggle_active(request, pk):
     """
-    تعطيل أو إعادة تفعيل الخزينة / الحساب البنكي بدون شروط
+    تعطيل أو إعادة تفعيل الخزينة / الحساب البنكي مع معالجة قيود النموذج
     """
     from django.core.cache import cache
+    from django.core.exceptions import ValidationError
     account = get_object_or_404(ChartOfAccounts, pk=pk)
 
     account.is_active = not account.is_active
-    account.save(update_fields=['is_active'])
+    try:
+        account.save(update_fields=['is_active'])
 
-    # تفريغ كاش حسابات الدفع لتحديث القوائم المنسدلة فوراً
-    cache.delete('payment_accounts_data_v4')
-    cache.delete('payment_accounts_data_v2')
-    cache.delete('payment_accounts_data_v3')
+        # تفريغ كاش حسابات الدفع لتحديث القوائم المنسدلة فوراً
+        cache.delete('payment_accounts_data_v4')
+        cache.delete('payment_accounts_data_v2')
+        cache.delete('payment_accounts_data_v3')
 
-    status_text = "تفعيل" if account.is_active else "تعطيل"
-    messages.success(request, f"تم {status_text} حساب/خزينة '{account.name}' بنجاح.")
+        status_text = "تفعيل" if account.is_active else "تعطيل"
+        msg = f"تم {status_text} حساب/خزينة '{account.name}' بنجاح."
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": True, "message": msg, "is_active": account.is_active})
+        messages.success(request, msg)
+    except ValidationError as e:
+        error_msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": error_msg, "message": error_msg}, status=400)
+        messages.error(request, error_msg)
+    except Exception as e:
+        error_msg = str(e)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": False, "error": error_msg, "message": error_msg}, status=400)
+        messages.error(request, f"حدث خطأ أثناء تعديل حالة الحساب: {error_msg}")
 
     return redirect("financial:cash_account_movements", pk=account.pk)
 

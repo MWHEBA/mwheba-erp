@@ -245,6 +245,54 @@ class TestTreasurySecurityService:
         resp_lookup = client.get(reverse("financial:api_get_exchange_rate"), {"code": "EGP"})
         assert resp_lookup.status_code == 200
 
+    def test_cash_account_toggle_active_with_nonzero_balance_handled_gracefully(self, client, setup_environment):
+        from django.urls import reverse
+        from decimal import Decimal
+        from django.contrib.messages import get_messages
+        su = setup_environment["superuser"]
+        cash1 = setup_environment["cash1"]
+        client.force_login(su)
 
+        # Set a non-zero opening balance so current_balance != 0
+        cash1.opening_balance = Decimal("5000.00")
+        cash1.save()
 
+        # 1. Standard POST request should redirect and show error message instead of 500
+        resp = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
+        assert resp.status_code == 302
+        cash1.refresh_from_db()
+        assert cash1.is_active is True  # Should not be deactivated
+        messages = list(get_messages(resp.wsgi_request))
+        assert any("لا يمكن إلغاء تنشيط حساب رصيده غير صفري" in m.message for m in messages)
 
+        # 2. AJAX request should return 400 with error message instead of 500
+        resp_ajax = client.post(
+            reverse("financial:cash_account_toggle_active", args=[cash1.id]),
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        assert resp_ajax.status_code == 400
+        data = resp_ajax.json()
+        assert data["success"] is False
+        assert "لا يمكن إلغاء تنشيط حساب رصيده غير صفري" in data["error"]
+
+    def test_cash_account_toggle_active_with_zero_balance_succeeds(self, client, setup_environment):
+        from django.urls import reverse
+        from decimal import Decimal
+        su = setup_environment["superuser"]
+        cash1 = setup_environment["cash1"]
+        client.force_login(su)
+
+        cash1.opening_balance = Decimal("0.00")
+        cash1.save()
+
+        # Deactivate
+        resp = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
+        assert resp.status_code == 302
+        cash1.refresh_from_db()
+        assert cash1.is_active is False
+
+        # Reactivate
+        resp = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
+        assert resp.status_code == 302
+        cash1.refresh_from_db()
+        assert cash1.is_active is True
