@@ -140,17 +140,21 @@
                         <div class="col-md-4">
                             <label for="opening_balance" class="form-group-label">الرصيد الافتتاحي (بالعملة المحلية)</label>
                             <div class="input-group">
-                                <input type="number" step="0.01" class="form-control text-start fw-bold" id="opening_balance" name="opening_balance" 
-                                       value="{{ account.opening_balance|default:'0.00' }}" placeholder="0.00">
+                                <input type="number" step="0.01" class="form-control text-start fw-bold {% if account.pk %}bg-light text-muted{% endif %}" id="opening_balance" name="opening_balance" 
+                                       value="{{ account.opening_balance|default:'0.00' }}" placeholder="0.00" {% if account.pk %}readonly{% endif %}>
                                 <span class="input-group-text bg-light text-muted">EGP</span>
                             </div>
-                            <div class="field-hint">الرصيد الافتتاحي في بداية الفترة المالية.</div>
+                            {% if account.pk %}
+                                <div class="field-hint text-warning"><i class="fas fa-lock me-1"></i>الرصيد التأسيسي مقفل بعد الإنشاء. لتعديل الرصيد، يرجى تسجيل قيد تسوية دفتري.</div>
+                            {% else %}
+                                <div class="field-hint">الرصيد الافتتاحي في بداية الفترة المالية (يولد قيداً دفترياً متزناً تلقائياً).</div>
+                            {% endif %}
                         </div>
 
                         <div class="col-md-4">
                             <label for="opening_balance_date" class="form-group-label">تاريخ الرصيد الافتتاحي</label>
-                            <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date" 
-                                   value="{{ account.opening_balance_date|date:'Y-m-d'|default:'' }}">
+                            <input type="date" class="form-control {% if account.pk %}bg-light text-muted{% endif %}" id="opening_balance_date" name="opening_balance_date" 
+                                   value="{{ account.opening_balance_date|date:'Y-m-d'|default:'' }}" {% if account.pk %}readonly{% endif %}>
                             <div class="field-hint">تاريخ سريان الرصيد الافتتاحي للحساب.</div>
                         </div>
                     </div>

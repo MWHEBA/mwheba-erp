@@ -495,12 +495,21 @@ class SmartBalancingService:
 
     @classmethod
     def _find_suspense_account(cls, equity_accounts: List[ChartOfAccounts]) -> Optional[ChartOfAccounts]:
-        """العثور على حساب وسيط الأرصدة الافتتاحية المعلق"""
+        """العثور على حساب وسيط الأرصدة الافتتاحية المعلق عبر AccountRoleRegistry والأكواد القياسية"""
+        # أولاً: عبر سجل الأدوار المحاسبية الموحد
+        try:
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+            role_acc = AccountRoleRegistry.get_account(AccountRoleNames.OPENING_BALANCE_EQUITY.value)
+            if role_acc and role_acc.is_leaf and not role_acc.children.exists():
+                return role_acc
+        except Exception:
+            pass
+
         for acc in equity_accounts:
-            if str(acc.code) in ['30900', '3999', '309000', '3900']:
+            if str(acc.code) in ['31010', '30900', '3999', '309000', '3900']:
                 return acc
         for acc in equity_accounts:
             norm_name = _normalize_text(acc.name)
-            if 'وسيط' in norm_name or 'معلق' in norm_name or 'تسوي' in norm_name or 'suspense' in (acc.name_en or '').lower():
+            if 'ارصده افتتاحيه' in norm_name or 'وسيط' in norm_name or 'معلق' in norm_name or 'تسوي' in norm_name or 'suspense' in (acc.name_en or '').lower():
                 return acc
         return None

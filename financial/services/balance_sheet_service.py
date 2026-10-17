@@ -175,14 +175,7 @@ class BalanceSheetService:
                 dr = row.get('sum_debit') or Decimal('0.00')
                 cr = row.get('sum_credit') or Decimal('0.00')
 
-                # إضافة الرصيد الافتتاحي من الحساب كـ Fallback فقط إذا لم يكن له قيد افتتاحي
-                if acc.id not in opening_entries_account_ids and acc.opening_balance:
-                    if acc.account_type.nature == 'debit':
-                        dr += acc.opening_balance
-                    else:
-                        cr += acc.opening_balance
-
-                # احتساب الرصيد حسب طبيعة الحساب
+                # احتساب الرصيد حسب طبيعة الحساب من واقع قيود دفتر الأستاذ العام حصراً (GL Pure SSOT)
                 if acc.account_type.nature == 'debit':
                     bal = dr - cr
                 else:
@@ -195,11 +188,6 @@ class BalanceSheetService:
                     c_row = comp_map.get(acc.id, {})
                     c_dr = c_row.get('sum_debit') or Decimal('0.00')
                     c_cr = c_row.get('sum_credit') or Decimal('0.00')
-                    if acc.id not in opening_entries_account_ids and acc.opening_balance:
-                        if acc.account_type.nature == 'debit':
-                            c_dr += acc.opening_balance
-                        else:
-                            c_cr += acc.opening_balance
                     if acc.account_type.nature == 'debit':
                         c_bal = c_dr - c_cr
                     else:

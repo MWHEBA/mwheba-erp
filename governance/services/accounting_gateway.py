@@ -131,6 +131,7 @@ class AccountingGateway:
         'financial.BankReconciliation',
         'financial.JournalEntry',
         'financial.ManualJournalEntry',
+        'financial.ChartOfAccounts',
         'sale.Sale',
         'sale.SalePayment',
         'sale.SaleReturn',
@@ -519,6 +520,24 @@ class AccountingGateway:
         
         finally:
             GovernanceContext.clear_context()
+
+    @classmethod
+    def reverse_journal_entry(
+        cls,
+        journal_entry=None,
+        journal_entry_id=None,
+        user=None,
+        reason: str = "",
+    ):
+        """
+        Reverse a posted journal entry through LedgerCoreService with full audit trail.
+        Can be called as an instance or class method.
+        """
+        from financial.services.ledger_core_service import LedgerCoreService
+        entry_id = getattr(journal_entry, 'id', None) or journal_entry_id
+        if not entry_id:
+            raise GovValidationError(message="journal_entry or journal_entry_id must be provided")
+        return LedgerCoreService.reverse_entry(entry_id=entry_id, user=user, reversal_reason=reason)
     
     def _create_journal_entry_atomic(
         self,
@@ -725,13 +744,14 @@ class AccountingGateway:
         if not user or user.is_superuser:
             return
 
-        # Opening balance provisioning entries are exempt from front-office cashier deposit/disbursement checks
-        if entry_type == 'opening' or (reference and str(reference).startswith('OPB-')):
+        # Opening balance provisioning and migration entries are exempt from front-office cashier deposit/disbursement checks
+        if entry_type == 'opening' or (reference and str(reference).startswith(('OPB-', 'MIG-OPB-'))):
             return
 
-        if source_info and source_info.module in [
+        if source_info and source_info.module.lower() in [
             'period_close', 'fx_revaluation', 'revenue_recognition',
-            'closing_engine', 'opening_balance', 'treasury_provisioning'
+            'closing_engine', 'opening_balance', 'treasury_provisioning',
+            'opening_balance_migration'
         ]:
             return
 

@@ -406,10 +406,15 @@ class CashTransferService:
         if not to_acc.is_leaf or to_acc.is_control_account or not (to_acc.is_cash_account or to_acc.is_bank_account):
             raise ValidationError(_(f"الحساب المستلم '{to_acc.name}' ليس حساباً نقدياً أو بنكياً تشغيلياً."))
 
-        # 3. فحص صلاحيات الخزينة
+        # 3. فحص صلاحيات الخزينة وكفاية الرصيد الحقيقي
         can_disburse, disburse_err = TreasurySecurityService.can_user_disburse(user, from_acc.id, source_amount, transfer_date)
         if not can_disburse:
             raise ValidationError(disburse_err or _(f"ليس لديك صلاحية صرف من '{from_acc.name}'."))
+
+        if from_acc.is_cash_account:
+            from_balance = from_acc.current_balance
+            if from_balance < source_amount:
+                raise ValidationError(_(f"رصيد الخزينة المصدر '{from_acc.name}' الحالي ({from_balance:,.2f}) غير كافٍ لإتمام تحويل بمبلغ ({source_amount:,.2f})."))
 
         if transfer_type == TransferType.DIRECT:
             if not TreasurySecurityService.can_user_deposit(user, to_acc.id, transfer_date):

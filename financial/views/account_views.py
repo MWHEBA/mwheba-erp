@@ -620,11 +620,11 @@ def quick_add_cash_bank_account(request):
             base_op_amount = (abs(op_balance) * rate).quantize(Decimal("0.01"))
             abs_foreign_amount = abs(op_balance)
 
-            opening_equity_account = ChartOfAccounts.objects.filter(
-                code="31010", is_active=True
-            ).first()
+            opening_equity_account = AccountRoleRegistry.get_account_by_role("OPENING_BALANCE_EQUITY")
             if not opening_equity_account:
-                opening_equity_account = AccountRoleRegistry.get_account_by_role("OPENING_BALANCE_EQUITY")
+                opening_equity_account = ChartOfAccounts.objects.filter(
+                    code="31010", is_active=True
+                ).first()
             if not opening_equity_account:
                 opening_equity_account = ChartOfAccounts.objects.filter(
                     Q(code="30100") | Q(code="30000") | Q(code="31000") | Q(account_type__category="equity"),
@@ -808,6 +808,15 @@ def cash_and_bank_accounts_list(request):
     )
     last_movement_map = {row["account_id"]: row["last_date"] for row in last_movement_qs}
 
+    accounts_with_opening_je = set(
+        JournalEntryLine.objects.filter(
+            journal_entry__status="posted",
+            account_id__in=account_ids
+        ).filter(
+            Q(journal_entry__entry_type="opening") | Q(journal_entry__reference__startswith="OPB-")
+        ).values_list("account_id", flat=True).distinct()
+    )
+
     total_balance_base = Decimal("0")
 
     for account in accounts_list:
@@ -822,16 +831,16 @@ def cash_and_bank_accounts_list(request):
         f_debit = b_data["foreign_debit"]
         f_credit = b_data["foreign_credit"]
 
-        opening_base = account.opening_balance or Decimal("0")
-        opening_foreign = account.opening_balance_foreign if (account.opening_balance_foreign and account.opening_balance_foreign != Decimal("0.00")) else opening_base
         nature = account.account_type.nature if account.account_type else "debit"
 
         if account.is_foreign_currency and account.currency:
             curr_code = account.currency.code
             if nature == "debit":
-                calc_foreign = opening_foreign + f_debit - f_credit
+                calc_foreign = f_debit - f_credit
+                recorded_base = debit - credit
             else:
-                calc_foreign = opening_foreign + f_credit - f_debit
+                calc_foreign = f_credit - f_debit
+                recorded_base = credit - debit
 
             rate_error = False
             try:
@@ -845,18 +854,20 @@ def cash_and_bank_accounts_list(request):
             account.calculated_balance = calc_foreign
             account.calculated_foreign_balance = calc_foreign
             account.calculated_base_balance = calc_base
+            account.recorded_base_balance = recorded_base
             account.current_spot_rate = spot_rate
             account.rate_error = rate_error
             total_balance_base += calc_base
         else:
             if nature == "debit":
-                calc_base = opening_base + debit - credit
+                calc_base = debit - credit
             else:
-                calc_base = opening_base + credit - debit
+                calc_base = credit - debit
 
             account.calculated_balance = calc_base
             account.calculated_foreign_balance = calc_base
             account.calculated_base_balance = calc_base
+            account.recorded_base_balance = calc_base
             account.current_spot_rate = Decimal("1.000000")
             account.rate_error = False
             total_balance_base += calc_base
@@ -925,7 +936,7 @@ def cash_and_bank_accounts_list(request):
 
     total_custody_balance = Decimal("0.00")
     for ca in custody_accounts_list:
-        c_bal = custody_balances_map.get(ca.id, Decimal("0.00")) + (ca.opening_balance or Decimal("0.00"))
+        c_bal = custody_balances_map.get(ca.id, Decimal("0.00"))
         ca.current_balance = c_bal
         total_custody_balance += c_bal
 
@@ -1087,13 +1098,19 @@ def chart_of_accounts_list(request):
         .annotate(
             total_debit=Sum("debit"),
             total_credit=Sum("credit"),
+            total_foreign_debit=Sum("foreign_debit"),
+            total_foreign_credit=Sum("foreign_credit"),
+            total_tx_debit=Sum("transaction_debit"),
+            total_tx_credit=Sum("transaction_credit"),
         )
     )
     balances_map = {
-        row["account_id"]: (
-            row["total_debit"] or Decimal("0"),
-            row["total_credit"] or Decimal("0"),
-        )
+        row["account_id"]: {
+            "debit": row["total_debit"] or Decimal("0"),
+            "credit": row["total_credit"] or Decimal("0"),
+            "f_debit": (row["total_foreign_debit"] or Decimal("0")) or (row["total_tx_debit"] or Decimal("0")),
+            "f_credit": (row["total_foreign_credit"] or Decimal("0")) or (row["total_tx_credit"] or Decimal("0")),
+        }
         for row in balances_qs
     }
 
@@ -1115,14 +1132,24 @@ def chart_of_accounts_list(request):
     # ============================================================
     nodes_by_id = {}
     for acc in all_accounts_list:
-        debit, credit = balances_map.get(acc.id, (Decimal("0"), Decimal("0")))
-        opening = acc.opening_balance or Decimal("0")
+        b_data = balances_map.get(acc.id, {
+            "debit": Decimal("0"),
+            "credit": Decimal("0"),
+            "f_debit": Decimal("0"),
+            "f_credit": Decimal("0")
+        })
+        debit = b_data["debit"]
+        credit = b_data["credit"]
+        f_debit = b_data["f_debit"]
+        f_credit = b_data["f_credit"]
         nature = acc.account_type.nature if acc.account_type else "debit"
 
         if nature == "debit":
-            balance = opening + debit - credit
+            balance = debit - credit
+            foreign_bal = f_debit - f_credit
         else:
-            balance = opening + credit - debit
+            balance = credit - debit
+            foreign_bal = f_credit - f_debit
 
         # العملة الأجنبية
         acc_currency = acc.currency
@@ -1148,8 +1175,8 @@ def chart_of_accounts_list(request):
             "is_foreign": is_foreign,
             "currency_symbol": acc_curr_symbol,
             "currency_code": acc_curr_code,
-            "opening_balance": opening,
-            "foreign_balance": acc.opening_balance_foreign if is_foreign else None,
+            "opening_balance": acc.opening_balance or Decimal("0"),
+            "foreign_balance": foreign_bal if is_foreign else None,
             "balance": balance,
             "roll_up_balance": balance,
             "debit_total": debit,
@@ -1597,6 +1624,92 @@ def chart_of_accounts_create(request):
 
             # حفظ الحساب الجديد
             account.save()
+
+            # توليد قيد افتتاحي محوكم ومتزن آلياً عند إدخال رصيد افتتاحي
+            op_balance = Decimal(str(account.opening_balance or "0.00"))
+            if account.is_leaf and op_balance != Decimal("0.00"):
+                from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
+                opening_equity_account = AccountRoleRegistry.get_account_by_role("OPENING_BALANCE_EQUITY")
+                if not opening_equity_account:
+                    opening_equity_account = ChartOfAccounts.objects.filter(code="31010", is_active=True).first()
+                if not opening_equity_account:
+                    opening_equity_account = ChartOfAccounts.objects.filter(
+                        Q(code="30100") | Q(code="30000") | Q(code="31000") | Q(account_type__category="equity"),
+                        is_active=True, is_leaf=True
+                    ).first()
+
+                if opening_equity_account:
+                    curr_code = account.currency.code if account.currency else "EGP"
+                    func_curr = ExchangeRateService.get_functional_currency()
+                    base_code = func_curr.code if func_curr else "EGP"
+                    rate = Decimal("1.000000")
+                    if curr_code != base_code:
+                        try:
+                            rate = ExchangeRateService.get_rate(curr_code, base_code, date=account.opening_balance_date)
+                        except Exception:
+                            rate = Decimal("1.000000")
+
+                    base_op_amount = (abs(op_balance) * rate).quantize(Decimal("0.01"))
+                    nature = account.account_type.nature if account.account_type else "debit"
+                    is_debit = (nature == "debit" and op_balance > 0) or (nature == "credit" and op_balance < 0)
+
+                    lines_data = []
+                    if is_debit:
+                        lines_data.append(JournalEntryLineData(
+                            account_code=account.code,
+                            debit=base_op_amount,
+                            credit=Decimal("0.00"),
+                            description=f"رصيد افتتاحي لـ {account.name}",
+                            currency=curr_code,
+                            exchange_rate=rate,
+                            foreign_debit=abs(op_balance) if curr_code != base_code else Decimal("0.00"),
+                            foreign_credit=Decimal("0.00")
+                        ))
+                        lines_data.append(JournalEntryLineData(
+                            account_code=opening_equity_account.code,
+                            debit=Decimal("0.00"),
+                            credit=base_op_amount,
+                            description=f"مقابل رصيد افتتاحي لـ {account.name}",
+                            currency=base_code,
+                            exchange_rate=Decimal("1.000000"),
+                            foreign_debit=Decimal("0.00"),
+                            foreign_credit=Decimal("0.00")
+                        ))
+                    else:
+                        lines_data.append(JournalEntryLineData(
+                            account_code=account.code,
+                            debit=Decimal("0.00"),
+                            credit=base_op_amount,
+                            description=f"رصيد افتتاحي لـ {account.name}",
+                            currency=curr_code,
+                            exchange_rate=rate,
+                            foreign_debit=Decimal("0.00"),
+                            foreign_credit=abs(op_balance) if curr_code != base_code else Decimal("0.00")
+                        ))
+                        lines_data.append(JournalEntryLineData(
+                            account_code=opening_equity_account.code,
+                            debit=base_op_amount,
+                            credit=Decimal("0.00"),
+                            description=f"مقابل رصيد افتتاحي لـ {account.name}",
+                            currency=base_code,
+                            exchange_rate=Decimal("1.000000"),
+                            foreign_debit=Decimal("0.00"),
+                            foreign_credit=Decimal("0.00")
+                        ))
+
+                    gateway = AccountingGateway()
+                    gateway.create_journal_entry(
+                        source_module="financial",
+                        source_model="ChartOfAccounts",
+                        source_id=account.id,
+                        entry_type="opening",
+                        date=account.opening_balance_date or timezone.now().date(),
+                        description=f"قيد رصيد افتتاحي محوكم لـ {account.name}",
+                        reference=f"OPB-{account.code}",
+                        lines=lines_data,
+                        idempotency_key=f"JE:financial:ChartOfAccounts:{account.id}:create",
+                        user=request.user
+                    )
 
             messages.success(request, f'تم إنشاء الحساب "{account.code} - {account.name}" بنجاح.')
             return redirect("financial:account_detail", pk=account.pk)
@@ -2275,14 +2388,15 @@ def account_edit(request, pk):
             else:
                 account.parent = None
 
-            # تحديث الرصيد الافتتاحي
-            opening_balance = request.POST.get("opening_balance")
-            if opening_balance:
-                account.opening_balance = Decimal(opening_balance)
-
-            opening_balance_date = request.POST.get("opening_balance_date")
-            if opening_balance_date:
-                account.opening_balance_date = opening_balance_date
+            # الرصيد الافتتاحي محوكم وثابت بعد التأسيس، ولا يُعدل مباشرة على الموديل لحماية دفتر الأستاذ العام
+            # إذا لم تكن هناك أي قيود مرحلة على الحساب، يُسمح بتصحيح القيمة التأسيسية الأولية
+            if not account.journal_lines.filter(journal_entry__status='posted').exists():
+                opening_balance = request.POST.get("opening_balance")
+                if opening_balance:
+                    account.opening_balance = Decimal(opening_balance)
+                opening_balance_date = request.POST.get("opening_balance_date")
+                if opening_balance_date:
+                    account.opening_balance_date = opening_balance_date
 
             # تحديث الخصائص
             account.is_cash_account = request.POST.get("is_cash_account") == "on"
@@ -2900,7 +3014,8 @@ def cash_account_movements(request, pk):
         movements = movements.filter(journal_entry__financial_category_id=category_filter)
 
     # حساب الرصيد الافتتاحي (قبل الفلترة)
-    opening_balance = 0
+    opening_balance = Decimal("0.00")
+    opening_foreign_balance = Decimal("0.00")
     if date_from:
         # حساب الرصيد من بداية الحساب حتى تاريخ البداية
         from django.db.models import Sum
@@ -2909,9 +3024,22 @@ def cash_account_movements(request, pk):
             journal_entry__status='posted',
             journal_entry__date__lt=date_from
         )
-        opening_debit = opening_movements.aggregate(Sum("debit"))["debit__sum"] or 0
-        opening_credit = opening_movements.aggregate(Sum("credit"))["credit__sum"] or 0
+        opening_debit = opening_movements.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
+        opening_credit = opening_movements.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
         opening_balance = opening_debit - opening_credit
+
+        if account.is_foreign_currency:
+            op_f_deb = opening_movements.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
+            op_tx_deb = opening_movements.aggregate(Sum("transaction_debit"))["transaction_debit__sum"] or Decimal("0.00")
+            eff_op_f_deb = op_f_deb if op_f_deb != Decimal("0.00") else op_tx_deb
+
+            op_f_crd = opening_movements.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
+            op_tx_crd = opening_movements.aggregate(Sum("transaction_credit"))["transaction_credit__sum"] or Decimal("0.00")
+            eff_op_f_crd = op_f_crd if op_f_crd != Decimal("0.00") else op_tx_crd
+
+            opening_foreign_balance = eff_op_f_deb - eff_op_f_crd
+        else:
+            opening_foreign_balance = opening_balance
 
     from financial.services.exchange_rate_service import ExchangeRateService
     if account.is_foreign_currency:
@@ -2924,7 +3052,7 @@ def cash_account_movements(request, pk):
 
     # حساب الرصيد التراكمي لكل حركة (من الأقدم للأحدث)
     running_balance = opening_balance
-    running_foreign_balance = account.opening_balance or 0
+    running_foreign_balance = opening_foreign_balance
     movements_with_balance = []
 
     for movement in movements:
@@ -3006,7 +3134,7 @@ def cash_account_movements(request, pk):
 
     current_base_balance = all_debit - all_credit
     if account.is_foreign_currency:
-        current_foreign_balance = (account.opening_balance or Decimal("0.00")) + effective_f_debit - effective_f_credit
+        current_foreign_balance = effective_f_debit - effective_f_credit
         calculated_base_eq = (current_foreign_balance * spot_rate).quantize(Decimal("0.01"))
     else:
         current_foreign_balance = current_base_balance
@@ -3442,29 +3570,43 @@ def cash_account_delete(request, pk):
     pending_transfers_count = pending_transfers_qs.count()
     has_pending_transfers = pending_transfers_count > 0
 
-    # 2. حساب الرصيد الفعلي اللحظي
+    # 2. حساب الرصيد الفعلي اللحظي من واقع دفتر الأستاذ العام (GL SSOT)
     lines_qs = JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
     lines_count = lines_qs.count()
-    debit_sum = lines_qs.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
-    credit_sum = lines_qs.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
-    base_balance = debit_sum - credit_sum
+    base_balance = account.get_balance(currency_type="local")
 
     if account.is_foreign_currency:
-        f_deb = lines_qs.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
-        f_crd = lines_qs.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
-        current_balance = (account.opening_balance or Decimal("0.00")) + f_deb - f_crd
+        current_balance = account.get_balance(currency_type="foreign")
+        # فحص رصيد العملة الأصلية والتعامل الآلي مع فروق التقريب بالجنيه (<= 0.05 ج.م)
+        has_non_zero_balance = abs(current_balance) > Decimal("0.005") or abs(base_balance) > Decimal("0.05")
     else:
         current_balance = base_balance
+        has_non_zero_balance = abs(current_balance) > Decimal("0.005")
 
-    has_non_zero_balance = abs(current_balance) > Decimal("0.005")
-    has_movements = lines_count > 0 or (account.opening_balance and account.opening_balance != Decimal("0.00"))
-    can_hard_delete = not has_movements
+    # فحص مسار الإلغاء الآمن للتأسيس الخاطئ (Safe Setup Void)
+    # الحساب مؤهل إذا كانت كافة قيوده قيود افتتاحية فقط (OPB/MIG-OPB) دون أي حركات تشغيلية
+    opening_lines_qs = lines_qs.filter(
+        Q(journal_entry__entry_type="opening") |
+        Q(journal_entry__reference__startswith="OPB-") |
+        Q(journal_entry__reference__startswith="MIG-OPB-")
+    )
+    operational_lines_count = lines_qs.exclude(
+        id__in=opening_lines_qs.values_list("id", flat=True)
+    ).count()
+
+    can_void_setup = (
+        not has_pending_transfers and
+        operational_lines_count == 0 and
+        opening_lines_qs.exists() and
+        has_non_zero_balance
+    )
+    can_hard_delete = (lines_count == 0)
 
     # موانع التعطيل / الأرشفة
     blockers = []
     if has_pending_transfers:
         blockers.append(f"يوجد ({pending_transfers_count}) تحويل مالي معلق في الطريق/بانتظار الاعتماد مرتبطة بهذا الحساب.")
-    if has_non_zero_balance:
+    if has_non_zero_balance and not can_void_setup:
         curr_sym = account.currency_symbol or "ج.م"
         blockers.append(f"الرصيد المالي للحساب غير مصفّى! الرصيد الحالي: {current_balance:,.2f} {curr_sym}.")
 
@@ -3479,14 +3621,24 @@ def cash_account_delete(request, pk):
             {"label": "إسنادات مستخدمين نشطة", "count": access_count, "badge_class": "bg-info-subtle text-info"}
         ]
 
-        msg = " ".join(blockers) if is_blocked else (
-            "يمكن تعطيل وأرشفة الحساب بأمان لحفظ سجل الحسابات التاريخي." if not can_hard_delete else "يمكن حذف الحساب نهائياً لعدم وجود أي حركات أو قيود سابقة عليه."
-        )
+        if can_void_setup:
+            msg = f"الحساب يحتوي فقط على قيد تأسيسي افتتاحي بمبلغ {current_balance:,.2f} {account.currency_symbol or 'ج.م'} دون أي حركات تشغيلية. يمكنك استخدام مسار 'إلغاء التأسيس الخاطئ' لعكس القيد وأرشفة الحساب بأمان."
+            action_type = "void_setup"
+        elif can_hard_delete:
+            msg = "يمكن حذف الحساب نهائياً لعدم وجود أي حركات أو قيود سابقة عليه."
+            action_type = "delete"
+        elif not is_blocked:
+            msg = "يمكن تعطيل وأرشفة الحساب بأمان لحفظ سجل الحسابات التاريخي."
+            action_type = "archive"
+        else:
+            msg = " ".join(blockers)
+            action_type = "blocked"
 
         return JsonResponse({
             "success": True,
             "can_delete": can_hard_delete,
-            "action_type": "archive" if not can_hard_delete else "delete",
+            "can_void_setup": can_void_setup,
+            "action_type": action_type,
             "name": account.name,
             "code": account.code,
             "debt": float(current_balance),
@@ -3496,6 +3648,48 @@ def cash_account_delete(request, pk):
             "transactions_summary": trans_summary,
             "message": msg,
             "block_action": is_blocked
+        })
+
+    # معالجة مسار الإلغاء الآمن للتأسيس الخاطئ (Safe Setup Void via Reversal)
+    if request.POST.get("action") == "void_setup" or request.POST.get("void_setup") == "1":
+        if not can_void_setup:
+            return JsonResponse({
+                "success": False,
+                "message": "لا يمكن إلغاء التأسيس لوجود حركات تشغيلية أو تحويلات معلقة على الحساب."
+            }, status=400)
+
+        from financial.services.ledger_core_service import LedgerCoreService
+        active_opening_entries = JournalEntry.objects.filter(
+            lines__account=account,
+            status="posted"
+        ).filter(
+            Q(entry_type="opening") |
+            Q(reference__startswith="OPB-") |
+            Q(reference__startswith="MIG-OPB-")
+        ).exclude(reversal_entries__status="posted").distinct()
+
+        with transaction.atomic():
+            for je in active_opening_entries:
+                LedgerCoreService.reverse_entry(
+                    entry_id=je.id,
+                    user=request.user,
+                    reversal_reason=f"إلغاء تأسيس خاطئ للخزينة/الحساب {account.code} - {account.name}"
+                )
+
+            account.is_active = False
+            account.notes = (account.notes or "") + f"\n[تم إلغاء التأسيس وعكس القيود التأسيسية بواسطة {request.user.username} بتاريخ {timezone.now().strftime('%Y-%m-%d %H:%M')}]"
+            account.save(update_fields=["is_active", "notes"])
+
+            UserTreasuryAccess.objects.filter(treasury=account).update(can_deposit=False, can_disburse=False)
+            TreasurySecurityService.invalidate_all_users_cache()
+            cache.delete('payment_accounts_data_v4')
+            cache.delete('payment_accounts_data_v2')
+            cache.delete('payment_accounts_data_v3')
+
+        return JsonResponse({
+            "success": True,
+            "message": f"تم إلغاء تأسيس الحساب '{account.name}' وعكس القيد الافتتاحي دفترياً وأرشفته بنجاح.",
+            "action": "voided"
         })
 
     # معالجة طلب الحذف أو الأرشفة الفعلي (POST)

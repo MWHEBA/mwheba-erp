@@ -88,6 +88,32 @@ class OpeningBalancePostingService:
             if not lines:
                 raise ValidationError(_("لا توجد أسطر في هذه الدفعة للترحيل. يجب إضافة أسطر أولاً."))
 
+            # 2.1 فحص ومنع تكرار ترحيل رصيد افتتاحي لنفس الحساب في نفس السنة المالية (Duplicate OPB Guard)
+            posting_accounts = [l.account for l in lines if l.account]
+            if posting_accounts:
+                opb_filters = (
+                    models.Q(journal_entry__entry_type='opening') |
+                    models.Q(journal_entry__reference__startswith='OPB-') |
+                    models.Q(journal_entry__reference__startswith='MIG-OPB-') |
+                    models.Q(journal_entry__reference__startswith='OPN-')
+                )
+                existing_opb_lines = JournalEntryLine.objects.filter(
+                    account__in=posting_accounts,
+                    journal_entry__status='posted'
+                ).filter(opb_filters)
+                if batch.fiscal_year:
+                    existing_opb_lines = existing_opb_lines.filter(
+                        journal_entry__accounting_period__fiscal_year=batch.fiscal_year
+                    )
+                existing_active_opb = existing_opb_lines.exclude(
+                    journal_entry__reference_type='OPENING_BALANCE',
+                    journal_entry__reference_id=batch.id
+                ).values_list('account__name', flat=True).distinct()
+
+                if existing_active_opb:
+                    account_names = ", ".join(existing_active_opb[:5])
+                    raise ValidationError(_("يوجد قيد رصيد افتتاحي نشط بالفعل للحسابات التالية: ({}). يرجى عكس القيد السابق أولاً قبل الترحيل لمنع الازدواجية.").format(account_names))
+
             # 3. Currency-Aware Functional Currency Balance Check (Rule 3)
             total_debit = sum((l.debit for l in lines), Decimal('0.00'))
             total_credit = sum((l.credit for l in lines), Decimal('0.00'))

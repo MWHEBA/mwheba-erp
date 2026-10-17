@@ -41,6 +41,7 @@ class SourceLinkageService:
         'financial.PartnerTransaction',  # Added for partner transactions
         'financial.JournalEntry',
         'financial.ManualJournalEntry',
+        'financial.ChartOfAccounts',  # Added for Opening Balance Single Source of Truth migration
         'sale.Sale',  # Added for sale invoices
         'sale.SalePayment',  # Added for sale payments
         'sale.SaleReturn',  # Added for sale returns

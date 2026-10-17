@@ -253,9 +253,25 @@ class TestTreasurySecurityService:
         cash1 = setup_environment["cash1"]
         client.force_login(su)
 
-        # Set a non-zero opening balance so current_balance != 0
+        # Create a journal entry so current_balance != 0 under GL SSOT
+        from financial.models import JournalEntry, JournalEntryLine
+        from django.utils import timezone
         cash1.opening_balance = Decimal("5000.00")
         cash1.save()
+        je = JournalEntry.objects.create(
+            number="JE-TEST-BAL-NONZERO",
+            date=timezone.now().date(),
+            entry_type="opening",
+            status="posted",
+            created_by=su
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=cash1,
+            debit=Decimal("5000.00"),
+            credit=Decimal("0.00"),
+            description="رصيد للخزينة"
+        )
 
         # 1. Standard POST request should redirect and show error message instead of 500
         resp = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
@@ -296,3 +312,64 @@ class TestTreasurySecurityService:
         assert resp.status_code == 302
         cash1.refresh_from_db()
         assert cash1.is_active is True
+
+    def test_cash_account_toggle_active_with_opening_je_and_zero_net_balance_succeeds(self, client, setup_environment):
+        """
+        فحص نجاح تعطيل الخزينة عندما يكون لها رصيد افتتاحي مسجل كقيد مرحل (OPB)
+        ومسدد بالكامل بقيد مصروف، بحيث يكون الرصيد الصافي الفعلي 0.00 دون أن يتضاعف الرصيد الافتتاحي.
+        """
+        from django.urls import reverse
+        from decimal import Decimal
+        from financial.models import JournalEntry, JournalEntryLine
+        from django.utils import timezone
+
+        su = setup_environment["superuser"]
+        cash1 = setup_environment["cash1"]
+        client.force_login(su)
+
+        # ضبط الرصيد الافتتاحي على الموديل
+        cash1.opening_balance = Decimal("5000.00")
+        cash1.save()
+
+        # قيد رصيد افتتاحي مرحل (OPB)
+        je_op = JournalEntry.objects.create(
+            number="JE-TEST-OPB-01",
+            date=timezone.now().date(),
+            entry_type="opening",
+            reference=f"OPB-{cash1.code}",
+            status="posted",
+            created_by=su
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je_op,
+            account=cash1,
+            debit=Decimal("5000.00"),
+            credit=Decimal("0.00"),
+            description="رصيد افتتاحي للخزينة"
+        )
+
+        # قيد مصروف مرحل سدد كامل الـ 5000
+        je_exp = JournalEntry.objects.create(
+            number="JE-TEST-EXP-01",
+            date=timezone.now().date(),
+            entry_type="expense",
+            status="posted",
+            created_by=su
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je_exp,
+            account=cash1,
+            debit=Decimal("0.00"),
+            credit=Decimal("5000.00"),
+            description="سداد مصروف من الخزينة"
+        )
+
+        # الرصيد الفعلي الآن 0.00 بالضبط
+        assert cash1.current_balance == Decimal("0.00")
+
+        # محاولة التعطيل يجب أن تنجح دون أي خطأ
+        resp = client.post(reverse("financial:cash_account_toggle_active", args=[cash1.id]))
+        assert resp.status_code == 302
+        cash1.refresh_from_db()
+        assert cash1.is_active is False
+

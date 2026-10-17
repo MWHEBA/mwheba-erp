@@ -88,24 +88,17 @@ class LedgerQueryService:
         total_f_debit = (aggregates['total_foreign_debit'] or Decimal('0.00')) or (aggregates['total_trans_debit'] or Decimal('0.00'))
         total_f_credit = (aggregates['total_foreign_credit'] or Decimal('0.00')) or (aggregates['total_trans_credit'] or Decimal('0.00'))
 
-        # تحديد طبيعة الحساب والرصيد الصافي
+        # تحديد طبيعة الحساب والرصيد الصافي من واقع قيود دفتر الأستاذ العام حصراً
         category = getattr(getattr(account, 'account_type', None), 'category', 'asset')
         is_debit_nature = str(category).lower() in ['asset', 'expense']
 
-        # إضافة الرصيد الافتتاحي المعرف على مستوى كائن الحساب
-        initial_op_local = Decimal('0.00')
-        initial_op_foreign = Decimal('0.00')
-        for acc in target_accounts:
-            initial_op_local += (acc.opening_balance or Decimal('0.00'))
-            initial_op_foreign += (acc.opening_balance_foreign or Decimal('0.00'))
-
         if is_debit_nature:
-            balance = initial_op_local + total_debit - total_credit
-            foreign_balance = initial_op_foreign + total_f_debit - total_f_credit
+            balance = total_debit - total_credit
+            foreign_balance = total_f_debit - total_f_credit
             nature = 'debit'
         else:
-            balance = initial_op_local + total_credit - total_debit
-            foreign_balance = initial_op_foreign + total_f_credit - total_f_debit
+            balance = total_credit - total_debit
+            foreign_balance = total_f_credit - total_f_debit
             nature = 'credit'
 
         return {
@@ -164,9 +157,11 @@ class LedgerQueryService:
         is_opening_q = (
             Q(journal_entry__entry_type='opening') |
             Q(journal_entry__source_module='OPENING_BALANCE') |
+            Q(journal_entry__source_module='OPENING_BALANCE_MIGRATION') |
             Q(journal_entry__reference_type='OPENING_BALANCE') |
             Q(journal_entry__reference__startswith='OPB') |
-            Q(journal_entry__reference__startswith='OPN')
+            Q(journal_entry__reference__startswith='OPN') |
+            Q(journal_entry__reference__startswith='MIG-OPB')
         )
 
         # 4. استعلام حركات الفترة والقيود
@@ -218,12 +213,6 @@ class LedgerQueryService:
                 opening_balance += (op_crd - op_deb)
                 opening_balance_foreign += (op_f_crd - op_f_deb)
         else:
-            initial_op_local = Decimal('0.00')
-            initial_op_foreign = Decimal('0.00')
-            for acc in target_accounts:
-                initial_op_local += (acc.opening_balance or Decimal('0.00'))
-                initial_op_foreign += (acc.opening_balance_foreign or Decimal('0.00'))
-
             op_lines_agg = JournalEntryLine.objects.filter(filters & is_opening_q).aggregate(
                 op_debit=Sum('debit'),
                 op_credit=Sum('credit'),
@@ -238,11 +227,11 @@ class LedgerQueryService:
             op_f_crd = (op_lines_agg['op_f_credit'] or Decimal('0.00')) or (op_lines_agg['op_t_credit'] or Decimal('0.00'))
 
             if is_debit_nature:
-                opening_balance = initial_op_local + (op_deb - op_crd)
-                opening_balance_foreign = initial_op_foreign + (op_f_deb - op_f_crd)
+                opening_balance = (op_deb - op_crd)
+                opening_balance_foreign = (op_f_deb - op_f_crd)
             else:
-                opening_balance = initial_op_local + (op_crd - op_deb)
-                opening_balance_foreign = initial_op_foreign + (op_f_crd - op_f_deb)
+                opening_balance = (op_crd - op_deb)
+                opening_balance_foreign = (op_f_crd - op_f_deb)
 
         # استبعاد القيود الافتتاحية من حركات الفترة التشغيلية لضمان عدم تكرارها
         lines = JournalEntryLine.objects.filter(filters).exclude(is_opening_q).select_related(

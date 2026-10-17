@@ -534,12 +534,12 @@ def count_create_view(request):
     if request.method == "POST":
         employee_id = request.POST.get("employee_id")
         account_id = request.POST.get("custody_account_id")
-        gl_balance = Decimal(request.POST.get("gl_balance", "0"))
-        pending_vouchers = Decimal(request.POST.get("pending_vouchers_amount", "0"))
-        notes = request.POST.get("notes", "")
-
         employee = get_object_or_404(Employee, id=employee_id)
         custody_acc = ChartOfAccounts.objects.filter(id=account_id).first() if account_id else None
+        # احتساب الرصيد الدفتري لحظياً وسيرفر-سايد من دفتر الأستاذ العام لمنع ثغرات التلاعب بالرصيد
+        gl_balance = custody_acc.current_balance if custody_acc else Decimal("0.00")
+        pending_vouchers = Decimal(request.POST.get("pending_vouchers_amount", "0"))
+        notes = request.POST.get("notes", "")
 
         # تفقيط الفئات النقدية
         denominations_data = {

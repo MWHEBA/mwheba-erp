@@ -200,18 +200,10 @@ class TrialBalanceService:
             # 6. بناء بيانات الحسابات المباشرة (Direct Account Balances)
             account_nodes: Dict[int, Dict[str, Any]] = {}
             for acc in accounts_list:
-                # حركة ما قبل الفترة
+                # حركة ما قبل الفترة من واقع قيود دفتر الأستاذ العام حصراً (GL Pure SSOT)
                 prior_data = prior_balances.get(acc.id, {'debit': Decimal('0.00'), 'credit': Decimal('0.00')})
                 prior_dr = prior_data['debit']
                 prior_cr = prior_data['credit']
-
-                # إضافة الرصيد الافتتاحي المعرف على الحساب كـ Fallback فقط إذا لم يكن له قيد افتتاحي مرحل
-                if acc.id not in opening_entries_account_ids and acc.opening_balance:
-                    op_val = acc.opening_balance
-                    if acc.nature == 'debit':
-                        prior_dr += op_val
-                    else:
-                        prior_cr += op_val
 
                 # احتساب صافي رصيد أول المدة
                 net_opening = prior_dr - prior_cr

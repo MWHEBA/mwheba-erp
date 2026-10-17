@@ -410,22 +410,29 @@ class ChartOfAccounts(models.Model):
     def current_balance(self, value):
         self._current_balance = value
 
-    def get_balance(self, date_from=None, date_to=None, include_opening=True):
+    def get_balance(self, date_from=None, date_to=None, include_opening=True, currency_type="local"):
         """
-        حساب رصيد الحساب في فترة معينة - محسن ومحدث
+        حساب رصيد الحساب في فترة معينة من واقع دفتر الأستاذ العام حصراً (GL Pure SSOT)
+        يدعم استخراج الرصيد بالعملة المحلية (local) أو العملة الأجنبية للحساب (foreign)
         """
         from .journal_entry import JournalEntryLine
         from django.db.models import Sum, Q
-        from django.utils import timezone
         from decimal import Decimal
-        from datetime import date
 
-        # إذا لم يتم تحديد تاريخ نهاية، استخدم تاريخ مستقبلي لضمان شمول جميع القيود
-        if not date_to:
-            date_to = date(2030, 12, 31)  # تاريخ مستقبلي بعيد
+        # تحديد الحسابات المستهدفة (الحساب نفسه أو كافة أبنائه النهائيين للحسابات الرئيسية)
+        if self.is_leaf:
+            query = Q(account=self, journal_entry__status="posted")
+        else:
+            leaf_ids = [acc.id for acc in self.get_leaf_descendants(include_self=True)]
+            query = Q(account_id__in=leaf_ids, journal_entry__status="posted")
 
-        # الحصول على جميع بنود القيود المرحلة للحساب
-        query = Q(account=self, journal_entry__status="posted")
+        if not include_opening:
+            query &= (
+                ~Q(journal_entry__entry_type="opening") &
+                ~Q(journal_entry__reference__startswith="OPB-") &
+                ~Q(journal_entry__reference__startswith="MIG-OPB-")
+            )
+
         if date_from:
             query &= Q(journal_entry__date__gte=date_from)
         if date_to:
@@ -433,44 +440,60 @@ class ChartOfAccounts(models.Model):
 
         lines = JournalEntryLine.objects.filter(query)
 
-        total_debit = lines.aggregate(Sum("debit"))["debit__sum"] or Decimal("0")
-        total_credit = lines.aggregate(Sum("credit"))["credit__sum"] or Decimal("0")
-
-        # إضافة الرصيد الافتتاحي أولاً إذا كان مطلوباً
-        opening_balance = Decimal("0")
-        if include_opening and self.opening_balance:
-            # التحقق من أن تاريخ الرصيد الافتتاحي يقع في النطاق المطلوب
-            opening_date = self.opening_balance_date or date(
-                2020, 1, 1
-            )  # تاريخ افتراضي
-            if (not date_from or opening_date >= date_from) and (
-                not date_to or opening_date <= date_to
-            ):
-                opening_balance = self.opening_balance
-
-        # حساب الرصيد حسب طبيعة الحساب
-        if self.nature == "debit":
-            # للحسابات المدينة: الرصيد = الافتتاحي + المدين - الدائن
-            balance = opening_balance + total_debit - total_credit
+        if currency_type == "foreign":
+            totals = lines.aggregate(
+                f_debit=Sum("foreign_debit"),
+                f_credit=Sum("foreign_credit"),
+                t_debit=Sum("transaction_debit"),
+                t_credit=Sum("transaction_credit"),
+            )
+            total_debit = (totals["f_debit"] or Decimal("0.00")) or (totals["t_debit"] or Decimal("0.00"))
+            total_credit = (totals["f_credit"] or Decimal("0.00")) or (totals["t_credit"] or Decimal("0.00"))
         else:
-            # للحسابات الدائنة: الرصيد = الافتتاحي + الدائن - المدين
-            balance = opening_balance + total_credit - total_debit
+            totals = lines.aggregate(
+                total_debit=Sum("debit"),
+                total_credit=Sum("credit")
+            )
+            total_debit = totals["total_debit"] or Decimal("0.00")
+            total_credit = totals["total_credit"] or Decimal("0.00")
 
-        return balance
+        # حساب الرصيد حسب طبيعة الحساب 100% من واقع قيود اليومية
+        if self.nature == "debit":
+            return total_debit - total_credit
+        else:
+            return total_credit - total_debit
+
+    def get_beginning_balance(self, as_of_date, currency_type="local"):
+        """
+        حساب رصيد أول المدة للحساب حتى بداية تاريخ محدد (Period Beginning Balance)
+        يساوي مجموع كافة الحركات المرحلة المسجلة قبل هذا التاريخ: date < as_of_date
+        """
+        from datetime import timedelta
+        from decimal import Decimal
+        if not as_of_date:
+            return Decimal("0.00")
+        prev_date = as_of_date - timedelta(days=1)
+        return self.get_balance(date_to=prev_date, include_opening=True, currency_type=currency_type)
 
     @classmethod
     def get_balances_bulk(cls, date_from=None, date_to=None, include_opening=True, account_ids=None):
         """
         حساب أرصدة الحسابات دفعة واحدة باستعلام SQL موحد يمنع مشاكل N+1 Queries
         مع إجراء التجميع الشجري الصاعد في الذاكرة (Memory Roll-up Aggregation) للحسابات الأمهات.
+        الرصيد مشتق 100% من دفتر الأستاذ العام الصافي دون إضافات يدوية مكررة.
         """
         from .journal_entry import JournalEntryLine
         from django.db.models import Sum, Q
         from decimal import Decimal
-        from datetime import date
 
         # 1. فلترة الحركات الحسابية
         query = Q(journal_entry__status="posted")
+        if not include_opening:
+            query &= (
+                ~Q(journal_entry__entry_type="opening") &
+                ~Q(journal_entry__reference__startswith="OPB-") &
+                ~Q(journal_entry__reference__startswith="MIG-OPB-")
+            )
         if date_from:
             query &= Q(journal_entry__date__gte=date_from)
         if date_to:
@@ -496,28 +519,22 @@ class ChartOfAccounts(models.Model):
 
         accounts = list(acc_qs)
 
-        # 4. حساب أرصدة الحسابات الفرعية أولاً
+        # 4. حساب أرصدة الحسابات الفرعية أولاً من واقع القيود حصراً
         balances = {}
         for acc in accounts:
             row = totals_map.get(acc.id, {})
-            period_debit = row.get("sum_debit") or Decimal("0")
-            period_credit = row.get("sum_credit") or Decimal("0")
-
-            opening_balance = Decimal("0")
-            if include_opening and acc.opening_balance:
-                opening_date = acc.opening_balance_date or date(2020, 1, 1)
-                if (not date_from or opening_date >= date_from) and (not date_to or opening_date <= date_to):
-                    opening_balance = acc.opening_balance
+            period_debit = row.get("sum_debit") or Decimal("0.00")
+            period_credit = row.get("sum_credit") or Decimal("0.00")
 
             nature = acc.nature
             if nature == "debit":
-                balance = opening_balance + period_debit - period_credit
+                balance = period_debit - period_credit
             else:
-                balance = opening_balance + period_credit - period_debit
+                balance = period_credit - period_debit
 
             balances[acc.id] = {
                 "account": acc,
-                "opening_balance": opening_balance,
+                "opening_balance": acc.opening_balance or Decimal("0.00"),
                 "period_debit": period_debit,
                 "period_credit": period_credit,
                 "balance": balance,

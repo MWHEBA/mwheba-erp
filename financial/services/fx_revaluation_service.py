@@ -114,28 +114,27 @@ class FXRevaluationService:
             curr_code = acc.currency.code
             curr_rate = ExchangeRateService.get_rate(curr_code, func_code, as_of_date)
             
-            # calculate foreign balance
-            open_foreign = acc.opening_balance_foreign if (acc.opening_balance_foreign and acc.opening_balance_foreign != Decimal("0.00")) else (acc.opening_balance or Decimal("0.00"))
-            
-            # Get ledger debit/credit movements
+            # Get ledger debit/credit movements (Pure GL SSOT)
             lines_aggr = acc.journal_lines.filter(journal_entry__status="posted", journal_entry__date__lte=as_of_date).aggregate(
-                f_debit=models.Sum("transaction_debit"),
-                f_credit=models.Sum("transaction_credit"),
+                f_debit=models.Sum("foreign_debit"),
+                f_credit=models.Sum("foreign_credit"),
+                t_debit=models.Sum("transaction_debit"),
+                t_credit=models.Sum("transaction_credit"),
                 b_debit=models.Sum("debit"),
                 b_credit=models.Sum("credit")
             )
-            f_deb = lines_aggr["f_debit"] or Decimal("0.00")
-            f_cred = lines_aggr["f_credit"] or Decimal("0.00")
+            f_deb = (lines_aggr["f_debit"] or Decimal("0.00")) or (lines_aggr["t_debit"] or Decimal("0.00"))
+            f_cred = (lines_aggr["f_credit"] or Decimal("0.00")) or (lines_aggr["t_credit"] or Decimal("0.00"))
             b_deb = lines_aggr["b_debit"] or Decimal("0.00")
             b_cred = lines_aggr["b_credit"] or Decimal("0.00")
 
             nature = acc.account_type.nature if acc.account_type else "debit"
             if nature == "debit":
-                foreign_bal = open_foreign + f_deb - f_cred
-                current_gl_base = acc.opening_balance + b_deb - b_cred
+                foreign_bal = f_deb - f_cred
+                current_gl_base = b_deb - b_cred
             else:
-                foreign_bal = open_foreign + f_cred - f_deb
-                current_gl_base = acc.opening_balance + b_cred - b_deb
+                foreign_bal = f_cred - f_deb
+                current_gl_base = b_cred - b_deb
 
             if foreign_bal != Decimal("0.00"):
                 closing_func_val = (foreign_bal * curr_rate).quantize(Decimal("0.01"))
