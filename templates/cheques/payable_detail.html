@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.cheque-timeline {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    padding: 1.5rem 0.5rem;
+    margin-bottom: 2rem;
+}
+.cheque-timeline::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 40px;
+    right: 40px;
+    height: 3px;
+    background-color: var(--bs-border-color);
+    z-index: 1;
+    transform: translateY(-50%);
+}
+.cheque-timeline-step {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    background-color: var(--bs-body-bg);
+    padding: 0 10px;
+}
+.cheque-step-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--bs-light);
+    border: 2px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px auto;
+    font-size: 1.1rem;
+    color: var(--bs-secondary);
+}
+.cheque-timeline-step.active .cheque-step-circle {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: var(--bs-white);
+}
+.cheque-timeline-step.completed .cheque-step-circle {
+    background-color: var(--bs-success);
+    border-color: var(--bs-success);
+    color: var(--bs-white);
+}
+.cheque-timeline-step.bounced .cheque-step-circle {
+    background-color: var(--bs-danger);
+    border-color: var(--bs-danger);
+    color: var(--bs-white);
+}
+.cheque-step-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <!-- 1. شريط المراحل الزمني الهادئ -->
+    <div class="section-container mb-4">
+        <div class="cheque-timeline">
+            <!-- خطوة 1: الإصدار والاعتماد -->
+            <div class="cheque-timeline-step completed">
+                <div class="cheque-step-circle"><i class="fas fa-edit"></i></div>
+                <div class="cheque-step-title">{% trans "تحرير وإصدار" %}</div>
+                <small class="text-muted">{{ cheque.issue_date|date:"Y-m-d" }}</small>
+            </div>
+
+            <!-- خطوة 2: التسليم للمورد / التزام قائم -->
+            <div class="cheque-timeline-step {% if cheque.status == 'ISSUED' %}active{% elif cheque.status == 'CLEARED' %}completed{% endif %}">
+                <div class="cheque-step-circle"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="cheque-step-title">{% trans "مسلم للمستفيد" %}</div>
+                <small class="text-muted">{{ cheque.due_date|date:"Y-m-d" }}</small>
+            </div>
+
+            <!-- خطوة 3: الخصم والصرف البنكي أو الارتداد -->
+            {% if cheque.status == 'BOUNCED' %}
+            <div class="cheque-timeline-step bounced">
+                <div class="cheque-step-circle"><i class="fas fa-times-circle"></i></div>
+                <div class="cheque-step-title text-danger">{% trans "مرتد / مرفوض" %}</div>
+                <small class="text-muted">{% trans "تم رفض الصرف" %}</small>
+            </div>
+            {% else %}
+            <div class="cheque-timeline-step {% if cheque.status == 'CLEARED' %}completed{% endif %}">
+                <div class="cheque-step-circle"><i class="fas fa-check-double"></i></div>
+                <div class="cheque-step-title">{% trans "تم الصرف والخصم" %}</div>
+                <small class="text-muted">
+                    {% if cheque.cleared_at %}{{ cheque.cleared_at|date:"Y-m-d" }}{% else %}-{% endif %}
+                </small>
+            </div>
+            {% endif %}
+
+            <!-- خطوة 4: الإقفال -->
+            <div class="cheque-timeline-step {% if cheque.status == 'CLEARED' %}completed{% endif %}">
+                <div class="cheque-step-circle"><i class="fas fa-lock"></i></div>
+                <div class="cheque-step-title">{% trans "إقفال ومطابقة" %}</div>
+                <small class="text-muted">
+                    {% if cheque.status == 'CLEARED' %}{% trans "تمت التسوية البنكية" %}{% else %}{% trans "معلق" %}{% endif %}
+                </small>
+            </div>
+        </div>
+
+        <!-- شريط الإجراءات السريعة -->
+        <div class="d-flex flex-wrap gap-2 pt-2 border-top">
+            {% if cheque.status == 'DRAFT' %}
+                <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#issueDraftModal">
+                    <i class="fas fa-check-double me-1"></i>{% trans "اعتماد وإصدار الشيك وترحيله" %}
+                </button>
+                <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-ban me-1"></i>{% trans "إلغاء المسودة" %}
+                </button>
+            {% endif %}
+
+            {% if cheque.status == 'ISSUED' %}
+                <button type="button" class="btn btn-success px-3" data-bs-toggle="modal" data-bs-target="#clearModal">
+                    <i class="fas fa-check-double me-1"></i>{% trans "إثبات صرف وخصم الشيك بنكياً" %}
+                </button>
+                <button type="button" class="btn btn-danger px-3" data-bs-toggle="modal" data-bs-target="#bounceModal">
+                    <i class="fas fa-times-circle me-1"></i>{% trans "تسجيل ارتداد ورفض" %}
+                </button>
+                <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                    <i class="fas fa-ban me-1"></i>{% trans "إلغاء الشيك" %}
+                </button>
+                {% if cheque.checkbook_leaf %}
+                    <a href="{% url 'cheques:checkbook_ruined_leaf' cheque.checkbook_leaf.pk %}" class="btn btn-outline-warning text-dark px-3">
+                        <i class="fas fa-file-excel me-1"></i>{% trans "استبدال ورقة تالفة بالدفتر" %}
+                    </a>
+                {% endif %}
+            {% endif %}
+
+            {% if action_logs.exists %}
+                <button type="button" class="btn btn-outline-danger px-3 ms-auto" data-bs-toggle="modal" data-bs-target="#reverseModal">
+                    <i class="fas fa-undo me-1"></i>{% trans "تراجع تدقيقي عن آخر حركة" %}
+                </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. تفاصيل الشيك المالية والبنكية -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="section-container h-100">
+                <h5 class="section-title"><i class="fas fa-money-check me-2"></i>{% trans "البيانات المالية والبنكية" %}</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 align-middle">
+                        <tbody>
+                            <tr>
+                                <th class="bg-light text-muted" style="width: 35%;">{% trans "مبلغ الشيك" %}</th>
+                                <td class="fw-bold fs-5 text-danger">{{ cheque.amount|floatformat:2 }} {{ cheque.currency.code }}</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "المعادل بالعملة المحلية" %}</th>
+                                <td class="fw-bold">{{ cheque.functional_amount|floatformat:2 }} ج.م</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "سعر الصرف الأولي" %}</th>
+                                <td>1 {{ cheque.currency.code }} = {{ cheque.original_exchange_rate|floatformat:6 }} ج.م</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "الحساب البنكي المسحوب عليه" %}</th>
+                                <td class="fw-bold text-primary">{{ cheque.deposit_bank_account.name|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "دفتر الشيكات والورقة" %}</th>
+                                <td>
+                                    {% if cheque.checkbook_leaf %}
+                                        <a href="{% url 'cheques:checkbook_detail' cheque.checkbook_leaf.checkbook.pk %}" class="fw-medium text-decoration-none">
+                                            {{ cheque.checkbook_leaf.checkbook.name }} - الورقة #{{ cheque.checkbook_leaf.serial_number }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "إصدار يدوي مباشر (خارج الدفاتر)" %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "تاريخ التحصيل والصرف" %}</th>
+                                <td>
+                                    {% if cheque.cleared_at %}
+                                        <span class="text-success fw-bold">{{ cheque.cleared_at|date:"Y-m-d H:i" }}</span>
+                                    {% else %}
+                                        <span class="text-warning fw-medium">{% trans "معلق (لم يخصم بعد)" %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="section-container h-100">
+                <h5 class="section-title"><i class="fas fa-handshake me-2"></i>{% trans "بيانات المستفيد والتحرير" %}</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0 align-middle">
+                        <tbody>
+                            <tr>
+                                <th class="bg-light text-muted" style="width: 35%;">{% trans "المورد المستفيد" %}</th>
+                                <td class="fw-bold text-dark">{% if cheque.supplier %}{{ cheque.supplier.name }}{% else %}{% trans "مستفيد عام" %}{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "اسم المستفيد بالشيك" %}</th>
+                                <td class="fw-bold text-primary">{% if cheque.payee_name %}{{ cheque.payee_name }}{% elif cheque.supplier %}{{ cheque.supplier.name }}{% else %}-{% endif %}</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "شيك مسطر" %}</th>
+                                <td>
+                                    {% if cheque.is_cross_cheque %}
+                                        <span class="badge bg-success">{% trans "نعم (يُصرف لحساب المستفيد فقط)" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">{% trans "لا (شيك عادي)" %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "تاريخ التحرير والاستحقاق" %}</th>
+                                <td>
+                                    <div>{% trans "التحرير" %}: {{ cheque.issue_date|date:"Y-m-d" }}</div>
+                                    <div class="fw-bold text-danger">{% trans "الاستحقاق" %}: {{ cheque.due_date|date:"Y-m-d" }}</div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "مسجل ومصدر الشيك" %}</th>
+                                <td>{{ cheque.created_by.get_full_name|default:cheque.created_by.username }} ({{ cheque.created_at|date:"Y-m-d H:i" }})</td>
+                            </tr>
+                            <tr>
+                                <th class="bg-light text-muted">{% trans "ملاحظات الإذن" %}</th>
+                                <td>{{ cheque.notes|default:"-" }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. سجل الحركات والتدقيق المحاسبي -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-history me-2"></i>{% trans "سجل التدقيق والحركات المحاسبية المنفذة" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>{% trans "نوع الحركة" %}</th>
+                        <th>{% trans "من حالة ⬅️ إلى حالة" %}</th>
+                        <th>{% trans "تاريخ الحركة" %}</th>
+                        <th>{% trans "المبلغ المعالج" %}</th>
+                        <th>{% trans "قيد اليومية" %}</th>
+                        <th>{% trans "المنفذ" %}</th>
+                        <th>{% trans "تاريخ التسجيل" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in action_logs %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-bold"><span class="badge bg-secondary">{{ log.get_action_display }}</span></td>
+                        <td class="small">{{ log.from_status }} ⬅️ {{ log.to_status }}</td>
+                        <td>{{ log.action_date|date:"Y-m-d" }}</td>
+                        <td class="fw-bold text-danger">{{ log.amount_processed|floatformat:2 }}</td>
+                        <td>
+                            {% if log.journal_entry %}
+                                <a href="{% url 'financial:journal_entries_detail' log.journal_entry.pk %}" class="badge bg-outline-primary text-primary border text-decoration-none">
+                                    <i class="fas fa-receipt me-1"></i>{{ log.journal_entry.number }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.created_by.get_full_name|default:log.created_by.username }}</td>
+                        <td class="text-muted small">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-3 text-muted">{% trans "لا توجد حركات تدقيقية مسجلة بعد." %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- 1. مودال إثبات الصرف البنكي -->
+<div class="modal fade" id="clearModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_clear_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-check-double text-success me-2"></i>{% trans "إثبات صرف وخصم الشيك من الحساب البنكي" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيقوم النظام بتوليد قيد الخصم من البنك وتسوية حساب أوراق الدفع بتاريخ القيمة المحدد." %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{% trans "تاريخ الخصم الفعلي بالبنك (Value Date)" %} <span class="text-danger">*</span></label>
+                        <input type="date" name="clearing_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold">{% trans "تأكيد الصرف والخصم" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 2. مودال الارتداد والرفض -->
+<div class="modal fade" id="bounceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_bounce_action' cheque.pk %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ bounce_form.idempotency_key }}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-times-circle text-danger me-2"></i>{% trans "إثبات ارتداد ورفض شيك الدفع" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ bounce_form.bounce_date.label }} <span class="text-danger">*</span></label>
+                        {{ bounce_form.bounce_date }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ bounce_form.rejection_reason.label }} <span class="text-danger">*</span></label>
+                        {{ bounce_form.rejection_reason }}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ bounce_form.rejection_slip.label }}</label>
+                        {{ bounce_form.rejection_slip }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد الارتداد" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 3. مودال التراجع الخطي LIFO -->
+<div class="modal fade" id="reverseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_reverse_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                {{ reverse_form.idempotency_key }}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-undo text-danger me-2"></i>{% trans "التراجع عن آخر حركة محاسبية" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {% trans "سيقوم النظام بعكس قيد آخر حركة تم تنفيذها واستعادة حالة الشيك السابقة ذرياً وفق تسلسل التدقيق الخطي." %}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ reverse_form.reason.label }} <span class="text-danger">*</span></label>
+                        {{ reverse_form.reason }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد التراجع والعكس" %}</button>
+                </div>
+            </form>
+        </div>
+<!-- 4. مودال اعتماد وإصدار مسودة الشيك -->
+<div class="modal fade" id="issueDraftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_issue_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-check-double text-primary me-2"></i>{% trans "اعتماد وإصدار الشيك وترحيله" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p class="mb-3">{% trans "هل أنت متأكد من اعتماد وإصدار هذا الشيك للمستفيد وتوليد قيد أوراق الدفع بالأستاذ العام؟" %}</p>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{% trans "ملاحظات الإصدار (اختياري)" %}</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "تأكيد الإصدار والترحيل" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 5. مودال إلغاء الشيك -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_cancel_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-ban text-danger me-2"></i>{% trans "إلغاء الشيك" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        {% trans "سيؤدي إلغاء الشيك إلى إيقاف الدورة وعكس أي أثر محاسبي له في دفتر اليومية." %}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{% trans "سبب الإلغاء" %} <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد الإلغاء" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

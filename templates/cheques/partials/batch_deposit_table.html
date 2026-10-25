@@ -1,0 +1,59 @@
+{% load i18n custom_filters %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 text-center">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 40px;">#</th>
+                <th>{% trans "رقم الحافظة" %}</th>
+                <th>{% trans "الحساب البنكي المودع به" %}</th>
+                <th>{% trans "تاريخ الإيداع" %}</th>
+                <th>{% trans "عدد الشيكات" %}</th>
+                <th>{% trans "إجمالي مبلغ الحافظة" %}</th>
+                <th>{% trans "المبلغ المحصل" %}</th>
+                <th>{% trans "المبلغ المرتد" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th style="width: 80px;">{% trans "إجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in batches %}
+            <tr class="clickable-row" data-href="{% url 'cheques:batch_deposit_detail' b.pk %}">
+                <td>{{ forloop.counter }}</td>
+                <td class="fw-bold text-primary">{{ b.batch_number }}</td>
+                <td class="text-dark fw-medium">{{ b.bank_account.name }}</td>
+                <td>{{ b.deposit_date|date:"Y-m-d" }}</td>
+                <td><span class="badge bg-light text-dark border">{{ b.total_cheques_count }}</span></td>
+                <td class="fw-bold text-dark">{{ b.total_amount|floatformat:2 }}</td>
+                <td class="fw-bold text-success">{{ b.cleared_amount|floatformat:2 }}</td>
+                <td class="fw-bold text-danger">{{ b.bounced_amount|floatformat:2 }}</td>
+                <td>
+                    {% if b.status == 'DEPOSITED' %}
+                        <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-university me-1"></i>{% trans "مودعة بالبنك" %}</span>
+                    {% elif b.status == 'PARTIALLY_CLEARED' %}
+                        <span class="badge bg-info text-dark px-2 py-1"><i class="fas fa-coins me-1"></i>{% trans "محصلة جزئياً" %}</span>
+                    {% elif b.status == 'FULLY_CLEARED' %}
+                        <span class="badge bg-success px-2 py-1"><i class="fas fa-check-double me-1"></i>{% trans "محصلة بالكامل" %}</span>
+                    {% elif b.status == 'CLOSED' %}
+                        <span class="badge bg-secondary px-2 py-1"><i class="fas fa-lock me-1"></i>{% trans "مغلقة" %}</span>
+                    {% else %}
+                        <span class="badge bg-light text-dark border px-2 py-1">{{ b.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td class="col-actions">
+                    <a href="{% url 'cheques:batch_deposit_detail' b.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans "عرض التفاصيل" %}">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-4 text-muted">
+                    <i class="fas fa-layer-group fa-3x mb-3 d-block text-secondary"></i>
+                    {% trans "لا توجد حافظات إيداع بنكية مسجلة." %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

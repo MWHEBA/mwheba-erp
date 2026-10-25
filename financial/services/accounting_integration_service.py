@@ -429,6 +429,35 @@ class AccountingIntegrationService:
         إنشاء قيد محاسبي للمدفوعات
         """
         try:
+            # فحص تفويض الترحيل لمنظومة الشيكات (Posting Delegation Guard)
+            # إذا كانت الدفعة صادرة مباشرة من موديول الشيكات (source_type='CHEQUE') أو لها شيك مطابق مسجل، نفوض الترحيل لموديول cheques لمنع الازدواج
+            method = getattr(payment, 'payment_method', '') or ''
+            source = getattr(payment, 'source_type', '') or ''
+            if source == 'CHEQUE':
+                logger.info(f"ℹ️ تفويض ترحيل دفعة الشيك (ID: {getattr(payment, 'id', None)}, Source: CHEQUE) لمنظومة أوراق القبض والدفع.")
+                return None
+            elif method in ['check', 'CHEQUE']:
+                try:
+                    from cheques.services.toggle_service import ChequeToggleService
+                    if ChequeToggleService.is_enabled():
+                        from cheques.models import Cheque
+                        ref = getattr(payment, 'reference_number', '') or ''
+                        has_cheque = False
+                        if ref:
+                            has_cheque = Cheque.objects.filter(
+                                models.Q(voucher_number=ref) | models.Q(cheque_number=ref)
+                            ).exists()
+                        if not has_cheque and hasattr(payment, 'cheque_set'):
+                            has_cheque = payment.cheque_set.exists()
+
+                        if has_cheque:
+                            logger.info(f"ℹ️ تفويض ترحيل دفعة الشيك (ID: {getattr(payment, 'id', None)}, Reference: {ref}) لوجود شيك مطابق مسجل بمنظومة الشيكات.")
+                            return None
+                        else:
+                            logger.info(f"ℹ️ دفعة بطريقة شيك بدون شيك مسجل مطابق؛ المتابعة لإنشاء قيد الدفعة القياسي لحماية الدفاتر من فقدان القيد.")
+                except Exception as del_err:
+                    logger.warning(f"Error checking cheque delegation: {del_err}")
+
             with transaction.atomic():
                 # تحديد نوع القيد
                 if payment_type == "sale_payment":

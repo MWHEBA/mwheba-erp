@@ -382,6 +382,34 @@ class BankCandidateEngine:
         candidates = list(qs.select_related('journal_entry')[:limit])
         return candidates
 
+    @classmethod
+    def get_cheque_candidates(cls, bank_account, stmt_line, limit: int = 50):
+        """
+        محول المرشحين للشيكات المعلقة (Direct In-Reconciliation Cheque Candidates)
+        لحركات الإيداع (debit > 0): أوراق القبض برسم التحصيل المودعة بالبنك (UNDER_COLLECTION).
+        لحركات السحب والخصم (credit > 0): أوراق الدفع الصادرة المسحوبة على البنك (ISSUED).
+        """
+        try:
+            from cheques.models import Cheque, ChequeType, ChequeStatus, ChequePurpose
+        except ImportError:
+            return []
+
+        is_inflow = stmt_line.debit > 0
+        qs = Cheque.objects.filter(deposit_bank_account=bank_account).exclude(purpose=ChequePurpose.SECURITY_GUARANTEE)
+
+        if is_inflow:
+            qs = qs.filter(
+                cheque_type=ChequeType.RECEIVABLE,
+                status=ChequeStatus.UNDER_COLLECTION
+            )
+        else:
+            qs = qs.filter(
+                cheque_type=ChequeType.PAYABLE,
+                status=ChequeStatus.ISSUED
+            )
+
+        return list(qs.order_by('-due_date')[:limit])
+
 
 class BankReconciliationService:
     """

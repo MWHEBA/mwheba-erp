@@ -239,20 +239,42 @@ class CustomerSubledgerService:
         FIN-AR-003: استعلام بنود المعاملات المفتوحة غير المسددة للعميل
         """
         from customer.models import CustomerTransaction
-        return CustomerTransaction.objects.filter(
+        from cheques.models import Cheque, ChequeStatus
+        bounced_cheque_ids = list(Cheque.objects.filter(
+            customer_id=customer_id,
+            status__in=[ChequeStatus.BOUNCED, ChequeStatus.CANCELLED]
+        ).values_list("id", flat=True))
+        bounced_cheque_id_strs = [str(cid) for cid in bounced_cheque_ids]
+
+        qs = CustomerTransaction.objects.filter(
             customer_id=customer_id,
             status__in=["OPEN", "PARTIAL"]
-        ).order_by("due_date", "id")
+        )
+        if bounced_cheque_id_strs:
+            qs = qs.exclude(
+                transaction_type="CHEQUE",
+                reference_id__in=bounced_cheque_id_strs
+            )
+        return qs.order_by("due_date", "id")
 
     @classmethod
     def get_customer_open_balance(cls, customer_id: int) -> Decimal:
         """
         FIN-AR-001 API Boundary: استعلام إجمالي الرصيد المفتوح غير المسدد للعميل من واجهة Subledger API
+        الفواتير تمثل مديونية موجبة، بينما المدفوعات والشيكات والإشعارات الدائنة تمثل رصيداً دائناً يخصم من المديونية
         """
-        from django.db.models import Sum
+        from django.db.models import Sum, Case, When, F, DecimalField
         open_items = cls.get_open_items(customer_id)
-        total = open_items.aggregate(sum_open=Sum("open_amount"))["sum_open"]
-        return total or Decimal("0.00")
+        total = open_items.aggregate(
+            sum_open=Sum(
+                Case(
+                    When(transaction_type="INVOICE", then=F("open_amount")),
+                    default=-F("open_amount"),
+                    output_field=DecimalField(max_digits=15, decimal_places=2)
+                )
+            )
+        )["sum_open"]
+        return max(total or Decimal("0.00"), Decimal("0.00"))
 
     @classmethod
     def allocate_payment(

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <!-- ملخص الدفتر -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "إجمالي أوراق الدفتر" %}</div>
+                        <div class="stats-card-value text-info">{{ checkbook.leaf_count }}</div>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "أوراق متاحة للإصدار" %}</div>
+                        <div class="stats-card-value text-success">{{ available_count }}</div>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "أوراق تم تحريرها" %}</div>
+                        <div class="stats-card-value text-warning">{{ issued_count }}</div>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-edit"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "أوراق تالفة / ملغاة" %}</div>
+                        <div class="stats-card-value text-danger">{{ voided_count }}</div>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-ban"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول أوراق الدفتر التسلسلية -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-th-list me-2"></i>{% trans "الأوراق التسلسلية بالدفتر" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>{% trans "رقم الورقة التسلسلي" %}</th>
+                        <th>{% trans "حالة الورقة" %}</th>
+                        <th>{% trans "الشيك الصادر المرتبط" %}</th>
+                        <th>{% trans "المستفيد" %}</th>
+                        <th>{% trans "المبلغ" %}</th>
+                        <th>{% trans "تاريخ التحرير" %}</th>
+                        <th style="width: 120px;">{% trans "إجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leaf in leaves %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-bold text-primary">{{ leaf.serial_number }}</td>
+                        <td>
+                            {% if leaf.status == 'AVAILABLE' %}
+                                <span class="badge bg-success">{% trans "متاحة" %}</span>
+                            {% elif leaf.status == 'ISSUED' %}
+                                <span class="badge bg-primary">{% trans "محررة" %}</span>
+                            {% elif leaf.status == 'VOIDED' %}
+                                <span class="badge bg-danger">{% trans "تالفة / ملغاة" %}</span>
+                            {% elif leaf.status == 'CANCELLED' %}
+                                <span class="badge bg-secondary">{% trans "ملغاة" %}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border">{{ leaf.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if leaf.cheque %}
+                                <a href="{% url 'cheques:payable_detail' leaf.cheque.pk %}" class="fw-bold text-decoration-none">
+                                    {{ leaf.cheque.cheque_number }} ({{ leaf.cheque.voucher_number }})
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if leaf.cheque %}
+                                {% if leaf.cheque.payee_name %}{{ leaf.cheque.payee_name }}{% elif leaf.cheque.supplier %}{{ leaf.cheque.supplier.name }}{% else %}-{% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if leaf.cheque %}
+                                <span class="fw-bold text-danger">{{ leaf.cheque.amount|floatformat:2 }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ leaf.cheque.issue_date|date:"Y-m-d"|default:"-" }}</td>
+                        <td>
+                            {% if leaf.status == 'ISSUED' %}
+                                <a href="{% url 'cheques:checkbook_ruined_leaf' leaf.pk %}" class="btn btn-sm btn-outline-danger" title="{% trans "استبدال الورقة كتالفة" %}">
+                                    <i class="fas fa-file-excel me-1"></i>{% trans "إتلاف واستبدال" %}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">{% trans "لا توجد أوراق في هذا الدفتر." %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

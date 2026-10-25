@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{% trans "ميزان أعمار أوراق القبض والدفع" %} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- بطاقة الفلاتر -->
+    <div class="section-container mb-4">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="cheque_type" class="form-label fw-bold">
+                    <i class="fas fa-layer-group text-primary me-1"></i>{% trans "نوع الأوراق المالية" %}
+                </label>
+                <select class="form-select" id="cheque_type" name="cheque_type" onchange="this.form.submit()">
+                    <option value="RECEIVABLE" {% if cheque_type == 'RECEIVABLE' %}selected{% endif %}>{% trans "أوراق قبض (شيكات واردة من عملاء)" %}</option>
+                    <option value="PAYABLE" {% if cheque_type == 'PAYABLE' %}selected{% endif %}>{% trans "أوراق دفع (شيكات صادرة لموردين)" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="as_of_date" class="form-label fw-bold">
+                    <i class="fas fa-calendar-alt text-primary me-1"></i>{% trans "تاريخ التقييم (As of Date)" %}
+                </label>
+                <input type="date" class="form-control" id="as_of_date" name="as_of_date" value="{{ as_of_date }}">
+            </div>
+            <div class="col-md-3">
+                <label for="partner_id" class="form-label fw-bold">
+                    <i class="fas fa-user-tag text-primary me-1"></i>{% if cheque_type == 'RECEIVABLE' %}{% trans "العميل" %}{% else %}{% trans "المورد" %}{% endif %}
+                </label>
+                <select class="form-select select2-filter" id="partner_id" name="partner_id">
+                    <option value="">{% trans "كافة الشركاء" %}</option>
+                    {% if cheque_type == 'RECEIVABLE' and customers %}
+                        {% for c in customers %}
+                        <option value="{{ c.id }}" {% if partner_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                        {% endfor %}
+                    {% elif cheque_type == 'PAYABLE' and suppliers %}
+                        {% for s in suppliers %}
+                        <option value="{{ s.id }}" {% if partner_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                    <i class="fas fa-filter me-1"></i>{% trans "تطبيق الفلترة" %}
+                </button>
+                <a href="{% url 'cheques:cheque_aging' %}?cheque_type={{ cheque_type }}" class="btn btn-outline-secondary px-3 ms-2">
+                    <i class="fas fa-undo me-1"></i>{% trans "إلغاء" %}
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- بطاقات الإحصاء العام (Stats Cards) -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "إجمالي رصيد الشيكات النشطة" %}</div>
+                        <div class="stats-card-value text-info">{{ report.total_amount|floatformat:2 }}</div>
+                        <small class="text-muted">{{ report.total_cheques_count }} {% trans "شيك قيد المتابعة" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "ساري (لم يتجاوز تاريخ الاستحقاق)" %}</div>
+                        <div class="stats-card-value text-success">{{ report.total_current|floatformat:2 }}</div>
+                        <small class="text-muted">{{ report.bracket_totals.current.count }} {% trans "شيك منتظم" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-calendar-check"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "إجمالي الشيكات المتأخرة" %}</div>
+                        <div class="stats-card-value text-danger">{{ report.total_overdue|floatformat:2 }}</div>
+                        <small class="text-danger fw-bold">{% trans "نسبة المتأخرات:" %} {{ report.overdue_ratio }}%</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "متأخر أكثر من 60 يوماً" %}</div>
+                        <div class="stats-card-value text-warning">
+                            {{ report.bracket_totals.61_90.amount|add:report.bracket_totals.91_120.amount|add:report.bracket_totals.120_plus.amount|floatformat:2 }}
+                        </div>
+                        <small class="text-muted">{% trans "حرجة وتحتاج تدخلاً قانونياً" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-gavel"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقات شرائح التأخير الخمس (Bracket Summary Cards) -->
+    <div class="row g-2 mb-4">
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center bg-light">
+                <small class="text-muted fw-bold">{% trans "1 - 30 يوم" %}</small>
+                <h6 class="fw-bold text-dark mt-1 mb-0">{{ report.bracket_totals.1_30.amount|floatformat:2 }}</h6>
+                <small class="badge bg-secondary mt-1">{{ report.bracket_totals.1_30.count }} {% trans "شيك" %}</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center bg-light">
+                <small class="text-muted fw-bold">{% trans "31 - 60 يوم" %}</small>
+                <h6 class="fw-bold text-dark mt-1 mb-0">{{ report.bracket_totals.31_60.amount|floatformat:2 }}</h6>
+                <small class="badge bg-secondary mt-1">{{ report.bracket_totals.31_60.count }} {% trans "شيك" %}</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center bg-light">
+                <small class="text-muted fw-bold">{% trans "61 - 90 يوم" %}</small>
+                <h6 class="fw-bold text-dark mt-1 mb-0">{{ report.bracket_totals.61_90.amount|floatformat:2 }}</h6>
+                <small class="badge bg-secondary mt-1">{{ report.bracket_totals.61_90.count }} {% trans "شيك" %}</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center bg-light">
+                <small class="text-muted fw-bold">{% trans "91 - 120 يوم" %}</small>
+                <h6 class="fw-bold text-dark mt-1 mb-0">{{ report.bracket_totals.91_120.amount|floatformat:2 }}</h6>
+                <small class="badge bg-secondary mt-1">{{ report.bracket_totals.91_120.count }} {% trans "شيك" %}</small>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm p-3 text-center bg-light">
+                <small class="text-danger fw-bold">{% trans "أكثر من 120 يوم" %}</small>
+                <h6 class="fw-bold text-danger mt-1 mb-0">{{ report.bracket_totals.120_plus.amount|floatformat:2 }}</h6>
+                <small class="badge bg-danger mt-1">{{ report.bracket_totals.120_plus.count }} {% trans "شيك" %}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- تبويبات العرض (الشركاء / الشيكات) -->
+    <div class="section-container">
+        <ul class="nav nav-tabs border-bottom mb-3" id="agingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold" id="partners-tab" data-bs-toggle="tab" data-bs-target="#partners-pane" type="button" role="tab">
+                    <i class="fas fa-users me-1 text-primary"></i>{% trans "ملخص أعمار الديون حسب الشركاء" %}
+                    <span class="badge bg-secondary ms-1">{{ report.partners_summary|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="cheques-tab" data-bs-toggle="tab" data-bs-target="#cheques-pane" type="button" role="tab">
+                    <i class="fas fa-list-ol me-1 text-success"></i>{% trans "التفصيل الكامل بالشيك" %}
+                    <span class="badge bg-secondary ms-1">{{ report.total_cheques_count }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="agingTabsContent">
+            <!-- 1. ملخص الشركاء -->
+            <div class="tab-pane fade show active" id="partners-pane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% if cheque_type == 'RECEIVABLE' %}{% trans "اسم العميل" %}{% else %}{% trans "اسم المورد" %}{% endif %}</th>
+                                <th class="text-center">{% trans "عدد الشيكات" %}</th>
+                                <th class="text-end">{% trans "ساري (غير متأخر)" %}</th>
+                                <th class="text-end">{% trans "1 - 30 يوم" %}</th>
+                                <th class="text-end">{% trans "31 - 60 يوم" %}</th>
+                                <th class="text-end">{% trans "61 - 90 يوم" %}</th>
+                                <th class="text-end">{% trans "أكثر من 90 يوم" %}</th>
+                                <th class="text-end">{% trans "إجمالي المديونية" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in report.partners_summary %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td class="fw-bold">{{ p.partner_name }}</td>
+                                <td class="text-center"><span class="badge bg-light text-dark border">{{ p.cheques_count }}</span></td>
+                                <td class="text-end text-success">{{ p.current|floatformat:2 }}</td>
+                                <td class="text-end">{{ p.overdue_1_30|floatformat:2 }}</td>
+                                <td class="text-end">{{ p.overdue_31_60|floatformat:2 }}</td>
+                                <td class="text-end">{{ p.overdue_61_90|floatformat:2 }}</td>
+                                <td class="text-end {% if p.overdue_91_plus > 0 %}text-danger fw-bold{% endif %}">{{ p.overdue_91_plus|floatformat:2 }}</td>
+                                <td class="text-end fw-bold text-primary">{{ p.total_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">{% trans "لا توجد بيانات مطابقة لمعايير البحث." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="3" class="text-end">{% trans "الإجمالي العام:" %}</td>
+                                <td class="text-end text-success">{{ report.total_current|floatformat:2 }}</td>
+                                <td class="text-end">{{ report.bracket_totals.1_30.amount|floatformat:2 }}</td>
+                                <td class="text-end">{{ report.bracket_totals.31_60.amount|floatformat:2 }}</td>
+                                <td class="text-end">{{ report.bracket_totals.61_90.amount|floatformat:2 }}</td>
+                                <td class="text-end text-danger">{{ report.bracket_totals.91_120.amount|add:report.bracket_totals.120_plus.amount|floatformat:2 }}</td>
+                                <td class="text-end text-primary">{{ report.total_amount|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. التفصيل بالشيك -->
+            <div class="tab-pane fade" id="cheques-pane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "رقم السند" %}</th>
+                                <th>{% trans "رقم الشيك" %}</th>
+                                <th>{% trans "الشريك" %}</th>
+                                <th>{% trans "تاريخ التحرير" %}</th>
+                                <th>{% trans "تاريخ الاستحقاق" %}</th>
+                                <th class="text-center">{% trans "أيام التأخير" %}</th>
+                                <th>{% trans "شريحة التأخير" %}</th>
+                                <th>{% trans "الحالة" %}</th>
+                                <th class="text-end">{% trans "المبلغ القائم" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in report.cheques_list %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    {% if cheque_type == 'RECEIVABLE' %}
+                                    <a href="{% url 'cheques:receivable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a>
+                                    {% else %}
+                                    <a href="{% url 'cheques:payable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.cheque_number }}</td>
+                                <td>{{ item.partner_name }}</td>
+                                <td>{{ item.issue_date|date:"Y-m-d" }}</td>
+                                <td>{{ item.due_date|date:"Y-m-d" }}</td>
+                                <td class="text-center">
+                                    {% if item.is_overdue %}
+                                    <span class="badge bg-danger">{{ item.days_overdue }} {% trans "يوم" %}</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{% trans "ساري" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if item.bracket_key == 'current' %}bg-success{% elif item.bracket_key == '1_30' %}bg-info{% elif item.bracket_key == '31_60' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                        {{ item.bracket_label }}
+                                    </span>
+                                </td>
+                                <td><span class="badge bg-secondary">{{ item.status_display }}</span></td>
+                                <td class="text-end fw-bold">{{ item.remaining_amount|floatformat:2 }} {{ item.currency_code }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">{% trans "لا توجد شيكات مسجلة." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="9" class="text-end">{% trans "إجمالي المبالغ القائمة:" %}</td>
+                                <td class="text-end text-primary">{{ report.total_amount|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

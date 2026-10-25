@@ -1422,7 +1422,19 @@ class SystemModule(models.Model):
         if self.module_type == 'core':
             return False
         # التحقق من عدم وجود تطبيقات أخرى مفعلة تعتمد عليه
-        return not self.dependent_modules.filter(is_enabled=True).exists()
+        if self.dependent_modules.filter(is_enabled=True).exists():
+            return False
+
+        # فحص خاص لمنظومة الشيكات: لا يمكن التعطيل إذا كانت هناك شيكات نشطة قيد التحصيل أو الصرف
+        if self.code == 'cheques':
+            try:
+                from cheques.services.toggle_service import ChequeToggleService
+                if not ChequeToggleService.can_disable_module():
+                    return False
+            except Exception:
+                pass
+
+        return True
     
     def get_dependencies_status(self):
         """الحصول على حالة التطبيقات المطلوبة"""

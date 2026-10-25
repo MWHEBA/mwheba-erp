@@ -209,6 +209,99 @@ class FXCalculationService:
         except Exception as e:
             logger.warning(f"ملاحظة أثناء حساب حسابات الخزن والبنوك للتقييم: {e}")
 
+        # 7. حساب أوراق القبض والدفع الأجنبية المفتوحة (Monetary Cheque Items - IAS 21)
+        try:
+            from cheques.models import Cheque, ChequeType, ChequeStatus, ChequePurpose
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+
+            rec_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
+            coll_account = AccountRoleRegistry.get_account(AccountRoleNames.CHEQUES_UNDER_COLLECTION)
+            pay_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
+
+            # أوراق القبض الأجنبية المفتوحة
+            open_receivables = Cheque.objects.filter(
+                currency__in=active_currencies,
+                cheque_type=ChequeType.RECEIVABLE,
+                status__in=[ChequeStatus.IN_PORTFOLIO, ChequeStatus.UNDER_COLLECTION, ChequeStatus.PARTIALLY_COLLECTED],
+                issue_date__lte=as_of_date,
+            ).exclude(
+                purpose=ChequePurpose.SECURITY_GUARANTEE
+            ).select_related('currency', 'customer')
+
+            for chq in open_receivables:
+                open_foreign = chq.remaining_amount
+                if abs(open_foreign) > Decimal("0.0001"):
+                    closing_rate = snapshots_map[chq.currency.code].rate
+                    old_rate = chq.original_exchange_rate or Decimal("1.000000")
+                    old_functional = chq.remaining_functional or (open_foreign * old_rate).quantize(Decimal("0.01"))
+                    closing_functional = (open_foreign * closing_rate).quantize(Decimal("0.01"))
+                    diff = closing_functional - old_functional
+
+                    acc = coll_account if chq.status == ChequeStatus.UNDER_COLLECTION else rec_control
+                    source_str = f"CHEQUE_REC_{chq.id}_{chq.remaining_amount}_{chq.updated_at if hasattr(chq, 'updated_at') else ''}"
+                    source_hash = hashlib.sha256(source_str.encode('utf-8')).hexdigest()
+
+                    FXRevaluationLine.objects.create(
+                        run=run,
+                        source_type='NOTES_RECEIVABLE',
+                        source_id=str(chq.id),
+                        source_hash=source_hash,
+                        account=acc,
+                        partner_name=str(chq.customer) if chq.customer else chq.drawer_name,
+                        currency=chq.currency,
+                        open_foreign_amount=open_foreign,
+                        old_rate=old_rate,
+                        new_rate=closing_rate,
+                        old_functional_value=old_functional,
+                        new_functional_value=closing_functional,
+                        unrealized_difference=diff,
+                        gain_loss_account=fx_unrealized_account
+                    )
+                    total_gain_loss += diff
+
+            # أوراق الدفع الأجنبية المفتوحة
+            open_payables = Cheque.objects.filter(
+                currency__in=active_currencies,
+                cheque_type=ChequeType.PAYABLE,
+                status=ChequeStatus.ISSUED,
+                issue_date__lte=as_of_date,
+            ).exclude(
+                purpose=ChequePurpose.SECURITY_GUARANTEE
+            ).select_related('currency', 'supplier')
+
+            for chq in open_payables:
+                open_foreign = chq.remaining_amount
+                if abs(open_foreign) > Decimal("0.0001"):
+                    closing_rate = snapshots_map[chq.currency.code].rate
+                    old_rate = chq.original_exchange_rate or Decimal("1.000000")
+                    old_functional = chq.remaining_functional or (open_foreign * old_rate).quantize(Decimal("0.01"))
+                    closing_functional = (open_foreign * closing_rate).quantize(Decimal("0.01"))
+                    # التزام: زيادة الجنيه تعني خسارة (old - closing)
+                    diff = old_functional - closing_functional
+
+                    source_str = f"CHEQUE_PAY_{chq.id}_{chq.remaining_amount}_{chq.updated_at if hasattr(chq, 'updated_at') else ''}"
+                    source_hash = hashlib.sha256(source_str.encode('utf-8')).hexdigest()
+
+                    FXRevaluationLine.objects.create(
+                        run=run,
+                        source_type='NOTES_PAYABLE',
+                        source_id=str(chq.id),
+                        source_hash=source_hash,
+                        account=pay_control,
+                        partner_name=str(chq.supplier) if chq.supplier else chq.payee_name,
+                        currency=chq.currency,
+                        open_foreign_amount=open_foreign,
+                        old_rate=old_rate,
+                        new_rate=closing_rate,
+                        old_functional_value=old_functional,
+                        new_functional_value=closing_functional,
+                        unrealized_difference=diff,
+                        gain_loss_account=fx_unrealized_account
+                    )
+                    total_gain_loss += diff
+        except Exception as e:
+            logger.warning(f"ملاحظة أثناء حساب أوراق القبض والدفع للتقييم: {e}")
+
         # تحديث حالة الـ Run والإجمالي
         run.total_unrealized_gain_loss = total_gain_loss
         run.status = 'CALCULATED'

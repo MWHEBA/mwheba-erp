@@ -156,6 +156,9 @@ class AccountingGateway:
         'financial.CashTransfer',
         'hr.EmployeeAssetCustody',
         'hr.EmployeeAssetTransfer',
+        'cheques.Cheque',
+        'cheques.ChequeActionLog',
+        'cheques.ChequeBatchDeposit',
     }
     
     # High-priority workflows that require strict validation

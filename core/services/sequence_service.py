@@ -55,6 +55,9 @@ class SequenceService:
         DocumentType.CUSTODY_ASSET_RECEIPT: "CASR",
         DocumentType.CUSTODY_ASSET_TRANSFER: "CAST",
         DocumentType.CUSTODY_ROUTE_SETTLEMENT: "CRTS",
+        DocumentType.CHEQUE_RECEIVABLE: "CHQR",
+        DocumentType.CHEQUE_PAYABLE: "CHQP",
+        DocumentType.CHEQUE_DEPOSIT_BATCH: "CHQB",
     }
 
     # خريطة الموديلات والحقول لتحديد الـ Seed الأولي للبيانات القديمة
@@ -83,6 +86,9 @@ class SequenceService:
         DocumentType.CUSTODY_COUNT: [("financial.PettyCashCount", "count_number")],
         DocumentType.CUSTODY_ASSET_RECEIPT: [("hr.EmployeeAssetCustody", "custody_code")],
         DocumentType.CUSTODY_ASSET_TRANSFER: [("hr.EmployeeAssetTransfer", "transfer_code")],
+        DocumentType.CHEQUE_RECEIVABLE: [("cheques.Cheque", "voucher_number")],
+        DocumentType.CHEQUE_PAYABLE: [("cheques.Cheque", "voucher_number")],
+        DocumentType.CHEQUE_DEPOSIT_BATCH: [("cheques.ChequeBatchDeposit", "batch_number")],
     }
 
     @classmethod
@@ -138,6 +144,13 @@ class SequenceService:
             "CUSTODY_ASSET_RECEIPT": DocumentType.CUSTODY_ASSET_RECEIPT,
             "CUSTODY_ASSET_TRANSFER": DocumentType.CUSTODY_ASSET_TRANSFER,
             "CUSTODY_ROUTE_SETTLEMENT": DocumentType.CUSTODY_ROUTE_SETTLEMENT,
+            "CHEQUE_RECEIVABLE": DocumentType.CHEQUE_RECEIVABLE,
+            "CHEQUE_PAYABLE": DocumentType.CHEQUE_PAYABLE,
+            "CHEQUE_DEPOSIT_BATCH": DocumentType.CHEQUE_DEPOSIT_BATCH,
+            "CHQR": DocumentType.CHEQUE_RECEIVABLE,
+            "CHQP": DocumentType.CHEQUE_PAYABLE,
+            "CHQB": DocumentType.CHEQUE_DEPOSIT_BATCH,
+            "CHEQUE": DocumentType.CHEQUE_RECEIVABLE,
         }
 
         return alias_map.get(raw, raw)

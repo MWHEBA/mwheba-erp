@@ -69,6 +69,9 @@ class SourceLinkageService:
         'operations.WorkOrder',  # Operational Work Order
         'operations.ProductionRun',  # Production Run
         'operations.MaintenanceTask',  # Maintenance Task
+        'cheques.Cheque',
+        'cheques.ChequeActionLog',
+        'cheques.ChequeBatchDeposit',
     }
     
     @classmethod

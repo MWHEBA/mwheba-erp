@@ -297,14 +297,22 @@ class Sale(models.Model):
         from customer.models import CustomerAllocationAudit
         from decimal import Decimal
         direct_paid = self.payments.filter(status="posted").exclude(
-            source_type="PREPAID_BALANCE"
+            source_type__in=["PREPAID_BALANCE", "CHEQUE"]
         ).exclude(
             customer_payment__isnull=False
         ).aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
 
+        cheque_paid = self.payments.filter(
+            status="posted",
+            source_type="CHEQUE"
+        ).aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
+
         allocated_paid = CustomerAllocationAudit.objects.filter(
             target_document_number=self.number,
-            allocation_status="APPLIED"
+            allocation_status="APPLIED",
+            reversals__isnull=True
+        ).exclude(
+            source_document_type="CHEQUE"
         ).aggregate(models.Sum("allocated_amount"))["allocated_amount__sum"] or Decimal("0.00")
 
         prepaid_direct = self.payments.filter(
@@ -313,7 +321,7 @@ class Sale(models.Model):
             models.Q(source_type="PREPAID_BALANCE") | models.Q(customer_payment__isnull=False)
         ).aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
 
-        return direct_paid + max(allocated_paid, prepaid_direct)
+        return direct_paid + cheque_paid + max(allocated_paid, prepaid_direct)
 
     @property
     def amount_returned(self):

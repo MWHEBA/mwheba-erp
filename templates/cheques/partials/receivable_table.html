@@ -1,0 +1,81 @@
+{% load i18n custom_filters %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 40px;">#</th>
+                <th>{% trans "رقم الشيك" %}</th>
+                <th>{% trans "رقم الإيصال" %}</th>
+                <th>{% trans "العميل / الساحب" %}</th>
+                <th>{% trans "المبلغ" %}</th>
+                <th>{% trans "العملة" %}</th>
+                <th>{% trans "تاريخ التحرير" %}</th>
+                <th>{% trans "تاريخ الاستحقاق" %}</th>
+                <th>{% trans "بنك الساحب" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th style="width: 90px;" class="text-center">{% trans "إجراءات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for chq in cheques %}
+            <tr class="clickable-row" data-href="{% url 'cheques:receivable_detail' chq.pk %}">
+                <td>{{ forloop.counter }}</td>
+                <td class="fw-bold text-primary">
+                    <i class="fas fa-money-check me-1"></i>{{ chq.cheque_number }}
+                    {% if chq.is_guarantee %}
+                        <span class="badge bg-secondary ms-1">{% trans "ضمان" %}</span>
+                    {% endif %}
+                </td>
+                <td class="text-muted small">{{ chq.voucher_number }}</td>
+                <td>
+                    <div class="fw-medium text-dark">
+                        {% if chq.customer %}{{ chq.customer.name }}{% else %}{{ chq.drawer_name|default:"-" }}{% endif %}
+                    </div>
+                    {% if chq.customer and chq.drawer_name and chq.customer.name != chq.drawer_name %}
+                        <small class="text-muted">{% trans "الساحب" %}: {{ chq.drawer_name }}</small>
+                    {% endif %}
+                </td>
+                <td class="fw-bold text-success">{{ chq.amount|floatformat:2 }}</td>
+                <td><span class="badge bg-light text-dark border">{{ chq.currency.code }}</span></td>
+                <td>{{ chq.issue_date|date:"Y-m-d" }}</td>
+                <td class="fw-medium">{{ chq.due_date|date:"Y-m-d" }}</td>
+                <td>{{ chq.drawer_bank_name }}</td>
+                <td>
+                    {% if chq.status == 'IN_PORTFOLIO' %}
+                        <span class="badge bg-info text-dark px-2 py-1"><i class="fas fa-wallet me-1"></i>{% trans "في المحفظة" %}</span>
+                    {% elif chq.status == 'UNDER_COLLECTION' %}
+                        <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-university me-1"></i>{% trans "برسم التحصيل" %}</span>
+                    {% elif chq.status == 'COLLECTED' %}
+                        <span class="badge bg-success px-2 py-1"><i class="fas fa-check-circle me-1"></i>{% trans "محصل بالكامل" %}</span>
+                    {% elif chq.status == 'PARTIALLY_COLLECTED' %}
+                        <span class="badge bg-primary px-2 py-1"><i class="fas fa-coins me-1"></i>{% trans "محصل جزئياً" %}</span>
+                    {% elif chq.status == 'BOUNCED' or chq.status == 'ENDORSED_BOUNCED' %}
+                        <span class="badge bg-danger px-2 py-1"><i class="fas fa-times-circle me-1"></i>{% trans "مرتد" %}</span>
+                    {% elif chq.status == 'ENDORSED' %}
+                        <span class="badge bg-secondary px-2 py-1"><i class="fas fa-share me-1"></i>{% trans "مظهر" %}</span>
+                    {% elif chq.status == 'LEGAL_ACTION' %}
+                        <span class="badge bg-dark px-2 py-1"><i class="fas fa-gavel me-1"></i>{% trans "إجراء قضائي" %}</span>
+                    {% elif chq.status == 'RETURNED_TO_DRAWER' %}
+                        <span class="badge bg-secondary px-2 py-1"><i class="fas fa-undo me-1"></i>{% trans "مسترد للساحب" %}</span>
+                    {% else %}
+                        <span class="badge bg-light text-dark border px-2 py-1">{{ chq.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center col-actions">
+                    <a href="{% url 'cheques:receivable_detail' chq.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans "عرض التفاصيل" %}">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11" class="text-center py-4 text-muted">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block text-secondary"></i>
+                    {% trans "لا توجد أوراق قبض مطابقة لمعايير البحث." %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

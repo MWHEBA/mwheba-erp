@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-university me-2"></i>{% trans "بيانات الحساب البنكي وتاريخ التسليم" %}</h5>
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in form.non_field_errors %}
+                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.bank_account.label }} <span class="text-danger">*</span></label>
+                            {{ form.bank_account }}
+                            {% if form.bank_account.errors %}<div class="text-danger small">{{ form.bank_account.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.deposit_date.label }} <span class="text-danger">*</span></label>
+                            {{ form.deposit_date }}
+                            {% if form.deposit_date.errors %}<div class="text-danger small">{{ form.deposit_date.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-check-square me-2"></i>{% trans "اختيار شيكات القبض المراد إيداعها بالحافظة" %}</h5>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ form.cheques.label }} <span class="text-danger">*</span></label>
+                        {{ form.cheques }}
+                        <small class="text-muted d-block mt-1">{% trans "يتم استعراض الشيكات الموجودة بالخزينة / المحفظة والجاهزة للإيداع البنكي حصراً." %}</small>
+                        {% if form.cheques.errors %}<div class="text-danger small">{{ form.cheques.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ form.notes.label }}</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="{% url 'cheques:batch_deposit_list' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-right me-1"></i>{% trans "إلغاء والعودة" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-layer-group me-1"></i>{% trans "إنشاء الحافظة وتوليد السيريال" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('.select2-filter').select2({
+            dir: "rtl",
+            language: "ar",
+            width: '100%'
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -150,6 +150,7 @@ INSTALLED_APPS = [
     'utils',
     'api',
     'work_order',
+    'cheques.apps.ChequesConfig',
 ]
 
 MIDDLEWARE = [

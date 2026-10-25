@@ -188,6 +188,22 @@ class PeriodControlService:
                     raise
                 logger.debug(f"تخطي فحص مشتريات المسودة: {err}")
 
+            try:
+                from cheques.models import Cheque, ChequeStatus
+                draft_cheques = Cheque.objects.filter(
+                    issue_date__gte=period.start_date,
+                    issue_date__lte=period.end_date,
+                    status=ChequeStatus.DRAFT
+                )
+                if draft_cheques.exists():
+                    raise PeriodClosedError(
+                        f"لا يمكن إغلاق الفترة {period.name}: يوجد {draft_cheques.count()} شيك بحالة مسودة ضمن الفترة يجب حسمها أولاً."
+                    )
+            except (ImportError, Exception) as err:
+                if isinstance(err, PeriodClosedError):
+                    raise
+                logger.debug(f"تخطي فحص شيكات المسودة: {err}")
+
         # 3. أتمتة مزامنة أسعار الصرف الرسمية
         try:
             from financial.services.exchange_rate_sync_service import ExchangeRateSyncService

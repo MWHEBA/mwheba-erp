@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <form method="post" enctype="multipart/form-data" class="needs-validation">
+                {% csrf_token %}
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-money-check-alt me-2"></i>{% trans "البيانات الأساسية للشيك الوارد" %}</h5>
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in form.non_field_errors %}
+                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.cheque_number.label }} <span class="text-danger">*</span></label>
+                            {{ form.cheque_number }}
+                            {% if form.cheque_number.errors %}<div class="text-danger small">{{ form.cheque_number.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.purpose.label }} <span class="text-danger">*</span></label>
+                            {{ form.purpose }}
+                            {% if form.purpose.errors %}<div class="text-danger small">{{ form.purpose.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.amount.label }} <span class="text-danger">*</span></label>
+                            {{ form.amount }}
+                            {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.currency.label }} <span class="text-danger">*</span></label>
+                            {{ form.currency }}
+                            {% if form.currency.errors %}<div class="text-danger small">{{ form.currency.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.original_exchange_rate.label }}</label>
+                            {{ form.original_exchange_rate }}
+                            {% if form.original_exchange_rate.errors %}<div class="text-danger small">{{ form.original_exchange_rate.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.deposit_bank_account.label }}</label>
+                            {{ form.deposit_bank_account }}
+                            {% if form.deposit_bank_account.errors %}<div class="text-danger small">{{ form.deposit_bank_account.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.issue_date.label }} <span class="text-danger">*</span></label>
+                            {{ form.issue_date }}
+                            {% if form.issue_date.errors %}<div class="text-danger small">{{ form.issue_date.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.due_date.label }} <span class="text-danger">*</span></label>
+                            {{ form.due_date }}
+                            {% if form.due_date.errors %}<div class="text-danger small">{{ form.due_date.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-user-tag me-2"></i>{% trans "بيانات الساحب والعميل المسدد" %}</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.customer.label }}</label>
+                            {{ form.customer }}
+                            {% if form.customer.errors %}<div class="text-danger small">{{ form.customer.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.drawer_name.label }}</label>
+                            {{ form.drawer_name }}
+                            {% if form.drawer_name.errors %}<div class="text-danger small">{{ form.drawer_name.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.drawer_bank_name.label }} <span class="text-danger">*</span></label>
+                            {{ form.drawer_bank_name }}
+                            {% if form.drawer_bank_name.errors %}<div class="text-danger small">{{ form.drawer_bank_name.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.payee_name.label }}</label>
+                            {{ form.payee_name }}
+                            {% if form.payee_name.errors %}<div class="text-danger small">{{ form.payee_name.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-paperclip me-2"></i>{% trans "المرفقات والملاحظات" %}</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.front_image.label }}</label>
+                            {{ form.front_image }}
+                            {% if form.front_image.errors %}<div class="text-danger small">{{ form.front_image.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.back_image.label }}</label>
+                            {{ form.back_image }}
+                            {% if form.back_image.errors %}<div class="text-danger small">{{ form.back_image.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">{{ form.notes.label }}</label>
+                            {{ form.notes }}
+                            <small class="text-muted d-block">{% trans "في حالة شيك الضمان، يلزم تدوين رقم العقد أو المرجع هنا." %}</small>
+                            {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="{% url 'cheques:receivable_list' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-right me-1"></i>{% trans "إلغاء والعودة" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ وتسجيل الشيك" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

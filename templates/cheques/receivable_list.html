@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    {% if is_draining %}
+    <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4 p-3" role="alert">
+        <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+        <div>
+            <h6 class="alert-heading fw-bold mb-1">{% trans "منظومة الشيكات في وضع التصفية التدريجية (Draining Mode)" %}</h6>
+            <p class="mb-0 small">{% blocktrans with count=active_cheques_count %}تم تعليق إصدار الشيكات الجديدة لحين استكمال تحصيل أو تسوية الشيكات النشطة الحالية ({{ count }} شيك نشط).{% endblocktrans %}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- بطاقات الإحصائيات (KPI Stats Cards) -->
+    <div class="row g-3 mb-4" id="statsCardsContainer">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "في المحفظة / الخزينة" %}</div>
+                        <div class="stats-card-value text-info" id="statInPortfolio">{{ stats.in_portfolio_total|floatformat:2 }}</div>
+                        <small class="text-muted">{{ stats.in_portfolio_count }} {% trans "شيك وارد" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-wallet"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "برسم التحصيل بالبنك" %}</div>
+                        <div class="stats-card-value text-warning" id="statUnderCollection">{{ stats.under_collection_total|floatformat:2 }}</div>
+                        <small class="text-muted">{{ stats.under_collection_count }} {% trans "شيك مودع" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-university"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "تستحق خلال 7 أيام" %}</div>
+                        <div class="stats-card-value text-success" id="statDueSoon">{{ stats.due_soon_total|floatformat:2 }}</div>
+                        <small class="text-muted">{{ stats.due_soon_count }} {% trans "شيك وشيك الاستحقاق" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-calendar-check"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "شيكات مرتدة تحتاج متابعة" %}</div>
+                        <div class="stats-card-value text-danger" id="statBounced">{{ stats.bounced_total|floatformat:2 }}</div>
+                        <small class="text-muted">{{ stats.bounced_count }} {% trans "شيك مرفوض" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- صندوق الفلاتر القابل للطي (Collapsible Filter Section) -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.status or request.GET.bank_account %}true{% else %}false{% endif %}" style="cursor: pointer;">
+            <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث أوراق القبض" %}
+            {% if request.GET.search or request.GET.status or request.GET.bank_account %}
+                <span class="badge bg-primary ms-2">{% trans "فلتر نشط" %}</span>
+            {% endif %}
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse {% if request.GET.search or request.GET.status or request.GET.bank_account or request.GET.date_from %}show{% endif %}" id="filterSection">
+            <form id="filterForm" method="get" class="row g-3 align-items-end mt-1">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">{% trans "بحث عام" %}</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" id="searchInput" class="form-control" placeholder="{% trans 'رقم الشيك، العميل، الساحب...' %}" value="{{ request.GET.search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "الحالة" %}</label>
+                    <select name="status" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "كافة الحالات" %}</option>
+                        {% for val, label in status_choices %}
+                            <option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "الغرض" %}</label>
+                    <select name="purpose" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "كافة الأغراض" %}</option>
+                        {% for val, label in purpose_choices %}
+                            <option value="{{ val }}" {% if request.GET.purpose == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">{% trans "الحساب البنكي المودع به" %}</label>
+                    <select name="bank_account" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "كافة البنوك" %}</option>
+                        {% for b in bank_accounts %}
+                            <option value="{{ b.id }}" {% if request.GET.bank_account == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-search me-1"></i>{% trans "تطبيق الفلتر" %}</button>
+                    <a href="{% url 'cheques:receivable_list' %}" class="btn btn-outline-secondary" title="{% trans "إعادة تعيين" %}"><i class="fas fa-redo"></i></a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- جدول عرض أوراق القبض -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "سجل أوراق القبض والشيكات الواردة" %}</h5>
+        <div id="receivable-table-container">
+            {% include "cheques/partials/receivable_table.html" %}
+        </div>
+        <div id="pagination-wrapper">
+            {% include "partials/pagination.html" with page_obj=page_obj %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. تفعيل النقر على صفوف الجدول
+    function initTableEvents() {
+        document.querySelectorAll("#receivable-table-container .clickable-row").forEach(function(row) {
+            row.addEventListener("click", function(e) {
+                if (!e.target.closest(".col-actions, .btn, a, button")) {
+                    var href = this.getAttribute("data-href");
+                    if (href) window.location.href = href;
+                }
+            });
+        });
+    }
+    initTableEvents();
+
+    // 2. البحث الديناميكي AJAX doSearch ومزامنة حالة URL
+    window.doSearch = function() {
+        var form = document.getElementById("filterForm");
+        var formData = new FormData(form);
+        var params = new URLSearchParams(formData);
+        params.append("ajax", "1");
+
+        fetch("?" + params.toString(), {
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.table_html) {
+                document.getElementById("receivable-table-container").innerHTML = data.table_html;
+            }
+            if (data.pagination_html) {
+                document.getElementById("pagination-wrapper").innerHTML = data.pagination_html;
+            }
+            if (data.stats) {
+                if (data.stats.in_portfolio_total) document.getElementById("statInPortfolio").innerText = data.stats.in_portfolio_total;
+                if (data.stats.under_collection_total) document.getElementById("statUnderCollection").innerText = data.stats.under_collection_total;
+                if (data.stats.due_soon_total) document.getElementById("statDueSoon").innerText = data.stats.due_soon_total;
+                if (data.stats.bounced_total) document.getElementById("statBounced").innerText = data.stats.bounced_total;
+            }
+            initTableEvents();
+            params.delete("ajax");
+            history.replaceState(null, "", "?" + params.toString());
+        })
+        .catch(function(err) { console.error("AJAX Search Error:", err); });
+    };
+
+    var filterForm = document.getElementById("filterForm");
+    if (filterForm) {
+        filterForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            window.doSearch();
+        });
+        filterForm.querySelectorAll("select, input").forEach(function(input) {
+            input.addEventListener("change", function() {
+                window.doSearch();
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

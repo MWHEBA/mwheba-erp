@@ -154,6 +154,7 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
     STATUS_CHOICES = (
         ("draft", _("مسودة")),
         ("posted", _("مرحّلة")),
+        ("reversed", _("معكوسة")),
     )
     status = models.CharField(
         _("الحالة"),
@@ -219,7 +220,8 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
 
     SOURCE_TYPE_CHOICES = (
         ("CASH", _("نقدي")),
-        ("BANK", _("تحويل بنكي / شيك")),
+        ("BANK", _("تحويل بنكي")),
+        ("CHEQUE", _("ورقة قبض / شيك")),
         ("PREPAID_BALANCE", _("خصم من الرصيد المسبق / دفعة مقدمة")),
         ("CREDIT_NOTE", _("تسوية إشعار دائن")),
     )
@@ -235,8 +237,8 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         """التحقق من صحة البيانات"""
         super().clean()
 
-        # التحقق من أن الحساب المالي نقدي أو بنكي (إلا لو كانت الدفعة مخصومة من رصيد مسبق)
-        if self.financial_account and not (self.source_type == "PREPAID_BALANCE" or self.customer_payment_id):
+        # التحقق من أن الحساب المالي نقدي أو بنكي (إلا لو كانت الدفعة مخصومة من رصيد مسبق أو شيك)
+        if self.financial_account and not (self.source_type in ["PREPAID_BALANCE", "CHEQUE"] or self.customer_payment_id or self.payment_method == "check"):
             if not (
                 self.financial_account.is_cash_account
                 or self.financial_account.is_bank_account
@@ -283,6 +285,9 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         elif self.source_type == "CREDIT_NOTE":
             ref = f" ({self.reference_number})" if self.reference_number else ""
             return f"تسوية إشعار دائن{ref}"
+        elif self.source_type == "CHEQUE" or self.payment_method == "check":
+            ref = f" (شيك رقم: {self.reference_number})" if self.reference_number else ""
+            return f"ورقة قبض / شيك{ref}"
         elif self.source_type == "BANK" or self.payment_method == "bank_transfer":
             acc_name = f" - {self.financial_account.name}" if self.financial_account else ""
             ref = f" (مرجع: #{self.reference_number})" if self.reference_number else ""

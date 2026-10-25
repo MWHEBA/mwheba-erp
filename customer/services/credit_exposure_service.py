@@ -38,7 +38,14 @@ class CreditExposureService:
         )
         pending_orders_amount = pending_orders.aggregate(total=models.Sum("functional_amount"))["total"] or Decimal("0.00")
 
-        total_exposure = open_ar_amount + pending_orders_amount
+        # 3. Uncollected Invoiced Cheques and Allocated Advance Cheques (Cheques Governance)
+        try:
+            from cheques.services.exposure_service import ChequeExposureService
+            uncollected_cheques_amount = ChequeExposureService.get_uncollected_cheques_exposure(customer_id)
+        except Exception:
+            uncollected_cheques_amount = Decimal("0.00")
+
+        total_exposure = open_ar_amount + pending_orders_amount + uncollected_cheques_amount
 
         # Get or create default Credit Profile
         profile, _ = CustomerCreditProfile.objects.get_or_create(
@@ -60,6 +67,7 @@ class CreditExposureService:
             "currency": profile.currency,
             "open_ar_amount": open_ar_amount,
             "pending_orders_amount": pending_orders_amount,
+            "uncollected_cheques_amount": uncollected_cheques_amount,
             "total_exposure": total_exposure,
             "available_credit": avail_credit,
             "credit_status": profile.credit_status,

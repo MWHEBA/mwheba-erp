@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ cheque.cheque_number }} - {% if cheque.cheque_type == 'RECEIVABLE' %}إشعار استلام شيك قبض{% else %}طباعة شيك بنكي{% endif %}</title>
+    <style>
+        :root {
+            --bs-body-bg: var(--bg-body, #f8f9fa);
+            --print-bg: var(--bg-white, #ffffff);
+            --print-text: var(--text-color, #000000);
+            --print-text-muted: var(--text-muted, #666666);
+            --print-border: var(--border-color, #cccccc);
+            --btn-print-bg: var(--primary-color, #04578d);
+            --btn-print-text: var(--bg-white, #ffffff);
+        }
+        /* نظام الطباعة بالمليمتر لشيكات البنوك */
+        @page {
+            size: auto;
+            margin: 0;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bs-body-bg);
+            font-family: inherit;
+            direction: rtl;
+        }
+        .cheque-print-container {
+            position: relative;
+            width: var(--chq-width, 180mm);
+            height: var(--chq-height, 85mm);
+            margin: 20px auto;
+            background-color: var(--print-bg);
+            border: 1px dashed var(--print-border);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .print-field {
+            position: absolute;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--print-text);
+            white-space: nowrap;
+        }
+        /* إحداثيات الحقول بالمليمتر */
+        .field-date {
+            top: var(--date-top, 12mm);
+            right: var(--date-right, 130mm);
+            letter-spacing: 2px;
+        }
+        .field-payee {
+            top: var(--payee-top, 26mm);
+            right: var(--payee-right, 30mm);
+            font-size: 15px;
+        }
+        .field-amount-numbers {
+            top: var(--amount-top, 26mm);
+            right: var(--amount-right, 135mm);
+            font-size: 16px;
+            direction: ltr;
+        }
+        .field-amount-words {
+            top: var(--words-top, 38mm);
+            right: var(--words-right, 25mm);
+            font-size: 13px;
+            max-width: 120mm;
+            line-height: 1.5;
+        }
+        .cross-cheque-line {
+            position: absolute;
+            top: 5mm;
+            right: 8mm;
+            width: 25mm;
+            height: 25mm;
+            border-left: 2px solid var(--print-text);
+            border-right: 2px solid var(--print-text);
+            transform: rotate(-45deg);
+        }
+        .print-toolbar {
+            text-align: center;
+            padding: 15px;
+            background: var(--print-bg);
+            border-bottom: 1px solid var(--print-border);
+        }
+        .btn-print {
+            background-color: var(--btn-print-bg);
+            color: var(--btn-print-text);
+            padding: 8px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-close-print {
+            padding: 8px 16px;
+            border: 1px solid var(--print-border);
+            background: var(--print-bg);
+            color: var(--print-text);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        @media print {
+            .print-toolbar {
+                display: none !important;
+            }
+            .cheque-print-container {
+                margin: 0 !important;
+                border: none !important;
+                background-color: transparent !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-toolbar">
+        <button class="btn-print" onclick="window.print();">🖨️ طباعة الشيك الآن</button>
+        <span style="margin: 0 15px; color: var(--print-text-muted);">
+            البنك: <strong>{{ cheque.deposit_bank_account.name|default:"افتراضي" }}</strong> | 
+            القالب: <strong>{{ layout.name|default:"قياسي (180mm × 85mm)" }}</strong>
+        </span>
+        <button class="btn-close-print" onclick="window.close();">إغلاق</button>
+    </div>
+
+    <div class="cheque-print-container" style="
+        --chq-width: {% if layout %}{{ layout.width_mm }}{% else %}180{% endif %}mm;
+        --chq-height: {% if layout %}{{ layout.height_mm }}{% else %}85{% endif %}mm;
+        --date-top: {% if layout %}{{ layout.date_top_mm }}{% else %}12{% endif %}mm;
+        --date-right: {% if layout %}{{ layout.date_right_mm }}{% else %}130{% endif %}mm;
+        --payee-top: {% if layout %}{{ layout.payee_top_mm }}{% else %}26{% endif %}mm;
+        --payee-right: {% if layout %}{{ layout.payee_right_mm }}{% else %}30{% endif %}mm;
+        --amount-top: {% if layout %}{{ layout.amount_top_mm }}{% else %}26{% endif %}mm;
+        --amount-right: {% if layout %}{{ layout.amount_right_mm }}{% else %}135{% endif %}mm;
+        --words-top: {% if layout %}{{ layout.amount_words_top_mm }}{% else %}38{% endif %}mm;
+        --words-right: {% if layout %}{{ layout.amount_words_right_mm }}{% else %}25{% endif %}mm;
+    ">
+        {% if cheque.is_cross_cheque %}
+            <div class="cross-cheque-line"></div>
+        {% endif %}
+
+        <!-- تاريخ الاستحقاق -->
+        <div class="print-field field-date">
+            {{ cheque.due_date|date:"Y / m / d" }}
+        </div>
+
+        <!-- المستفيد -->
+        <div class="print-field field-payee">
+            {% if cheque.payee_name %}{{ cheque.payee_name }}{% elif cheque.supplier %}{{ cheque.supplier.name }}{% else %}{{ cheque.drawer_name }}{% endif %}
+        </div>
+
+        <!-- المبلغ بالأرقام -->
+        <div class="print-field field-amount-numbers">
+            # {{ cheque.amount|floatformat:2 }} #
+        </div>
+
+        <!-- المبلغ بالتفقيط العربي -->
+        <div class="print-field field-amount-words">
+            {{ amount_words }}
+        </div>
+    </div>
+</body>
+</html>

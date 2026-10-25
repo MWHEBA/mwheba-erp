@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-university me-2"></i>{% trans "بيانات القالب والحساب البنكي" %}</h5>
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in form.non_field_errors %}
+                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.name.label }} <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.bank_account.label }} <span class="text-danger">*</span></label>
+                            {{ form.bank_account }}
+                            {% if form.bank_account.errors %}<div class="text-danger small">{{ form.bank_account.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.width_mm.label }} <span class="text-danger">*</span></label>
+                            {{ form.width_mm }}
+                            {% if form.width_mm.errors %}<div class="text-danger small">{{ form.width_mm.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.height_mm.label }} <span class="text-danger">*</span></label>
+                            {{ form.height_mm }}
+                            {% if form.height_mm.errors %}<div class="text-danger small">{{ form.height_mm.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="pt-4">
+                                <div class="form-check form-switch mt-2">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-bold ms-2">{{ form.is_active.label }}</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-ruler me-2"></i>{% trans "معايرة مسافات الحقول بالمليمتر (Top & Right Offsets)" %}</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.date_top_mm.label }}</label>
+                            {{ form.date_top_mm }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.date_right_mm.label }}</label>
+                            {{ form.date_right_mm }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.payee_top_mm.label }}</label>
+                            {{ form.payee_top_mm }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.payee_right_mm.label }}</label>
+                            {{ form.payee_right_mm }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.amount_top_mm.label }}</label>
+                            {{ form.amount_top_mm }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.amount_right_mm.label }}</label>
+                            {{ form.amount_right_mm }}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.amount_words_top_mm.label }}</label>
+                            {{ form.amount_words_top_mm }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.amount_words_right_mm.label }}</label>
+                            {{ form.amount_words_right_mm }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="{% url 'cheques:layout_list' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-right me-1"></i>{% trans "إلغاء والعودة" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ قالب المعايرة" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

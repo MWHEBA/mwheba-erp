@@ -22,6 +22,9 @@ class DocumentType(models.TextChoices):
     OPENING_BALANCE = "OPENING_BALANCE", _("دفعة أرصدة افتتاحية")
     BANK_RECONCILIATION = "BANK_RECONCILIATION", _("دفعة تسوية بنكية")
     CASH_TRANSFER = "CASH_TRANSFER", _("سند تحويل مالي بين الخزن والبنوك")
+    CHEQUE_RECEIVABLE = "CHEQUE_RECEIVABLE", _("إيصال شيك قبض")
+    CHEQUE_PAYABLE = "CHEQUE_PAYABLE", _("إيصال شيك دفع")
+    CHEQUE_DEPOSIT_BATCH = "CHEQUE_DEPOSIT_BATCH", _("حافظة إيداع شيكات")
 
     # Inventory & Operations Documents
     DELIVERY_NOTE = "DELIVERY_NOTE", _("إذن تسليم وشحن")
@@ -43,3 +46,8 @@ class DocumentType(models.TextChoices):
     CUSTODY_ASSET_RECEIPT = "CUSTODY_ASSET_RECEIPT", _("إقرار استلام عهدة عينية")
     CUSTODY_ASSET_TRANSFER = "CUSTODY_ASSET_TRANSFER", _("محضر مناقلة عهدة عينية")
     CUSTODY_ROUTE_SETTLEMENT = "CUSTODY_ROUTE_SETTLEMENT", _("سند تقفيل خط سير مندوب")
+
+
+# Aliases for convenience
+DocumentType.CHEQUE_RECEIPT = DocumentType.CHEQUE_RECEIVABLE
+DocumentType.CHEQUE_PAYMENT = DocumentType.CHEQUE_PAYABLE

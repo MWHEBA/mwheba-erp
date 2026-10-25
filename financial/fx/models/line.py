@@ -7,6 +7,8 @@ class FXRevaluationLine(models.Model):
         ('AR_INVOICE', _('عقد/فاتورة مبيعات عميل (AR)')),
         ('AP_INVOICE', _('فاتورة مشتريات مورد (AP)')),
         ('CASH_ACCOUNT', _('حساب خزينة/بنك أجنبي')),
+        ('NOTES_RECEIVABLE', _('شيكات وأوراق قبض (واردة)')),
+        ('NOTES_PAYABLE', _('شيكات وأوراق دفع (صادرة)')),
     )
 
     run = models.ForeignKey('financial.FXRevaluationRun', on_delete=models.CASCADE, related_name='lines', verbose_name=_("تشغيل التقييم"))

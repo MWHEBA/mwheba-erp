@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-ruler-combined me-2"></i>{% trans "قوالب معايرة أبعاد طباعة الشيكات للبنوك" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>{% trans "اسم القالب" %}</th>
+                        <th>{% trans "الحساب البنكي" %}</th>
+                        <th>{% trans "الأبعاد (عرض × ارتفاع) ملم" %}</th>
+                        <th>{% trans "موضع التاريخ (أعلى / يمين)" %}</th>
+                        <th>{% trans "موضع المستفيد" %}</th>
+                        <th>{% trans "موضع المبلغ" %}</th>
+                        <th>{% trans "موضع التفقيط" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th style="width: 80px;">{% trans "تعديل" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in layouts %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-bold text-primary">{{ l.name }}</td>
+                        <td class="fw-medium text-dark">{{ l.bank_account.name }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ l.width_mm }} × {{ l.height_mm }} mm</span></td>
+                        <td>{{ l.date_top_mm }} / {{ l.date_right_mm }} mm</td>
+                        <td>{{ l.payee_top_mm }} / {{ l.payee_right_mm }} mm</td>
+                        <td>{{ l.amount_top_mm }} / {{ l.amount_right_mm }} mm</td>
+                        <td>{{ l.amount_words_top_mm }} / {{ l.amount_words_right_mm }} mm</td>
+                        <td>
+                            {% if l.is_active %}
+                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{% trans "معطل" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'cheques:layout_edit' l.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans "تعديل المعايرة" %}">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="fas fa-ruler-combined fa-3x mb-3 d-block text-secondary"></i>
+                            {% trans "لا توجد قوالب معايرة مسجلة بعد. يتم استخدام القياس القياسي افتراضياً." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

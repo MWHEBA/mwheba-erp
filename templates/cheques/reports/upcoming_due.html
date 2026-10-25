@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{% trans "الشيكات المستحقة وتنبيهات الاستحقاق" %} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- بطاقات الإحصاء والتنبيهات السريعة (Stats Cards) -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "يستحق اليوم" %}</div>
+                        <div class="stats-card-value text-info">
+                            {{ report.summary_stats.today_rec_amount|add:report.summary_stats.today_pay_amount|floatformat:2 }}
+                        </div>
+                        <small class="text-muted">
+                            {{ report.summary_stats.today_rec_count }} {% trans "قبض" %} | {{ report.summary_stats.today_pay_count }} {% trans "دفع" %}
+                        </small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-bell"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "يستحق خلال 7 أيام" %}</div>
+                        <div class="stats-card-value text-success">
+                            {{ report.summary_stats.week_rec_amount|add:report.summary_stats.week_pay_amount|floatformat:2 }}
+                        </div>
+                        <small class="text-muted">
+                            {{ report.summary_stats.week_rec_count }} {% trans "قبض" %} | {{ report.summary_stats.week_pay_count }} {% trans "دفع" %}
+                        </small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-calendar-week"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "متأخرات تجاوزت موعدها" %}</div>
+                        <div class="stats-card-value text-danger">
+                            {{ report.summary_stats.overdue_rec_amount|add:report.summary_stats.overdue_pay_amount|floatformat:2 }}
+                        </div>
+                        <small class="text-danger fw-bold">
+                            {{ report.summary_stats.overdue_rec_count }} {% trans "شيك قبض" %} | {{ report.summary_stats.overdue_pay_count }} {% trans "شيك دفع" %}
+                        </small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-clock"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "شيكات مرتدة قيد المتابعة" %}</div>
+                        <div class="stats-card-value text-warning">{{ report.summary_stats.bounced_amount|floatformat:2 }}</div>
+                        <small class="text-muted">{{ report.summary_stats.bounced_count }} {% trans "شيك مرفوض" %}</small>
+                    </div>
+                    <div class="stats-card-icon"><i class="fas fa-undo-alt"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شريط فترات الاستحقاق السريعة والفلاتر -->
+    <div class="section-container mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="btn-group" role="group">
+                <a href="?period=today{% if cheque_type %}&cheque_type={{ cheque_type }}{% endif %}" class="btn {% if period_filter == 'today' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar-day me-1"></i>{% trans "اليوم" %}
+                </a>
+                <a href="?period=7{% if cheque_type %}&cheque_type={{ cheque_type }}{% endif %}" class="btn {% if period_filter == '7' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar-week me-1"></i>{% trans "خلال 7 أيام" %}
+                </a>
+                <a href="?period=30{% if cheque_type %}&cheque_type={{ cheque_type }}{% endif %}" class="btn {% if period_filter == '30' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-calendar-alt me-1"></i>{% trans "خلال 30 يوماً" %}
+                </a>
+                <a href="?period=overdue{% if cheque_type %}&cheque_type={{ cheque_type }}{% endif %}" class="btn {% if period_filter == 'overdue' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                    <i class="fas fa-exclamation-circle me-1"></i>{% trans "المتأخرات" %}
+                </a>
+                <a href="?period=all_active{% if cheque_type %}&cheque_type={{ cheque_type }}{% endif %}" class="btn {% if period_filter == 'all_active' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                    <i class="fas fa-list me-1"></i>{% trans "كافة النشطة" %}
+                </a>
+            </div>
+
+            <!-- الفلترة بنوع الشيك والبنك -->
+            <form method="get" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="period" value="{{ period_filter }}">
+                <select class="form-select form-select-sm" name="cheque_type" onchange="this.form.submit()">
+                    <option value="">{% trans "كافة الأنواع" %}</option>
+                    <option value="RECEIVABLE" {% if cheque_type == 'RECEIVABLE' %}selected{% endif %}>{% trans "أوراق قبض واردة" %}</option>
+                    <option value="PAYABLE" {% if cheque_type == 'PAYABLE' %}selected{% endif %}>{% trans "أوراق دفع صادرة" %}</option>
+                </select>
+                <select class="form-select form-select-sm" name="bank_account_id" onchange="this.form.submit()">
+                    <option value="">{% trans "كافة البنوك" %}</option>
+                    {% for b in banks %}
+                    <option value="{{ b.id }}" {% if bank_account_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- جدول الشيكات المستحقة -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-clock text-primary me-2"></i>{{ report.period_title }} ({{ report.total_count }} {% trans "شيك" %})
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans "رقم السند" %}</th>
+                        <th>{% trans "رقم الشيك" %}</th>
+                        <th>{% trans "النوع" %}</th>
+                        <th>{% trans "الطرف الآخر (الشريك)" %}</th>
+                        <th>{% trans "البنك" %}</th>
+                        <th>{% trans "تاريخ الاستحقاق" %}</th>
+                        <th class="text-center">{% trans "المهلة / التأخير" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th class="text-end">{% trans "المبلغ القائم" %}</th>
+                        <th class="text-center">{% trans "الإجراء" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in report.cheques %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            {% if item.cheque_type == 'RECEIVABLE' %}
+                            <a href="{% url 'cheques:receivable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a>
+                            {% else %}
+                            <a href="{% url 'cheques:payable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.cheque_number }}</td>
+                        <td>
+                            {% if item.cheque_type == 'RECEIVABLE' %}
+                            <span class="badge bg-success">{% trans "ورقة قبض" %}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{% trans "ورقة دفع" %}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold">{{ item.partner_name }}</td>
+                        <td>{{ item.bank_name }}</td>
+                        <td>{{ item.due_date|date:"Y-m-d" }}</td>
+                        <td class="text-center">
+                            {% if item.is_overdue %}
+                            <span class="badge bg-danger">{% trans "متأخر" %} {{ item.days_diff }} {% trans "يوم" %}</span>
+                            {% elif item.days_diff == 0 %}
+                            <span class="badge bg-primary">{% trans "يستحق اليوم!" %}</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark border">{% trans "خلال" %} {{ item.days_diff|slice:"1:" }} {% trans "أيام" %}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ item.status_display }}</span></td>
+                        <td class="text-end fw-bold text-primary">{{ item.remaining_amount|floatformat:2 }} {{ item.currency_code }}</td>
+                        <td class="text-center">
+                            {% if item.cheque_type == 'RECEIVABLE' %}
+                            <a href="{% url 'cheques:receivable_detail' item.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل والإجراءات' %}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% else %}
+                            <a href="{% url 'cheques:payable_detail' item.id %}" class="btn btn-sm btn-outline-danger" title="{% trans 'عرض التفاصيل والإجراءات' %}">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2 d-block"></i>
+                            {% trans "لا توجد شيكات مستحقة في هذه الفترة." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="9" class="text-end">{% trans "إجمالي مبالغ الشيكات المعروضة:" %}</td>
+                        <td class="text-end text-primary">{{ report.total_amount|floatformat:2 }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

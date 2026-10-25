@@ -122,7 +122,7 @@ class DeploymentManager:
                         patterns.append(line)
         
         # إضافة patterns أساسية فقط
-        patterns.extend(['__pycache__', '*.pyc', '.deploy_hashes.json', '*.log', 'deploy_logs', 'scratch', 'scratch/*'])
+        patterns.extend(['__pycache__', '*.pyc', '.deploy_hashes.json', '*.log', 'deploy_logs', 'scratch', 'scratch/*', 'competitors_analysis', 'competitors_analysis/*', 'competitor_analysis', 'competitor_analysis/*'])
         return patterns
 
     def is_ignored(self, file_path):
@@ -151,6 +151,10 @@ class DeploymentManager:
 
         # تجاهل مجلد scratch وكل محتوياته
         if relative_path.startswith('scratch/') or relative_path == 'scratch' or '/scratch/' in f"/{relative_path}/":
+            return True
+
+        # تجاهل مجلد دراسة المنافسين بالكامل
+        if relative_path.startswith('competitors_analysis/') or relative_path == 'competitors_analysis' or '/competitors_analysis/' in f"/{relative_path}/" or relative_path.startswith('competitor_analysis/'):
             return True
 
         # تجاهل جميع ملفات .deploy_hashes.json في أي مكان

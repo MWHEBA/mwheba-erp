@@ -183,6 +183,15 @@ class JournalEntry(models.Model):
         ("discount", _("خصم")),
         ("penalty", _("غرامة")),
         ("reversal", _("قيد عكسي")),
+        ("cheque_receipt", _("إيصال شيك قبض")),
+        ("cheque_deposit", _("إيداع شيك بالبنك")),
+        ("cheque_collection", _("تحصيل شيك بنكي")),
+        ("cheque_bounce", _("ارتداد شيك")),
+        ("cheque_endorsement", _("تظهير شيك لمورد")),
+        ("cheque_payment", _("إصدار شيك دفع")),
+        ("cheque_clearance", _("صرف شيك بنكي")),
+        ("cheque_reversal", _("قيد تراجع عن حركة شيك")),
+        ("cheque_return", _("استرداد شيك للساحب")),
     )
 
     def __init__(self, *args, **kwargs):

@@ -18,9 +18,7 @@ class FXValidationService:
         """
         التحقق الصارم من صحة ونزاهة تشغيل التقييم قبل التترحيل بالدفتر
         """
-        if run.status not in ['CALCULATED', 'DRAFT']:
-            if run.status == 'VALIDATED':
-                return True
+        if run.status not in ['CALCULATED', 'DRAFT', 'VALIDATED']:
             raise ValidationError(f"لا يمكن اعتماد تشغيل بحالة '{run.get_status_display()}'.")
 
         as_of_date = run.period.end_date
@@ -74,6 +72,55 @@ class FXValidationService:
                         )
                 except PurchaseInvoice.DoesNotExist:
                     raise ValidationError(f"فاتورة المشتريات #{line.source_id} لم تعد موجودة.")
+            elif line.source_type == 'NOTES_RECEIVABLE':
+                try:
+                    from cheques.models import Cheque, ChequeStatus
+                    chq = Cheque.objects.get(id=int(line.source_id))
+                    curr_str = f"CHEQUE_REC_{chq.id}_{chq.remaining_amount}_{chq.updated_at if hasattr(chq, 'updated_at') else ''}"
+                    curr_hash = hashlib.sha256(curr_str.encode('utf-8')).hexdigest()
+                    if (
+                        curr_hash != line.source_hash
+                        or chq.status not in [ChequeStatus.IN_PORTFOLIO, ChequeStatus.UNDER_COLLECTION, ChequeStatus.PARTIALLY_COLLECTED]
+                        or chq.remaining_amount != line.open_foreign_amount
+                    ):
+                        raise ValidationError(
+                            f"تنبيه: تم تعديل أو تحصيل شيك القبض #{line.source_id} بعد عملية الحساب. "
+                            f"يرجى إعادة حساب التقييم لتعديل الأرقام."
+                        )
+                except Cheque.DoesNotExist:
+                    raise ValidationError(f"شيك القبض #{line.source_id} لم يعد موجوداً.")
+            elif line.source_type == 'NOTES_PAYABLE':
+                try:
+                    from cheques.models import Cheque, ChequeStatus
+                    chq = Cheque.objects.get(id=int(line.source_id))
+                    curr_str = f"CHEQUE_PAY_{chq.id}_{chq.remaining_amount}_{chq.updated_at if hasattr(chq, 'updated_at') else ''}"
+                    curr_hash = hashlib.sha256(curr_str.encode('utf-8')).hexdigest()
+                    if (
+                        curr_hash != line.source_hash
+                        or chq.status != ChequeStatus.ISSUED
+                        or chq.remaining_amount != line.open_foreign_amount
+                    ):
+                        raise ValidationError(
+                            f"تنبيه: تم تعديل أو صرف شيك الدفع #{line.source_id} بعد عملية الحساب. "
+                            f"يرجى إعادة حساب التقييم لتعديل الأرقام."
+                        )
+                except Cheque.DoesNotExist:
+                    raise ValidationError(f"شيك الدفع #{line.source_id} لم يعد موجوداً.")
+            elif line.source_type == 'CASH_ACCOUNT':
+                try:
+                    from financial.models import ChartOfAccounts
+                    acc = ChartOfAccounts.objects.get(id=int(line.source_id))
+                    open_foreign = line.open_foreign_amount
+                    old_functional = getattr(acc, 'current_balance', Decimal("0.00"))
+                    source_str = f"CASH_{acc.id}_{open_foreign}_{old_functional}"
+                    curr_hash = hashlib.sha256(source_str.encode('utf-8')).hexdigest()
+                    if curr_hash != line.source_hash:
+                        raise ValidationError(
+                            f"تنبيه: تم تعديل رصيد حساب النقدية/البنك #{line.source_id} بعد عملية الحساب. "
+                            f"يرجى إعادة حساب التقييم لتعديل الأرقام."
+                        )
+                except ChartOfAccounts.DoesNotExist:
+                    raise ValidationError(f"حساب النقدية/البنك #{line.source_id} لم يعد موجوداً.")
 
         # 3. فحص دقة التقريب وحفظ حالة VALIDATED
         sum_diffs = sum((line.unrealized_difference for line in lines), Decimal("0.00"))

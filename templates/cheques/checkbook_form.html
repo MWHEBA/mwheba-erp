@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-book-medical me-2"></i>{% trans "بيانات دفتر الشيكات الجديد" %}</h5>
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for err in form.non_field_errors %}
+                            <div><i class="fas fa-exclamation-circle me-1"></i>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.name.label }} <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{{ form.bank_account.label }} <span class="text-danger">*</span></label>
+                            {{ form.bank_account }}
+                            {% if form.bank_account.errors %}<div class="text-danger small">{{ form.bank_account.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.serial_prefix.label }}</label>
+                            {{ form.serial_prefix }}
+                            <small class="text-muted">{% trans "مثال: EG أو كود البنك" %}</small>
+                            {% if form.serial_prefix.errors %}<div class="text-danger small">{{ form.serial_prefix.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.serial_from.label }} <span class="text-danger">*</span></label>
+                            {{ form.serial_from }}
+                            {% if form.serial_from.errors %}<div class="text-danger small">{{ form.serial_from.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">{{ form.serial_to.label }} <span class="text-danger">*</span></label>
+                            {{ form.serial_to }}
+                            {% if form.serial_to.errors %}<div class="text-danger small">{{ form.serial_to.errors.0 }}</div>{% endif %}
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check form-switch mt-2">
+                                {{ form.is_active }}
+                                <label class="form-check-label fw-bold ms-2">{{ form.is_active.label }}</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <a href="{% url 'cheques:checkbook_list' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-right me-1"></i>{% trans "إلغاء والعودة" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-save me-1"></i>{% trans "تسجيل وتوليد أوراق الدفتر" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('.select2-filter').select2({
+            dir: "rtl",
+            language: "ar",
+            width: '100%'
+        });
+    }
+});
+</script>
+{% endblock %}

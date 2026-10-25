@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-book me-2"></i>{% trans "دفاتر الشيكات المسجلة للحسابات البنكية" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>{% trans "اسم الدفتر" %}</th>
+                        <th>{% trans "الحساب البنكي" %}</th>
+                        <th>{% trans "البادئة" %}</th>
+                        <th>{% trans "نطاق الأرقام التسلسلية" %}</th>
+                        <th>{% trans "إجمالي الأوراق" %}</th>
+                        <th>{% trans "الرقم التسلسلي التالي" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th style="width: 80px;">{% trans "عرض" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cb in checkbooks %}
+                    <tr class="clickable-row" data-href="{% url 'cheques:checkbook_detail' cb.pk %}">
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-bold text-primary">{{ cb.name }}</td>
+                        <td class="text-dark fw-medium">{{ cb.bank_account.name }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ cb.serial_prefix|default:"-" }}</span></td>
+                        <td class="fw-bold">{{ cb.serial_from }} ⬅️ {{ cb.serial_to }}</td>
+                        <td><span class="badge bg-info text-dark px-2 py-1">{{ cb.leaf_count }}</span></td>
+                        <td class="fw-bold text-success">{{ cb.current_serial }}</td>
+                        <td>
+                            {% if cb.is_active %}
+                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{% trans "مكتمل / غير نشط" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'cheques:checkbook_detail' cb.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fas fa-book-open fa-3x mb-3 d-block text-secondary"></i>
+                            {% trans "لا توجد دفاتر شيكات مسجلة." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

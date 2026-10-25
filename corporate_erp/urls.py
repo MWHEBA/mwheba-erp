@@ -55,6 +55,7 @@ urlpatterns = [
     path("printing-pricing/", include("printing_pricing.urls")),  # نظام تسعير المطبوعات
     path("purchases/", include("purchase.urls")),
     path("financial/", include("financial.urls")),
+    path("cheques/", include("cheques.urls")),
     path("hr/", include("hr.urls")),
     path("governance/", include("governance.urls")),
     path("utils/", include("utils.urls")),

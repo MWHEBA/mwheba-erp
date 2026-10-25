@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{% trans "تقرير مطابقة الأستاذ المساعد للشيكات" %} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- بطاقة فلتر تاريخ المطابقة التاريخي -->
+    <div class="section-container mb-4">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="as_of_date" class="form-label fw-bold">
+                    <i class="fas fa-calendar-alt text-primary me-1"></i>{% trans "تاريخ المطابقة التاريخي (As of Date)" %}
+                </label>
+                <input type="date" class="form-control" id="as_of_date" name="as_of_date" value="{{ as_of_date }}" required>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                    <i class="fas fa-search me-1"></i>{% trans "إعادة احتساب المطابقة" %}
+                </button>
+                <a href="{% url 'cheques:subledger_reconciliation' %}" class="btn btn-outline-secondary px-3 ms-2">
+                    <i class="fas fa-redo me-1"></i>{% trans "تاريخ اليوم" %}
+                </a>
+            </div>
+            <div class="col-md-4 text-end">
+                {% if reconciliation.overall_matched %}
+                <span class="badge bg-success fs-6 px-3 py-2">
+                    <i class="fas fa-check-circle me-1"></i>{% trans "كافة الحسابات الرقابية متطابقة بالسنت مع الأستاذ العام" %}
+                </span>
+                {% else %}
+                <span class="badge bg-danger fs-6 px-3 py-2">
+                    <i class="fas fa-exclamation-triangle me-1"></i>{% trans "يوجد فروق تحتاج لمراجعة بين الأستاذ المساعد والأستاذ العام" %}
+                </span>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <!-- بطاقات الحسابات الرقابية الثلاثة (Stats Cards) -->
+    <div class="row g-3 mb-4">
+        <!-- 1. أوراق القبض (11220) -->
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card {% if reconciliation.11220_notes_receivable.is_matched %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{{ reconciliation.11220_notes_receivable.account_name }} ({{ reconciliation.11220_notes_receivable.account_code }})</div>
+                        <div class="stats-card-value">{{ reconciliation.11220_notes_receivable.subledger_balance|floatformat:2 }}</div>
+                        <div class="mt-1 small">
+                            <span class="text-muted">{% trans "الأستاذ العام:" %} {{ reconciliation.11220_notes_receivable.gl_balance|floatformat:2 }}</span>
+                            <span class="ms-2 {% if reconciliation.11220_notes_receivable.is_matched %}text-success{% else %}text-danger fw-bold{% endif %}">
+                                ({% trans "الفرق:" %} {{ reconciliation.11220_notes_receivable.difference|floatformat:2 }})
+                            </span>
+                        </div>
+                    </div>
+                    <div class="stats-card-icon">
+                        <i class="fas {% if reconciliation.11220_notes_receivable.is_matched %}fa-check-circle text-success{% else %}fa-exclamation-circle text-danger{% endif %}"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. شيكات برسم التحصيل (11190) -->
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card {% if reconciliation.11190_cheques_under_collection.is_matched %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{{ reconciliation.11190_cheques_under_collection.account_name }} ({{ reconciliation.11190_cheques_under_collection.account_code }})</div>
+                        <div class="stats-card-value">{{ reconciliation.11190_cheques_under_collection.subledger_balance|floatformat:2 }}</div>
+                        <div class="mt-1 small">
+                            <span class="text-muted">{% trans "الأستاذ العام:" %} {{ reconciliation.11190_cheques_under_collection.gl_balance|floatformat:2 }}</span>
+                            <span class="ms-2 {% if reconciliation.11190_cheques_under_collection.is_matched %}text-success{% else %}text-danger fw-bold{% endif %}">
+                                ({% trans "الفرق:" %} {{ reconciliation.11190_cheques_under_collection.difference|floatformat:2 }})
+                            </span>
+                        </div>
+                    </div>
+                    <div class="stats-card-icon">
+                        <i class="fas {% if reconciliation.11190_cheques_under_collection.is_matched %}fa-university text-success{% else %}fa-exclamation-circle text-danger{% endif %}"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. أوراق الدفع (21120) -->
+        <div class="col-xl-4 col-md-6">
+            <div class="stats-card {% if reconciliation.21120_notes_payable.is_matched %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{{ reconciliation.21120_notes_payable.account_name }} ({{ reconciliation.21120_notes_payable.account_code }})</div>
+                        <div class="stats-card-value">{{ reconciliation.21120_notes_payable.subledger_balance|floatformat:2 }}</div>
+                        <div class="mt-1 small">
+                            <span class="text-muted">{% trans "الأستاذ العام:" %} {{ reconciliation.21120_notes_payable.gl_balance|floatformat:2 }}</span>
+                            <span class="ms-2 {% if reconciliation.21120_notes_payable.is_matched %}text-success{% else %}text-danger fw-bold{% endif %}">
+                                ({% trans "الفرق:" %} {{ reconciliation.21120_notes_payable.difference|floatformat:2 }})
+                            </span>
+                        </div>
+                    </div>
+                    <div class="stats-card-icon">
+                        <i class="fas {% if reconciliation.21120_notes_payable.is_matched %}fa-file-invoice-dollar text-success{% else %}fa-exclamation-circle text-danger{% endif %}"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- التفصيل حسب الحسابات عبر تبويبات هادئة -->
+    <div class="section-container">
+        <ul class="nav nav-tabs border-bottom mb-3" id="recTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold" id="rec-tab" data-bs-toggle="tab" data-bs-target="#rec-pane" type="button" role="tab">
+                    <i class="fas fa-wallet me-1 text-primary"></i>{% trans "أوراق القبض بالخزينة (11220)" %}
+                    <span class="badge bg-secondary ms-1">{{ reconciliation.11220_notes_receivable.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="coll-tab" data-bs-toggle="tab" data-bs-target="#coll-pane" type="button" role="tab">
+                    <i class="fas fa-university me-1 text-warning"></i>{% trans "شيكات برسم التحصيل (11190)" %}
+                    <span class="badge bg-secondary ms-1">{{ reconciliation.11190_cheques_under_collection.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="pay-tab" data-bs-toggle="tab" data-bs-target="#pay-pane" type="button" role="tab">
+                    <i class="fas fa-file-invoice-dollar me-1 text-danger"></i>{% trans "أوراق الدفع والالتزامات (21120)" %}
+                    <span class="badge bg-secondary ms-1">{{ reconciliation.21120_notes_payable.count }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="recTabsContent">
+            <!-- 1. أوراق القبض بالخزينة -->
+            <div class="tab-pane fade show active" id="rec-pane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "رقم السند" %}</th>
+                                <th>{% trans "رقم الشيك" %}</th>
+                                <th>{% trans "العميل / الساحب" %}</th>
+                                <th>{% trans "تاريخ التحرير" %}</th>
+                                <th>{% trans "تاريخ الاستحقاق" %}</th>
+                                <th>{% trans "الحالة التاريخية" %}</th>
+                                <th class="text-end">{% trans "المبلغ" %}</th>
+                                <th class="text-end">{% trans "القيمة الدفترية التاريخية" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in reconciliation.11220_notes_receivable.cheques %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><a href="{% url 'cheques:receivable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a></td>
+                                <td>{{ item.cheque_number }}</td>
+                                <td>{{ item.partner_name }}</td>
+                                <td>{{ item.issue_date|date:"Y-m-d" }}</td>
+                                <td>{{ item.due_date|date:"Y-m-d" }}</td>
+                                <td><span class="badge bg-info">{{ item.historical_status_display }}</span></td>
+                                <td class="text-end">{{ item.amount|floatformat:2 }} {{ item.currency_code }}</td>
+                                <td class="text-end fw-bold text-success">{{ item.carrying_value|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">{% trans "لا توجد شيكات أوراق قبض في المحفظة في هذا التاريخ." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="8" class="text-end">{% trans "إجمالي رصيد الأستاذ المساعد:" %}</td>
+                                <td class="text-end">{{ reconciliation.11220_notes_receivable.subledger_balance|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. شيكات برسم التحصيل -->
+            <div class="tab-pane fade" id="coll-pane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "رقم السند" %}</th>
+                                <th>{% trans "رقم الشيك" %}</th>
+                                <th>{% trans "العميل" %}</th>
+                                <th>{% trans "حساب البنك المودع" %}</th>
+                                <th>{% trans "تاريخ الاستحقاق" %}</th>
+                                <th>{% trans "الحالة التاريخية" %}</th>
+                                <th class="text-end">{% trans "المبلغ" %}</th>
+                                <th class="text-end">{% trans "القيمة الدفترية المتبقية" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in reconciliation.11190_cheques_under_collection.cheques %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><a href="{% url 'cheques:receivable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a></td>
+                                <td>{{ item.cheque_number }}</td>
+                                <td>{{ item.partner_name }}</td>
+                                <td>{{ item.bank_name }}</td>
+                                <td>{{ item.due_date|date:"Y-m-d" }}</td>
+                                <td><span class="badge bg-warning text-dark">{{ item.historical_status_display }}</span></td>
+                                <td class="text-end">{{ item.amount|floatformat:2 }} {{ item.currency_code }}</td>
+                                <td class="text-end fw-bold text-primary">{{ item.carrying_value|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">{% trans "لا توجد شيكات برسم التحصيل في هذا التاريخ." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="8" class="text-end">{% trans "إجمالي رصيد الأستاذ المساعد:" %}</td>
+                                <td class="text-end">{{ reconciliation.11190_cheques_under_collection.subledger_balance|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. أوراق الدفع -->
+            <div class="tab-pane fade" id="pay-pane" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "رقم السند" %}</th>
+                                <th>{% trans "رقم الشيك" %}</th>
+                                <th>{% trans "المستفيد / المورد" %}</th>
+                                <th>{% trans "البنك المسحوب عليه" %}</th>
+                                <th>{% trans "تاريخ التحرير" %}</th>
+                                <th>{% trans "تاريخ الاستحقاق" %}</th>
+                                <th>{% trans "الحالة التاريخية" %}</th>
+                                <th class="text-end">{% trans "المبلغ" %}</th>
+                                <th class="text-end">{% trans "القيمة الدفترية" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in reconciliation.21120_notes_payable.cheques %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td><a href="{% url 'cheques:payable_detail' item.id %}" class="fw-bold text-decoration-none">{{ item.voucher_number }}</a></td>
+                                <td>{{ item.cheque_number }}</td>
+                                <td>{{ item.partner_name }}</td>
+                                <td>{{ item.bank_name }}</td>
+                                <td>{{ item.issue_date|date:"Y-m-d" }}</td>
+                                <td>{{ item.due_date|date:"Y-m-d" }}</td>
+                                <td><span class="badge bg-danger">{{ item.historical_status_display }}</span></td>
+                                <td class="text-end">{{ item.amount|floatformat:2 }} {{ item.currency_code }}</td>
+                                <td class="text-end fw-bold text-danger">{{ item.carrying_value|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center text-muted py-4">{% trans "لا توجد أوراق دفع صادرة معلقة في هذا التاريخ." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="9" class="text-end">{% trans "إجمالي التزامات أوراق الدفع:" %}</td>
+                                <td class="text-end">{{ reconciliation.21120_notes_payable.subledger_balance|floatformat:2 }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

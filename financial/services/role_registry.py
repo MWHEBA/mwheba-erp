@@ -59,6 +59,9 @@ class AccountRoleNames(str, Enum):
     BANK_CHARGES_EXPENSE = "bank_charges_expense"
     CASH_IN_TRANSIT_CONTROL = "cash_in_transit_control"
     OPENING_BALANCE_EQUITY = "opening_balance_equity"
+    NOTES_RECEIVABLE_CONTROL = "notes_receivable_control"
+    CHEQUES_UNDER_COLLECTION = "cheques_under_collection"
+    NOTES_PAYABLE_CONTROL = "notes_payable_control"
 
 
 # مصفوفة التحقق الدلالي للأدوار المالية (Semantic Type Guard)
@@ -96,6 +99,12 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
     AccountRoleNames.BANK_CHARGES_EXPENSE.value: "expense",
     AccountRoleNames.CASH_IN_TRANSIT_CONTROL.value: "asset",
     AccountRoleNames.OPENING_BALANCE_EQUITY.value: "equity",
+    AccountRoleNames.NOTES_RECEIVABLE_CONTROL.value: "asset",
+    AccountRoleNames.CHEQUES_UNDER_COLLECTION.value: "asset",
+    AccountRoleNames.NOTES_PAYABLE_CONTROL.value: "liability",
+    "NOTES_RECEIVABLE_CONTROL": "asset",
+    "CHEQUES_UNDER_COLLECTION": "asset",
+    "NOTES_PAYABLE_CONTROL": "liability",
     "OPENING_BALANCE_EQUITY": "equity",
     "OPENING_BALANCES": "equity",
     "RETAINED_EARNINGS": "equity",
@@ -108,6 +117,14 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
 
 
 LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
+    # أوراق القبض والدفع والشيكات برسم التحصيل
+    AccountRoleNames.NOTES_RECEIVABLE_CONTROL.value: "11220",
+    "NOTES_RECEIVABLE_CONTROL": "11220",
+    AccountRoleNames.CHEQUES_UNDER_COLLECTION.value: "11190",
+    "CHEQUES_UNDER_COLLECTION": "11190",
+    AccountRoleNames.NOTES_PAYABLE_CONTROL.value: "21120",
+    "NOTES_PAYABLE_CONTROL": "21120",
+
     # النقدية والبنوك
     AccountRoleNames.DEFAULT_CASH_DRAWER.value: "11110",
     "DEFAULT_CASH_DRAWER": "11110",

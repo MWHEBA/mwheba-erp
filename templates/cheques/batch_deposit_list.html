@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load i18n static custom_filters %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-layer-group me-2"></i>{% trans "قائمة حافظات تسليم الشيكات للبنوك" %}</h5>
+        <div id="batch-table-container">
+            {% include "cheques/partials/batch_deposit_table.html" %}
+        </div>
+        <div id="pagination-wrapper">
+            {% include "partials/pagination.html" with page_obj=page_obj %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll("#batch-table-container .clickable-row").forEach(function(row) {
+        row.addEventListener("click", function(e) {
+            if (!e.target.closest(".col-actions, .btn, a, button")) {
+                var href = this.getAttribute("data-href");
+                if (href) window.location.href = href;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
