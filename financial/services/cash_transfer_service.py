@@ -74,7 +74,7 @@ class CashTransferService:
         else:
             to_acc = to_account
 
-        transfer_date = transfer_date or timezone.now().date()
+        transfer_date = transfer_date or timezone.localdate()
         source_amount = Decimal(str(source_amount or 0)).quantize(Decimal("0.01"))
         bank_fee = Decimal(str(bank_fee or 0)).quantize(Decimal("0.01"))
         vat_on_fee = Decimal(str(vat_on_fee or 0)).quantize(Decimal("0.01"))
@@ -380,7 +380,7 @@ class CashTransferService:
         if int(from_account_id) == int(to_account_id):
             raise ValidationError(_("لا يمكن التحويل لنفس الحساب المصدر."))
 
-        transfer_date = transfer_date or timezone.now().date()
+        transfer_date = transfer_date or timezone.localdate()
 
         # 1. التحقق من الفترة المحاسبية
         is_open, period = PeriodControlService.validate_period_open(transfer_date)
@@ -603,7 +603,7 @@ class CashTransferService:
         if transfer.created_by == user and not (user.is_superuser or user.is_staff):
             raise ValidationError(_("مبدأ الفصل بين المهام (SoD): لا يجوز لمحرر التحويل تأكيد استلامه بنفسه في الخزينة المستلمة."))
 
-        receive_date = receive_date or timezone.now().date()
+        receive_date = receive_date or timezone.localdate()
 
         # التحقق من الفترة المحاسبية
         is_open, period = PeriodControlService.validate_period_open(receive_date)
@@ -777,7 +777,7 @@ class CashTransferService:
             source_module="financial",
             source_model="CashTransfer",
             source_id=transfer.id,
-            date=timezone.now().date(),
+            date=timezone.localdate(),
             description=f"استرجاع وإلغاء نقدية بالطريق {transfer.transfer_number} إلى {from_acc.name}",
             reference=f"{transfer.transfer_number}-RCL",
             lines=lines_data,
@@ -821,7 +821,7 @@ class CashTransferService:
         if not (user.is_superuser or user.is_staff):
             raise ValidationError(_("عكس سندات التحويل المالي يتطلب صلاحيات إدارية عليا."))
 
-        reversal_date = timezone.now().date()
+        reversal_date = timezone.localdate()
         is_open, period = PeriodControlService.validate_period_open(reversal_date)
         if not is_open:
             raise ValidationError(_("لا يمكن عكس السند لأن الفترة المحاسبية الحالية مغلقة."))

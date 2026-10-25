@@ -339,11 +339,11 @@ class OpeningBalancePostingService:
             if not original_jv:
                 raise ValidationError(_("لم يتم العثور على القيد الافتتاحي الأصلي المرتبط بالدفعة."))
 
-            rev_jv_number = SequenceService.get_next_number(DocumentType.REVERSAL_JOURNAL, date=timezone.now().date())
+            rev_jv_number = SequenceService.get_next_number(DocumentType.REVERSAL_JOURNAL, date=timezone.localdate())
 
             reversal_jv = JournalEntry.objects.create(
                 number=rev_jv_number,
-                date=timezone.now().date(),
+                date=timezone.localdate(),
                 entry_type='reversal',
                 status='posted',
                 description=f"إلغاء وعكس القيد الافتتاحي للدفعة {batch.batch_number} - السبب: {reason}".strip(),
@@ -483,8 +483,8 @@ class OpeningBalancePostingService:
                 customer=line.customer,
                 transaction_type="CREDIT_NOTE",
                 transaction_number=f"REV-{txn_number}",
-                issue_date=timezone.now().date(),
-                due_date=timezone.now().date(),
+                issue_date=timezone.localdate(),
+                due_date=timezone.localdate(),
                 currency=line.currency.code if line.currency else 'EGP',
                 foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,
@@ -555,8 +555,8 @@ class OpeningBalancePostingService:
                 supplier=line.supplier,
                 transaction_type='DEBIT_NOTE',
                 transaction_number=f"REV-{txn_number}",
-                issue_date=timezone.now().date(),
-                due_date=timezone.now().date(),
+                issue_date=timezone.localdate(),
+                due_date=timezone.localdate(),
                 currency=line.currency.code if line.currency else 'EGP',
                 foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,

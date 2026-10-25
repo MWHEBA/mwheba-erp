@@ -369,9 +369,9 @@ def quick_add_cash_bank_account(request):
             try:
                 op_date = datetime.strptime(opening_balance_date_str, "%Y-%m-%d").date()
             except ValueError:
-                op_date = timezone.now().date()
+                op_date = timezone.localdate()
         else:
-            op_date = timezone.now().date()
+            op_date = timezone.localdate()
 
         try:
             op_balance = Decimal(str(opening_balance_raw)) if opening_balance_raw else Decimal("0.00")
@@ -1703,7 +1703,7 @@ def chart_of_accounts_create(request):
                         source_model="ChartOfAccounts",
                         source_id=account.id,
                         entry_type="opening",
-                        date=account.opening_balance_date or timezone.now().date(),
+                        date=account.opening_balance_date or timezone.localdate(),
                         description=f"قيد رصيد افتتاحي محوكم لـ {account.name}",
                         reference=f"OPB-{account.code}",
                         lines=lines_data,
@@ -3762,7 +3762,7 @@ def partner_dashboard(request):
     ).order_by('-created_at')[:10]
     
     # إحصائيات شهرية
-    thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    thirty_days_ago = timezone.localdate() - timedelta(days=30)
     
     monthly_stats = {
         'contributions': PartnerTransaction.objects.filter(
@@ -5178,9 +5178,9 @@ def transfer_between_accounts(request):
             try:
                 transfer_date = datetime.strptime(transfer_date_str, "%Y-%m-%d").date()
             except ValueError:
-                transfer_date = timezone.now().date()
+                transfer_date = timezone.localdate()
         else:
-            transfer_date = timezone.now().date()
+            transfer_date = timezone.localdate()
 
         cost_center_obj = None
         if cost_center_id:

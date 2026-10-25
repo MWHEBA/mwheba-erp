@@ -340,7 +340,7 @@ def service_pricing_matrix_view(request):
     page_obj = pagination_context['page_obj']
 
     # تزيين عناصر الصفحة الحالية بالحسابات المشتقة السريعة
-    now_date = timezone.now().date()
+    now_date = timezone.localdate()
     for item in page_obj.object_list:
         item.is_best_price = item.id in best_service_ids
         item.is_preferred_supplier = getattr(item.supplier, 'is_preferred', False)

@@ -158,7 +158,7 @@ def delivery_note_create(request):
         return redirect("sale:sales_order_detail", pk=sales_order.pk)
 
     if request.method == "POST":
-        delivery_date = request.POST.get("delivery_date") or timezone.now().date()
+        delivery_date = request.POST.get("delivery_date") or timezone.localdate()
         driver_name = request.POST.get("driver_name", "")
         truck_plate_number = request.POST.get("truck_plate_number", "")
         driver_phone = request.POST.get("driver_phone", "")

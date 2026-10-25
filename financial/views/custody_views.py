@@ -150,8 +150,8 @@ def advance_create_view(request):
                 current_balance=amount,
                 currency=currency,
                 exchange_rate=currency.exchange_rate if hasattr(currency, 'exchange_rate') else Decimal("1.000000"),
-                issue_date=timezone.now().date(),
-                due_date=due_date or (timezone.now().date() + timezone.timedelta(days=30)),
+                issue_date=timezone.localdate(),
+                due_date=due_date or (timezone.localdate() + timezone.timedelta(days=30)),
                 purpose=purpose,
                 is_per_diem_split=is_per_diem,
                 per_diem_amount=per_diem_amount,
@@ -259,7 +259,7 @@ def settlement_create_view(request):
     if request.method == "POST":
         employee_id = request.POST.get("employee_id")
         advance_id = request.POST.get("custody_advance_id")
-        settlement_date = request.POST.get("settlement_date") or timezone.now().date()
+        settlement_date = request.POST.get("settlement_date") or timezone.localdate()
         returned_cash = Decimal(request.POST.get("cash_returned_to_treasury", "0") or "0")
         notes = request.POST.get("notes", "")
 
@@ -328,7 +328,7 @@ def settlement_create_view(request):
                     cost_center=cost_cntr,
                     supplier=sup_obj,
                     invoice_number=invoice_numbers[i] if i < len(invoice_numbers) else "",
-                    invoice_date=invoice_dates[i] if (i < len(invoice_dates) and invoice_dates[i]) else timezone.now().date(),
+                    invoice_date=invoice_dates[i] if (i < len(invoice_dates) and invoice_dates[i]) else timezone.localdate(),
                     currency=func_currency,
                     amount=amt,
                     tax_amount=tax_amt,
@@ -464,7 +464,7 @@ def transfer_create_view(request):
                 to_employee=to_emp,
                 amount=amount,
                 currency=func_currency,
-                transfer_date=timezone.now().date(),
+                transfer_date=timezone.localdate(),
                 notes=notes,
             )
 

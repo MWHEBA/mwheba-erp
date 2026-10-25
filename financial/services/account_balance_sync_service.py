@@ -30,7 +30,7 @@ class AccountBalanceSyncService:
         if not journal_entry:
             return
 
-        entry_date = getattr(journal_entry, 'date', None) or timezone.now().date()
+        entry_date = getattr(journal_entry, 'date', None) or timezone.localdate()
         year = entry_date.year
         month = entry_date.month
 
@@ -80,7 +80,7 @@ class AccountBalanceSyncService:
             affected_accounts.add((acc.id, year, month, curr_code))
 
         # 3. Propagate forward if this might be a backdated period
-        now_date = timezone.now().date()
+        now_date = timezone.localdate()
         for acc_id, y, m, c_code in affected_accounts:
             if y < now_date.year or (y == now_date.year and m < now_date.month):
                 cls.propagate_forward(acc_id, y, m, c_code)

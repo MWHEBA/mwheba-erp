@@ -1826,7 +1826,7 @@ def add_customer_advance_action(request, pk):
                     transaction_amount=amt,
                     currency=curr,
                     exchange_rate_snapshot=rate,
-                    payment_date=payment_date_str if payment_date_str else timezone.now().date(),
+                    payment_date=payment_date_str if payment_date_str else timezone.localdate(),
                     payment_method=payment_method,
                     financial_account_id=fin_acc_id,
                     reference_number=reference_number,

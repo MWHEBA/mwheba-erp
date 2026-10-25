@@ -276,7 +276,7 @@ def sample_cost_center(db):
 @pytest.mark.django_db
 def test_p1_issue_and_receive_cheque_lifecycle(test_user, financial_accounts, sample_customer, sample_supplier):
     """التحقق من عمل دالة issue_cheque للشيك الصادر و receive_cheque لشيك القبض"""
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # 1. شيك دفع صادر لمورد
     chq_pay = Cheque.objects.create(
@@ -326,7 +326,7 @@ def test_p1_issue_and_receive_cheque_lifecycle(test_user, financial_accounts, sa
 @pytest.mark.django_db
 def test_p1_remaining_functional_persisted_on_partial_collection(test_user, financial_accounts, sample_customer):
     """التأكد من أن remaining_functional يتم حفظه في قاعدة البيانات عند التحصيل الجزئي"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         cheque_number='CHQ-PART-01',
         cheque_type=ChequeType.RECEIVABLE,
@@ -364,7 +364,7 @@ def test_p1_remaining_functional_persisted_on_partial_collection(test_user, fina
 @pytest.mark.django_db
 def test_p1_opening_balance_cheque_allows_future_gl_entries(test_user, financial_accounts, sample_customer):
     """الشيك الافتتاحي لا يولد قيد استلام، لكن يولد قيد تحصيل بنكي حقيقي"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         cheque_number='CHQ-OPENING-01',
         cheque_type=ChequeType.RECEIVABLE,
@@ -414,7 +414,7 @@ def test_p1_opening_balance_cheque_allows_future_gl_entries(test_user, financial
 @pytest.mark.django_db
 def test_p1_payable_bounce_and_portfolio_cancel(test_user, financial_accounts, sample_customer, sample_supplier):
     """التحقق من قيد ارتداد شيك الدفع الصادر لمورد، وقيد إلغاء شيك قبض بالمحفظة"""
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # 1. ارتداد شيك دفع لمورد
     chq_pay = Cheque.objects.create(
@@ -481,7 +481,7 @@ def test_p1_payable_bounce_and_portfolio_cancel(test_user, financial_accounts, s
 @pytest.mark.django_db
 def test_p1_advance_allocation_and_bounce_reversal(test_user, financial_accounts, sample_customer):
     """التحقق من إنشاء قيد نقل الدفعة المقدمة لحساب العميل، وعكسه واستعادته عند التراجع"""
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # إنشاء فاتورة مبيعات
     sale = Sale.objects.create(
@@ -564,7 +564,7 @@ def test_p1_advance_allocation_and_bounce_reversal(test_user, financial_accounts
 @pytest.mark.django_db
 def test_p1_idempotency_payload_hash_sensitivity(test_user, financial_accounts, sample_customer):
     """التأكد من أن تغيير سعر الصرف أو الضريبة يغير بصمة الطلب، وأن تكرار المفتاح يعيد نفس النتيجة"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         cheque_number='CHQ-IDEMP-01',
         cheque_type=ChequeType.RECEIVABLE,
@@ -649,7 +649,7 @@ def test_p1_idempotency_payload_hash_sensitivity(test_user, financial_accounts, 
 @pytest.mark.django_db
 def test_p1_guarantee_conversion_to_operational(test_user, financial_accounts, sample_customer):
     """شيك الضمان يتم تحويله للتشغيل وتحديث purpose واستدعاء الاستلام وتوليد القيد"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     chq_guar = Cheque.objects.create(
         cheque_number='CHQ-GUAR-01',
         cheque_type=ChequeType.RECEIVABLE,
@@ -692,7 +692,7 @@ def test_p1_guarantee_conversion_to_operational(test_user, financial_accounts, s
 @pytest.mark.django_db
 def test_p1_cost_center_propagation_to_journal_entry(test_user, financial_accounts, sample_customer, sample_cost_center):
     """التأكد من تمرير cost_center_code من الشيك إلى قيود اليومية ومصروفات البنك"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         cheque_number='CHQ-CC-01',
         cheque_type=ChequeType.RECEIVABLE,
@@ -729,7 +729,7 @@ def test_p1_cost_center_propagation_to_journal_entry(test_user, financial_accoun
 @pytest.mark.django_db
 def test_p1_payment_posting_delegation_safety(test_user, financial_accounts, sample_customer):
     """إذا كان السداد بشيك لكن ليس له كائن Cheque مرتبط، يتم الترحيل كالمعتاد ولا يتم بلع القيد"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -767,7 +767,7 @@ def test_p1_payment_posting_delegation_safety(test_user, financial_accounts, sam
 def test_p1_replayed_collect_action_does_not_duplicate_collection(client, test_user, financial_accounts, sample_customer):
     """إعادة إرسال نفس طلب التحصيل من الواجهة (دون مفتاح صريح) لا يكرر التحصيل مالياً"""
     client.force_login(test_user)
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-IDEM-01',
         cheque_number='CHQ-IDEM-01',
@@ -815,7 +815,7 @@ def test_p1_replayed_collect_action_does_not_duplicate_collection(client, test_u
 @pytest.mark.django_db
 def test_p1_bounce_reversal_fully_restores_partial_bounce_invoice_amount(test_user, financial_accounts, sample_customer):
     """تخصيص 1000 ثم تحصيل 600 وارتداد الباقي: عكس الارتداد يعيد سداد الفاتورة لـ 1000 بالكامل"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -896,7 +896,7 @@ def test_p1_bounce_reversal_fully_restores_partial_bounce_invoice_amount(test_us
 @pytest.mark.django_db
 def test_p1_bounce_reversal_fully_restores_advance_allocation_gl_entry(test_user, financial_accounts, sample_customer):
     """عكس ارتداد شيك دفعة مقدمة يستعيد القيد المحاسبي لتسوية الدفعة المقدمة ورصيد حساب العميل"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -967,7 +967,7 @@ def test_p1_bounce_reversal_fully_restores_advance_allocation_gl_entry(test_user
 @pytest.mark.django_db
 def test_p1_draft_cheque_partial_collection_strictly_rejected(test_user, financial_accounts, sample_customer):
     """محاولة تحصيل شيك مسودة (كلي أو جزئي) مرفوضة قطعياً في آلة الحالات"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-DRAFT-COLL-01',
         cheque_number='CHQ-DRAFT-01',
@@ -1001,7 +1001,7 @@ def test_p1_draft_cheque_partial_collection_strictly_rejected(test_user, financi
 @pytest.mark.django_db
 def test_p1_direct_portfolio_collection_credits_notes_receivable_11220(test_user, financial_accounts, sample_customer):
     """التحصيل المباشر لشيك من المحفظة (IN_PORTFOLIO) يقفل أوراق القبض بالمحفظة 11220 وليس شيكات برسم التحصيل"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-PORT-COLL-01',
         cheque_number='CHQ-PORT-01',
@@ -1038,7 +1038,7 @@ def test_p1_direct_portfolio_collection_credits_notes_receivable_11220(test_user
 def test_p1_guarantee_conversion_from_in_portfolio_succeeds_and_posts_gl(client, test_user, financial_accounts, sample_customer):
     """تحويل شيك ضمان موجود بالمحفظة (IN_PORTFOLIO) ينجح عبر الواجهة ويولد القيد المحاسبي"""
     client.force_login(test_user)
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-GUAR-PORT-01',
         cheque_number='CHQ-GUAR-PORT-01',
@@ -1084,7 +1084,7 @@ def test_p1_guarantee_conversion_from_in_portfolio_succeeds_and_posts_gl(client,
 @pytest.mark.django_db
 def test_p1_endorse_cheque_to_specific_supplier_succeeds_without_preexisting_supplier(test_user, financial_accounts, sample_customer, account_types):
     """تظهير شيك قبض لمورد محدد ينجح دون وجود مورد مسبق على الشيك وبدون NoneType error"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     supp = Supplier.objects.create(
         name='المورد المظهر إليه الحديث',
     )
@@ -1140,7 +1140,7 @@ def test_p1_endorse_cheque_to_specific_supplier_succeeds_without_preexisting_sup
 @pytest.mark.django_db
 def test_p1_guarantee_conversion_cannot_be_reexecuted_on_already_converted_cheque(test_user, financial_accounts, sample_customer):
     """تحويل شيك الضمان لتشغيلي لا يمكن تكراره مرة أخرى لمنع تكرار القيد المحاسبي"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-GUAR-DUP-01',
         cheque_number='CHQ-GUAR-DUP-01',
@@ -1182,7 +1182,7 @@ def test_p1_guarantee_conversion_cannot_be_reexecuted_on_already_converted_chequ
 @pytest.mark.django_db
 def test_p1_guarantee_conversion_failure_rolls_back_atomically_without_state_leak(test_user, financial_accounts, sample_customer):
     """فشل تحويل الضمان يتراجع ذرياً بالكامل دون ترك أي تغيير في purpose أو الشيك"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-GUAR-RB-01',
         cheque_number='CHQ-GUAR-RB-01',
@@ -1231,7 +1231,7 @@ def test_p1_guarantee_conversion_failure_rolls_back_atomically_without_state_lea
 @pytest.mark.django_db
 def test_p1_bounce_reversal_does_not_restore_manually_cancelled_allocations(test_user, financial_accounts, sample_customer):
     """عكس الارتداد يستعيد فقط التخصيصات التي ألغيت بالارتداد، ولا يستعيد ما أُلغي يدوياً قبله"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-ALLOC-MAN-01',
         cheque_number='CHQ-ALLOC-MAN-01',
@@ -1325,7 +1325,7 @@ def test_p1_bounce_reversal_does_not_restore_manually_cancelled_allocations(test
 @pytest.mark.django_db
 def test_p1_cancel_or_return_to_drawer_reopens_invoice_and_reverses_allocations(test_user, financial_accounts, sample_customer):
     """إلغاء الشيك أو رده للساحب يعكس التخصيصات ودفعة SalePayment ويعيد فتح الفاتورة"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-CAN-INV-01',
         cheque_number='CHQ-CAN-INV-01',
@@ -1389,7 +1389,7 @@ def test_p1_cancel_or_return_to_drawer_reopens_invoice_and_reverses_allocations(
 @pytest.mark.django_db
 def test_p1_collect_cheque_honors_explicitly_selected_bank_account(test_user, financial_accounts, sample_customer, account_types):
     """التحصيل يعتمد البنك المختار بالطلب صراحة بدلاً من تجاهله أو قراءة البنك القديم"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     # إنشاء بنك ثانٍ مصرح
     bank_2 = ChartOfAccounts.objects.create(
         code='111202',
@@ -1450,7 +1450,7 @@ def test_p1_collect_cheque_honors_explicitly_selected_bank_account(test_user, fi
 @pytest.mark.django_db
 def test_p2_reversal_idempotency_retry_returns_cached_replay_without_integrity_error(test_user, financial_accounts, sample_customer):
     """إعادة طلب التراجع بنفس المفتاح تعيد النتيجة السابقة بأمان دون IntegrityError"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number='RV-REV-IDEM-01',
         cheque_number='CHQ-REV-IDEM-01',
@@ -1509,7 +1509,7 @@ def test_p1_credit_exposure_not_overstated_after_cheque_allocation(test_user, fi
     from customer.services.customer_subledger_service import CustomerSubledgerService
     from customer.models import CustomerTransaction
     
-    today = timezone.now().date()
+    today = timezone.localdate()
     # 1. إنشاء فاتورة مبيعات بـ 1,000
     sale = Sale.objects.create(
         customer=sample_customer,
@@ -1584,7 +1584,7 @@ def test_p1_credit_exposure_not_overstated_after_cheque_allocation(test_user, fi
 @pytest.mark.django_db
 def test_p1_advance_allocation_fails_atomically_on_gl_gateway_rejection(test_user, financial_accounts, sample_customer, monkeypatch):
     """[P1] التأكد من أن رفض أو فشل قيد تسوية الدفعة المقدمة يوقف التخصيص ولا يسيب الفاتورة مسددة"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -1639,7 +1639,7 @@ def test_p1_historical_reconciliation_ignores_foreign_revaluation_lines(test_use
     from financial.fx.models import FXRevaluationRun, FXRevaluationLine
     from financial.models import FiscalYear, AccountingPeriod
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number="RV-FX-ISO-01",
         cheque_number="CHQ-FX-ISO-01",
@@ -1702,7 +1702,7 @@ def test_p1_historical_reconciliation_ignores_foreign_revaluation_lines(test_use
 @pytest.mark.django_db
 def test_p2_multiple_allocations_of_same_cheque_to_same_invoice(test_user, financial_accounts, sample_customer):
     """[P2] التأكد من نجاح تخصيص نفس الشيك على نفس الفاتورة على دفعتين (300 ثم 700) دون IntegrityError"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -1762,7 +1762,7 @@ def test_p2_multiple_allocations_of_same_cheque_to_same_invoice(test_user, finan
 @pytest.mark.django_db
 def test_p2_reversal_rejects_idempotency_key_from_different_action_or_cheque(test_user, financial_accounts, sample_customer):
     """[P2] التأكد من أن طلب التراجع يرفض مفتاح عدم التكرار إذا كان يخص حركة أخرى أو شيك آخر"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque1 = Cheque.objects.create(
         voucher_number="RV-REV-MIS-01",
         cheque_number="CHQ-REV-MIS-01",
@@ -1806,7 +1806,7 @@ def test_p1_bounced_cheque_restores_customer_exposure_without_ghost_credit(test_
     from customer.services.credit_exposure_service import CreditExposureService
     from customer.models import CustomerTransaction
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     # فاتورة 1,000
     sale = Sale.objects.create(
         customer=sample_customer,
@@ -1875,7 +1875,7 @@ def test_p1_bounced_cheque_restores_customer_exposure_without_ghost_credit(test_
 def test_p1_partial_bounce_with_multiple_allocations_prorates_accurately(test_user, financial_accounts, sample_customer):
     """[P1] التأكد من أن تعدد التخصيصات (300 ثم 700) يعمل بدقة عند عكس أحدهما أو عند الارتداد الجزئي (600 محصل)"""
     from customer.services.credit_exposure_service import CreditExposureService
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -1969,7 +1969,7 @@ def test_p1_payable_cheque_fx_revaluation_sign_in_historical_carrying_value(test
     from financial.fx.models import FXRevaluationRun, FXRevaluationLine
     from financial.models import FiscalYear, AccountingPeriod, Currency
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
     
     # شيك أوراق دفع بـ 1,000 دولار، سعر الصرف الأصلي 50
@@ -2044,7 +2044,7 @@ def test_p1_reversal_of_bounce_restores_credit_exposure_without_doubling(test_us
     from customer.services.credit_exposure_service import CreditExposureService
     from sale.models import Sale
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # --- الحالة الأولى: ارتداد كامل ثم تراجع ---
     sale1 = Sale.objects.create(
@@ -2197,7 +2197,7 @@ def test_p1_reversal_of_bounce_preserves_distinct_sale_payment_allocations(test_
     from cheques.services.reversal_service import ChequeReversalService
     from sale.models import Sale, SalePayment
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -2283,7 +2283,7 @@ def test_p1_reallocation_of_advance_payment_creates_fresh_journal_entry(test_use
     """
     from sale.models import Sale
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -2358,7 +2358,7 @@ def test_p1_clear_foreign_payable_cheque_handles_spot_rate_and_realized_fx(test_
     """
     from financial.models import Currency
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
 
     cheque = Cheque.objects.create(
@@ -2430,7 +2430,7 @@ def test_p1_reversal_of_clear_and_convert_guarantee_restores_all_fields(test_use
     """
     from cheques.services.reversal_service import ChequeReversalService
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # 1. فحص عكس صرف شيك الدفع
     pay_cheque = Cheque.objects.create(
@@ -2516,7 +2516,7 @@ def test_p1_allocation_reversal_aborts_and_rolls_back_if_gl_reversal_fails(test_
     from sale.models import Sale
     from financial.services.ledger_core_service import LedgerCoreService
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     sale = Sale.objects.create(
         customer=sample_customer,
         date=today,
@@ -2586,7 +2586,7 @@ def test_p1_cross_currency_allocation_is_explicitly_rejected(test_user, financia
     from sale.models import Sale
     from financial.models import Currency
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
 
     # فاتورة بالجنيه المصري EGP
@@ -2643,7 +2643,7 @@ def test_p1_clear_payable_cheque_prioritizes_params_bank_account_consistently(te
     """
     from financial.models import ChartOfAccounts
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # بنك ثانٍ بديل للصرف
     alt_bank, _ = ChartOfAccounts.objects.get_or_create(
@@ -2701,7 +2701,7 @@ def test_p1_bounce_raises_validation_error_and_rolls_back_if_gl_reversal_fails(t
     رفض عكس القيد أثناء الارتداد يجب ألا يُبتلع وأن يجهض العملية ذرياً بالكامل دون ترك حالة ناقصة
     """
     from financial.services.ledger_core_service import LedgerCoreService
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # إنشاء فاتورة
     sale = Sale.objects.create(
@@ -2775,7 +2775,7 @@ def test_p1_expired_treasury_access_prevents_issuing_cheque(test_user, financial
     from financial.models.treasury_access import UserTreasuryAccess
     from cheques.services.disbursement_security_service import ChequeDisbursementSecurityService
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
     two_days_ago = today - datetime.timedelta(days=2)
 
@@ -2814,7 +2814,7 @@ def test_p1_foreign_cheque_allocation_preserves_invoice_book_rate_and_isolates_f
     """
     from customer.models import CustomerTransaction, CustomerAllocationAudit
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # فاتورة 100 دولار بسعر 50 = 5,000 جنيه
     sale = Sale.objects.create(
@@ -2900,7 +2900,7 @@ def test_p1_fx_revaluation_validation_fails_if_cheque_collected_after_calculatio
     from financial.models import AccountingPeriod
 
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
-    today = timezone.now().date()
+    today = timezone.localdate()
     period = AccountingPeriod.objects.filter(status='open').first()
     if not period:
         period = AccountingPeriod.objects.create(
@@ -2969,7 +2969,7 @@ def test_p1_past_value_date_does_not_bypass_daily_disbursement_limit(test_user, 
     يجب أن يسمح بالشيك الأول ويرفض الشيك الثاني لتجاوز السقف اليومي الفعلي.
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
 
     # ضبط سقف المستخدم على الحساب البنكي: سقف يومي 1,500 وسقف حركة 1,500
@@ -3043,7 +3043,7 @@ def test_p1_expired_permission_blocks_issuance_even_with_past_value_date(test_us
     انتهاء صلاحية الصرف يمنع إصدار الشيك اليوم حتى لو تم تمرير تاريخ قيمة سابق تكون فيه الصلاحية سارية
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
 
     # ضبط الصلاحية لتنتهي أمس
@@ -3099,7 +3099,7 @@ def test_p1_fx_revaluation_posting_fails_if_cheque_collected_after_validation(te
     from financial.models import AccountingPeriod, ExchangeRate
 
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
-    today = timezone.now().date()
+    today = timezone.localdate()
     period = AccountingPeriod.objects.filter(status='open').first()
     if not period:
         period = AccountingPeriod.objects.create(
@@ -3185,7 +3185,7 @@ def test_p1_fx_revaluation_posting_rolls_back_if_cheque_update_fails(test_user, 
     from financial.models import AccountingPeriod, ExchangeRate, JournalEntry
 
     usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
-    today = timezone.now().date()
+    today = timezone.localdate()
     period = AccountingPeriod.objects.filter(status='open').first()
     if not period:
         period = AccountingPeriod.objects.create(
@@ -3264,7 +3264,7 @@ def test_p2_disbursement_limit_attributed_to_actual_issuer_not_draft_creator(fin
     المستخدم «أ» يجب أن يتمكن من إصدار شيكه الخاص بـ1,000 بسقف 1,500 دون أن يُحسب عليه شيك المسودة الأول.
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     user_a = User.objects.create_user(username='issuer_a', email='issuer_a@mwheba.com', password='Password123!')
     user_b = User.objects.create_user(username='issuer_b', email='issuer_b@mwheba.com', password='Password123!')
@@ -3364,7 +3364,7 @@ def test_p1_passed_bank_account_persisted_on_cheque_and_enforces_daily_limit(fin
     يجب أن يُحفظ البنك ذرياً على الشيك، ويُحسب الشيك في سقف الصرف للبنك ليمنع تجاوز السقف اليومي.
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     user_test = User.objects.create_user(username='issuer_bank_test', email='bank_test@mwheba.com', password='Password123!')
 
     # سقف يومي 1,500
@@ -3439,7 +3439,7 @@ def test_p2_full_collection_replay_with_idempotency_key_returns_success(client, 
     ولا يرفض بسبب فحص رصيد النموذج بعد أن أصبح المتبقي صفراً.
     """
     client.force_login(test_user)
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number="RV-FULL-REPLAY-01",
         cheque_number="CHQ-FULL-REPLAY-01",
@@ -3494,7 +3494,7 @@ def test_p1_issue_payable_cheque_enforces_permission_on_newly_passed_bank(financ
     يجب أن يتم فحص الصلاحية على البنك المستهدف الجديد (Bank B) ورفض الإصدار.
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     user_test = User.objects.create_user(username='bank_target_tester', email='bank_target@mwheba.com', password='Password123!')
 
     # بنك ثانٍ Bank B
@@ -3561,7 +3561,7 @@ def test_p2_collect_replay_with_different_amount_fails_concurrency_conflict(clie
     ولا تقبل الـ 500 كإعادة محاولة ناجحة، ويبقى المسجل في قاعدة البيانات 400 فقط.
     """
     client.force_login(test_user)
-    today = timezone.now().date()
+    today = timezone.localdate()
     cheque = Cheque.objects.create(
         voucher_number="RV-CONFLICT-01",
         cheque_number="CHQ-CONFLICT-01",
@@ -3630,7 +3630,7 @@ def test_p1_guarantee_cheque_cannot_be_collected_without_operational_conversion(
     [P1] منع تحصيل أو إيداع أو صرف شيك الضمان خارج الميزانية قبل اعتماده وتحويله لتشغيلي
     التأكد من أن استدعاء التحصيل يرمي ValidationError ولا يعدل الحالة إلى COLLECTED ولا يسجل مبالغ محصلة
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     # 1. شيك ضمان وارد (RECEIVABLE)
     sec_rec_cheque = Cheque.objects.create(
         voucher_number="V-SEC-REC-001",
@@ -3707,7 +3707,7 @@ def test_p1_convert_payable_guarantee_cheque_branches_properly_and_creates_liabi
     وليس مدين ودائن لأوراق القبض 11220
     """
     from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
-    today = timezone.now().date()
+    today = timezone.localdate()
     pay_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
     rec_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
 
@@ -3765,7 +3765,7 @@ def test_p1_convert_payable_guarantee_cheque_same_user_avoids_double_counting_re
     بل ينجح التحويل دون تجاوز السقف.
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     user = User.objects.create_user(username='guar_user_same', email='guar_same@mwheba.com', password='Password123!')
 
     UserTreasuryAccess.objects.create(
@@ -3827,7 +3827,7 @@ def test_p1_convert_payable_guarantee_cheques_transfers_attribution_and_enforces
     أما تحويل الشيك الثاني (1,000) فيفشل فوراً لتجاوز السقف اليومي (2,000 > 1,500).
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
 
     user_a = User.objects.create_user(username='issuer_user_a', email='user_a@mwheba.com', password='Password123!')
@@ -3891,7 +3891,7 @@ def test_p1_convert_payable_guarantee_cheques_transfers_attribution_and_enforces
     assert cheque1.is_guarantee is False
     # التأكد من انتقال نسبة الإصدار وتاريخ اليوم للمستخدم الحالي
     assert cheque1.issued_by == user_b
-    assert cheque1.issued_at.date() == today
+    assert timezone.localdate(cheque1.issued_at) == today
 
     # محاولة تحويل الشيك الثاني بواسطة مستخدم ب: يجب أن تفشل لتجاوز السقف اليومي (1000 + 1000 = 2000 > 1500)
     with pytest.raises(ValidationError) as exc:
@@ -3921,7 +3921,7 @@ def test_p1_reversal_of_convert_guarantee_restores_previous_issuer_and_reservati
     - يتحرر سقف مستخدم ب بالكامل، ويستطيع إصدار شيك جديد بـ1,000 دون رفض (1,000 <= 1,500).
     """
     from financial.models import UserTreasuryAccess
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
     yesterday_dt = timezone.now() - datetime.timedelta(days=1)
 
@@ -3966,7 +3966,7 @@ def test_p1_reversal_of_convert_guarantee_restores_previous_issuer_and_reservati
     sec_cheque.refresh_from_db()
     assert sec_cheque.is_guarantee is False
     assert sec_cheque.issued_by == user_b
-    assert sec_cheque.issued_at.date() == today
+    assert timezone.localdate(sec_cheque.issued_at) == today
 
     # 2. التراجع عن حركة التحويل
     ChequeReversalService.reverse_last_action(
@@ -3981,7 +3981,7 @@ def test_p1_reversal_of_convert_guarantee_restores_previous_issuer_and_reservati
     assert sec_cheque.is_guarantee is True
     # التأكد من استعادة المستخدم وتاريخ الإصدار الأصلي بدقة
     assert sec_cheque.issued_by == user_a
-    assert sec_cheque.issued_at.date() == yesterday
+    assert timezone.localdate(sec_cheque.issued_at) == yesterday
 
     # 3. التأكد من تحرر سقف مستخدم ب: يستطيع إصدار شيك جديد بـ 1,000 بنجاح دون أن يُرفض باعتبار الإجمالي 2,000
     new_cheque = Cheque.objects.create(
@@ -4014,7 +4014,7 @@ def test_p1_convert_guarantee_reversal_ignores_user_notes_and_uses_structured_fi
     [P2] التحقق من أن التراجع عن تحويل الضمان يعتمد على الحقول المنظمة المستقلة،
     ولا يتأثر إطلاقاً بأي وسوم أو نصوص مدخلة داخل ملاحظات/سبب المستخدم (Reason/Notes Spoofing Protection)
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - datetime.timedelta(days=1)
     yesterday_dt = timezone.now() - datetime.timedelta(days=1)
 
@@ -4070,21 +4070,479 @@ def test_p1_convert_guarantee_reversal_ignores_user_notes_and_uses_structured_fi
     # يجب استعادة المستخدم الحقيقي وتاريخ الأمس، وتجاهل المستخدم المزيف تماماً
     assert sec_cheque.issued_by == user_real
     assert sec_cheque.issued_by != user_fake
-    assert sec_cheque.issued_at.date() == yesterday
+    assert timezone.localdate(sec_cheque.issued_at) == yesterday
     assert sec_cheque.is_guarantee is True
     assert sec_cheque.purpose == ChequePurpose.SECURITY_GUARANTEE
 
 
+@pytest.mark.django_db
+def test_p1_reversal_of_collection_preserves_settlement_and_does_not_alter_prior_historical_report(test_user, financial_accounts, sample_customer):
+    """
+    [P1] التحقق من أن عكس التحصيل لاحقاً لا يغيّر قيمة التقرير التاريخي بتاريخ سابق:
+    شيك بـ 1,000 دولار، تكلفته الأصلية 50,000 وقيمته بعد التقييم 52,000، ثم تحصيل 600 دولار:
+    - قيمة المتبقي في التقرير قبل التراجع: 20,800.
+    - بعد عكس التحصيل في تاريخ لاحق، نفس التقرير بتاريخ التحصيل/السابق يظل 20,800 ولا يتغير إلى 22,000.
+    - التراجع يحتفظ بسطر التسوية ويربطه بالعكس المؤرخ دون حذفه.
+    """
+    from datetime import date
+    from financial.models import AccountingPeriod, FiscalYear, JournalEntry, Currency
+    from financial.fx.models import FXRevaluationRun, FXRevaluationLine
+    from cheques.services.subledger_reconciliation_service import ChequeSubledgerReconciliationService
+    from cheques.services.reversal_service import ChequeReversalService
+
+    usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
+
+    fy, _ = FiscalYear.objects.get_or_create(
+        year_code="2026",
+        defaults={"name": "السنة المالية 2026", "start_date": date(2026, 1, 1), "end_date": date(2026, 12, 31)}
+    )
+    period, _ = AccountingPeriod.objects.get_or_create(
+        fiscal_year=fy,
+        period_number=12,
+        defaults={"name": "فترة ديسمبر 2026", "start_date": date(2026, 12, 1), "end_date": date(2026, 12, 31), "status": "open"}
+    )
+
+    fy27, _ = FiscalYear.objects.get_or_create(
+        year_code="2027",
+        defaults={"name": "السنة المالية 2027", "start_date": date(2027, 1, 1), "end_date": date(2027, 12, 31)}
+    )
+    period27, _ = AccountingPeriod.objects.get_or_create(
+        fiscal_year=fy27,
+        period_number=1,
+        defaults={"name": "فترة يناير 2027", "start_date": date(2027, 1, 1), "end_date": date(2027, 1, 31), "status": "open"}
+    )
+
+    cheque = Cheque.objects.create(
+        cheque_type=ChequeType.RECEIVABLE,
+        purpose=ChequePurpose.INVOICE_SETTLEMENT,
+        voucher_number="CHQR-HIST-001",
+        cheque_number="778899",
+        amount=Decimal("1000.00"),
+        currency=usd,
+        original_exchange_rate=Decimal("50.000000"),
+        functional_amount=Decimal("50000.00"),
+        book_value_functional=Decimal("50000.00"),
+        remaining_amount=Decimal("1000.00"),
+        remaining_functional=Decimal("50000.00"),
+        customer=sample_customer,
+        issue_date=date(2026, 12, 1),
+        due_date=date(2026, 12, 25),
+        status=ChequeStatus.DRAFT,
+    )
+
+    ChequeAccountingService.receive_cheque(
+        cheque_id=cheque.id,
+        user=test_user,
+        idempotency_key="CHQ:HIST:RECEIVE",
+        value_date=date(2026, 12, 1)
+    )
+    ChequeAccountingService.deposit_cheque(
+        cheque_id=cheque.id,
+        user=test_user,
+        bank_account_id=financial_accounts["bank"].id,
+        idempotency_key="CHQ:HIST:DEPOSIT",
+        value_date=date(2026, 12, 5)
+    )
+
+    # تقييم فروق العملة في 31 ديسمبر 2026: ارتفاع سعر الصرف إلى 52 -> ربح تقييم 2,000 EGP
+    fx_entry = JournalEntry.objects.create(
+        number="JE-FX-2026-HIST",
+        date=date(2026, 12, 31),
+        status="posted",
+        description="تقييم فروق عملة نهاية الفترة 2026",
+        created_by=test_user,
+    )
+    run = FXRevaluationRun.objects.create(
+        period=period,
+        status="POSTED",
+        run_date=date(2026, 12, 31),
+        journal_entry=fx_entry,
+        total_unrealized_gain_loss=Decimal("2000.00"),
+        created_by=test_user,
+    )
+    FXRevaluationLine.objects.create(
+        run=run,
+        source_type="NOTES_RECEIVABLE",
+        source_id=str(cheque.id),
+        account=financial_accounts["under_coll"],
+        currency=usd,
+        open_foreign_amount=Decimal("1000.00"),
+        old_rate=Decimal("50.000000"),
+        new_rate=Decimal("52.000000"),
+        old_functional_value=Decimal("50000.00"),
+        new_functional_value=Decimal("52000.00"),
+        unrealized_difference=Decimal("2000.00"),
+    )
+    cheque.book_value_functional = Decimal("52000.00")
+    cheque.remaining_functional = Decimal("52000.00")
+    cheque.save(update_fields=["book_value_functional", "remaining_functional"])
+
+    # تحصيل جزئي بمبلغ 600 دولار في 10 يناير 2027 بسعر 52
+    ChequeAccountingService.collect_cheque(
+        cheque_id=cheque.id,
+        user=test_user,
+        amount=Decimal("600.00"),
+        exchange_rate=Decimal("52.000000"),
+        bank_account_id=financial_accounts["bank"].id,
+        idempotency_key="CHQ:HIST:COLLECT",
+        value_date=date(2027, 1, 10),
+    )
+
+    cheque.refresh_from_db()
+    assert cheque.remaining_amount == Decimal("400.00")
+
+    # 1. فحص التقرير التاريخي في تاريخ التحصيل 10 يناير 2027 (قبل أي تراجع)
+    val_before_rev = ChequeSubledgerReconciliationService.compute_historical_carrying_value(
+        cheque, date(2027, 1, 10)
+    )
+    assert val_before_rev == Decimal("20800.00")
+
+    # 2. عكس التحصيل في تاريخ لاحق (20 يناير 2027)
+    rev_res = ChequeReversalService.reverse_last_action(
+        cheque=cheque,
+        user=test_user,
+        reason="تراجع عن تحصيل الـ 600 دولار",
+        idempotency_key="CHQ:HIST:REV_COLLECT",
+        reversal_date=date(2027, 1, 20),
+    )
+
+    # 3. التحقق من بقاء سطر التسوية مربوطاً بالعكس دون حذفه وتطابق التواريخ بين القيد والحركة والتسوية
+    settlement = ChequeSettlementLine.objects.filter(cheque=cheque).first()
+    assert settlement is not None
+    assert settlement.is_reversed is True
+    assert settlement.reversed_at_date == date(2027, 1, 20)
+    assert settlement.reversal_action_log is not None
+    assert rev_res["reversal_entry"].date == date(2027, 1, 20)
+    assert rev_res["reversal_log"].action_date == date(2027, 1, 20)
+    assert settlement.reversed_at_date == rev_res["reversal_entry"].date
+
+    # 4. إعادة فحص نفس التقرير التاريخي بنفس التاريخ السابق (10 يناير 2027)
+    # يجب أن يظل 20,800 ولا يتغير إلى 22,000
+    val_after_rev_at_past_date = ChequeSubledgerReconciliationService.compute_historical_carrying_value(
+        cheque, date(2027, 1, 10)
+    )
+    assert val_after_rev_at_past_date == Decimal("20800.00")
+
+    # 5. فحص التقرير في أو بعد تاريخ العكس (20 يناير 2027)
+    # يستبعد التسوية المعكوسة وتعود القيمة الدفترية لكامل الشيك 52,000
+    val_at_reversal_date = ChequeSubledgerReconciliationService.compute_historical_carrying_value(
+        cheque, date(2027, 1, 20)
+    )
+    assert val_at_reversal_date == Decimal("52000.00")
 
 
+@pytest.mark.django_db
+def test_p1_reversal_date_accounting_validation_and_unified_synchronization(test_user, financial_accounts, sample_customer):
+    """
+    [P1] التحقق من الفحص المحاسبي لتاريخ العكس ومطابقته التامة بين قيد اليومية وحركة العكس وسطر التسوية
+    - رفض تاريخ عكس سابق لتاريخ الحركة الأصلية.
+    - رفض تاريخ عكس يقع خارج فترة مالية مفتوحة.
+    - تطابق تاريخ قيد اليومية العاكس وحركة العكس وسطر التسوية.
+    """
+    from datetime import date
+    from financial.models import AccountingPeriod, FiscalYear, Currency
+    from cheques.services.reversal_service import ChequeReversalService
+
+    usd, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$"})
+    fy27, _ = FiscalYear.objects.get_or_create(
+        year_code="2027",
+        defaults={"name": "السنة المالية 2027", "start_date": date(2027, 1, 1), "end_date": date(2027, 12, 31)}
+    )
+    AccountingPeriod.objects.get_or_create(
+        fiscal_year=fy27,
+        period_number=1,
+        defaults={"name": "فترة يناير 2027", "start_date": date(2027, 1, 1), "end_date": date(2027, 1, 31), "status": "open"}
+    )
+
+    cheque = Cheque.objects.create(
+        cheque_type=ChequeType.RECEIVABLE,
+        purpose=ChequePurpose.INVOICE_SETTLEMENT,
+        voucher_number="CHQR-SYNC-001",
+        cheque_number="991122",
+        amount=Decimal("1000.00"),
+        currency=usd,
+        original_exchange_rate=Decimal("50.000000"),
+        functional_amount=Decimal("50000.00"),
+        book_value_functional=Decimal("50000.00"),
+        remaining_amount=Decimal("1000.00"),
+        remaining_functional=Decimal("50000.00"),
+        customer=sample_customer,
+        issue_date=date(2027, 1, 5),
+        due_date=date(2027, 1, 20),
+        status=ChequeStatus.DRAFT,
+    )
+    ChequeAccountingService.receive_cheque(
+        cheque_id=cheque.id,
+        user=test_user,
+        idempotency_key="SYNC:RCV",
+        value_date=date(2027, 1, 5)
+    )
+    ChequeAccountingService.deposit_cheque(
+        cheque_id=cheque.id,
+        user=test_user,
+        bank_account_id=financial_accounts["bank"].id,
+        idempotency_key="SYNC:DEP",
+        value_date=date(2027, 1, 10)
+    )
+
+    # 1. محاولة التراجع بتاريخ سابق لتاريخ الحركة الأصلية (تاريخ الإيداع 10 يناير -> العكس 8 يناير) -> يجب أن ترفض
+    with pytest.raises(ValidationError) as exc_past:
+        ChequeReversalService.reverse_last_action(
+            cheque=cheque,
+            user=test_user,
+            reason="عكس بتاريخ سابق للحركة",
+            reversal_date=date(2027, 1, 8),
+            idempotency_key="SYNC:REV_INVALID_PAST"
+        )
+    assert "سابقاً لتاريخ الحركة الأصلية" in str(exc_past.value)
+
+    # 2. محاولة التراجع بتاريخ خارج أي فترة مالية مفتوحة (مثلاً 2028-05-01) -> يجب أن ترفض
+    with pytest.raises(ValidationError) as exc_closed:
+        ChequeReversalService.reverse_last_action(
+            cheque=cheque,
+            user=test_user,
+            reason="عكس بفترة مغلقة أو غير معرفة",
+            reversal_date=date(2028, 5, 1),
+            idempotency_key="SYNC:REV_CLOSED_PERIOD"
+        )
+    assert "لا يقع ضمن فترة مالية" in str(exc_closed.value)
+
+    # 3. تراجع بتاريخ صحيح معتمد (15 يناير 2027): يجب تطابق التاريخ بين القيد وسجل الحركة وسطر التسوية
+    rev_result = ChequeReversalService.reverse_last_action(
+        cheque=cheque,
+        user=test_user,
+        reason="عكس سليم بتاريخ 15 يناير",
+        reversal_date=date(2027, 1, 15),
+        idempotency_key="SYNC:REV_VALID"
+    )
+    assert rev_result["reversal_entry"].date == date(2027, 1, 15)
+    assert rev_result["reversal_log"].action_date == date(2027, 1, 15)
 
 
+@pytest.mark.django_db
+def test_p1_unified_local_date_for_treasury_access_validity_and_daily_limit(test_user, financial_accounts, sample_supplier):
+    """
+    [P1] التحقق من استخدام تاريخ محلي موحد للصلاحية والسقف:
+    - صلاحية منتهية بالأمس (محلياً) تمنع الصرف فوراً ولا تقبل يوم UTC السابق.
+    - منصرفات الأمس (محلياً) لا تستنزف سقف اليوم.
+    """
+    from financial.models import UserTreasuryAccess
+    local_today = timezone.localdate()
+    local_yesterday = local_today - datetime.timedelta(days=1)
+
+    # 1. صلاحية انتهت بالأمس
+    access, _ = UserTreasuryAccess.objects.update_or_create(
+        user=test_user,
+        treasury=financial_accounts['bank'],
+        defaults={
+            'can_deposit': True,
+            'can_disburse': True,
+            'max_single_disbursement_limit': Decimal('2000.00'),
+            'daily_disbursement_limit': Decimal('2000.00'),
+            'valid_from': local_yesterday - datetime.timedelta(days=10),
+            'valid_until': local_yesterday, # منتهية بحسب التاريخ المحلي لليوم
+        }
+    )
+
+    cheque_exp = Cheque.objects.create(
+        voucher_number="PV-EXP-01",
+        cheque_number="CHQ-EXP-01",
+        cheque_type=ChequeType.PAYABLE,
+        purpose=ChequePurpose.INVOICE_SETTLEMENT,
+        status=ChequeStatus.DRAFT,
+        supplier=sample_supplier,
+        amount=Decimal("500.00"),
+        currency=financial_accounts['currency'],
+        deposit_bank_account=financial_accounts['bank'],
+        issue_date=local_today,
+        due_date=local_today,
+        created_by=test_user,
+    )
+
+    with pytest.raises(ValidationError) as exc_valid:
+        ChequeAccountingService.issue_cheque(
+            cheque=cheque_exp,
+            user=test_user,
+            idempotency_key="ISSUE-EXP-01"
+        )
+    assert "منتهية أو غير سارية" in str(exc_valid.value)
+
+    # 2. تجديد الصلاحية لليوم وفحص عدم احتساب منصرفات الأمس في سقف اليوم
+    access.valid_until = local_today + datetime.timedelta(days=5)
+    access.daily_disbursement_limit = Decimal("1500.00")
+    access.save()
+
+    # محاكاة منصرف بـ 1,000 بتاريخ الأمس المحلي
+    je_yesterday = JournalEntry.objects.create(
+        number="JE-YEST-DISB",
+        date=local_yesterday,
+        status="posted",
+        description="منصرف الأمس",
+        created_by=test_user,
+    )
+    JournalEntry.objects.filter(pk=je_yesterday.pk).update(
+        created_at=timezone.now() - datetime.timedelta(days=1)
+    )
+    JournalEntryLine.objects.create(
+        journal_entry=je_yesterday,
+        account=financial_accounts['bank'],
+        debit=Decimal("0.00"),
+        credit=Decimal("1000.00"),
+        description="صرف نقدي أمس",
+        currency="EGP",
+        exchange_rate=Decimal("1.000000")
+    )
+
+    # إصدار شيك بـ 1,000 اليوم: السقف 1,500، فإذا تم خلط الأمس باليوم سيرفض (1,000 + 1,000 = 2,000 > 1,500).
+    # يجب أن ينجح الإصدار لأن منصرف الأمس لا يستهلك سقف اليوم الموحد
+    cheque_today = Cheque.objects.create(
+        voucher_number="PV-TODAY-01",
+        cheque_number="CHQ-TODAY-01",
+        cheque_type=ChequeType.PAYABLE,
+        purpose=ChequePurpose.INVOICE_SETTLEMENT,
+        status=ChequeStatus.DRAFT,
+        supplier=sample_supplier,
+        amount=Decimal("1000.00"),
+        currency=financial_accounts['currency'],
+        deposit_bank_account=financial_accounts['bank'],
+        issue_date=local_today,
+        due_date=local_today,
+        created_by=test_user,
+    )
+
+    res = ChequeAccountingService.issue_cheque(
+        cheque=cheque_today,
+        user=test_user,
+        idempotency_key="ISSUE-TODAY-OK"
+    )
+    cheque_today.refresh_from_db()
+    assert cheque_today.status == ChequeStatus.ISSUED
 
 
+@pytest.mark.django_db
+def test_p1_engine_uses_local_date_for_access_validity_and_default_receipt_entry_date(
+    test_user, financial_accounts, sample_supplier, sample_customer
+):
+    """
+    [P1] التحقق من أن محرك الشيكات والواجهات يستخدم دائماً تاريخ العمل المحلي:
+    - محاكاة 00:30 بتوقيت القاهرة (الساعة 21:30 أو 22:30 UTC من اليوم السابق 25 أكتوبر).
+    - صلاحية صرف تبدأ في 26 أكتوبر تنجح ولا ترفض بحجة أن UTC هو 25 أكتوبر.
+    - استلام شيك قبض بدون تاريخ صريح ينشئ قيداً وحركة بتاريخ 26 أكتوبر (المحلي) وليس 25.
+    - تحديد تاريخ قيمة بنكي صريح (Value Date) يُحترم بدقة.
+    """
+    from datetime import date
+    from financial.models import FiscalYear, AccountingPeriod, UserTreasuryAccess
+    from unittest.mock import patch
 
+    fy, _ = FiscalYear.objects.get_or_create(
+        year_code="2026",
+        defaults={"name": "السنة المالية 2026", "start_date": date(2026, 1, 1), "end_date": date(2026, 12, 31)}
+    )
+    AccountingPeriod.objects.get_or_create(
+        fiscal_year=fy,
+        period_number=10,
+        defaults={"name": "فترة أكتوبر 2026", "start_date": date(2026, 10, 1), "end_date": date(2026, 10, 31), "status": "open"}
+    )
 
+    # وقت المحاكاة: 22:30 UTC يوم 25 أكتوبر، وهو يعادل بعد منتصف الليل في القاهرة (26 أكتوبر)
+    cairo_after_midnight_utc = datetime.datetime(2026, 10, 25, 22, 30, 0, tzinfo=datetime.timezone.utc)
 
+    with patch("django.utils.timezone.now", return_value=cairo_after_midnight_utc):
+        assert timezone.now().date() == date(2026, 10, 25)
+        assert timezone.localdate() == date(2026, 10, 26)
 
+        # 1. صلاحية صرف تبدأ في 26 أكتوبر
+        UserTreasuryAccess.objects.update_or_create(
+            user=test_user,
+            treasury=financial_accounts['bank'],
+            defaults={
+                'can_deposit': True,
+                'can_disburse': True,
+                'max_single_disbursement_limit': Decimal('2000.00'),
+                'daily_disbursement_limit': Decimal('2000.00'),
+                'valid_from': date(2026, 10, 26),  # تبدأ اليوم 26 محلياً
+                'valid_until': date(2026, 10, 30),
+            }
+        )
 
+        chq_payable = Cheque.objects.create(
+            voucher_number="PV-MIDNIGHT-01",
+            cheque_number="CHQ-MIDNIGHT-01",
+            cheque_type=ChequeType.PAYABLE,
+            purpose=ChequePurpose.INVOICE_SETTLEMENT,
+            status=ChequeStatus.DRAFT,
+            supplier=sample_supplier,
+            amount=Decimal("500.00"),
+            currency=financial_accounts['currency'],
+            deposit_bank_account=financial_accounts['bank'],
+            issue_date=date(2026, 10, 26),
+            due_date=date(2026, 10, 26),
+            created_by=test_user,
+        )
 
+        # يجب أن ينجح الإصدار لأن المحرك يمرر تاريخ العمل المحلي 26 لخدمة الصلاحيات
+        res_issue = ChequeAccountingService.issue_cheque(
+            cheque=chq_payable,
+            user=test_user,
+            idempotency_key="ISSUE-MIDNIGHT-01"
+        )
+        chq_payable.refresh_from_db()
+        assert chq_payable.status == ChequeStatus.ISSUED
 
+        # 2. استلام شيك قبض مسودة بدون تمرير تاريخ صريح
+        chq_receivable = Cheque.objects.create(
+            voucher_number="RV-MIDNIGHT-01",
+            cheque_number="CHQ-REC-MIDNIGHT",
+            cheque_type=ChequeType.RECEIVABLE,
+            purpose=ChequePurpose.INVOICE_SETTLEMENT,
+            status=ChequeStatus.DRAFT,
+            customer=sample_customer,
+            amount=Decimal("1200.00"),
+            currency=financial_accounts['currency'],
+            deposit_bank_account=financial_accounts['bank'],
+            issue_date=date(2026, 10, 26),
+            due_date=date(2026, 10, 26),
+            created_by=test_user,
+        )
+
+        res_recv = ChequeAccountingService.receive_cheque(
+            cheque_or_id=chq_receivable.id,
+            user=test_user,
+            idempotency_key="REC-MIDNIGHT-01"
+        )
+        rec_log = res_recv["action_log"]
+        rec_je = res_recv["journal_entry"]
+
+        # يجب أن يكون تاريخ القيد وسجل الحركة هو تاريخ العمل المحلي (26 أكتوبر) وليس (25 أكتوبر UTC)
+        assert rec_log.action_date == date(2026, 10, 26)
+        assert rec_je.date == date(2026, 10, 26)
+
+        # 3. التأكد من احترام تاريخ القيمة البنكي الصريح (Value Date) عند تحديده
+        chq_collectible = Cheque.objects.create(
+            voucher_number="RV-VALDATE-01",
+            cheque_number="CHQ-REC-VALDATE",
+            cheque_type=ChequeType.RECEIVABLE,
+            purpose=ChequePurpose.INVOICE_SETTLEMENT,
+            status=ChequeStatus.UNDER_COLLECTION,
+            customer=sample_customer,
+            amount=Decimal("800.00"),
+            currency=financial_accounts['currency'],
+            deposit_bank_account=financial_accounts['bank'],
+            issue_date=date(2026, 10, 26),
+            due_date=date(2026, 10, 26),
+            created_by=test_user,
+        )
+
+        explicit_bank_val_date = date(2026, 10, 28)
+        res_collect = ChequeAccountingService.collect_cheque(
+            cheque_or_id=chq_collectible.id,
+            user=test_user,
+            amount_collected=Decimal("800.00"),
+            value_date=explicit_bank_val_date,
+            idempotency_key="COLLECT-VALDATE-01"
+        )
+        coll_log = res_collect["action_log"]
+        coll_je = res_collect["journal_entry"]
+
+        assert coll_log.action_date == explicit_bank_val_date
+        assert coll_je.date == explicit_bank_val_date

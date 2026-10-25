@@ -263,7 +263,7 @@ class SalaryComponentService:
         if effective_to:
             component.effective_to = effective_to
         else:
-            component.effective_to = timezone.now().date()
+            component.effective_to = timezone.localdate()
         
         component.save()
         
@@ -287,7 +287,7 @@ class SalaryComponentService:
         from django.utils import timezone
         
         if not month:
-            month = timezone.now().date()
+            month = timezone.localdate()
         
         # جلب بنود الموظف النشطة
         components = employee.salary_components.filter(

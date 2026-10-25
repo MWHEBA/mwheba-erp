@@ -307,7 +307,7 @@ class PerformanceOptimizer:
         """
         تحليل اتجاهات الأرصدة باستخدام Window Functions
         """
-        end_date = timezone.now().date()
+        end_date = timezone.localdate()
         start_date = end_date - timezone.timedelta(days=days_back)
 
         query = """

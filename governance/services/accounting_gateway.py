@@ -566,7 +566,7 @@ class AccountingGateway:
             # Validate and prepare data
             validated_lines = self._validate_and_prepare_lines(lines, source_info=source_info)
             self._validate_treasury_permissions(validated_lines, user, source_info, entry_type=entry_type, reference=reference)
-            entry_date = date or timezone.now().date()
+            entry_date = date or timezone.localdate()
             
             from financial.services.ledger_core_service import LedgerCoreService
             
@@ -2562,7 +2562,7 @@ def create_tax_posting(command) -> JournalEntry:
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد احتساب الضريبة لمستند #{command.document_number}",
-        date=getattr(command, "posting_date", timezone.now().date()),
+        date=getattr(command, "posting_date", timezone.localdate()),
         lines=lines,
         user=command.user,
         idempotency_key=f"JE:tax:TaxDetermination:{command.document_number}:post",
@@ -2611,7 +2611,7 @@ def create_tax_reversal_posting(command=None, user=None, reason="", **kwargs) ->
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد عكس الضريبة لمستند #{doc_num}",
-        date=timezone.now().date(),
+        date=timezone.localdate(),
         lines=lines,
         user=user,
         idempotency_key=f"JE:tax:TaxReversal:{audit_id}:reversal",
@@ -2645,7 +2645,7 @@ def create_credit_note_posting(command) -> JournalEntry:
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد ترحيل إشعار دائن #{doc_num}",
-        date=getattr(command, "posting_date", timezone.now().date()),
+        date=getattr(command, "posting_date", timezone.localdate()),
         lines=lines,
         user=command.user,
         idempotency_key=f"JE:sale:CreditNote:{doc_num}:post",
@@ -2677,7 +2677,7 @@ def create_credit_note_reversal_posting(command) -> JournalEntry:
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد عكس إشعار دائن #{cn.credit_note_number}",
-        date=timezone.now().date(),
+        date=timezone.localdate(),
         lines=lines,
         user=getattr(command, "user", None),
         idempotency_key=f"JE:sale:CreditNoteReversal:{cn.credit_note_number}:reversal",
@@ -2702,7 +2702,7 @@ def create_revenue_recognition_entry(command) -> JournalEntry:
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد الاعتراف بالإيراد لجدول #{command.schedule.id}",
-        date=getattr(command, "recognition_date", timezone.now().date()),
+        date=getattr(command, "recognition_date", timezone.localdate()),
         lines=lines,
         user=command.user,
         idempotency_key=f"JE:financial:RevRecEntry:{command.schedule.id}:{command.event}",
@@ -2727,7 +2727,7 @@ def create_revenue_reversal_entry(command) -> JournalEntry:
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد عكس الاعتراف بالإيراد لجدول #{command.schedule.id}",
-        date=timezone.now().date(),
+        date=timezone.localdate(),
         lines=lines,
         user=getattr(command, "user", None),
         idempotency_key=f"JE:financial:RevRecReversal:{command.schedule.id}:reversal",

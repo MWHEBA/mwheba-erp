@@ -171,7 +171,7 @@ class ChequeAccountingService:
                 _("لا يمكن تحصيل أو إيداع أو صرف أو تظهير أو إثبات ارتداد شيك ضمان خارج الميزانية. يجب اعتماد تحويل الشيك إلى تجاري/تشغيلي أولاً.")
             )
 
-        action_date = params.get("value_date") or timezone.now().date()
+        action_date = params.get("value_date") or timezone.localdate()
         is_open, period = PeriodControlService.validate_period_open(action_date)
         if not is_open:
             period_name = period.name if period else ""
@@ -192,7 +192,7 @@ class ChequeAccountingService:
                 user=user,
                 bank_account_id=bank_acc_id,
                 amount=cheque.functional_amount,
-                as_of_date=timezone.now().date(),
+                as_of_date=params.get("value_date") or timezone.localdate(),
                 request=request,
                 exclude_cheque_id=cheque.id if cheque.pk else None
             )
@@ -337,7 +337,7 @@ class ChequeAccountingService:
             target_status = cls._validate_state_transition(cheque, action_type, target_status)
 
             # 8. إنشاء سجل الحركة أولاً لحجز المعرّف
-            value_date = params.get("value_date") or timezone.now().date()
+            value_date = params.get("value_date") or timezone.localdate()
             amount_processed = Decimal(str(params.get("amount_collected") or cheque.amount))
             bank_charges = Decimal(str(params.get("bank_charges") or "0.00"))
 
@@ -418,7 +418,7 @@ class ChequeAccountingService:
             logger.info(f"Guarantee cheque #{cheque.id}: Off-balance sheet, zero GL entries generated.")
             return None
 
-        value_date = params.get("value_date") or timezone.now().date()
+        value_date = params.get("value_date") or timezone.localdate()
         entry_lines: List[Dict[str, Any]] = []
         entry_type = "automatic"
         description = f"{action_log.get_action_display()} - شيك #{cheque.cheque_number} ({cheque.voucher_number})"
@@ -929,7 +929,7 @@ class ChequeAccountingService:
         **params
     ) -> None:
         """تحديث أرصدة الشيك ومتابعة حالات الوفاء الجزئي وتاريخ المقاصة وسجلات التسوية"""
-        value_date = params.get("value_date") or timezone.now().date()
+        value_date = params.get("value_date") or timezone.localdate()
         update_fields = ["status", "updated_at"]
 
         if action_log.action == ChequeActionType.COLLECT:

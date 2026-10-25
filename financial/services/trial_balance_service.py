@@ -60,7 +60,7 @@ class TrialBalanceService:
             currency_symbol = functional_currency.symbol or currency_code if functional_currency else "ج.م"
 
             # 2. تحديد النطاق الزمني الذكي والسنة المالية
-            today = timezone.now().date()
+            today = timezone.localdate()
             if date_to is None:
                 date_to = today
 

@@ -113,7 +113,7 @@ def add_payment(request, pk):
                     payment_data = {
                         'amount': amount,
                         'payment_method': 'PREPAID_BALANCE',
-                        'payment_date': form.cleaned_data.get('payment_date', timezone.now().date()),
+                        'payment_date': form.cleaned_data.get('payment_date', timezone.localdate()),
                         'notes': form.cleaned_data.get('notes', ''),
                         'idempotency_key': request.POST.get('idempotency_token'),
                     }
@@ -264,7 +264,7 @@ def add_payment(request, pk):
 
         initial_data = {
             "amount": purchase.amount_due,
-            "payment_date": timezone.now().date(),
+            "payment_date": timezone.localdate(),
             "payment_exchange_rate": latest_rate,
         }
         form = PurchasePaymentForm(initial=initial_data, purchase=purchase)

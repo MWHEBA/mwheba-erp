@@ -509,7 +509,7 @@ class DataReconciliationService:
         الحصول على تاريخ المطابقات
         """
         if end_date is None:
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
         
         if start_date is None:
             start_date = end_date - timedelta(days=limit)

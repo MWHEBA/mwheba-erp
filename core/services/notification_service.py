@@ -179,7 +179,7 @@ class NotificationService:
             return []
 
             # الكود الأصلي (معطل):
-            # today = timezone.now().date()
+            # today = timezone.localdate()
             # overdue_sales = Sale.objects.filter(...)
             # overdue_purchases = Purchase.objects.filter(...)
 

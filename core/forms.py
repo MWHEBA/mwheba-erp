@@ -113,7 +113,7 @@ class DateRangeForm(forms.Form):
 
         # التعامل مع الفترات المحددة مسبقًا
         if preset:
-            today = timezone.now().date()
+            today = timezone.localdate()
 
             if preset == "today":
                 # اليوم
@@ -155,7 +155,7 @@ class DateRangeForm(forms.Form):
 
         # التحقق من عدم وجود تواريخ مستقبلية إذا كان غير مسموح بها
         if not self.allows_future_dates:
-            today = timezone.now().date()
+            today = timezone.localdate()
             if start_date and start_date > today:
                 self.add_error("start_date", _("لا يمكن تحديد تاريخ في المستقبل"))
             if end_date and end_date > today:

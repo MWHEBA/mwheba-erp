@@ -48,7 +48,7 @@ class IncomeStatementService:
         """
         try:
             # 1. ضبط التواريخ والفترة
-            today = timezone.now().date()
+            today = timezone.localdate()
             if isinstance(date_to, str) and date_to.strip():
                 try:
                     date_to = datetime.strptime(date_to.strip(), "%Y-%m-%d").date()
@@ -468,8 +468,8 @@ class IncomeStatementService:
         except Exception as e:
             logger.error(f"خطأ في إنشاء قائمة الدخل: {e}", exc_info=True)
             return cls._empty_income_statement_response(
-                date_from or timezone.now().date(),
-                date_to or timezone.now().date(),
+                date_from or timezone.localdate(),
+                date_to or timezone.localdate(),
                 "EGP",
                 "ج.م",
                 error=str(e)

@@ -356,7 +356,7 @@ class BundleFinancialService:
             entry_type='automatic',
             description=description,
             reference=reference_number,
-            date=timezone.now().date(),
+            date=timezone.localdate(),
             financial_category=bundle_product.financial_category if hasattr(bundle_product, 'financial_category') else None,
             financial_subcategory=bundle_product.financial_subcategory if hasattr(bundle_product, 'financial_subcategory') else None
         )
@@ -493,9 +493,9 @@ class BundleFinancialService:
             
             # تحديد الفترة الزمنية
             if not start_date:
-                start_date = timezone.now().date().replace(day=1)  # بداية الشهر الحالي
+                start_date = timezone.localdate().replace(day=1)  # بداية الشهر الحالي
             if not end_date:
-                end_date = timezone.now().date()
+                end_date = timezone.localdate()
             
             # البحث عن المعاملات المالية للمنتج المجمع
             bundle_transactions = FinancialTransaction.objects.filter(

@@ -35,9 +35,9 @@ class FXRevaluationService:
             try:
                 as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
             except ValueError:
-                as_of_date = timezone.now().date()
+                as_of_date = timezone.localdate()
         else:
-            as_of_date = as_of_date or timezone.now().date()
+            as_of_date = as_of_date or timezone.localdate()
         func_curr = ExchangeRateService.get_functional_currency()
         if not func_curr:
             from django.core.exceptions import ValidationError

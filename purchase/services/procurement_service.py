@@ -234,7 +234,7 @@ class ProcurementService:
             if po.status not in ["APPROVED", "PARTIALLY_RECEIVED"]:
                 raise FinancialCoreError("Cannot issue GRN for unapproved purchase order.")
 
-            grn_num = cls.generate_grn_number(date=timezone.now().date(), warehouse=po.warehouse)
+            grn_num = cls.generate_grn_number(date=timezone.localdate(), warehouse=po.warehouse)
             grn = GoodsReceivedNote.objects.create(
                 grn_number=grn_num,
                 purchase_order=po,
@@ -302,7 +302,7 @@ class ProcurementService:
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
-                date=timezone.now().date(),
+                date=timezone.localdate(),
                 description=f"GRN Receipt Entry #{grn_num}",
                 reference=f"GRN-{grn.id}",
                 entry_type="GENERAL",
@@ -470,7 +470,7 @@ class ProcurementService:
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
-                date=timezone.now().date(),
+                date=timezone.localdate(),
                 description=f"GRN Return Entry #{grn_item.grn.grn_number}",
                 reference=f"GRN-RET-{grn_item.id}",
                 entry_type="GENERAL",

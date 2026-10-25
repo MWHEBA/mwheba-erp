@@ -26,7 +26,7 @@ class InventoryReportService:
         Args:
             report_date: تاريخ التقرير (افتراضي: اليوم)
         """
-        self.report_date = report_date or timezone.now().date()
+        self.report_date = report_date or timezone.localdate()
 
     def get_inventory_accounts(self):
         """

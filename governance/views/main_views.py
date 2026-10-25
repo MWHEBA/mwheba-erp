@@ -72,7 +72,7 @@ class AuditManagementView(GovernanceBaseView):
         from governance.models import AuditTrail, QuarantineRecord
         
         # Get real statistics
-        today = timezone.now().date()
+        today = timezone.localdate()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
         
         total_audit_records = AuditTrail.objects.count()
@@ -151,7 +151,7 @@ class SystemHealthView(GovernanceBaseView):
             return cached_data
         
         data = {}
-        today = timezone.now().date()
+        today = timezone.localdate()
         today_start = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.min.time()))
         week_ago = timezone.now() - timedelta(days=7)
         month_ago = timezone.now() - timedelta(days=30)
@@ -506,7 +506,7 @@ class SignalsManagementView(GovernanceBaseView):
         })
         
         # Get real statistics
-        today_start = timezone.make_aware(timezone.datetime.combine(timezone.now().date(), timezone.datetime.min.time()))
+        today_start = timezone.make_aware(timezone.datetime.combine(timezone.localdate(), timezone.datetime.min.time()))
         
         # Total signals
         total_signals = SignalRegistry.objects.count()

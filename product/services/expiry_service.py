@@ -162,7 +162,7 @@ class ExpiryService:
             if exclude_expired:
                 queryset = queryset.filter(
                     models.Q(expiry_date__isnull=True)
-                    | models.Q(expiry_date__gt=timezone.now().date())
+                    | models.Q(expiry_date__gt=timezone.localdate())
                 )
 
             return queryset.order_by("expiry_date", "received_date")
@@ -178,7 +178,7 @@ class ExpiryService:
         """
         try:
             alerts_created = 0
-            today = timezone.now().date()
+            today = timezone.localdate()
 
             # الحصول على جميع الدفعات النشطة مع تواريخ انتهاء صلاحية
             active_batches = ProductBatch.objects.filter(
@@ -203,7 +203,7 @@ class ExpiryService:
             if not batch.expiry_date:
                 return 0
 
-            today = timezone.now().date()
+            today = timezone.localdate()
             days_to_expiry = (batch.expiry_date - today).days
             alerts_created = 0
 
@@ -335,7 +335,7 @@ class ExpiryService:
         تقرير انتهاء الصلاحية
         """
         try:
-            today = timezone.now().date()
+            today = timezone.localdate()
             future_date = today + timedelta(days=days_ahead)
 
             # بناء الاستعلام
@@ -404,7 +404,7 @@ class ExpiryService:
         تحديث حالة الدفعات المنتهية الصلاحية تلقائياً
         """
         try:
-            today = timezone.now().date()
+            today = timezone.localdate()
 
             expired_batches = ProductBatch.objects.filter(
                 status="active", expiry_date__lt=today
@@ -476,12 +476,12 @@ class ExpiryService:
     def get_expiring_products(days_ahead=30):
         """الحصول على المنتجات القريبة من انتهاء الصلاحية"""
         try:
-            expiry_date_limit = timezone.now().date() + timedelta(days=days_ahead)
+            expiry_date_limit = timezone.localdate() + timedelta(days=days_ahead)
 
             expiring_batches = (
                 ProductBatch.objects.filter(
                     expiry_date__lte=expiry_date_limit,
-                    expiry_date__gt=timezone.now().date(),
+                    expiry_date__gt=timezone.localdate(),
                     current_quantity__gt=0,
                     status="active",
                 )
@@ -501,7 +501,7 @@ class ExpiryService:
         try:
             expired_batches = (
                 ProductBatch.objects.filter(
-                    expiry_date__lt=timezone.now().date(),
+                    expiry_date__lt=timezone.localdate(),
                     current_quantity__gt=0,
                     status="active",
                 )

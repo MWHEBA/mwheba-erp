@@ -36,7 +36,7 @@ class ExpenseForm(forms.Form):
 
     expense_date = forms.DateField(
         label="تاريخ المصروف",
-        initial=timezone.now().date(),
+        initial=timezone.localdate(),
         widget=forms.TextInput(attrs={
             "class": "form-control",
             "data-date-picker": True,
@@ -168,7 +168,7 @@ class ExpenseForm(forms.Form):
 
     def clean_expense_date(self):
         expense_date = self.cleaned_data.get("expense_date")
-        if expense_date and expense_date > timezone.now().date():
+        if expense_date and expense_date > timezone.localdate():
             raise ValidationError("تاريخ المصروف لا يمكن أن يكون في المستقبل")
         return expense_date
 

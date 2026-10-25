@@ -76,7 +76,7 @@ class ChequeReceivableListView(LoginRequiredMixin, PermissionRequiredMixin, View
             qs = qs.filter(due_date__lte=date_to)
 
         # 2. حساب مؤشرات الأداء المالي (KPI Stats)
-        today = timezone.now().date()
+        today = timezone.localdate()
         in_portfolio_qs = Cheque.objects.filter(
             cheque_type=ChequeType.RECEIVABLE,
             status=ChequeStatus.IN_PORTFOLIO
@@ -267,7 +267,7 @@ class ChequeReceivableDetailView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         ]
 
         # نماذج الإجراءات للمودالات
-        today = timezone.now().date()
+        today = timezone.localdate()
         deposit_form = ChequeDepositActionForm(user=request.user)
         collect_form = ChequeCollectActionForm(
             initial={

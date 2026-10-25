@@ -25,7 +25,7 @@ def get_date_range_stats(
     تُرجع:
     dict: إحصائيات النطاق الزمني
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # تحديد نطاق التاريخ بناءً على النوع
     filter_kwargs = {}
@@ -78,7 +78,7 @@ def get_period_comparison(
     تُرجع:
     dict: بيانات المقارنة بين الفترتين
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # تحديد بداية ونهاية الفترة الحالية
     if range_type == "daily":

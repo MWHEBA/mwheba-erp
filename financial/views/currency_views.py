@@ -41,7 +41,7 @@ def currency_list(request):
     func_curr = ExchangeRateService.get_functional_currency()
     base_code = func_curr.code if func_curr else "EGP"
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     for c in currencies:
         if c.is_functional:
             c.current_rate = Decimal("1")
@@ -237,7 +237,7 @@ def exchange_rate_create(request):
         from_code = request.POST.get("from_code", "").strip().upper()
         to_code = request.POST.get("to_code", "").strip().upper()
         rate_val = request.POST.get("rate")
-        eff_date = request.POST.get("effective_date") or timezone.now().date()
+        eff_date = request.POST.get("effective_date") or timezone.localdate()
 
         if from_code and to_code and rate_val:
             try:
@@ -287,9 +287,9 @@ def fx_revaluation_view(request):
             from datetime import datetime
             as_of_date = datetime.strptime(as_of_str, "%Y-%m-%d").date()
         except ValueError:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
     else:
-        as_of_date = timezone.now().date()
+        as_of_date = timezone.localdate()
 
     period = AccountingPeriod.objects.filter(start_date__lte=as_of_date, end_date__gte=as_of_date).first()
     if not period:

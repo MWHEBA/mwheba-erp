@@ -143,7 +143,7 @@ class CustomerService:
                         "risk_category": risk_category,
                         "next_review_date": next_review_date,
                         "approved_by": user,
-                        "approval_date": timezone.now().date(),
+                        "approval_date": timezone.localdate(),
                     }
                 )
 

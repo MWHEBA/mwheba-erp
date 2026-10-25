@@ -350,7 +350,7 @@ class TransferService:
 
             from financial.services.legacy_adapter import LegacyAccountingAdapter
             journal_entry = LegacyAccountingAdapter.post_journal_entry(
-                date=timezone.now().date(),
+                date=timezone.localdate(),
                 description=f"تحويل مخزني - {movement_out.document_number}",
                 reference=movement_out.document_number,
                 entry_type='transfer',

@@ -77,7 +77,7 @@ class ChequePayableListView(LoginRequiredMixin, PermissionRequiredMixin, View):
             qs = qs.filter(due_date__lte=date_to)
 
         # 2. مؤشرات الأداء المالي (KPI Stats)
-        today = timezone.now().date()
+        today = timezone.localdate()
         issued_qs = Cheque.objects.filter(
             cheque_type=ChequeType.PAYABLE,
             status=ChequeStatus.ISSUED

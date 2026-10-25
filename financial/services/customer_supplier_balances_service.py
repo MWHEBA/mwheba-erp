@@ -25,7 +25,7 @@ class CustomerSupplierBalancesService:
         Args:
             as_of_date: تاريخ التقرير (افتراضي: اليوم)
         """
-        self.as_of_date = as_of_date or timezone.now().date()
+        self.as_of_date = as_of_date or timezone.localdate()
 
     def generate_customer_balances_report(self) -> Dict[str, Any]:
         """

@@ -1953,7 +1953,7 @@ class PayrollGateway:
             entry_type='payroll_payment',
             description=f"Salary payment for {payroll.employee.get_full_name_ar()} - {payroll.month.strftime('%Y-%m')}",
             reference=payment_reference or f"PAY-{payroll.id}",
-            date=timezone.now().date(),
+            date=timezone.localdate(),
             financial_category=financial_category,
             financial_subcategory=financial_subcategory
         )

@@ -358,7 +358,7 @@ class EnhancedBalanceService:
         إنشاء لقطة رصيد للحساب
         """
         if not snapshot_date:
-            snapshot_date = timezone.now().date()
+            snapshot_date = timezone.localdate()
 
         try:
             # حساب الرصيد حتى التاريخ المحدد
@@ -417,7 +417,7 @@ class EnhancedBalanceService:
         cache.delete_many(
             [
                 cls._generate_cache_key(account.id, None, None),
-                cls._generate_cache_key(account.id, None, timezone.now().date()),
+                cls._generate_cache_key(account.id, None, timezone.localdate()),
             ]
         )
 

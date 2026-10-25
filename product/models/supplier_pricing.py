@@ -128,7 +128,7 @@ class SupplierProductPrice(models.Model):
         عدد الأيام منذ آخر شراء من هذا المورد
         """
         if self.last_purchase_date:
-            return (timezone.now().date() - self.last_purchase_date).days
+            return (timezone.localdate() - self.last_purchase_date).days
         return None
 
 

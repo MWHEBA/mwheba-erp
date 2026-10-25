@@ -321,7 +321,7 @@ def get_financial_period(period_type="month", date=None):
     تُرجع: (تاريخ البداية، تاريخ النهاية)
     """
     if date is None:
-        date = timezone.now().date()
+        date = timezone.localdate()
     elif isinstance(date, datetime.datetime):
         date = date.date()
 
@@ -452,7 +452,7 @@ def generate_report(
     تُرجع: بيانات التقرير
     """
     if end_date is None:
-        end_date = timezone.now().date()
+        end_date = timezone.localdate()
 
     if start_date is None:
         start_date = end_date - datetime.timedelta(days=30)

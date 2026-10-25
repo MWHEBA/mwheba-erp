@@ -59,7 +59,7 @@ class Command(BaseCommand):
                     "grace_period_days": grace_period_days,
                     "credit_status": credit_status,
                     "risk_category": risk_category,
-                    "next_review_date": timezone.now().date() + timezone.timedelta(days=review_days),
+                    "next_review_date": timezone.localdate() + timezone.timedelta(days=review_days),
                 }
             )
             

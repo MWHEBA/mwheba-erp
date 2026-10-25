@@ -190,7 +190,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
                 )
             
             # Check if already checked in today
-            today = timezone.now().date()
+            today = timezone.localdate()
             existing = Attendance.objects.filter(
                 employee=employee,
                 date=today,
@@ -252,7 +252,7 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             employee = Employee.objects.get(id=employee_id, status='active')
             
             # Check if checked in today
-            today = timezone.now().date()
+            today = timezone.localdate()
             attendance = Attendance.objects.filter(
                 employee=employee,
                 date=today,
@@ -481,7 +481,7 @@ class PayrollViewSet(viewsets.ModelViewSet):
             month_date = date(year, month, 1)
             
             # Check if future month
-            if month_date > timezone.now().date():
+            if month_date > timezone.localdate():
                 return Response(
                     {'error': 'لا يمكن معالجة رواتب لشهر مستقبلي'},
                     status=status.HTTP_400_BAD_REQUEST

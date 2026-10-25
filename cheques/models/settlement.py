@@ -65,6 +65,25 @@ class ChequeSettlementLine(models.Model):
         related_name='cheque_settlement_lines',
         verbose_name=_('حساب البنك')
     )
+    is_reversed = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('معكوس')
+    )
+    reversed_at_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name=_('تاريخ العكس')
+    )
+    reversal_action_log = models.ForeignKey(
+        'cheques.ChequeActionLog',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reversed_settlement_lines',
+        verbose_name=_('سجل حركة العكس المرتبط')
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('تاريخ الإنشاء'))
 
     class Meta:

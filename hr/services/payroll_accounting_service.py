@@ -93,7 +93,7 @@ class PayrollAccountingService:
             financial_subcategory, financial_category = self._resolve_categories(payroll)
 
             # 4. Create Entry via AccountingGateway
-            entry_date = payroll.payment_date or (payroll.paid_at.date() if payroll.paid_at else timezone.now().date())
+            entry_date = payroll.payment_date or (payroll.paid_at.date() if payroll.paid_at else timezone.localdate())
 
             entry = self.gateway.create_journal_entry(
                 source_module='hr',

@@ -111,7 +111,7 @@ class PartnerFinancialIntegration:
         إنشاء معاملة شريك جديدة مع جميع التحققات
         """
         if not transaction_date:
-            transaction_date = timezone.now().date()
+            transaction_date = timezone.localdate()
         
         # التحقق من حدود المعاملات
         PartnerFinancialIntegration.validate_transaction_limits(
@@ -173,7 +173,7 @@ class PartnerFinancialIntegration:
         """
         الحصول على ملخص مالي للشريك
         """
-        end_date = timezone.now().date()
+        end_date = timezone.localdate()
         start_date = end_date - timedelta(days=days)
         
         # المعاملات في الفترة المحددة

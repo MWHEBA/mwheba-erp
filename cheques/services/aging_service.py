@@ -74,7 +74,7 @@ class ChequeAgingService:
         - التفصيل الدقيق لكل شيك
         """
         if not as_of_date:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
 
         # الحالات النشطة المعتبرة في التحليل
         if cheque_type == ChequeType.RECEIVABLE:

@@ -913,7 +913,7 @@ class ContractIncrease(models.Model):
             
             # Update increase status
             self.status = 'applied'
-            self.applied_date = timezone.now().date()
+            self.applied_date = timezone.localdate()
             self.applied_amount = total_increase
             self.save()
             
@@ -951,7 +951,7 @@ class ContractIncrease(models.Model):
     def is_due(self):
         """هل حان موعد الزيادة"""
         from django.utils import timezone
-        return self.status == 'pending' and self.scheduled_date <= timezone.now().date()
+        return self.status == 'pending' and self.scheduled_date <= timezone.localdate()
     
     @property
     def days_until_due(self):
@@ -959,5 +959,5 @@ class ContractIncrease(models.Model):
         from django.utils import timezone
         if self.status != 'pending':
             return None
-        delta = self.scheduled_date - timezone.now().date()
+        delta = self.scheduled_date - timezone.localdate()
         return delta.days

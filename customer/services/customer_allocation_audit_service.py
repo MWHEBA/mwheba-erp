@@ -267,7 +267,7 @@ class CustomerAllocationAuditService:
         if not customer:
             raise ValueError("الفاتورة غير مرتبطة بعميل.")
 
-        allocation_date = timezone.now().date()
+        allocation_date = timezone.localdate()
         PeriodControlService.validate_period_open(allocation_date)
 
         from utils.templatetags.utils_extras import smart_float
@@ -648,7 +648,7 @@ class CustomerAllocationAuditService:
             raise ValueError("المبلغ يجب أن يكون أكبر من صفر.")
 
         if not payment_date:
-            payment_date = timezone.now().date()
+            payment_date = timezone.localdate()
 
         try:
             from financial.services.period_control_service import PeriodControlService
@@ -787,7 +787,7 @@ class CustomerAllocationAuditService:
             raise ValueError("لم يتم تحديد أي فواتير للتخصيص.")
 
         if not allocation_date:
-            allocation_date = timezone.now().date()
+            allocation_date = timezone.localdate()
 
         try:
             from financial.services.period_control_service import PeriodControlService

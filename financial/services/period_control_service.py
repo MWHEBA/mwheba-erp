@@ -117,7 +117,7 @@ class PeriodControlService:
                 end_date=next_end
             )
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         start_d = date(today.year, 1, 1)
         end_d = date(today.year, 12, 31)
         return cls.create_fiscal_year_with_periods(

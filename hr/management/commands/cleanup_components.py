@@ -30,7 +30,7 @@ class Command(BaseCommand):
         )
         
         # تحديد البنود المنتهية
-        cutoff_date = timezone.now().date() - timedelta(days=days_threshold)
+        cutoff_date = timezone.localdate() - timedelta(days=days_threshold)
         expired_components = SalaryComponent.objects.filter(
             effective_to__lt=cutoff_date,
             is_active=True

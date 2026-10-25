@@ -45,7 +45,7 @@ class PurchaseService:
         try:
             # 1. إنشاء الفاتورة
             purchase = Purchase.objects.create(
-                date=data.get('date', timezone.now().date()),
+                date=data.get('date', timezone.localdate()),
                 supplier_id=data['supplier_id'],
                 warehouse_id=data.get('warehouse_id'),
                 payment_method=data.get('payment_method', 'credit'),
@@ -311,7 +311,7 @@ class PurchaseService:
                 amount_settled_invoice_currency=settlement['settled_invoice_amt'],
                 realized_fx_difference=settlement['realized_fx_difference'],
                 idempotency_key=idem_key,
-                payment_date=payment_data.get('payment_date', timezone.now().date()),
+                payment_date=payment_data.get('payment_date', timezone.localdate()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
                 created_by=user
@@ -410,7 +410,7 @@ class PurchaseService:
         try:
             # 1. إنشاء المرتجع
             # Support both 'date' and 'return_date' for backward compatibility
-            return_date = return_data.get('date') or return_data.get('return_date', timezone.now().date())
+            return_date = return_data.get('date') or return_data.get('return_date', timezone.localdate())
             
             purchase_return = PurchaseReturn.objects.create(
                 purchase=purchase,

@@ -28,7 +28,7 @@ class ExchangeRateSyncService:
         """
         func_curr = ExchangeRateService.get_functional_currency()
         base_code = func_curr.code if func_curr else "EGP"
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         active_currencies = Currency.objects.filter(is_active=True, is_functional=False)
         synced = []

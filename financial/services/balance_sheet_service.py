@@ -50,9 +50,9 @@ class BalanceSheetService:
                 try:
                     as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
                 except ValueError:
-                    as_of_date = timezone.now().date()
+                    as_of_date = timezone.localdate()
             elif as_of_date is None:
-                as_of_date = timezone.now().date()
+                as_of_date = timezone.localdate()
 
             if isinstance(comparison_date, str) and comparison_date.strip():
                 try:
@@ -496,7 +496,7 @@ class BalanceSheetService:
         except Exception as e:
             logger.error(f"خطأ في توليد الميزانية العمومية: {e}", exc_info=True)
             return cls._empty_balance_sheet_response(
-                as_of_date or timezone.now().date(),
+                as_of_date or timezone.localdate(),
                 comparison_date,
                 "EGP",
                 "ج.م",

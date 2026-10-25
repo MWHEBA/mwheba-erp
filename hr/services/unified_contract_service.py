@@ -66,7 +66,7 @@ class UnifiedContractService:
             
             # تفعيل العقد
             contract.status = 'active'
-            contract.activation_date = timezone.now().date()
+            contract.activation_date = timezone.localdate()
             contract.activated_by = user
             contract.save()
 
@@ -216,7 +216,7 @@ class UnifiedContractService:
             
             # فحص البنود المنتهية
             if (component.effective_to and 
-                component.effective_to < timezone.now().date()):
+                component.effective_to < timezone.localdate()):
                 renewal_analysis['expired'].append(component)
         
         # توليد توصيات التجديد
@@ -500,7 +500,7 @@ class UnifiedContractService:
             # تعطيل البند إذا لم يعد موجود في العقد الجديد
             if not ContractActivationService._has_match_in_contract(emp_comp, contract_components):
                 emp_comp.is_active = False
-                emp_comp.effective_to = timezone.now().date()
+                emp_comp.effective_to = timezone.localdate()
                 emp_comp.save()
                 deactivated_count += 1
                 

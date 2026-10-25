@@ -137,7 +137,7 @@ class ChequeAllocationService:
                 reference_id=str(locked_cheque.id),
                 defaults={
                     "transaction_number": locked_cheque.voucher_number,
-                    "issue_date": locked_cheque.issue_date or timezone.now().date(),
+                    "issue_date": locked_cheque.issue_date or timezone.localdate(),
                     "due_date": locked_cheque.due_date,
                     "currency": curr_code,
                     "foreign_amount": locked_cheque.amount,

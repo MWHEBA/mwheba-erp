@@ -4,6 +4,7 @@ LedgerCoreService - الخدمة المركزية الحاكمة لقيود ال
 """
 
 import logging
+from datetime import date
 from decimal import Decimal
 from typing import List, Dict, Any, Optional
 
@@ -372,7 +373,8 @@ class LedgerCoreService:
         cls,
         entry_id: int,
         user,
-        reversal_reason: str = ""
+        reversal_reason: str = "",
+        reversal_date: Optional[date] = None,
     ) -> JournalEntry:
         """
         العكس المحاسبي الحاكم ذو الـ 3 خطوات الذرية والقائمة البيضاء
@@ -413,8 +415,9 @@ class LedgerCoreService:
                 })
 
             # الخطوة 2: إنشاء وترحيل القيد العاكس
+            entry_date = reversal_date or timezone.localdate()
             reversal_draft = cls.create_draft_entry(
-                date=timezone.now().date(),
+                date=entry_date,
                 description=f"قيد عكسي للقيد رقم {original_entry.number}",
                 reference=f"REV-{original_entry.number}",
                 entry_type=original_entry.entry_type,

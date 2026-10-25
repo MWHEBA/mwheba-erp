@@ -200,7 +200,7 @@ def po_create(request):
     if request.method == "POST":
         supplier_id = request.POST.get("supplier")
         warehouse_id = request.POST.get("warehouse") or None
-        order_date = request.POST.get("order_date") or timezone.now().date()
+        order_date = request.POST.get("order_date") or timezone.localdate()
         delivery_due_date = request.POST.get("delivery_due_date") or None
         currency_id = request.POST.get("currency")
         exchange_rate_val = Decimal(str(request.POST.get("exchange_rate") or "1.000000"))

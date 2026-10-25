@@ -857,7 +857,7 @@ class PayrollService:
 
         from financial.services.legacy_adapter import LegacyAccountingAdapter
         entry = LegacyAccountingAdapter.post_journal_entry(
-            date=timezone.now().date(),
+            date=timezone.localdate(),
             description=f'راتب {payroll.employee.get_full_name_ar()} - {payroll.month.strftime("%Y-%m")}',
             reference=f'PAYROLL-IND-{payroll.id}',
             entry_type='payroll',
@@ -1406,7 +1406,7 @@ class PayrollService:
         payroll.status = 'paid'
         payroll.paid_by = paid_by
         payroll.paid_at = timezone.now()
-        payroll.payment_date = timezone.now().date()  # تاريخ الدفع = تاريخ اليوم الفعلي
+        payroll.payment_date = timezone.localdate()  # تاريخ الدفع = تاريخ اليوم الفعلي
         payroll.payment_account = payment_account
         payroll.payment_reference = payment_reference or ''
         payroll.save()

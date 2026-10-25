@@ -1040,9 +1040,9 @@ def balance_sheet(request):
             as_of_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             messages.warning(request, "تنسيق التاريخ غير صحيح، تم استخدام تاريخ اليوم.")
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
     else:
-        as_of_date = timezone.now().date()
+        as_of_date = timezone.localdate()
 
     comparison_date = None
     if comparison_date_str:
@@ -1198,7 +1198,7 @@ def income_statement(request):
     use_cache = request.GET.get("use_cache", "1") == "1"
 
     # تحويل التواريخ وفق الفترات السريعة أو المدخلة يدوياً
-    today = timezone.now().date()
+    today = timezone.localdate()
     date_from = None
     date_to = None
 
@@ -1441,7 +1441,7 @@ def cash_flow_statement(request):
     use_cache = request.GET.get("use_cache", "1") == "1"
 
     # تحويل التواريخ وفق الفترات السريعة أو المدخلة يدوياً
-    today = timezone.now().date()
+    today = timezone.localdate()
     date_from = None
     date_to = None
 
@@ -1669,7 +1669,7 @@ def customer_supplier_balances_report(request, account_type):
         as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
     else:
         # افتراضيًا، تاريخ اليوم
-        as_of_date = timezone.now().date()
+        as_of_date = timezone.localdate()
     
     try:
         # إنشاء خدمة تقارير الأرصدة
@@ -1780,7 +1780,7 @@ def financial_analytics(request):
     export_format = request.GET.get("export")
     use_cache = request.GET.get("use_cache", "1") == "1"
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     date_from = None
     date_to = None
 

@@ -31,7 +31,7 @@ class Command(BaseCommand):
                 self.stderr.write(self.style.ERROR(f"تنسيق التاريخ غير صحيح: {date_str}. استخدم YYYY-MM-DD"))
                 sys.exit(1)
 
-        target_date = target_date or timezone.now().date()
+        target_date = target_date or timezone.localdate()
         self.stdout.write(self.style.NOTICE(f"بدء تشغيل معالجة الإيرادات المؤجلة المستحقة حتى تاريخ: {target_date}..."))
 
         result = RevenueRecognitionService.process_all_due_schedules(as_of_date=target_date)

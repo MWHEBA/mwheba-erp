@@ -642,7 +642,7 @@ def purchase_create(request, supplier_id=None):
         next_number = f"PUR{(last_purchase.id + 1 if last_purchase else 1):04d}"
 
         initial_data = {
-            "date": timezone.now().date(),
+            "date": timezone.localdate(),
             "number": next_number,
         }
         # إضافة المورد المحدد إلى البيانات الافتراضية
@@ -1433,7 +1433,7 @@ def get_purchase_print_context(request, pk):
     is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
     from django.utils import timezone
-    today = timezone.now().date()
+    today = timezone.localdate()
     year = timezone.now().year
     currency_symbol_active = (getattr(purchase.currency, 'code', None) if is_english else (purchase.currency_symbol if hasattr(purchase, 'currency_symbol') else SystemSetting.get_currency_symbol())) or SystemSetting.get_currency_symbol()
     status_map = {
@@ -1605,7 +1605,7 @@ def purchase_duplicate(request, pk):
     ])
 
     form = PurchaseForm(initial={
-        "date": timezone.now().date(),
+        "date": timezone.localdate(),
         "supplier": original.supplier,
         "warehouse": original.warehouse,
         "discount": discount_val,

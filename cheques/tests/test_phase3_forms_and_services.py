@@ -237,7 +237,7 @@ class TestChequeReceivableFormValidation:
 
     def test_receivable_form_valid_and_auto_assigns_voucher(self, test_user, financial_accounts, sample_customer):
         """التحقق من صحة النموذج وتوليد رقم الإيصال الآلي عبر SequenceService"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         data = {
             'cheque_number': 'RCV-99901',
             'purpose': ChequePurpose.INVOICE_SETTLEMENT,
@@ -261,7 +261,7 @@ class TestChequeReceivableFormValidation:
 
     def test_receivable_form_due_date_before_issue_date_rejected(self, test_user, financial_accounts, sample_customer):
         """رفض الشيك إذا كان تاريخ الاستحقاق سابقاً لتاريخ التحرير"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         past = today - timezone.timedelta(days=5)
         data = {
             'cheque_number': 'RCV-99902',
@@ -282,7 +282,7 @@ class TestChequeReceivableFormValidation:
 
     def test_receivable_guarantee_requires_contract_reference(self, test_user, financial_accounts, sample_customer):
         """شيك الضمان يلزم وجود رقم العقد المرجعي"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         data = {
             'cheque_number': 'RCV-GUAR-01',
             'purpose': ChequePurpose.SECURITY_GUARANTEE,
@@ -321,7 +321,7 @@ class TestChequePayableFormValidation:
         )
         leaf1 = book.leaves.get(serial_number='EG1001')
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         data = {
             'checkbook': book.id,
             'checkbook_leaf': leaf1.id,
@@ -358,7 +358,7 @@ class TestChequePayableFormValidation:
             daily_disbursement_limit=Decimal('30000.00'),
         )
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         data = {
             'cheque_number': 'MANUAL-555',
             'purpose': ChequePurpose.INVOICE_SETTLEMENT,
@@ -429,7 +429,7 @@ class TestChequeBatchDepositServiceAndForm:
 
     def test_create_and_deposit_batch_service_lifecycle(self, test_user, financial_accounts, sample_customer):
         """إنشاء الحافظة وإيداع شيكين ذرياً وتغيير حالتهما إلى برسم التحصيل"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         chq1 = Cheque.objects.create(
             voucher_number='CHQR-B1-01',
             cheque_type=ChequeType.RECEIVABLE,
@@ -510,7 +510,7 @@ class TestFXRevaluationChequeIntegration:
 
     def test_foreign_cheque_evaluated_in_fx_run_and_book_value_updated(self, test_user, financial_accounts, sample_customer):
         """تقييم شيك قبض بالدولار وترحيل القيد وتحديث book_value_functional ثم إعادة ضبطها عند العكس"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         usd = financial_accounts['usd']
 
         # 1. إنشاء سنة وفترة مالية مفتوحة

@@ -26,14 +26,14 @@ def maintenance_overview(request):
     
     # البنود المنتهية
     expired_components = SalaryComponent.objects.filter(
-        effective_to__lt=timezone.now().date(),
+        effective_to__lt=timezone.localdate(),
         is_active=True
     ).count()
     
     # البنود التي ستنتهي قريباً (خلال 30 يوم)
     soon_expiring = SalaryComponent.objects.filter(
-        effective_to__gte=timezone.now().date(),
-        effective_to__lte=timezone.now().date() + timedelta(days=30),
+        effective_to__gte=timezone.localdate(),
+        effective_to__lte=timezone.localdate() + timedelta(days=30),
         is_active=True
     ).count()
     
@@ -74,7 +74,7 @@ def cleanup_expired_components(request):
         days_threshold = int(request.POST.get('days_threshold', 30))
         confirm = request.POST.get('confirm') == 'true'
         
-        cutoff_date = timezone.now().date() - timedelta(days=days_threshold)
+        cutoff_date = timezone.localdate() - timedelta(days=days_threshold)
         expired_components = SalaryComponent.objects.filter(
             effective_to__lt=cutoff_date,
             is_active=True

@@ -217,7 +217,7 @@ def setup_treasury_access(db, test_user, financial_accounts):
 def sample_sale(db, sample_customer, test_user, financial_accounts):
     sale = Sale.objects.create(
         customer=sample_customer,
-        date=timezone.now().date(),
+        date=timezone.localdate(),
         subtotal=Decimal('1000.00'),
         total=Decimal('1000.00'),
         currency=financial_accounts['currency'],
@@ -262,8 +262,8 @@ class TestPhase5InvoiceIntegration:
             functional_amount=Decimal('1000.00'),
             book_value_functional=Decimal('1000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date() + timezone.timedelta(days=15),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate() + timezone.timedelta(days=15),
             created_by=test_user
         )
 
@@ -336,8 +336,8 @@ class TestPhase5InvoiceIntegration:
             functional_amount=Decimal('1000.00'),
             book_value_functional=Decimal('1000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date(),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate(),
             created_by=test_user
         )
 
@@ -410,8 +410,8 @@ class TestPhase5InvoiceIntegration:
             functional_amount=Decimal('1000.00'),
             book_value_functional=Decimal('1000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date(),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate(),
             created_by=test_user
         )
 
@@ -474,8 +474,8 @@ class TestPhase5InvoiceIntegration:
             functional_amount=Decimal('1000.00'),
             book_value_functional=Decimal('1000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date(),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate(),
             created_by=test_user
         )
 
@@ -527,7 +527,7 @@ class TestPhase5PostingDelegationAndOpeningBalance:
         payment = SalePayment.objects.create(
             sale=sample_sale,
             amount=Decimal('500.00'),
-            payment_date=timezone.now().date(),
+            payment_date=timezone.localdate(),
             payment_method='check',
             source_type='CHEQUE',
             financial_account=None,
@@ -553,15 +553,15 @@ class TestPhase5PostingDelegationAndOpeningBalance:
             year_code='FY2026',
             defaults={
                 'name': '2026',
-                'start_date': timezone.now().date().replace(month=1, day=1),
-                'end_date': timezone.now().date().replace(month=12, day=31),
+                'start_date': timezone.localdate().replace(month=1, day=1),
+                'end_date': timezone.localdate().replace(month=12, day=31),
                 'status': 'open'
             }
         )
         batch = OpeningBalanceBatch.objects.create(
             fiscal_year=fy,
             batch_number='OB-2026-001',
-            opening_date=timezone.now().date(),
+            opening_date=timezone.localdate(),
             description="دفعة الأرصدة الافتتاحية للسنة المالية الجديدة",
             created_by=test_user,
             status='posted'
@@ -583,8 +583,8 @@ class TestPhase5PostingDelegationAndOpeningBalance:
             customer=sample_customer,
             is_opening_balance=True,
             opening_batch=batch,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date() + timezone.timedelta(days=30),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate() + timezone.timedelta(days=30),
             created_by=test_user
         )
 
@@ -635,8 +635,8 @@ class TestPhase5FeatureToggleAndDrainingMode:
             functional_amount=Decimal('5000.00'),
             book_value_functional=Decimal('5000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date(),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate(),
             created_by=test_user
         )
 
@@ -672,8 +672,8 @@ class TestPhase5FeatureToggleAndDrainingMode:
             functional_amount=Decimal('2000.00'),
             book_value_functional=Decimal('2000.00'),
             customer=sample_customer,
-            issue_date=timezone.now().date(),
-            due_date=timezone.now().date(),
+            issue_date=timezone.localdate(),
+            due_date=timezone.localdate(),
             created_by=test_user
         )
 

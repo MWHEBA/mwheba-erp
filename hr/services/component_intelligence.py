@@ -117,7 +117,7 @@ class ComponentIntelligence:
             # فحص مدة البند
             if 'max_duration_months' in rules and component.effective_to:
                 duration = self._calculate_duration_months(
-                    component.effective_from or timezone.now().date(),
+                    component.effective_from or timezone.localdate(),
                     component.effective_to
                 )
                 if duration <= rules['max_duration_months']:
@@ -255,7 +255,7 @@ class ComponentIntelligence:
         
         # البنود المنتهية ولكن لا تزال نشطة
         expired_active = components.filter(
-            effective_to__lt=timezone.now().date(),
+            effective_to__lt=timezone.localdate(),
             is_active=True
         )
         
@@ -336,7 +336,7 @@ class ComponentIntelligence:
         if not component.effective_to:
             return {'needs_renewal': False, 'reason': 'بند دائم'}
         
-        days_until_expiry = (component.effective_to - timezone.now().date()).days
+        days_until_expiry = (component.effective_to - timezone.localdate()).days
         
         # إذا كان البند سينتهي خلال 30 يوم
         if days_until_expiry <= 30:

@@ -326,7 +326,7 @@ class CustomerForm(forms.ModelForm):
                     "risk_category": risk_cat,
                     "next_review_date": next_review,
                     "approved_by": effective_user,
-                    "approval_date": timezone.now().date(),
+                    "approval_date": timezone.localdate(),
                 }
             )
 

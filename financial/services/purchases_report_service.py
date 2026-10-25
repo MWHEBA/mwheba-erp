@@ -24,7 +24,7 @@ class PurchasesReportService:
             date_from: تاريخ البداية (افتراضي: أول الشهر الحالي)
             date_to: تاريخ النهاية (افتراضي: اليوم)
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         self.date_to = date_to or today
         self.date_from = date_from or datetime(today.year, today.month, 1).date()
 

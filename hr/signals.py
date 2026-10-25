@@ -188,7 +188,7 @@ def update_leave_accrual_on_hire_date_change(sender, instance, created, **kwargs
     # Check if employee is in probation period
     active_contract = instance.get_active_contract()
     if active_contract and active_contract.probation_end_date:
-        today = timezone.now().date()
+        today = timezone.localdate()
         if today < active_contract.probation_end_date:
             # TODO: Schedule task for probation end date
             return

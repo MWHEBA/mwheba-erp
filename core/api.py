@@ -40,7 +40,7 @@ class DashboardStatsAPIView(APIView):
     throttle_classes = [BurstRateThrottle, SustainedRateThrottle]
 
     def get(self, request):
-        today = timezone.now().date()
+        today = timezone.localdate()
         this_month_start = today.replace(day=1)
 
         # إحصائيات المبيعات - معطلة مؤقتاً

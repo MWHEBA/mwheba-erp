@@ -296,7 +296,7 @@ class ProcurementBridgeService:
 
         po = Purchase(
             number=unique_num,
-            date=timezone.now().date(),
+            date=timezone.localdate(),
             status="confirmed",
             supplier=supplier,
             subtotal=subtotal,
@@ -408,5 +408,5 @@ class ProcurementBridgeService:
             'transactions_count': purchases.count(),
             'total_taxable_base': total_base,
             'total_wht_deducted': total_wht,
-            'issue_date': timezone.now().date()
+            'issue_date': timezone.localdate()
         }

@@ -48,7 +48,7 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(
                     self.style.WARNING(
-                        f'  التاريخ الحالي: {timezone.now().date()}'
+                        f'  التاريخ الحالي: {timezone.localdate()}'
                     )
                 )
                 

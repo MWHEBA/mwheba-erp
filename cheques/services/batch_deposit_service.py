@@ -51,7 +51,7 @@ class ChequeBatchDepositService:
         # 1. التحقق من صلاحية الإيداع على الحساب البنكي
         TreasurySecurityService.enforce_deposit(user, bank_account_id)
 
-        target_date = deposit_date or timezone.now().date()
+        target_date = deposit_date or timezone.localdate()
 
         # 2. قفل والتحقق من الشيكات المختارة
         cheques = list(

@@ -551,7 +551,7 @@ def tax_events_list(request):
 @require_permission('financial.view_taxcode')
 def tax_return_vat_report(request):
     """تقرير إقرار ضريبة القيمة المضافة (نموذج 10 المصري) وقيد المقاصة والتسوية"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     month_str = request.GET.get('month', today.strftime('%Y-%m'))
 
     try:
@@ -621,7 +621,7 @@ def tax_post_vat_settlement(request):
 @require_permission('financial.view_taxcode')
 def tax_withholding_report(request):
     """كشف الخصم والتحصيل تحت حساب الضريبة (نموذج 41 ضرائب)"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     quarter = request.GET.get('quarter', 'Q1')
     year = int(request.GET.get('year', today.year))
 

@@ -358,7 +358,7 @@ class TaxDeterminationService:
                         currency_code=currency,
                         exchange_rate=exchange_rate,
                         functional_amount=func_tax,
-                        posting_date=timezone.now().date(),
+                        posting_date=timezone.localdate(),
                         user=user
                     )
                     posted_journal_entry = create_tax_posting(command)

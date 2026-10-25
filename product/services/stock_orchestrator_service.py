@@ -539,7 +539,7 @@ class StockOrchestratorService:
                         entry_type='automatic',
                         description=f'حركة مخزون - {movement.product.name}',
                         reference=f'STK-{movement.id}',
-                        date=movement.movement_date if hasattr(movement, 'movement_date') else timezone.now().date(),
+                        date=movement.movement_date if hasattr(movement, 'movement_date') else timezone.localdate(),
                         financial_category=financial_category,
                         financial_subcategory=financial_subcategory
                     )
@@ -625,7 +625,7 @@ class StockOrchestratorService:
                     entry_type='reversal',
                     description=f'عكس حركة مخزون - {movement.product.name}',
                     reference=f'REV-STK-{movement.id}',
-                    date=timezone.now().date(),
+                    date=timezone.localdate(),
                     financial_category=financial_category,
                     financial_subcategory=financial_subcategory
                 )

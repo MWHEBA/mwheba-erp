@@ -29,7 +29,7 @@ class CustomerAgingService:
         customer_ids: Optional[List[int]] = None,
         as_of_date: Optional[Any] = None
     ) -> Dict[str, Any]:
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
         customers = Customer.objects.filter(is_active=True)
         if customer_ids:
             customers = customers.filter(pk__in=customer_ids)

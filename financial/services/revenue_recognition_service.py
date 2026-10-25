@@ -191,7 +191,7 @@ class RevenueRecognitionService:
                     # Create default 3 monthly schedule lines
                     monthly_amt = (allocated_price / Decimal("3")).quantize(Decimal("0.01"))
                     for seq in range(1, 4):
-                        r_date = timezone.now().date() + timezone.timedelta(days=30 * seq)
+                        r_date = timezone.localdate() + timezone.timedelta(days=30 * seq)
                         RevenueRecognitionScheduleLine.objects.create(
                             schedule=schedule,
                             sequence=seq,
@@ -375,7 +375,7 @@ class RevenueRecognitionService:
                 original_entry=orig_entry,
                 reversal_type="FULL_REVERSAL" if reversal_amount == orig_entry.functional_amount else "PARTIAL_REVERSAL",
                 reversal_amount=reversal_amount,
-                reversal_date=timezone.now().date(),
+                reversal_date=timezone.localdate(),
                 journal_entry=rev_journal,
                 reason=reason,
                 created_by=user
@@ -422,7 +422,7 @@ class RevenueRecognitionService:
         from financial.services.system_automation_user_service import SystemAutomationUserService
         from financial.models.journal_entry import AccountingPeriod
 
-        target_date = as_of_date or timezone.now().date()
+        target_date = as_of_date or timezone.localdate()
         exec_user = user or SystemAutomationUserService.get_or_create_system_user()
 
         due_lines = RevenueRecognitionScheduleLine.objects.filter(

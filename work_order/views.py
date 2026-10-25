@@ -666,7 +666,7 @@ def work_order_record_deposit(request, pk):
     if request.method == "POST":
         amount_str = request.POST.get("amount")
         payment_method = request.POST.get("payment_method")
-        payment_date = request.POST.get("payment_date") or timezone.now().date().strftime("%Y-%m-%d")
+        payment_date = request.POST.get("payment_date") or timezone.localdate().strftime("%Y-%m-%d")
         reference_number = request.POST.get("reference_number", "")
         notes = request.POST.get("notes", "")
 

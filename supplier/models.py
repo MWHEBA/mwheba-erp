@@ -1507,7 +1507,7 @@ class SupplierService(models.Model):
         """عدد الأيام منذ آخر تحديث لسعر الخدمة"""
         if not self.price_updated_at:
             return 0
-        delta = timezone.now().date() - self.price_updated_at.date()
+        delta = timezone.localdate() - timezone.localdate(self.price_updated_at)
         return max(0, delta.days)
 
     @property
@@ -1517,7 +1517,7 @@ class SupplierService(models.Model):
         يفحص أولاً تاريخ الصلاحية الصريح price_valid_until، 
         ثم المدة الافتراضية لنوع الخدمة default_validity_days.
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.price_valid_until:
             return self.price_valid_until < today
 
@@ -1538,7 +1538,7 @@ class SupplierService(models.Model):
         - 'stale': منتهي الصلاحية أو قديم
         - 'legacy_unconfirmed': سعر تاريخي بانتظار التأكيد الأول
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         if self.price_valid_until:
             if self.price_valid_until < today:
                 return 'stale'
@@ -1574,7 +1574,7 @@ class SupplierService(models.Model):
             from_currency__code=curr.code
         ).order_by('-effective_date', '-created_at').first()
         if rate_obj:
-            return (timezone.now().date() - rate_obj.effective_date).days > 7
+            return (timezone.localdate() - rate_obj.effective_date).days > 7
         return True
 
     @property

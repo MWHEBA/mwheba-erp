@@ -40,7 +40,7 @@ class ChequeAlertService:
         """
         ملخص إحصائيات التنبيهات المالية السريعة للـ Dashboard والشاشات
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         next_week = today + timedelta(days=7)
 
         # 1. شيكات تستحق اليوم
@@ -140,7 +140,7 @@ class ChequeAlertService:
         - 'overdue': متأخرات الاستحقاق السابقة
         - 'all_active': كافة الشيكات النشطة
         """
-        today = timezone.now().date()
+        today = timezone.localdate()
         qs = Cheque.objects.filter(
             status__in=cls.ACTIVE_RECEIVABLE_STATUSES + cls.ACTIVE_PAYABLE_STATUSES,
         ).exclude(purpose=ChequePurpose.SECURITY_GUARANTEE).select_related(

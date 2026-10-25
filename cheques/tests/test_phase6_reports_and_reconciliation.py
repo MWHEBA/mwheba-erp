@@ -458,7 +458,7 @@ def test_subledger_reconciliation_service_with_details(
     """
     اختبار دالة reconcile_with_details وإرجاع القوائم التفصيلية للثلاثة حسابات الرقابية
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # 1. شيك قبض في المحفظة (11220)
     Cheque.objects.create(
@@ -513,7 +513,7 @@ def test_cheque_aging_service_calculation(
     """
     اختبار ChequeAgingService وتقسيم الشيكات عبر الشرائح الزمنية وحساب مجاميع الشركاء
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # شيك 1: ساري (غير متأخر) - يستحق بعد 10 أيام
     Cheque.objects.create(
@@ -586,7 +586,7 @@ def test_cheque_alert_service_due_dates(
     """
     اختبار ChequeAlertService وتصنيف الشيكات (اليوم، الأسبوع، المتأخرات، المرتدة)
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # 1. شيك يستحق اليوم
     Cheque.objects.create(

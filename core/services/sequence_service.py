@@ -173,7 +173,7 @@ class SequenceService:
         """
         document_type = cls.normalize_document_type(document_type)
         if not date:
-            date = timezone.now().date()
+            date = timezone.localdate()
 
         year = date.year if hasattr(date, "year") else timezone.now().year
         company_code = str(company_code or "DEFAULT").strip().upper()
@@ -276,7 +276,7 @@ class SequenceService:
         """
         document_type = cls.normalize_document_type(document_type)
         if not date:
-            date = timezone.now().date()
+            date = timezone.localdate()
 
         year = date.year if hasattr(date, "year") else timezone.now().year
         company_code = str(company_code or "DEFAULT").strip().upper()
@@ -446,7 +446,7 @@ class SequenceService:
 
         document_type = cls.normalize_document_type(document_type)
         if not date:
-            date = timezone.now().date()
+            date = timezone.localdate()
 
         year = date.year if hasattr(date, "year") else timezone.now().year
         company_code = str(company_code or "DEFAULT").strip().upper()

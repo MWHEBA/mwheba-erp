@@ -161,7 +161,7 @@ class HRService:
                     'mobile_phone': employee.mobile_phone,
                     'work_email': employee.work_email,
                     'hire_date': employee.hire_date,
-                    'experience_years': (timezone.now().date() - employee.hire_date).days // 365,
+                    'experience_years': (timezone.localdate() - employee.hire_date).days // 365,
                 }
                 
                 employees_data.append(employee_info)
@@ -182,7 +182,7 @@ class HRService:
         try:
             # تحديد الفترة الافتراضية (آخر 30 يوم)
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to - timedelta(days=30)
             

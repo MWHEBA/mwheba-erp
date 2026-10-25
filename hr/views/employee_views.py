@@ -454,7 +454,7 @@ def employee_delete(request, pk):
         from django.utils import timezone
         employee.status = 'terminated'
         if not employee.termination_date:
-            employee.termination_date = timezone.now().date()
+            employee.termination_date = timezone.localdate()
         try:
             employee.save()
             messages.success(request, 'تم إنهاء خدمة الموظف بنجاح')

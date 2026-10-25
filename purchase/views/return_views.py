@@ -54,7 +54,7 @@ def purchase_return(request, pk):
             with transaction.atomic():
                 # إنشاء مرتجع المشتريات
                 return_data = {
-                    "date": request.POST.get("date") or timezone.now().date(),
+                    "date": request.POST.get("date") or timezone.localdate(),
                     "warehouse": purchase.warehouse.id,  # استخدام نفس مخزن الفاتورة
                     "notes": request.POST.get("notes", ""),
                 }

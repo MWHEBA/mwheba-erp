@@ -21,7 +21,7 @@ class ExecutiveDashboardService:
 
     @classmethod
     def get_executive_dashboard(cls, as_of_date: Optional[Any] = None) -> ExecutiveDashboardDTO:
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
 
         ar_metrics = ARMetricsService.get_ar_metrics(as_of_date=ref_date)
         inv_metrics = InventoryMetricsService.get_inventory_metrics()

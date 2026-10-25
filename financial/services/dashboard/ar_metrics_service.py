@@ -17,7 +17,7 @@ class ARMetricsService:
 
     @classmethod
     def get_ar_metrics(cls, as_of_date: Optional[Any] = None) -> ARMetricsDTO:
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
 
         open_txs = CustomerTransaction.objects.filter(status="OPEN")
         total_open = open_txs.aggregate(total=Sum("open_amount"))["total"] or Decimal("0.00")

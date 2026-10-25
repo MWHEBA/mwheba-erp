@@ -148,7 +148,7 @@ class CheckbookService:
                 action=ChequeActionType.REPLACE_LEAF,
                 from_status=cheque_locked.status,
                 to_status=cheque_locked.status,
-                action_date=timezone.now().date(),
+                action_date=timezone.localdate(),
                 idempotency_key=f"REPLACE_LEAF:{cheque_locked.pk}:{new_leaf_locked.pk}:{timezone.now().timestamp()}",
                 reason=f"استبدال ورقة تالفة {old_serial} بالورقة {new_leaf_locked.serial_number}: {voided_reason}",
                 created_by=user,

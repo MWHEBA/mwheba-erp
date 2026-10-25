@@ -272,7 +272,7 @@ class SmartBankStatementParser:
 
         for row in rows:
             raw_date = row.get(col_date) if col_date else None
-            parsed_date = timezone.now().date()
+            parsed_date = timezone.localdate()
             if raw_date and str(raw_date).strip() != '':
                 try:
                     s_date = str(raw_date).strip()

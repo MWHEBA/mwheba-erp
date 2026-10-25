@@ -55,21 +55,40 @@ class ChequeSubledgerReconciliationService:
         base_functional = cheque.functional_amount or Decimal("0.00")
 
         # 1. صافي التسويات والتحصيلات في ذلك التاريخ
-        # أ. التسويات القائمة التي تاريخها <= as_of_date
-        settled_lines = ChequeSettlementLine.objects.filter(
+        # أ. قراءة أسطر التسوية المنفذة في أو قبل as_of_date
+        all_settled_lines = ChequeSettlementLine.objects.filter(
             cheque=cheque,
             settlement_date__lte=as_of_date
-        )
-        net_settled_book_val = settled_lines.aggregate(
-            total=models.Sum("book_value_functional")
-        )["total"] or Decimal("0.00")
+        ).select_related("action_log", "reversal_action_log", "action_log__reversed_by_log")
 
-        # ب. التسويات التي تم عكسها لاحقاً ولكن بعد as_of_date (كانت سارية في as_of_date)
+        net_settled_book_val = Decimal("0.00")
+        for s_line in all_settled_lines:
+            rev_date = s_line.reversal_action_log.action_date if s_line.reversal_action_log else s_line.reversed_at_date
+            if not rev_date and s_line.action_log and s_line.action_log.is_reversed:
+                if s_line.action_log.reversed_by_log:
+                    rev_date = s_line.action_log.reversed_by_log.action_date
+                else:
+                    rev_log = cheque.action_logs.filter(
+                        action=ChequeActionType.REVERSE_ACTION,
+                        id__gt=s_line.action_log.id
+                    ).order_by("id").first()
+                    if rev_log:
+                        rev_date = rev_log.action_date
+
+            # إذا كانت التسوية معكوسة وكان تاريخ العكس في أو قبل as_of_date، فإن أثرها ملغى تاريخياً في ذلك التاريخ
+            if (s_line.is_reversed or (s_line.action_log and s_line.action_log.is_reversed)) and rev_date and rev_date <= as_of_date:
+                continue
+
+            # إذا لم تُعكس، أو كان عكسها في تاريخ لاحق بعد as_of_date: كانت التسوية سارية بكامل قيمتها الدفترية في as_of_date
+            net_settled_book_val += s_line.book_value_functional
+
+        # ب. دعم احتياطي للحركات التاريخية القديمة التي حُذفت أسطر تسويتها قبل هذا التحديث
+        existing_action_ids = set(all_settled_lines.values_list("action_log_id", flat=True))
         collect_actions = cheque.action_logs.filter(
             action__in=[ChequeActionType.COLLECT, ChequeActionType.PARTIAL_COLLECT, ChequeActionType.CLEAR],
             action_date__lte=as_of_date,
             is_reversed=True
-        )
+        ).exclude(id__in=existing_action_ids)
         for act in collect_actions:
             rev_date = None
             if act.reversed_by_log:

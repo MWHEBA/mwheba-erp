@@ -1899,7 +1899,7 @@ class SyncOrderUnitPricesAPIView(BaseAPIView):
 
                     service.price_updated_at = timezone.now()
                     validity_days = service.service_type.default_validity_days if service.service_type else 30
-                    service.price_valid_until = timezone.now().date() + timedelta(days=validity_days)
+                    service.price_valid_until = timezone.localdate() + timedelta(days=validity_days)
                     service.save()
 
                     ref_text = f"أمر شغل {order_number}".strip() if order_number else "تسعير أمر شغل"

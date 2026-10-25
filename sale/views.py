@@ -416,7 +416,7 @@ def sale_create(request, customer_id=None):
         default_cash = AccountHelperService.get_default_cash_account()
 
         initial_data = {
-            "date": timezone.now().date(),
+            "date": timezone.localdate(),
             "invoice_type": "credit",
             "notes": default_sale_notes,
         }
@@ -675,7 +675,7 @@ def add_payment(request, pk):
                     'payment_method': request.POST.get('payment_method'),  # من payment_account_select
                     'payment_exchange_rate': request.POST.get('payment_exchange_rate'),
                     'amount_paid_currency': request.POST.get('amount_paid_currency'),
-                    'payment_date': form.cleaned_data.get('payment_date', timezone.now().date()),
+                    'payment_date': form.cleaned_data.get('payment_date', timezone.localdate()),
                     'cost_center_id': request.POST.get('cost_center') or None,
                     'reference_number': request.POST.get('reference_number') or '',
                     'notes': form.cleaned_data.get('notes', ''),
@@ -703,7 +703,7 @@ def add_payment(request, pk):
 
         initial_data = {
             'amount': sale.amount_due,
-            'payment_date': timezone.now().date(),
+            'payment_date': timezone.localdate(),
             'payment_exchange_rate': latest_rate,
         }
         form = SalePaymentForm(initial=initial_data, sale=sale)
@@ -805,7 +805,7 @@ def sale_return(request, pk):
                 messages.error(request, "يجب تحديد كمية مرتجعة واحدة على الأقل")
             else:
                 return_data = {
-                    'date': request.POST.get('date') or timezone.now().date(),
+                    'date': request.POST.get('date') or timezone.localdate(),
                     'reason': '',
                     'notes': '',
                     'items': []
@@ -831,7 +831,7 @@ def sale_return(request, pk):
             messages.error(request, f"حدث خطأ أثناء إنشاء المرتجع: {str(e)}")
     else:
         initial_data = {
-            'date': timezone.now().date(),
+            'date': timezone.localdate(),
         }
         form = SaleReturnForm(initial=initial_data)
 
@@ -2222,7 +2222,7 @@ def sale_duplicate(request, pk):
     ])
 
     form = SaleForm(initial={
-        "date": timezone.now().date(),
+        "date": timezone.localdate(),
         "customer": original.customer,
         "warehouse": original.warehouse,
         "cost_center": original.cost_center_id,

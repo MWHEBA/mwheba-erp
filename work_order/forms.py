@@ -48,4 +48,4 @@ class WorkOrderForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.initial.get("start_date"):
-            self.initial["start_date"] = timezone.now().date().strftime("%Y-%m-%d")
+            self.initial["start_date"] = timezone.localdate().strftime("%Y-%m-%d")

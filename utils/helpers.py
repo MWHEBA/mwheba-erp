@@ -232,7 +232,7 @@ def get_current_fiscal_year():
 
     تُرجع: (تاريخ البداية، تاريخ النهاية)
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     fiscal_year_start_month = 1  # يناير
 
     # تحديد بداية السنة المالية
@@ -323,7 +323,7 @@ def calculate_age(birth_date):
     if not birth_date:
         return 0
 
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     # حساب العمر
     age = today.year - birth_date.year

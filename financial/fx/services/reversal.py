@@ -44,7 +44,7 @@ class FXReversalService:
                 currency_scope=run.currency_scope,
                 target_currency=run.target_currency,
                 status='REVERSED',
-                run_date=timezone.now().date(),
+                run_date=timezone.localdate(),
                 rate_source=run.rate_source,
                 journal_entry=reversal_entry,
                 reversal_of_run=run,

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from datetime import date
 from decimal import Decimal
 from typing import Dict, Any, Optional
 
@@ -37,6 +38,8 @@ class ChequeReversalService:
         reason: str = "",
         idempotency_key: Optional[str] = None,
         cheque: Optional[Any] = None,
+        reversal_date: Optional[date] = None,
+        **kwargs
     ) -> Dict[str, Any]:
         """
         تنفيذ التراجع الخطي الآمن:
@@ -102,7 +105,29 @@ class ChequeReversalService:
                     )
                 )
 
-            # 3. فحص التسوية البنكية (Bank Reconciliation Guard)
+            # 3. تحديد والتحقق المحاسبي من تاريخ العكس الموحد
+            effective_reversal_date = reversal_date or kwargs.get("action_date") or timezone.localdate()
+            if target_log.action_date and effective_reversal_date < target_log.action_date:
+                raise ValidationError(
+                    _("تاريخ العكس ({rev_date}) لا يمكن أن يكون سابقاً لتاريخ الحركة الأصلية ({orig_date}).").format(
+                        rev_date=effective_reversal_date,
+                        orig_date=target_log.action_date
+                    )
+                )
+
+            from financial.models import AccountingPeriod
+            if AccountingPeriod.objects.exists():
+                is_open = AccountingPeriod.objects.filter(
+                    start_date__lte=effective_reversal_date,
+                    end_date__gte=effective_reversal_date,
+                    status="open"
+                ).exists()
+                if not is_open:
+                    raise ValidationError(
+                        _("تاريخ العكس ({date}) لا يقع ضمن فترة مالية محاسبية مفتوحة.").format(date=effective_reversal_date)
+                    )
+
+            # 4. فحص التسوية البنكية (Bank Reconciliation Guard)
             reversal_entry = None
             if target_log.journal_entry:
                 is_reconciled = BankReconciliationMatch.objects.filter(
@@ -114,32 +139,34 @@ class ChequeReversalService:
                         _("لا يمكن التراجع عن حركة تم مطابقتها واعتمادها في كشف الحساب البنكي. يجب إلغاء المطابقة البنكية أولاً.")
                     )
 
-                # عكس قيد اليومية
+                # عكس قيد اليومية بتاريخ العكس الموحد المفحوص محاسبياً
                 reversal_reason = f"عكس تدقيقي لحركة {target_log.get_action_display()} لشيك #{cheque.cheque_number}: {reason}"
                 reversal_entry = LedgerCoreService.reverse_entry(
                     entry_id=target_log.journal_entry_id,
                     user=user,
-                    reversal_reason=reversal_reason
+                    reversal_reason=reversal_reason,
+                    reversal_date=effective_reversal_date,
                 )
 
-            # 4. استعادة الأرصدة والحقول بحسب نوع الحركة المتراجع عنها
-            if target_log.action == ChequeActionType.COLLECT:
-                # حذف أو عكس سطر التسوية المرتبط
+            # 5. استعادة الأرصدة والحقول بحسب نوع الحركة المتراجع عنها
+            settlement_to_reverse = None
+            if target_log.action in [ChequeActionType.COLLECT, ChequeActionType.PARTIAL_COLLECT]:
+                # الاحتفاظ بسطر التسوية وربطه بحركة العكس لاحقاً دون حذفه للحفاظ على القيمة الدفترية للتقارير التاريخية
                 settlement = ChequeSettlementLine.objects.filter(action_log=target_log).first()
                 if settlement:
                     cheque.collected_amount -= settlement.settled_amount_currency
                     cheque.remaining_amount += settlement.settled_amount_currency
-                    settlement.delete()
+                    settlement_to_reverse = settlement
                 else:
                     cheque.collected_amount = Decimal("0.00")
                     cheque.remaining_amount = cheque.amount
                 cheque.remaining_functional = cheque.compute_remaining_functional()
 
             elif target_log.action == ChequeActionType.CLEAR:
-                # عكس صرف شيك الدفع: استعادة الرصيد المتبقي وحذف سطر التسوية وإلغاء بيانات الصرف
+                # عكس صرف شيك الدفع: استعادة الرصيد المتبقي وإلغاء بيانات الصرف مع الاحتفاظ بسطر التسوية
                 settlement = ChequeSettlementLine.objects.filter(action_log=target_log).first()
                 if settlement:
-                    settlement.delete()
+                    settlement_to_reverse = settlement
                 cheque.remaining_amount = cheque.amount
                 cheque.remaining_functional = cheque.compute_remaining_functional()
                 cheque.cleared_at = None
@@ -262,7 +289,8 @@ class ChequeReversalService:
                                 new_je = LedgerCoreService.reverse_entry(
                                     entry_id=alloc.journal_entry.reversed_by_entry_id,
                                     user=user,
-                                    reversal_reason=f"استعادة قيد تسوية الدفعة المقدمة على الفاتورة {sale.number} بعد التراجع عن حركة {target_log.get_action_display()} لشيك #{cheque.cheque_number}"
+                                    reversal_reason=f"استعادة قيد تسوية الدفعة المقدمة على الفاتورة {sale.number} بعد التراجع عن حركة {target_log.get_action_display()} لشيك #{cheque.cheque_number}",
+                                    reversal_date=effective_reversal_date,
                                 )
                                 alloc.journal_entry = new_je
                                 alloc.save(update_fields=["journal_entry"])
@@ -282,7 +310,7 @@ class ChequeReversalService:
                                         object_id=cheque.id,
                                         reference=f"RESTORE-ALLOC-{cheque.voucher_number}->{sale.number}",
                                     ),
-                                    date=timezone.now().date(),
+                                    date=effective_reversal_date,
                                     description=f"استعادة قيد تسوية دفعة مقدمة لشيك #{cheque.cheque_number} على فاتورة {sale.number}",
                                     lines=[
                                         JournalEntryLineData(
@@ -390,7 +418,7 @@ class ChequeReversalService:
                 action=ChequeActionType.REVERSE_ACTION,
                 from_status=target_log.to_status,
                 to_status=previous_status,
-                action_date=timezone.now().date(),
+                action_date=effective_reversal_date,
                 idempotency_key=idempotency_key,
                 amount_processed=target_log.amount_processed,
                 bank_charges=target_log.bank_charges,
@@ -403,6 +431,14 @@ class ChequeReversalService:
             target_log.is_reversed = True
             target_log.reversed_by_log = reversal_log
             target_log.save(update_fields=["is_reversed", "reversed_by_log"])
+
+            # 8. وسم أسطر التسوية المرتبطة كمعكوسة وربطها بحركة العكس وتاريخها دون حذفها
+            linked_settlements = ChequeSettlementLine.objects.filter(action_log=target_log)
+            for st in linked_settlements:
+                st.is_reversed = True
+                st.reversed_at_date = effective_reversal_date
+                st.reversal_action_log = reversal_log
+                st.save(update_fields=["is_reversed", "reversed_at_date", "reversal_action_log"])
 
             logger.info(f"Reversed action #{target_log.id} on Cheque #{cheque.id}. Reverted to status: {previous_status}")
             return {

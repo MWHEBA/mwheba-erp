@@ -259,7 +259,7 @@ class BalanceService:
         ملخص الحسابات حسب النوع
         """
         if not date_to:
-            date_to = timezone.now().date()
+            date_to = timezone.localdate()
 
         accounts_query = ChartOfAccounts.objects.filter(is_leaf=True, is_active=True)
 

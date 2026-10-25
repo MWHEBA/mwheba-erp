@@ -22,7 +22,7 @@ class FXValidationService:
             raise ValidationError(f"لا يمكن اعتماد تشغيل بحالة '{run.get_status_display()}'.")
 
         as_of_date = run.period.end_date
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         # 1. فحص فجوة عمر سعر الصرف (Rate Age Guard > 7 Days)
         snapshots = run.rate_snapshots.all()

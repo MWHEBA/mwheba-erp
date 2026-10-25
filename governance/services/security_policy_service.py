@@ -26,7 +26,7 @@ class SecurityPolicyService:
     
     def get_security_overview(self):
         """Get security overview statistics"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         
         # Count active policies
         active_policies = SecurityPolicy.objects.filter(is_enabled=True).count()

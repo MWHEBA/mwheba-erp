@@ -350,13 +350,13 @@ def cleanup_old_reconciliation_data():
         from django.core.cache import cache
         
         # تنظيف بيانات المطابقة الأقدم من 90 يوم
-        cutoff_date = timezone.now().date() - timedelta(days=90)
+        cutoff_date = timezone.localdate() - timedelta(days=90)
         
         cleaned_count = 0
         
         # تنظيف cache المطابقة
         for days_back in range(90, 365):  # من 90 إلى 365 يوم
-            old_date = timezone.now().date() - timedelta(days=days_back)
+            old_date = timezone.localdate() - timedelta(days=days_back)
             
             cache_keys = [
                 f"reconciliation_results:{old_date.isoformat()}",

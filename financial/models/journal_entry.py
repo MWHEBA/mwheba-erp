@@ -739,7 +739,7 @@ class JournalEntry(models.Model):
         if self.is_posted:
             raise ValidationError(_("القيود المرحلة لا يمكن تعديلها - استخدم العكس بدلاً من ذلك"))
     
-    def create_reversal_entry(self, user, reason="", partial_amount=None):
+    def create_reversal_entry(self, user, reason="", partial_amount=None, date=None):
         """
         إنشاء قيد عكسي لهذا القيد
         
@@ -760,8 +760,9 @@ class JournalEntry(models.Model):
             raise ValidationError(_("مبلغ العكس أكبر من المبلغ الأصلي"))
         
         # إنشاء القيد العكسي كمسودة أولاً لتمكين إضافة البنود
+        rev_date = date or timezone.localdate()
         reversal_entry = JournalEntry(
-            date=timezone.now().date(),
+            date=rev_date,
             entry_type='reversal',
             status='draft',
             description=f"عكس القيد {self.number} - {reason}",
@@ -769,7 +770,7 @@ class JournalEntry(models.Model):
             source_module=self.source_module,
             source_model=self.source_model,
             source_id=self.source_id,
-            accounting_period=AccountingPeriod.get_period_for_date(timezone.now().date()),
+            accounting_period=AccountingPeriod.get_period_for_date(rev_date),
             original_entry=self,
             is_reversal=True,
             reversal_reason=reason,
@@ -1448,7 +1449,7 @@ class JournalEntryTemplate(models.Model):
     def create_entry(self, date=None, description=None, reference=None, user=None):
         """إنشاء قيد من القالب"""
         entry = JournalEntry.objects.create(
-            date=date or timezone.now().date(),
+            date=date or timezone.localdate(),
             entry_type=self.entry_type,
             description=description or self.description,
             reference=reference,

@@ -36,7 +36,7 @@ __all__ = [
 @login_required
 def biometric_dashboard(request):
     """لوحة تحكم شاملة لمراقبة سجلات البصمة"""
-    today = timezone.now().date()
+    today = timezone.localdate()
     week_ago = today - timedelta(days=7)
     month_ago = today - timedelta(days=30)
     
@@ -699,7 +699,7 @@ def api_biometric_stats(request):
     GET /hr/api/biometric/stats/
     """
     try:
-        today = timezone.now().date()
+        today = timezone.localdate()
         
         # إحصائيات السجلات
         total_logs = BiometricLog.objects.count()
@@ -811,7 +811,7 @@ def api_process_all_biometric_logs(request):
         
         # توليد سجلات الغياب للأيام التي ليس بها بصمات (حتى الأمس لتجنب غياب اليوم الحالي قبل نهايته)
         try:
-            today = timezone.now().date()
+            today = timezone.localdate()
             yesterday = today - timedelta(days=1)
             # You can decide how far back to generate, let's say a week or from start of current month
             start_date = today.replace(day=1)
@@ -874,7 +874,7 @@ def api_reset_month_processing(request):
         if month_str:
             year, month = map(int, month_str.split('-'))
         else:
-            today = timezone.now().date()
+            today = timezone.localdate()
             year, month = today.year, today.month
 
         # أول وآخر يوم في الشهر

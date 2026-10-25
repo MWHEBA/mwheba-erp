@@ -53,7 +53,7 @@ class AllocationService:
                 target_document_type=target_doc_type,
                 target_document_id=1,
                 allocated_amount=allocated_amount,
-                allocation_date=timezone.now().date(),
+                allocation_date=timezone.localdate(),
                 created_by=user
             )
 
@@ -98,7 +98,7 @@ class AllocationService:
         """
         تخصيص وتسوية الدفعة مقابل الفاتورة (FIN-SUB-001 to FIN-SUB-008)
         """
-        ref_date = allocation_date or timezone.now().date()
+        ref_date = allocation_date or timezone.localdate()
         alloc_amt = cls.quantize_amount(allocated_amount)
 
         if alloc_amt <= Decimal('0.00'):
@@ -274,7 +274,7 @@ class AllocationService:
                 functional_amount=-alloc.functional_amount,
                 realized_fx_difference=-alloc.realized_fx_difference,
                 allocation_status=AllocationStatus.REVERSED,
-                allocation_date=timezone.now().date(),
+                allocation_date=timezone.localdate(),
                 created_by=user
             )
 

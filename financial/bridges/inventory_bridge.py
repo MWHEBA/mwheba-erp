@@ -70,7 +70,7 @@ class InventoryAccountingBridge:
                 },
             ]
 
-            entry_date = grn.received_date.date() if hasattr(grn.received_date, "date") else timezone.now().date()
+            entry_date = grn.received_date.date() if hasattr(grn.received_date, "date") else timezone.localdate()
             draft_entry = LedgerCoreService.create_draft_entry(
                 date=entry_date,
                 description=f"قيد استلام مخزني GRN #{grn.grn_number}",

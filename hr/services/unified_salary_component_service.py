@@ -91,7 +91,7 @@ class UnifiedSalaryComponentService:
             
             if soft_delete:
                 component.is_active = False
-                component.effective_to = timezone.now().date()
+                component.effective_to = timezone.localdate()
                 component.save()
             else:
                 component_name = component.name
@@ -134,7 +134,7 @@ class UnifiedSalaryComponentService:
                 'formula': template.formula,
                 'account_code': template.default_account_code,
                 'is_active': True,
-                'effective_from': timezone.now().date(),
+                'effective_from': timezone.localdate(),
                 'source': 'template',
                 'notes': f'تم الإنشاء من القالب: {template.name}'
             }
@@ -307,7 +307,7 @@ class UnifiedSalaryComponentService:
             else:
                 # البند لم يعد موجود في العقد
                 existing.is_active = False
-                existing.effective_to = timezone.now().date()
+                existing.effective_to = timezone.localdate()
                 existing.save()
                 results['removed'] += 1
         
@@ -338,7 +338,7 @@ class UnifiedSalaryComponentService:
             dict: تفاصيل الراتب
         """
         if not month:
-            month = timezone.now().date()
+            month = timezone.localdate()
         
         # جلب البنود النشطة
         components = self.get_active_components(employee, month, include_inactive)
@@ -390,7 +390,7 @@ class UnifiedSalaryComponentService:
             QuerySet: البنود النشطة
         """
         if not month:
-            month = timezone.now().date()
+            month = timezone.localdate()
         
         components = employee.salary_components.all()
         

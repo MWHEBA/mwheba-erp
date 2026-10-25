@@ -239,7 +239,7 @@ class EmployeeCustodyAdvance(models.Model):
             self.status = CustodyAdvanceStatus.PARTIALLY_SETTLED
         elif (
             self.status == CustodyAdvanceStatus.ACTIVE
-            and self.due_date < timezone.now().date()
+            and self.due_date < timezone.localdate()
             and self.current_balance > Decimal("0.00")
         ):
             self.status = CustodyAdvanceStatus.OVERDUE

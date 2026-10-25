@@ -153,7 +153,7 @@ def base_financial_setup(test_user):
 
 @pytest.fixture
 def sample_receivable_cheque(test_user, base_financial_setup):
-    today = timezone.now().date()
+    today = timezone.localdate()
     return Cheque.objects.create(
         cheque_type=ChequeType.RECEIVABLE,
         purpose=ChequePurpose.INVOICE_SETTLEMENT,
@@ -178,7 +178,7 @@ def sample_receivable_cheque(test_user, base_financial_setup):
 
 @pytest.fixture
 def sample_payable_cheque(test_user, base_financial_setup):
-    today = timezone.now().date()
+    today = timezone.localdate()
     book = Checkbook.objects.create(
         bank_account=base_financial_setup['bank'],
         name="دفتر بنك مصر 01",
@@ -242,7 +242,7 @@ class TestChequeReceivableViews:
         get_res = auth_client.get(url)
         assert get_res.status_code == 200
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         post_data = {
             'cheque_number': 'RCV-NEW-99',
             'purpose': ChequePurpose.INVOICE_SETTLEMENT,
@@ -307,7 +307,7 @@ class TestChequeActionEndpoints:
         url = reverse('cheques:cheque_deposit_action', kwargs={'pk': sample_receivable_cheque.pk})
         post_data = {
             'deposit_bank_account': base_financial_setup['bank'].id,
-            'action_date': str(timezone.now().date()),
+            'action_date': str(timezone.localdate()),
             'notes': 'إيداع تجريبي للاختبار',
         }
         res = auth_client.post(url, data=post_data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
@@ -325,7 +325,7 @@ class TestChequeActionEndpoints:
 
         url = reverse('cheques:cheque_bounce_action', kwargs={'pk': sample_receivable_cheque.pk})
         post_data = {
-            'action_date': str(timezone.now().date()),
+            'action_date': str(timezone.localdate()),
             'bounce_reason': 'عدم كفاية الرصيد بالبنك',
         }
         res = auth_client.post(url, data=post_data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
@@ -338,7 +338,7 @@ class TestChequeActionEndpoints:
     def test_cheque_clear_action_payable(self, auth_client, sample_payable_cheque):
         url = reverse('cheques:cheque_clear_action', kwargs={'pk': sample_payable_cheque.pk})
         post_data = {
-            'clearing_date': str(timezone.now().date())
+            'clearing_date': str(timezone.localdate())
         }
         res = auth_client.post(url, data=post_data, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         assert res.status_code == 200
@@ -361,7 +361,7 @@ class TestBatchDepositAndCheckbookViews:
 
         post_data = {
             'bank_account': base_financial_setup['bank'].id,
-            'deposit_date': str(timezone.now().date()),
+            'deposit_date': str(timezone.localdate()),
             'cheques': [sample_receivable_cheque.id],
             'notes': 'حافظة تجريبية'
         }
@@ -419,7 +419,7 @@ class TestChequePrintAndReconciliationIntegration:
         inflow_stmt_line = SimpleNamespace(
             debit=Decimal('15000.00'),
             credit=Decimal('0.00'),
-            transaction_date=timezone.now().date(),
+            transaction_date=timezone.localdate(),
         )
 
         candidates_inflow = BankCandidateEngine.get_cheque_candidates(
@@ -433,7 +433,7 @@ class TestChequePrintAndReconciliationIntegration:
         outflow_stmt_line = SimpleNamespace(
             debit=Decimal('0.00'),
             credit=Decimal('25000.00'),
-            transaction_date=timezone.now().date(),
+            transaction_date=timezone.localdate(),
         )
         candidates_outflow = BankCandidateEngine.get_cheque_candidates(
             bank_account=base_financial_setup['bank'],

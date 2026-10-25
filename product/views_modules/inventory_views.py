@@ -60,7 +60,7 @@ def inventory_dashboard_disabled(request):
         )
 
         # حركات اليوم
-        today = timezone.now().date()
+        today = timezone.localdate()
         today_movements = InventoryMovement.objects.filter(date__date=today).aggregate(
             total_movements=Count("id"),
             total_in=Sum("quantity", filter=Q(movement_type__in=["in", "return_in"])),
@@ -902,7 +902,7 @@ def batch_list_disabled(request):
 
         # فلترة حسب حالة انتهاء الصلاحية
         if expiry_status:
-            today = timezone.now().date()
+            today = timezone.localdate()
             if expiry_status == "expired":
                 queryset = queryset.filter(expiry_date__lt=today)
             elif expiry_status == "critical":

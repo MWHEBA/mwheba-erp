@@ -317,7 +317,7 @@ class ReportsBuilderService:
         scheduled_reports = ReportSchedule.objects.filter(status='ACTIVE').count()
         
         # Executions today
-        today = timezone.now().date()
+        today = timezone.localdate()
         executions_today = ReportExecution.objects.filter(
             started_at__date=today,
             status='SUCCESS'

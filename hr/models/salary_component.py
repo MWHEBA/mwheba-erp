@@ -355,14 +355,14 @@ class SalaryComponent(models.Model):
         if not self.effective_to:
             return False
         from django.utils import timezone
-        return timezone.now().date() > self.effective_to
+        return timezone.localdate() > self.effective_to
     
     def days_until_expiry(self):
         """عدد الأيام المتبقية حتى انتهاء البند"""
         if not self.effective_to:
             return None
         from django.utils import timezone
-        delta = self.effective_to - timezone.now().date()
+        delta = self.effective_to - timezone.localdate()
         return delta.days if delta.days > 0 else 0
     
     def needs_renewal(self):

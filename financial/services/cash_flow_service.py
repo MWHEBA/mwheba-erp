@@ -49,7 +49,7 @@ class CashFlowService:
         """
         try:
             # 1. ضبط التواريخ والفترة الأساسية
-            today = timezone.now().date()
+            today = timezone.localdate()
             if isinstance(date_to, str) and date_to.strip():
                 try:
                     date_to = datetime.strptime(date_to.strip(), "%Y-%m-%d").date()

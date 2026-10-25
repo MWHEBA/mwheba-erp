@@ -64,7 +64,7 @@ class PricingService:
 
                 # تحديث معلومات آخر شراء إذا كان السبب شراء جديد
                 if reason == "purchase" and purchase_quantity:
-                    supplier_price.last_purchase_date = timezone.now().date()
+                    supplier_price.last_purchase_date = timezone.localdate()
                     supplier_price.last_purchase_quantity = purchase_quantity
 
                 # تحديث الملاحظات إذا تم توفيرها

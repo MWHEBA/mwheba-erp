@@ -43,7 +43,7 @@ class ChequeDisbursementSecurityService:
         if not user or not user.is_authenticated:
             raise ValidationError(_("يجب تسجيل الدخول لتنفيذ عمليات الصرف."))
 
-        actual_today = timezone.now().date()
+        actual_today = timezone.localdate()
         today = as_of_date or actual_today
         amt = Decimal(str(amount or "0.00"))
 

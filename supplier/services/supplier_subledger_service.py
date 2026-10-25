@@ -74,7 +74,7 @@ class SupplierSubledgerService:
         حساب تقرير أعمار ديون الموردين (Aging Buckets: 0-30, 31-60, 61-90, 90+)
         يعتمد التقرير التشغيلي على تواريخ استحقاق فواتير الشراء والمدفوعات الموزعة (FIN-SUB-001 Allocation Engine)
         """
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
         suppliers = Supplier.objects.filter(is_active=True).select_related('financial_account')
         if supplier_ids:
             suppliers = suppliers.filter(pk__in=supplier_ids)

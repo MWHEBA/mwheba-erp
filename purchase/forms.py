@@ -996,7 +996,7 @@ class PurchaseOrderForm(forms.ModelForm):
         self.fields["work_order"].widget.attrs.update({"class": "form-control select2", "id": "id_work_order"})
 
         if not self.initial.get("order_date"):
-            self.initial["order_date"] = timezone.now().date()
+            self.initial["order_date"] = timezone.localdate()
 
         # إعدادات الضرائب الافتراضية
         if not self.instance.pk:

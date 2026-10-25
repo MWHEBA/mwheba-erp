@@ -363,7 +363,7 @@ class InventoryService:
         """
         try:
             if not date:
-                date = timezone.now().date()
+                date = timezone.localdate()
 
             snapshots_created = 0
 

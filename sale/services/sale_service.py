@@ -124,7 +124,7 @@ class SaleService:
                     raise ValidationError(f"أمر الشغل المحدد برقم {work_order_id} غير موجود.")
 
             sale = Sale.objects.create(
-                date=data.get('date', timezone.now().date()),
+                date=data.get('date', timezone.localdate()),
                 customer_id=data['customer_id'],
                 warehouse_id=data.get('warehouse_id') or data.get('warehouse'),
                 price_list_id=data.get('price_list_id') or data.get('price_list'),
@@ -1112,7 +1112,7 @@ class SaleService:
                 amount_settled_invoice_currency=settlement['settled_invoice_amt'],
                 realized_fx_difference=settlement['realized_fx_difference'],
                 idempotency_key=idem_key,
-                payment_date=payment_data.get('payment_date', timezone.now().date()),
+                payment_date=payment_data.get('payment_date', timezone.localdate()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
                 created_by=user
@@ -1209,7 +1209,7 @@ class SaleService:
         try:
             # 1. إنشاء المرتجع
             # Support both 'date' and 'return_date' for backward compatibility
-            return_date = return_data.get('date') or return_data.get('return_date', timezone.now().date())
+            return_date = return_data.get('date') or return_data.get('return_date', timezone.localdate())
             
             return_wh = return_data.get('warehouse') or return_data.get('warehouse_id') or getattr(sale, 'warehouse', None)
             if isinstance(return_wh, (int, str)) and str(return_wh).isdigit():

@@ -1359,7 +1359,7 @@ class AccountingIntegrationService:
                     return None
                 
                 # التحقق من إغلاق الفترة المحاسبية
-                current_date = timezone.now().date()
+                current_date = timezone.localdate()
                 accounting_period = cls._get_accounting_period(current_date)
                 
                 if accounting_period and accounting_period.status == 'closed':
@@ -1534,7 +1534,7 @@ class AccountingIntegrationService:
                     return None
                 
                 # التحقق من إغلاق الفترة المحاسبية
-                current_date = timezone.now().date()
+                current_date = timezone.localdate()
                 accounting_period = cls._get_accounting_period(current_date)
                 
                 if accounting_period and accounting_period.status == 'closed':
@@ -1829,7 +1829,7 @@ class AccountingIntegrationService:
                 
                 # الحصول على الفترة المحاسبية
                 try:
-                    accounting_period = cls._get_accounting_period(timezone.now().date())
+                    accounting_period = cls._get_accounting_period(timezone.localdate())
                     if not accounting_period:
                         logger.error("لا توجد فترة محاسبية مفتوحة للتاريخ الحالي")
                         return None
@@ -1873,7 +1873,7 @@ class AccountingIntegrationService:
                     entry_type='reversal',
                     description=f"قيد عكسي - {reason}",
                     reference=f"قيد عكسي للقيد {original_entry.number}",
-                    date=timezone.now().date()
+                    date=timezone.localdate()
                 )
                 
                 

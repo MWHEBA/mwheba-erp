@@ -151,7 +151,7 @@ class Command(BaseCommand):
                 stats['advances']['scanned'] += 1
                 try:
                     pay_acc = adv.payment_account or default_cash_acc
-                    target_date = adv.payment_date or (adv.requested_at.date() if adv.requested_at else timezone.now().date())
+                    target_date = adv.payment_date or (adv.requested_at.date() if adv.requested_at else timezone.localdate())
 
                     # Check period lock
                     is_open, period = PeriodControlService.validate_period_open(target_date)
@@ -162,7 +162,7 @@ class Command(BaseCommand):
                             stats['advances']['skipped'] += 1
                             continue
                         else:
-                            target_date = timezone.now().date()
+                            target_date = timezone.localdate()
 
                     if dry_run:
                         self.stdout.write(f"   [محاكاة] سلفة #{adv.id} للموظف {adv.employee.get_full_name_ar()} بمبلغ {adv.amount:,.2f} ج.م -> حساب {pay_acc.code}")
@@ -222,7 +222,7 @@ class Command(BaseCommand):
                             stats['payrolls']['skipped'] += 1
                             continue
                         else:
-                            target_date = timezone.now().date()
+                            target_date = timezone.localdate()
 
                     if dry_run:
                         lines = accounting_service._prepare_journal_lines(p)
@@ -275,7 +275,7 @@ class Command(BaseCommand):
                             stats['insurance']['skipped'] += 1
                             continue
                         else:
-                            target_date = timezone.now().date()
+                            target_date = timezone.localdate()
 
                     if dry_run:
                         self.stdout.write(f"   [محاكاة] دفعة تأمين #{ins.id} ({ins.employee.get_full_name_ar()}) بمبلغ {ins.total_amount:,.2f} ج.م -> خزينة {pay_acc.code}")

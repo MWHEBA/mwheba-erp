@@ -905,7 +905,7 @@ def advance_pay(request, pk):
                 advance.status = 'paid'
                 advance.payment_date = (
                     datetime.strptime(payment_date_str, '%Y-%m-%d').date()
-                    if payment_date_str else timezone.now().date()
+                    if payment_date_str else timezone.localdate()
                 )
                 advance.save(update_fields=['status', 'payment_date'])
 

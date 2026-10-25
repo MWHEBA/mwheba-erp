@@ -30,9 +30,9 @@ class ChequeSubledgerReconciliationReportView(LoginRequiredMixin, PermissionRequ
             try:
                 as_of_date = datetime.date.fromisoformat(as_of_date_str)
             except ValueError:
-                as_of_date = timezone.now().date()
+                as_of_date = timezone.localdate()
         else:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
 
         reconciliation = ChequeSubledgerReconciliationService.reconcile_with_details(as_of_date)
 
@@ -64,9 +64,9 @@ class ChequeAgingReportView(LoginRequiredMixin, PermissionRequiredMixin, View):
             try:
                 as_of_date = datetime.date.fromisoformat(as_of_date_str)
             except ValueError:
-                as_of_date = timezone.now().date()
+                as_of_date = timezone.localdate()
         else:
-            as_of_date = timezone.now().date()
+            as_of_date = timezone.localdate()
 
         cheque_type = request.GET.get('cheque_type', ChequeType.RECEIVABLE)
         if cheque_type not in [ChequeType.RECEIVABLE, ChequeType.PAYABLE]:

@@ -71,7 +71,7 @@ class TreasurySecurityService:
         if not user or not user.is_authenticated:
             return ChartOfAccounts.objects.none()
 
-        today = target_date or timezone.now().date()
+        today = target_date or timezone.localdate()
 
         # حسابات النقدية والبنوك النشطة والنهائية فقط
         base_qs = (
@@ -145,7 +145,7 @@ class TreasurySecurityService:
         if not user or not user.is_authenticated:
             return None
 
-        today = target_date or timezone.now().date()
+        today = target_date or timezone.localdate()
         validity_q = (
             (Q(valid_from__isnull=True) | Q(valid_from__lte=today))
             & (Q(valid_until__isnull=True) | Q(valid_until__gte=today))
@@ -179,7 +179,7 @@ class TreasurySecurityService:
         if user.is_superuser or getattr(user, 'is_financial_manager', False) or getattr(user, 'is_admin', False):
             return True
 
-        today = target_date or timezone.now().date()
+        today = target_date or timezone.localdate()
         return UserTreasuryAccess.objects.filter(
             user=user,
             treasury_id=treasury_id,
@@ -206,7 +206,7 @@ class TreasurySecurityService:
         if user.is_superuser or getattr(user, 'is_financial_manager', False) or getattr(user, 'is_admin', False):
             return True, ""
 
-        today = target_date or timezone.now().date()
+        today = target_date or timezone.localdate()
         access = (
             UserTreasuryAccess.objects.filter(
                 user=user,

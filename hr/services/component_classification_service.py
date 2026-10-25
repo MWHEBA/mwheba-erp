@@ -90,13 +90,13 @@ class ComponentClassificationService:
         
         from datetime import timedelta
         
-        cutoff_date = timezone.now().date() + timedelta(days=days_ahead)
+        cutoff_date = timezone.localdate() + timedelta(days=days_ahead)
         
         return SalaryComponent.objects.filter(
             is_active=True,
             effective_to__isnull=False,
             effective_to__lte=cutoff_date,
-            effective_to__gt=timezone.now().date()
+            effective_to__gt=timezone.localdate()
         ).select_related('employee')
     
     @staticmethod

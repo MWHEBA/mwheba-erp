@@ -649,7 +649,7 @@ def days_until(value):
         if isinstance(value, dt.datetime):
             value = value.date()
         if isinstance(value, dt.date):
-            today = timezone.now().date() if hasattr(timezone, 'now') else dt.date.today()
+            today = timezone.localdate() if hasattr(timezone, 'localdate') else dt.date.today()
             return (value - today).days
     except Exception:
         pass

@@ -55,7 +55,7 @@ class FinancialAnalyticsService:
         """
         try:
             # 1. ضبط التواريخ والفترة الحالية
-            today = timezone.now().date()
+            today = timezone.localdate()
             if isinstance(date_to, str) and date_to.strip():
                 try:
                     date_to = datetime.strptime(date_to.strip(), "%Y-%m-%d").date()

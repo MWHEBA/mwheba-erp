@@ -92,7 +92,7 @@ class CustomerSubledgerService:
         حساب تقرير أعمار ديون العملاء (Aging Buckets: 0-30, 31-60, 61-90, 90+)
         يعتمد التقرير التشغيلي على تواريخ استحقاق الفواتير والمدفوعات الموزعة (FIN-SUB-001 Allocation Engine)
         """
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
         customers = Customer.objects.filter(is_active=True).select_related('financial_account')
         if customer_ids:
             customers = customers.filter(pk__in=customer_ids)

@@ -648,7 +648,7 @@ class ChartOfAccounts(models.Model):
             return (False, "هذا الحساب لا يخضع للتسوية البنكية", 0)
 
         if reconciliation_date is None:
-            reconciliation_date = timezone.now().date()
+            reconciliation_date = timezone.localdate()
 
         current_balance = self.get_balance()
         difference = bank_statement_balance - current_balance

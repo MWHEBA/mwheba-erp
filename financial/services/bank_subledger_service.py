@@ -69,7 +69,7 @@ class BankSubledgerService:
         """
         استخراج ملخص لجميع حسابات النقدية والبنوك في النظام
         """
-        ref_date = as_of_date or timezone.now().date()
+        ref_date = as_of_date or timezone.localdate()
         accounts = ChartOfAccounts.objects.filter(
             Q(account_type__category='asset'),
             Q(code__startswith='101') | Q(code__startswith='102') | Q(name__icontains='خزينة') | Q(name__icontains='بنك'),

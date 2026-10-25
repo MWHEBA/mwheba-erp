@@ -219,7 +219,7 @@ class SalesReversalService:
 
             # Accounting Period Close Guard Protection
             from financial.models import AccountingPeriod
-            today = timezone.now().date()
+            today = timezone.localdate()
             open_period = AccountingPeriod.objects.filter(
                 start_date__lte=today,
                 end_date__gte=today,
@@ -242,7 +242,7 @@ class SalesReversalService:
                 tax_amount=cn.tax_amount,
                 currency=cn.currency,
                 exchange_rate=cn.exchange_rate,
-                posting_date=timezone.now().date(),
+                posting_date=timezone.localdate(),
                 user=user
             )
             journal_entry = create_credit_note_posting(command)
@@ -252,8 +252,8 @@ class SalesReversalService:
                 customer=cn.customer,
                 transaction_type="CREDIT_NOTE",
                 transaction_number=cn.credit_note_number,
-                issue_date=timezone.now().date(),
-                due_date=timezone.now().date(),
+                issue_date=timezone.localdate(),
+                due_date=timezone.localdate(),
                 currency=cn.currency,
                 foreign_amount=cn.total_amount,
                 exchange_rate=cn.exchange_rate,
@@ -353,8 +353,8 @@ class SalesReversalService:
                 customer=cn.customer,
                 transaction_type="DEBIT_NOTE",
                 transaction_number=f"REV-{cn.credit_note_number}",
-                issue_date=timezone.now().date(),
-                due_date=timezone.now().date(),
+                issue_date=timezone.localdate(),
+                due_date=timezone.localdate(),
                 currency=cn.currency,
                 foreign_amount=cn.total_amount,
                 exchange_rate=cn.exchange_rate,

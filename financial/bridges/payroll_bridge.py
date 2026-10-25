@@ -33,7 +33,7 @@ class PayrollAccountingBridge:
         """
         إنشاء وترحيل قيد مسير الرواتب والأجور: Dr. مصروف الرواتب / Cr. مستحقات الرواتب والاستقطاعات
         """
-        entry_date = entry_date or timezone.now().date()
+        entry_date = entry_date or timezone.localdate()
 
         lines = [
             # 1. Salaries Expense (Dr)

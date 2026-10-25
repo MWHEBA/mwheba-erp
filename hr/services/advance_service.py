@@ -335,7 +335,7 @@ class AdvanceService:
                 financial_subcategory = dept_subcategory
                 financial_category = parent
 
-        entry_date = advance.payment_date or timezone.now().date()
+        entry_date = advance.payment_date or timezone.localdate()
 
         entry = gateway.create_journal_entry(
             source_module='hr',
@@ -413,7 +413,7 @@ class AdvanceService:
         if not payment_account:
             raise GovValidationError("يجب تحديد حساب التحصيل (الخزينة أو البنك)")
 
-        actual_date = payment_date or timezone.now().date()
+        actual_date = payment_date or timezone.localdate()
         emp_name = advance.employee.get_full_name_ar()
 
         lines = [

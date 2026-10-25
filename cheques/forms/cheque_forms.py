@@ -76,7 +76,7 @@ class ChequeReceivableForm(forms.ModelForm):
 
         # قيم مبدئية
         if not self.instance.pk:
-            today = timezone.now().date()
+            today = timezone.localdate()
             if not self.initial.get('issue_date'):
                 self.initial['issue_date'] = today
             if not self.initial.get('due_date'):
@@ -212,7 +212,7 @@ class ChequePayableForm(forms.ModelForm):
 
         # قيم مبدئية
         if not self.instance.pk:
-            today = timezone.now().date()
+            today = timezone.localdate()
             if not self.initial.get('issue_date'):
                 self.initial['issue_date'] = today
             if not self.initial.get('due_date'):

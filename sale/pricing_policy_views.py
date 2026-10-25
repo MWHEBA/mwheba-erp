@@ -279,7 +279,7 @@ def price_list_create(request):
         name = request.POST.get("name")
         currency = request.POST.get("currency", "EGP")
         customer_type = request.POST.get("customer_type", "ALL")
-        effective_from = request.POST.get("effective_from") or timezone.now().date()
+        effective_from = request.POST.get("effective_from") or timezone.localdate()
         effective_to = request.POST.get("effective_to") or None
 
         product_ids = request.POST.getlist("product[]")
@@ -669,7 +669,7 @@ def discount_rule_create(request):
         value = Decimal(request.POST.get("value", "0.00") or "0.00")
         min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00") or "0.00")
         priority = int(request.POST.get("priority", "10") or "10")
-        effective_date = request.POST.get("effective_date") or timezone.now().date()
+        effective_date = request.POST.get("effective_date") or timezone.localdate()
         expiry_date = request.POST.get("expiry_date") or None
         is_active = request.POST.get("is_active") in ["on", "true", "1", True]
 

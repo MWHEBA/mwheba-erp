@@ -1077,7 +1077,7 @@ class SecurityMetric(models.Model):
     @classmethod
     def get_today_count(cls, metric_type):
         """Get count for today"""
-        today = timezone.now().date()
+        today = timezone.localdate()
         return cls.objects.filter(
             metric_type=metric_type,
             date=today
@@ -1086,7 +1086,7 @@ class SecurityMetric(models.Model):
     @classmethod
     def get_period_count(cls, metric_type, days=7):
         """Get count for a period"""
-        start_date = timezone.now().date() - timezone.timedelta(days=days)
+        start_date = timezone.localdate() - timezone.timedelta(days=days)
         return cls.objects.filter(
             metric_type=metric_type,
             date__gte=start_date
@@ -1095,7 +1095,7 @@ class SecurityMetric(models.Model):
     @classmethod
     def get_daily_stats(cls, metric_type, days=30):
         """Get daily statistics for a metric"""
-        start_date = timezone.now().date() - timezone.timedelta(days=days)
+        start_date = timezone.localdate() - timezone.timedelta(days=days)
         return cls.objects.filter(
             metric_type=metric_type,
             date__gte=start_date
@@ -1106,7 +1106,7 @@ class SecurityMetric(models.Model):
     @classmethod
     def cleanup_old_metrics(cls, days=90):
         """Clean up old metrics"""
-        cutoff = timezone.now().date() - timezone.timedelta(days=days)
+        cutoff = timezone.localdate() - timezone.timedelta(days=days)
         old_metrics = cls.objects.filter(date__lt=cutoff)
         count = old_metrics.count()
         old_metrics.delete()

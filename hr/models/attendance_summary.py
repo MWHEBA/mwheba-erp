@@ -225,7 +225,7 @@ class AttendanceSummary(models.Model):
                     if not self.employee.attendance_exempt:
                         # ننشئ غيابات حتى نهاية الشهر أو الأمس (أيهما أقرب)
                         from django.utils import timezone
-                        today = timezone.now().date()
+                        today = timezone.localdate()
                         max_date = min(end_date, today - timedelta(days=1))
                         if start_date <= max_date:
                             AttendanceService.generate_missing_attendances(start_date, max_date)

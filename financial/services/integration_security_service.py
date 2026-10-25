@@ -380,7 +380,7 @@ class FinancialIntegrationSecurityService:
         # إنشاء hash من البيانات المهمة
         key_data = {
             'type': transaction_type,
-            'timestamp': timezone.now().date().isoformat(),
+            'timestamp': timezone.localdate().isoformat(),
             'data_hash': self._hash_data(data)
         }
         

@@ -94,7 +94,7 @@ def transfer_preview_api(request):
             try:
                 transfer_date = datetime.strptime(transfer_date_str, "%Y-%m-%d").date()
             except ValueError:
-                transfer_date = timezone.now().date()
+                transfer_date = timezone.localdate()
 
         preview = CashTransferService.calculate_transfer_preview(
             from_account=int(from_account_id),
@@ -216,9 +216,9 @@ def transfer_create_api(request):
             try:
                 transfer_date = datetime.strptime(transfer_date_str, "%Y-%m-%d").date()
             except ValueError:
-                transfer_date = timezone.now().date()
+                transfer_date = timezone.localdate()
         else:
-            transfer_date = timezone.now().date()
+            transfer_date = timezone.localdate()
 
         exchange_rate = None
         if exchange_rate_raw:
@@ -317,7 +317,7 @@ def transfer_receive_api(request, pk: int):
             try:
                 receive_date = datetime.strptime(receive_date_str, "%Y-%m-%d").date()
             except ValueError:
-                receive_date = timezone.now().date()
+                receive_date = timezone.localdate()
 
         received_amount = None
         if received_amount_raw:

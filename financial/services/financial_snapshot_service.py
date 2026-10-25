@@ -40,7 +40,7 @@ class FinancialSnapshotService:
         """
         إنشاء وتجميد لقطة مالية سريعة للقائمة المالية المحددة
         """
-        target_date = as_of_date or getattr(period, 'end_date', None) or timezone.now().date()
+        target_date = as_of_date or getattr(period, 'end_date', None) or timezone.localdate()
 
         if statement_type == "TRIAL_BALANCE":
             stmt_data = FinancialStatementEngine.generate_trial_balance(as_of_date=target_date)

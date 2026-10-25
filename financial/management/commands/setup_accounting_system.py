@@ -111,7 +111,7 @@ class Command(BaseCommand):
             (eur, egp, Decimal("53.000000")),
             (sar, egp, Decimal("13.300000")),
         ]
-        today = timezone.now().date()
+        today = timezone.localdate()
         for from_curr, to_curr, rate_val in initial_rates:
             ExchangeRate.objects.get_or_create(
                 from_currency=from_curr,

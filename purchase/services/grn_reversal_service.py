@@ -50,7 +50,7 @@ class GRNReversalService:
             try:
                 posting_date = PeriodControlService.get_open_period_date(orig_date)
             except Exception:
-                posting_date = timezone.now().date()
+                posting_date = timezone.localdate()
 
             movement_service = MovementService()
             total_reversed_cost = Decimal("0.00")

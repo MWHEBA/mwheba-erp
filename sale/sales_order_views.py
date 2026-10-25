@@ -1004,7 +1004,7 @@ def sales_order_collect_down_payment(request, pk):
 
     financial_account_id = request.POST.get("financial_account")
     payment_method = request.POST.get("payment_method", "cash")
-    payment_date = request.POST.get("payment_date") or timezone.now().date()
+    payment_date = request.POST.get("payment_date") or timezone.localdate()
     notes = request.POST.get("notes", "").strip()
 
     try:

@@ -93,7 +93,7 @@ class LegacyAccountingAdapter:
         if created_by is None:
             created_by = kwargs.pop("user", None)
         if date is None:
-            date = timezone.now().date()
+            date = timezone.localdate()
         if not reference:
             reference = kwargs.pop("idempotency_key", f"REF-{uuid.uuid4().hex[:8]}")
 

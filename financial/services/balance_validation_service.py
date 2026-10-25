@@ -33,7 +33,7 @@ class AdvancedBalanceValidationService:
         التحقق من صحة جميع الأرصدة
         """
         if not date_to:
-            date_to = timezone.now().date()
+            date_to = timezone.localdate()
 
 
         results = {
@@ -178,7 +178,7 @@ class AdvancedBalanceValidationService:
         التحقق من سلامة ميزان المراجعة
         """
         if not date_to:
-            date_to = timezone.now().date()
+            date_to = timezone.localdate()
 
 
         # الحصول على ميزان المراجعة
@@ -414,7 +414,7 @@ class AdvancedBalanceValidationService:
         تقرير صحة الأرصدة الشامل
         """
         if not date_to:
-            date_to = timezone.now().date()
+            date_to = timezone.localdate()
 
 
         # التحقق من جميع الأرصدة

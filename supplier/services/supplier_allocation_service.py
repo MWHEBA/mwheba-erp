@@ -53,7 +53,7 @@ class SupplierAllocationService:
         if amount_to_allocate <= Decimal("0.00"):
             raise ValidationError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
 
-        allocation_date = timezone.now().date()
+        allocation_date = timezone.localdate()
         from financial.services.period_control_service import PeriodControlService
         from financial.services.fx_settlement_strategy import SupplierFXStrategy
         from financial.services.partner_currency_snapshot_updater import PartnerCurrencySnapshotUpdater
@@ -272,7 +272,7 @@ class SupplierAllocationService:
             raise ValidationError("المبلغ يجب أن يكون أكبر من صفر.")
 
         if not payment_date:
-            payment_date = timezone.now().date()
+            payment_date = timezone.localdate()
 
         try:
             from financial.services.period_control_service import PeriodControlService
@@ -366,7 +366,7 @@ class SupplierAllocationService:
             raise ValidationError("لم يتم تحديد أي فواتير للتخصيص.")
 
         if not allocation_date:
-            allocation_date = timezone.now().date()
+            allocation_date = timezone.localdate()
 
         try:
             from financial.services.period_control_service import PeriodControlService

@@ -37,7 +37,7 @@ class ABCAnalysisService:
             analysis_date: تاريخ التحليل (افتراضي: اليوم)
             days_period: فترة التحليل بالأيام (افتراضي: 365 يوم)
         """
-        self.analysis_date = analysis_date or timezone.now().date()
+        self.analysis_date = analysis_date or timezone.localdate()
         self.days_period = days_period
         self.date_from = self.analysis_date - timedelta(days=days_period)
 

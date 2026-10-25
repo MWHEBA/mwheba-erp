@@ -566,7 +566,7 @@ class PrintingOrder(BaseModel):
         توليد رقم طلب فريد عبر الخدمة المركزية الموحدة للترقيم (SequenceService)
         مع مراعاة سنة تاريخ الطلب الفعلي
         """
-        order_dt = self.order_date or timezone.now().date()
+        order_dt = self.order_date or timezone.localdate()
         try:
             from core.services.sequence_service import SequenceService
             from core.enums.document_types import DocumentType

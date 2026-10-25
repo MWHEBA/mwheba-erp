@@ -24,7 +24,7 @@ def revenue_recognition_dashboard_view(request):
     """
     الداشبورد المالي لمتابعة الإيرادات المؤجلة والأقساط
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     schedules = RevenueRecognitionSchedule.objects.select_related(
         "policy", "invoice_item__sales_invoice__customer"
@@ -72,7 +72,7 @@ def process_due_revenues_action_view(request):
             except ValueError:
                 target_date = None
 
-        target_date = target_date or timezone.now().date()
+        target_date = target_date or timezone.localdate()
         result = RevenueRecognitionService.process_all_due_schedules(as_of_date=target_date, user=request.user)
 
         if result["processed_count"] > 0:

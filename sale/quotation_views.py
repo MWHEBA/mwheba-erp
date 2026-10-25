@@ -1145,7 +1145,7 @@ def quotation_convert_to_sale(request, pk):
                 current_rate = Decimal(str(ExchangeRateService.get_exchange_rate(quotation.currency) or quotation.exchange_rate or 1.0))
 
             sale_data = {
-                'date': timezone.now().date(),
+                'date': timezone.localdate(),
                 'customer_id': quotation.customer.id,
                 'warehouse_id': preferred_warehouse_id,
                 'salesman': quotation.salesman or quotation.created_by,

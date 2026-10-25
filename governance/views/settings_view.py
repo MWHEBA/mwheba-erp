@@ -32,7 +32,7 @@ class GovernanceSettingsView(LoginRequiredMixin, TemplateView):
         
         # Get statistics for each section
         today_start = timezone.make_aware(
-            timezone.datetime.combine(timezone.now().date(), timezone.datetime.min.time())
+            timezone.datetime.combine(timezone.localdate(), timezone.datetime.min.time())
         )
         week_ago = timezone.now() - timedelta(days=7)
         

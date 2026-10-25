@@ -145,7 +145,7 @@ class AutoTransferEngine:
         
         # فحص عمر البند
         if 'age_limit_days' in rule:
-            age_days = (timezone.now().date() - component.created_at.date()).days
+            age_days = (timezone.localdate() - timezone.localdate(component.created_at)).days
             if age_days > rule['age_limit_days']:
                 return False
         
@@ -165,7 +165,7 @@ class AutoTransferEngine:
         if not component.is_active:
             return False
         
-        if component.effective_to and component.effective_to < timezone.now().date():
+        if component.effective_to and component.effective_to < timezone.localdate():
             return False
         
         return True

@@ -174,7 +174,7 @@ class SaleForm(forms.ModelForm):
 
         # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
         if not self.initial.get("date"):
-            self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
+            self.initial["date"] = timezone.localdate().strftime("%Y-%m-%d")
 
         # تعيين المخازن المتاحة للمعاملات
         warehouses = DataScopingService.get_transaction_warehouses(user)
@@ -357,7 +357,7 @@ class SaleForm(forms.ModelForm):
     def clean_date(self):
         """التحقق من أن تاريخ الفاتورة ليس في المستقبل"""
         date = self.cleaned_data.get("date")
-        if date and date > timezone.now().date():
+        if date and date > timezone.localdate():
             raise ValidationError("تاريخ الفاتورة لا يمكن أن يكون في المستقبل")
         return date
 
@@ -787,12 +787,12 @@ class SaleReturnForm(forms.ModelForm):
 
         # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
         if not self.initial.get("date"):
-            self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
+            self.initial["date"] = timezone.localdate().strftime("%Y-%m-%d")
 
     def clean_date(self):
         """التحقق من أن تاريخ المرتجع ليس في المستقبل"""
         date = self.cleaned_data.get("date")
-        if date and date > timezone.now().date():
+        if date and date > timezone.localdate():
             raise ValidationError("تاريخ المرتجع لا يمكن أن يكون في المستقبل")
         return date
 
@@ -915,7 +915,7 @@ class QuotationForm(forms.ModelForm):
             label=_("أمر الشغل")
         )
         if not self.initial.get("date"):
-            self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
+            self.initial["date"] = timezone.localdate().strftime("%Y-%m-%d")
         if not self.initial.get("status"):
             self.initial["status"] = "draft"
         

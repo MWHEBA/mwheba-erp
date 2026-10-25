@@ -274,7 +274,7 @@ class SalesReturnService:
                     amount=total_restored_cogs,
                     currency="EGP",
                     exchange_rate=Decimal("1.000000"),
-                    posting_date=timezone.now().date(),
+                    posting_date=timezone.localdate(),
                     user=user
                 )
                 journal_entry = create_return_cogs_reversal_entry(command)

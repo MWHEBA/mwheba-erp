@@ -172,7 +172,7 @@ def budget_detail(request, pk):
     budget = get_object_or_404(CostCenterBudget.objects.select_related('cost_center', 'fiscal_year'), pk=pk)
     lines = budget.lines.select_related('account').all()
 
-    current_period = AccountingPeriod.get_period_for_date(timezone.now().date())
+    current_period = AccountingPeriod.get_period_for_date(timezone.localdate())
 
     lines_summary = []
     total_used = Decimal('0.00')
@@ -318,7 +318,7 @@ def budget_performance_report(request):
     if selected_cost_center_id:
         approved_budgets = approved_budgets.filter(cost_center_id=selected_cost_center_id)
 
-    current_period = AccountingPeriod.get_period_for_date(timezone.now().date())
+    current_period = AccountingPeriod.get_period_for_date(timezone.localdate())
 
     report_items = []
     for b in approved_budgets:

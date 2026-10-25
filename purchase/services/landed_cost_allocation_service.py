@@ -86,7 +86,7 @@ class LandedCostAllocationService:
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
-                date=grn.received_date.date() if hasattr(grn.received_date, "date") else timezone.now().date(),
+                date=grn.received_date.date() if hasattr(grn.received_date, "date") else timezone.localdate(),
                 description=f"قيد توزيع المصاريف المضافة على GRN #{grn.grn_number}",
                 reference=f"LANDED-{grn.grn_number}",
                 entry_type="GENERAL",

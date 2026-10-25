@@ -134,7 +134,7 @@ class GRNISubledgerService:
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
-                date=timezone.now().date(),
+                date=timezone.localdate(),
                 description=f"GRNI Clearing: {reason}",
                 reference=f"GRNI-CLEAR-{item.id}",
                 entry_type="GENERAL",

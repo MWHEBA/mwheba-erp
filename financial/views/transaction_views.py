@@ -621,7 +621,7 @@ def journal_entries_create(request):
                 from core.services.attachment_binding_service import AttachmentBindingService
 
                 date_str = request.POST.get('date')
-                entry_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else timezone.now().date()
+                entry_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else timezone.localdate()
                 reference = request.POST.get('reference', '').strip()
                 if not reference:
                     reference = f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
@@ -1298,7 +1298,7 @@ def journal_entries_reverse(request, pk):
             # استدعاء الدالة الموجودة
             success, reversal_entry, message = reverse_entry_optimized(
                 entry_id=journal_entry.pk,
-                reversal_date=timezone.now().date(),
+                reversal_date=timezone.localdate(),
                 user=request.user,
             )
 
@@ -1728,7 +1728,7 @@ def create_entry_optimized(entry_data, lines_data, user=None):
             entry = JournalEntry()
             
             # تعيين البيانات الأساسية
-            entry.date = entry_data.get('date', timezone.now().date())
+            entry.date = entry_data.get('date', timezone.localdate())
             entry.description = entry_data.get('description', '')
             entry.entry_type = entry_data.get('entry_type', 'manual')
             entry.reference = entry_data.get('reference', '')
@@ -1926,7 +1926,7 @@ def validate_entry_for_posting(entry):
         return {'valid': False, 'message': 'الفترة المحاسبية مغلقة'}
     
     # التحقق من التاريخ
-    if entry.date > timezone.now().date():
+    if entry.date > timezone.localdate():
         return {'valid': False, 'message': 'تاريخ القيد في المستقبل'}
     
     return {'valid': True, 'message': 'القيد صحيح ومتوازن'}
@@ -2142,7 +2142,7 @@ def duplicate_entry_optimized(entry_id, new_date=None, user=None):
         with db_transaction.atomic():
             # إنشاء القيد الجديد
             new_entry = JournalEntry()
-            new_entry.date = new_date or timezone.now().date()
+            new_entry.date = new_date or timezone.localdate()
             new_entry.description = f"نسخة من: {original_entry.description}"
             new_entry.entry_type = original_entry.entry_type
             new_entry.reference = f"نسخة من {original_entry.reference}" if original_entry.reference else ""
@@ -2204,7 +2204,7 @@ def reverse_entry_optimized(entry_id, reversal_date=None, user=None):
         with db_transaction.atomic():
             # إنشاء القيد العكسي
             reversal_entry = JournalEntry()
-            reversal_entry.date = reversal_date or timezone.now().date()
+            reversal_entry.date = reversal_date or timezone.localdate()
             reversal_entry.description = f"عكس قيد: {original_entry.description}"
             reversal_entry.entry_type = 'reversal'
             reversal_entry.reference = f"عكس {original_entry.number}"
@@ -2560,7 +2560,7 @@ def manual_journal_entry_create(request):
         'func_currency': func_currency,
         'func_code': func_code,
         'rates_map_json': json.dumps(rates_map),
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
         'page_title': 'إضافة قيد يدوي مركّب',
         'page_subtitle': 'إدخال قيود محاسبية مركبة ومرفقات ومراكز تكلفة',
         'page_icon': 'fas fa-edit',

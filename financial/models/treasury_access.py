@@ -137,7 +137,7 @@ class UserTreasuryAccess(models.Model):
 
     def is_currently_valid(self, target_date=None) -> bool:
         """التحقق من سريان الصلاحية الزمنية للمستخدم"""
-        check_date = target_date or timezone.now().date()
+        check_date = target_date or timezone.localdate()
         if self.valid_from and check_date < self.valid_from:
             return False
         if self.valid_until and check_date > self.valid_until:

@@ -176,8 +176,8 @@ class PartnerSubledgerService:
                     reference_id=str(advance_payment.id),
                     defaults={
                         "transaction_number": getattr(advance_payment, "reference_number", None) or f"CP-{advance_payment.id}",
-                        "issue_date": getattr(advance_payment, "payment_date", timezone.now().date()),
-                        "due_date": getattr(advance_payment, "payment_date", timezone.now().date()),
+                        "issue_date": getattr(advance_payment, "payment_date", timezone.localdate()),
+                        "due_date": getattr(advance_payment, "payment_date", timezone.localdate()),
                         "currency": curr_code,
                         "foreign_amount": advance_payment.amount,
                         "exchange_rate": rate,
@@ -201,8 +201,8 @@ class PartnerSubledgerService:
                     transaction_type="ADVANCE",
                     transaction_number=getattr(advance_payment, "reference_number", None) or f"SP-{advance_payment.id}",
                     defaults={
-                        "issue_date": getattr(advance_payment, "payment_date", timezone.now().date()),
-                        "due_date": getattr(advance_payment, "payment_date", timezone.now().date()),
+                        "issue_date": getattr(advance_payment, "payment_date", timezone.localdate()),
+                        "due_date": getattr(advance_payment, "payment_date", timezone.localdate()),
                         "currency": curr_code,
                         "foreign_amount": advance_payment.amount,
                         "exchange_rate": rate,

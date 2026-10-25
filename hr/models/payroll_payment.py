@@ -341,7 +341,7 @@ class PayrollPayment(models.Model):
             total_amount=total_amount,
             net_amount=net_amount,
             payment_account=payment_account,
-            payment_date=timezone.now().date(),
+            payment_date=timezone.localdate(),
             created_by=created_by,
             description=description or f'دفعة جماعية لـ {len(payrolls)} موظف'
         )

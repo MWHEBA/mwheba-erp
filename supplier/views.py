@@ -3345,7 +3345,7 @@ def supplier_service_quick_renew_price(request, pk, service_pk):
         days = default_days
 
     old_snap = service.pricing_snapshot
-    today = timezone.now().date()
+    today = timezone.localdate()
     from datetime import timedelta
     new_valid_until = today + timedelta(days=days)
 
@@ -3822,7 +3822,7 @@ def add_supplier_advance_action(request, pk):
                     transaction_amount=amt,
                     currency=curr,
                     exchange_rate_snapshot=rate,
-                    payment_date=payment_date_str if payment_date_str else timezone.now().date(),
+                    payment_date=payment_date_str if payment_date_str else timezone.localdate(),
                     payment_method=payment_method,
                     financial_account_id=fin_acc_id,
                     reference_number=reference_number,
@@ -4000,7 +4000,7 @@ def supplier_services_bulk_update(request, pk):
                             svc.attributes.update(attrs)
                         svc.price_updated_at = timezone.now()
                         validity_days = svc.service_type.default_validity_days or 30
-                        svc.price_valid_until = timezone.now().date() + timedelta(days=validity_days)
+                        svc.price_valid_until = timezone.localdate() + timedelta(days=validity_days)
                         svc.save()
                         if old_bp != bp:
                             user_obj = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None

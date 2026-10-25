@@ -139,7 +139,7 @@ class ProductBatch(models.Model):
         if not self.expiry_date:
             return None
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         delta = self.expiry_date - today
         return delta.days
 
@@ -149,7 +149,7 @@ class ProductBatch(models.Model):
         if not self.expiry_date:
             return False
 
-        return timezone.now().date() > self.expiry_date
+        return timezone.localdate() > self.expiry_date
 
     @property
     def is_near_expiry(self, warning_days=30):

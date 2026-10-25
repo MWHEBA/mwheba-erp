@@ -36,7 +36,7 @@ class ChequeDepositActionForm(ChequeActionBaseForm):
     )
     action_date = forms.DateField(
         label=_('تاريخ تسليم الشيك للبنك'),
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         required=True
     )
@@ -74,7 +74,7 @@ class ChequeCollectActionForm(ChequeActionBaseForm):
     )
     value_date = forms.DateField(
         label=_('تاريخ القيمة البنكي الفعلي (Value Date)'),
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         required=True
     )
@@ -195,7 +195,7 @@ class ChequeBounceActionForm(ChequeActionBaseForm):
     """
     action_date = forms.DateField(
         label=_('تاريخ إشعار الرفض البنكي'),
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         required=True
     )
@@ -238,7 +238,7 @@ class ChequeEndorseActionForm(ChequeActionBaseForm):
     )
     action_date = forms.DateField(
         label=_('تاريخ التظهير والتسليم'),
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         required=True
     )
@@ -307,7 +307,7 @@ class ChequeBatchDepositForm(forms.Form):
     )
     deposit_date = forms.DateField(
         label=_('تاريخ تسليم الحافظة للبنك'),
-        initial=timezone.now().date,
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         required=True
     )

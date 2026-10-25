@@ -37,7 +37,7 @@ class IncomeForm(forms.Form):
 
     income_date = forms.DateField(
         label="تاريخ الإيراد",
-        initial=timezone.now().date(),
+        initial=timezone.localdate(),
         widget=forms.TextInput(attrs={
             "class": "form-control",
             "data-date-picker": True,
@@ -143,7 +143,7 @@ class IncomeForm(forms.Form):
 
     def clean_income_date(self):
         income_date = self.cleaned_data.get("income_date")
-        if income_date and income_date > timezone.now().date():
+        if income_date and income_date > timezone.localdate():
             raise ValidationError("تاريخ الإيراد لا يمكن أن يكون في المستقبل")
         return income_date
 

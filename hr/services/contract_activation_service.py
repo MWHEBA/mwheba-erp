@@ -59,7 +59,7 @@ class ContractActivationService:
                 source='contract'  # فقط بنود العقد، ليس الشخصية
             ).update(
                 is_active=False,
-                effective_to=timezone.now().date()
+                effective_to=timezone.localdate()
             )
             activation_details['old_components_deactivated'] += deactivated_count
         
@@ -144,7 +144,7 @@ class ContractActivationService:
             # تعطيل البند إذا لم يعد موجود في العقد الجديد
             if not ContractActivationService._has_match_in_contract(emp_comp, contract_components):
                 emp_comp.is_active = False
-                emp_comp.effective_to = timezone.now().date()
+                emp_comp.effective_to = timezone.localdate()
                 emp_comp.save()
                 deactivated_count += 1
         
@@ -224,7 +224,7 @@ class ContractActivationService:
             is_from_contract=True
         ).update(
             is_active=False,
-            effective_to=timezone.now().date()
+            effective_to=timezone.localdate()
         )
         
         # ملاحظة: إيقاف البصمة وإرسال الإشعارات يتم تلقائياً عبر signals.py
@@ -375,19 +375,19 @@ class ContractActivationService:
         # الحفاظ على القروض والسلف النشطة
         if component.source == 'personal':
             # إذا كان قرض أو سلفة لها تاريخ انتهاء مستقبلي
-            if component.effective_to and component.effective_to > timezone.now().date():
+            if component.effective_to and component.effective_to > timezone.localdate():
                 return True
         
         # الحفاظ على البنود المؤقتة النشطة
         if component.source == 'temporary':
             # إذا كان بند مؤقت لم ينته بعد
-            if component.effective_to and component.effective_to > timezone.now().date():
+            if component.effective_to and component.effective_to > timezone.localdate():
                 return True
         
         # الحفاظ على البنود الاستثنائية (مكافآت، حوافز) لفترة محدودة
         if component.source == 'exceptional':
             # إذا كان بند استثنائي حديث (أقل من شهر)
-            if component.created_at and (timezone.now().date() - component.created_at.date()).days < 30:
+            if component.created_at and (timezone.localdate() - timezone.localdate(component.created_at)).days < 30:
                 return True
         
         # عدم الحفاظ على باقي البنود (بنود العقد القديم، التعديلات، إلخ)

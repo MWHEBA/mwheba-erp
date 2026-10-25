@@ -202,11 +202,11 @@ def cheque_clear_action(request, pk):
                 from datetime import datetime
                 clearing_date = datetime.strptime(clearing_date_raw.strip(), '%Y-%m-%d').date()
             except (ValueError, TypeError):
-                clearing_date = timezone.now().date()
+                clearing_date = timezone.localdate()
         else:
             clearing_date = clearing_date_raw
     else:
-        clearing_date = timezone.now().date()
+        clearing_date = timezone.localdate()
     idempotency_key = request.POST.get('idempotency_key') or f"CLR-{cheque.id}-{uuid.uuid4().hex[:8]}"
 
     try:

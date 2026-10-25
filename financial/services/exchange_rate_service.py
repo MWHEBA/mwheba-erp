@@ -62,7 +62,7 @@ class ExchangeRateService:
             return Decimal("1.000000")
 
         if date is None:
-            date = timezone.now().date()
+            date = timezone.localdate()
 
         rate_obj = ExchangeRate.objects.filter(
             from_currency__code=from_code,
@@ -106,7 +106,7 @@ class ExchangeRateService:
         تعيين سعر صرف جديد وتجميده
         """
         if date is None:
-            date = timezone.now().date()
+            date = timezone.localdate()
 
         from_curr, _ = Currency.objects.get_or_create(code=from_code, defaults={"name": from_code})
         to_curr, _ = Currency.objects.get_or_create(code=to_code, defaults={"name": to_code})

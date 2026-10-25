@@ -29,7 +29,7 @@ class AdvancedReportsService:
         """
         try:
             # تحديد فترة التحليل
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=period_months * 30)
 
             # بناء الاستعلام الأساسي
@@ -133,7 +133,7 @@ class AdvancedReportsService:
         """
         try:
             # تحديد فترة التحليل
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=period_months * 30)
 
             # بناء الاستعلام
@@ -258,7 +258,7 @@ class AdvancedReportsService:
             from django.db.models import Sum, F, DecimalField
             
             # تحديد فترة التحليل
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=analysis_days)
             
             # جلب المنتجات النشطة
@@ -406,7 +406,7 @@ class AdvancedReportsService:
             from django.db.models import Sum, F, DecimalField
             
             # تحديد فترة التحليل
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=period_months * 30)
             
             # جلب المنتجات مع مبيعاتها
@@ -531,7 +531,7 @@ class AdvancedReportsService:
             from django.db.models import Sum, Avg, F, DecimalField, Q
             
             # تحديد فترة التحليل
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=period_months * 30)
             
             # جلب المنتجات النشطة

@@ -30,7 +30,7 @@ class ReportingService:
         """
         try:
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
 
             # الحصول على جميع الحسابات النشطة
             accounts = ChartOfAccounts.objects.filter(
@@ -93,7 +93,7 @@ class ReportingService:
         """
         try:
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
 
             balance_sheet = {
                 "date": date_to,
@@ -201,7 +201,7 @@ class ReportingService:
         """
         try:
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to.replace(day=1)  # بداية الشهر
 
@@ -302,7 +302,7 @@ class ReportingService:
         """
         try:
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to.replace(day=1)
 
@@ -370,7 +370,7 @@ class ReportingService:
             account = ChartOfAccounts.objects.get(code=account_code, is_active=True)
 
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to.replace(day=1)
 
@@ -489,7 +489,7 @@ class ReportingService:
         """
         try:
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to.replace(day=1)
 

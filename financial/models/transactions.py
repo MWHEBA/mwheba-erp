@@ -318,14 +318,14 @@ class FinancialTransaction(models.Model):
     def is_overdue(self):
         """هل المعاملة متأخرة"""
         if self.due_date and self.status not in ["processed", "cancelled"]:
-            return timezone.now().date() > self.due_date
+            return timezone.localdate() > self.due_date
         return False
 
     @property
     def days_until_due(self):
         """عدد الأيام حتى الاستحقاق"""
         if self.due_date:
-            delta = self.due_date - timezone.now().date()
+            delta = self.due_date - timezone.localdate()
             return delta.days
         return None
 

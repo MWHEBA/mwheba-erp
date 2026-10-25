@@ -209,7 +209,7 @@ class OrganizationService:
                     'mobile_phone': member.mobile_phone,
                     'work_email': member.work_email,
                     'hire_date': member.hire_date,
-                    'experience_years': (timezone.now().date() - member.hire_date).days // 365,
+                    'experience_years': (timezone.localdate() - member.hire_date).days // 365,
                     'is_senior': 'مشرف' in member.job_title.title_ar or 'رئيس' in member.job_title.title_ar
                 }
                 
@@ -231,7 +231,7 @@ class OrganizationService:
         try:
             # تحديد الفترة الافتراضية (آخر 30 يوم)
             if not date_to:
-                date_to = timezone.now().date()
+                date_to = timezone.localdate()
             if not date_from:
                 date_from = date_to - timedelta(days=30)
             

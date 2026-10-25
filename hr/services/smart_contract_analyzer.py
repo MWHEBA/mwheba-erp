@@ -309,11 +309,11 @@ class SmartContractAnalyzer:
         if not component.effective_to:
             return True  # بند دائم
         
-        return component.effective_to >= timezone.now().date()
+        return component.effective_to >= timezone.localdate()
     
     def is_recent_component(self, component, days=30):
         """التحقق من كون البند حديث"""
-        cutoff_date = timezone.now().date() - timedelta(days=days)
+        cutoff_date = timezone.localdate() - timedelta(days=days)
         return component.created_at.date() >= cutoff_date
     
     def smart_activate_contract(self, contract):
@@ -327,7 +327,7 @@ class SmartContractAnalyzer:
         
         # تفعيل العقد
         contract.status = 'active'
-        contract.activation_date = timezone.now().date()
+        contract.activation_date = timezone.localdate()
         contract.save()
         
         return {

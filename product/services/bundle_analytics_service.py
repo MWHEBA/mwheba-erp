@@ -465,7 +465,7 @@ class BundleChartDataService:
     def get_bundle_creation_trend_chart(cls, days: int = 30) -> Dict[str, Any]:
         """بيانات رسم اتجاه إنشاء المنتجات المجمعة"""
         try:
-            end_date = timezone.now().date()
+            end_date = timezone.localdate()
             start_date = end_date - timedelta(days=days)
             
             # إنشاء قائمة بجميع التواريخ في النطاق
