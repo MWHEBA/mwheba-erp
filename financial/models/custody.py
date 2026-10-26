@@ -5,6 +5,7 @@ Enterprise Financial Custody & Petty Cash Models
 
 from decimal import Decimal
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -194,6 +195,65 @@ class EmployeeCustodyAdvance(models.Model):
         default=Decimal("0.00"),
         verbose_name=_("مبلغ بدل السفر اليومي المقطوع المعفى من الفواتير"),
     )
+    settlement_principal_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("أصل التمويل الخاضع للتسوية الفاتورية"),
+        help_text=_("صافي مبلغ العهدة الخاضع للتسوية بعد استبعاد البدل المقطوع المعفى"),
+    )
+    refunds_collected_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("إجمالي المقبوضات النقدية من المرتجعات"),
+        help_text=_("المبالغ النقدية المحصلة من مرتجعات الموردين والتي تزيد النقدية بيد الموظف"),
+    )
+    shortage_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("إجمالي العجز المحمل على الموظف"),
+        help_text=_("مبالغ العجز في العهدة المحولة لذمة الموظف كسلفة رواتب أو استقطاع HR"),
+    )
+    transferred_out_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("إجمالي المبالغ المحولة لموظف آخر"),
+    )
+    transferred_in_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("إجمالي المبالغ المستلمة بمناقلة من موظف آخر"),
+    )
+    custody_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("temporary", _("سلفة مؤقتة")),
+            ("permanent", _("عهدة مستديمة")),
+        ],
+        default="temporary",
+        verbose_name=_("نوع العهدة"),
+        db_index=True,
+    )
+    custody_account = models.ForeignKey(
+        "financial.ChartOfAccounts",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="custody_advances_linked",
+        verbose_name=_("حساب الأستاذ العام للعهدة"),
+        help_text=_("حساب الأستاذ العام الخاص بالعهدة المستديمة (إن وجد)"),
+    )
+    imprest_ceiling = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("سقف العهدة المستديمة الافتراضي"),
+    )
     journal_entry = models.ForeignKey(
         "financial.JournalEntry",
         on_delete=models.SET_NULL,
@@ -224,26 +284,108 @@ class EmployeeCustodyAdvance(models.Model):
             models.Index(fields=["status", "due_date"]),
             models.Index(fields=["work_location", "status"]),
         ]
+        permissions = [
+            ("can_disburse_custody", _("صلاحية صرف وتغذية العهد النقدية")),
+            ("can_transfer_custody", _("صلاحية إجراء مناقلة العهد")),
+        ]
 
     def __str__(self):
         return f"{self.advance_number} - {self.employee} ({self.amount} {self.currency.code})"
 
-    def update_balance(self):
-        """إعادة احتساب الرصيد المتبقي وتحديث الحالة تلقائياً"""
-        self.current_balance = (
-            self.amount + self.top_up_amount - self.settled_amount - self.returned_cash_amount
+    def clean(self):
+        super().clean()
+        if self.amount is not None and self.amount <= Decimal("0.00"):
+            raise ValidationError({"amount": _("مبلغ العهدة يجب أن يكون أكبر من الصفر.")})
+        if self.pk:
+            orig = EmployeeCustodyAdvance.objects.filter(pk=self.pk).first()
+            if orig and orig.status != CustodyAdvanceStatus.DRAFT:
+                errors = {}
+                if self.amount != orig.amount:
+                    errors["amount"] = _("حظر حوكمة: لا يجوز تعديل مبلغ العهدة بعد الصرف أو انتقالها من حالة المسودة.")
+                if self.currency_id != orig.currency_id:
+                    errors["currency"] = _("حظر حوكمة: لا يجوز تغيير عملة العهدة بعد الصرف.")
+                if self.source_treasury_id != orig.source_treasury_id:
+                    errors["source_treasury"] = _("حظر حوكمة: لا يجوز تغيير الخزينة المصدرة بعد الصرف.")
+                if self.employee_id != orig.employee_id:
+                    errors["employee"] = _("حظر حوكمة: لا يجوز تغيير الموظف المستلم للعهدة بعد الصرف.")
+                if self.custody_type != orig.custody_type:
+                    errors["custody_type"] = _("حظر حوكمة: لا يجوز تغيير نوع العهدة بعد الصرف.")
+                if errors:
+                    raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status not in [CustodyAdvanceStatus.DRAFT, CustodyAdvanceStatus.CANCELLED] or self.journal_entry_id:
+            raise ValidationError(
+                _("حظر حوكمة: لا يجوز حذف عهدة نشطة أو منصرفة أو لها قيد محاسبي. المسار الوحيد هو الإلغاء أو العكس.")
+            )
+        super().delete(*args, **kwargs)
+
+    def update_balance(self, save=True):
+        """
+        إعادة احتساب الرصيد المتبقي وتحديث الحالة تلقائياً
+        المعادلة الصامدة:
+        الرصيد المتاح = (أصل التمويل الخاضع للتسوية أو المبلغ الأصلي)
+                       + التغذية الإضافية
+                       + المبالغ المستلمة بمناقلة
+                       + المقبوضات النقدية من المرتجعات
+                       - المنصرفات المسواة بالمستندات
+                       - النقدية الموردة للخزينة
+                       - العجز المحمل على الموظف
+                       - المبالغ المحولة لموظف آخر
+        """
+        base_amount = (
+            self.settlement_principal_amount
+            if self.settlement_principal_amount is not None
+            else self.amount
         )
-        if self.current_balance <= Decimal("0.00") and self.status != CustodyAdvanceStatus.WRITTEN_OFF:
-            self.status = CustodyAdvanceStatus.SETTLED
-        elif self.settled_amount > Decimal("0.00") and self.current_balance > Decimal("0.00"):
-            self.status = CustodyAdvanceStatus.PARTIALLY_SETTLED
-        elif (
-            self.status == CustodyAdvanceStatus.ACTIVE
-            and self.due_date < timezone.localdate()
-            and self.current_balance > Decimal("0.00")
-        ):
-            self.status = CustodyAdvanceStatus.OVERDUE
-        self.save(update_fields=["current_balance", "status", "settled_amount", "returned_cash_amount"])
+        self.current_balance = (
+            base_amount
+            + (self.top_up_amount or Decimal("0.00"))
+            + (self.transferred_in_amount or Decimal("0.00"))
+            + (self.refunds_collected_amount or Decimal("0.00"))
+            - (self.settled_amount or Decimal("0.00"))
+            - (self.returned_cash_amount or Decimal("0.00"))
+            - (self.shortage_amount or Decimal("0.00"))
+            - (self.transferred_out_amount or Decimal("0.00"))
+        )
+
+        if self.custody_type != "permanent":
+            if self.current_balance <= Decimal("0.00") and self.status != CustodyAdvanceStatus.WRITTEN_OFF:
+                self.status = CustodyAdvanceStatus.SETTLED
+            elif (
+                (
+                    (self.settled_amount and self.settled_amount > Decimal("0.00"))
+                    or (self.returned_cash_amount and self.returned_cash_amount > Decimal("0.00"))
+                    or (self.shortage_amount and self.shortage_amount > Decimal("0.00"))
+                )
+                and self.current_balance > Decimal("0.00")
+            ):
+                self.status = CustodyAdvanceStatus.PARTIALLY_SETTLED
+            elif (
+                self.status == CustodyAdvanceStatus.ACTIVE
+                and self.due_date
+                and self.due_date < timezone.localdate()
+                and self.current_balance > Decimal("0.00")
+            ):
+                self.status = CustodyAdvanceStatus.OVERDUE
+
+        if save and self.pk:
+            update_fields = [
+                "current_balance",
+                "status",
+                "settled_amount",
+                "returned_cash_amount",
+                "refunds_collected_amount",
+                "shortage_amount",
+                "top_up_amount",
+                "transferred_out_amount",
+                "transferred_in_amount",
+            ]
+            self.save(update_fields=update_fields)
 
 
 class PettyCashSettlement(models.Model):
@@ -400,6 +542,60 @@ class PettyCashSettlement(models.Model):
         related_name="custody_settlement_entries",
         verbose_name=_("قيد اليومية المركب الموحد"),
     )
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="custody_settlements",
+        verbose_name=_("عملة التسوية"),
+    )
+    expenses_absorbed = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("النفقات الممتصة من نقدية العهدة"),
+        help_text=_("المبالغ الفعلية الممتصة والمخصومة من رصيد العهدة"),
+    )
+    refunds_collected = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("المقبوضات النقدية المحصلة من المرتجعات"),
+        help_text=_("المبالغ النقدية المقبوضة من الموردين نتيجة المرتجعات"),
+    )
+    overrun_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("فائض المنصرفات المسدد من جيب الموظف (مستحقات)"),
+        help_text=_("المبالغ المصروفة بالزيادة عن رصيد العهدة والمستحقة للموظف"),
+    )
+    eligible_replenishment_amount = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("مبلغ الاستعاضة المؤهل للصرف"),
+        help_text=_("صافي المبلغ المؤهل لاستعاضة صندوق العهدة المستديمة"),
+    )
+    is_replenished = models.BooleanField(
+        default=False,
+        verbose_name=_("تمت استعاضة العهدة المستديمة"),
+        help_text=_("مؤشر صرف قيد الاستعاضة التعويضي لصندوق العهدة المستديمة"),
+    )
+    replenishment_entry = models.ForeignKey(
+        "financial.JournalEntry",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="custody_replenishment_entries",
+        verbose_name=_("قيد استعاضة العهدة المستديمة"),
+    )
+    rejection_reason = models.TextField(
+        blank=True,
+        verbose_name=_("سبب الرفض المسبب"),
+        help_text=_("بيان أسباب رفض التسوية من قبل المراجع أو المدير المالي"),
+    )
     reversal_entry = models.ForeignKey(
         "financial.JournalEntry",
         on_delete=models.SET_NULL,
@@ -450,9 +646,101 @@ class PettyCashSettlement(models.Model):
             models.Index(fields=["employee", "status"]),
             models.Index(fields=["settlement_date", "status"]),
         ]
+        permissions = [
+            ("can_post_settlement", _("صلاحية ترحيل تسويات العهد")),
+            ("can_reverse_settlement", _("صلاحية العكس المحاسبي لتسويات العهد")),
+            ("can_audit_custody", _("صلاحية جرد واعتماد محاضر العهد")),
+        ]
 
     def __str__(self):
         return f"{self.settlement_number} - {self.employee} ({self.total_settled_amount} EGP)"
+
+    def clean(self):
+        super().clean()
+        if self.cash_returned_to_treasury is not None and self.cash_returned_to_treasury < Decimal("0.00"):
+            raise ValidationError({"cash_returned_to_treasury": _("المبلغ المردود للخزينة لا يمكن أن يكون سالباً.")})
+        if self.shortage_amount is not None and self.shortage_amount < Decimal("0.00"):
+            raise ValidationError({"shortage_amount": _("مبلغ العجز لا يمكن أن يكون سالباً.")})
+        if self.custody_advance_id:
+            adv = self.custody_advance or EmployeeCustodyAdvance.objects.filter(pk=self.custody_advance_id).first()
+            if adv:
+                if self.employee_id and self.employee_id != adv.employee_id:
+                    raise ValidationError({"employee": _("الموظف في سند التسوية يجب أن يتطابق مع الموظف المستلم للعهدة النقدية.")})
+                from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                expected_acc = adv.custody_account_id or getattr(AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_TEMPORARY_CONTROL), "id", None)
+                if self.custody_account_id and expected_acc and self.custody_account_id != expected_acc:
+                    raise ValidationError({"custody_account": _("حساب العهدة في التسوية يجب أن يتطابق مع الحساب المحاسبي للسلفة النقدية المرتبطة.")})
+        if self.pk:
+            orig = PettyCashSettlement.objects.filter(pk=self.pk).first()
+            if orig and (orig.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED] or orig.journal_entry_id) and not getattr(self, "_allow_custody_reversal", False):
+                locked_fields = [
+                    "custody_advance_id",
+                    "custody_account_id",
+                    "employee_id",
+                    "currency_id",
+                    "settlement_date",
+                    "total_expenses",
+                    "total_supplier_payments",
+                    "total_stock_payments",
+                    "total_bank_charges",
+                    "total_tax",
+                    "total_wht",
+                    "total_discounts_earned",
+                    "total_settled_amount",
+                    "cash_returned_to_treasury",
+                    "shortage_amount",
+                    "overage_amount",
+                    "expenses_absorbed",
+                    "refunds_collected",
+                    "overrun_amount",
+                ]
+                errors = {}
+                for field in locked_fields:
+                    if getattr(self, field, None) != getattr(orig, field, None):
+                        errors[field] = _("حظر حوكمة: لا يمكن تعديل هذا الحقل المالي بعد ترحيل أو عكس سند التسوية.")
+                if self.status != orig.status and (self.status != SettlementStatus.REVERSED or orig.status != SettlementStatus.POSTED):
+                    errors["status"] = _("حظر حوكمة: لا يمكن تعديل حالة تسوية مرحلة أو معكوسة إلا عبر العكس المحاسبي المعتمد.")
+                if errors:
+                    raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED] or self.journal_entry_id:
+            raise ValidationError(
+                _("حظر حوكمة: لا يجوز حذف تسوية مرحلة محاسبياً أو معكوسة. يجب إجراء عكس محاسبي (Reversal) للحفاظ على التدقيق.")
+            )
+        super().delete(*args, **kwargs)
+
+
+class PettyCashSettlementLineQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        for line in self.select_related("settlement"):
+            if (
+                line.settlement
+                and (
+                    line.settlement.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED]
+                    or line.settlement.journal_entry_id
+                )
+                and not getattr(line.settlement, "_allow_custody_reversal", False)
+            ):
+                raise ValidationError(_("حظر حوكمة: لا يمكن تعديل بنود تسوية مرحلة أو معكوسة محاسبياً."))
+        return super().update(**kwargs)
+
+    def delete(self):
+        for line in self.select_related("settlement"):
+            if (
+                line.settlement
+                and (
+                    line.settlement.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED]
+                    or line.settlement.journal_entry_id
+                )
+                and not getattr(line.settlement, "_allow_custody_reversal", False)
+            ):
+                raise ValidationError(_("حظر حوكمة: لا يمكن حذف بنود من تسوية مرحلة أو معكوسة محاسبياً."))
+        return super().delete()
 
 
 class PettyCashSettlementLine(models.Model):
@@ -644,6 +932,12 @@ class PettyCashSettlementLine(models.Model):
         default=False,
         verbose_name=_("إقرار فقدان / تعذر فاتورة أصلية (غير معتمد ضريبياً)"),
     )
+    receipt_file = models.FileField(
+        upload_to="custody/receipts/%Y/%m/",
+        null=True,
+        blank=True,
+        verbose_name=_("ملف الفاتورة / الإيصال المرفق (PDF أو صورة)"),
+    )
     receipt_image = models.ImageField(
         upload_to="custody/receipts/%Y/%m/",
         null=True,
@@ -693,8 +987,40 @@ class PettyCashSettlementLine(models.Model):
             models.Index(fields=["expense_account", "status"]),
         ]
 
+    objects = PettyCashSettlementLineQuerySet.as_manager()
+
     def __str__(self):
         return f"{self.settlement.settlement_number} - سطر {self.line_number} ({self.amount} EGP)"
+
+    def clean(self):
+        super().clean()
+        if self.settlement_id:
+            settlement = getattr(self, "settlement", None) or PettyCashSettlement.objects.filter(pk=self.settlement_id).first()
+            if (
+                settlement
+                and (
+                    settlement.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED]
+                    or settlement.journal_entry_id
+                )
+                and not getattr(settlement, "_allow_custody_reversal", False)
+            ):
+                if not self.pk:
+                    raise ValidationError(_("حظر حوكمة: لا يمكن إضافة بنود جديدة لتسوية مرحلة أو معكوسة محاسبياً."))
+                else:
+                    raise ValidationError(_("حظر حوكمة: لا يمكن تعديل بنود تسوية مرحلة أو معكوسة محاسبياً."))
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        settlement = getattr(self, "settlement", None) or (PettyCashSettlement.objects.filter(pk=self.settlement_id).first() if self.settlement_id else None)
+        if settlement and (
+            settlement.status in [SettlementStatus.POSTED, SettlementStatus.REVERSED]
+            or settlement.journal_entry_id
+        ) and not getattr(settlement, "_allow_custody_reversal", False):
+            raise ValidationError(_("حظر حوكمة: لا يمكن حذف بند من تسوية مرحلة محاسبياً أو معكوسة."))
+        super().delete(*args, **kwargs)
 
 
 class CustodyTransfer(models.Model):
@@ -781,6 +1107,31 @@ class CustodyTransfer(models.Model):
         verbose_name=_("تاريخ الإنشاء"),
     )
 
+    def clean(self):
+        super().clean()
+        if self.amount is not None and self.amount <= Decimal("0.00"):
+            raise ValidationError({"amount": _("مبلغ التحويل يجب أن يكون أكبر من الصفر.")})
+        if self.from_employee_id and self.to_employee_id and self.from_employee_id == self.to_employee_id:
+            raise ValidationError({"to_employee": _("لا يمكن إجراء مناقلة لنفس الموظف.")})
+        if self.from_advance_id:
+            adv = getattr(self, "from_advance", None) or EmployeeCustodyAdvance.objects.filter(pk=self.from_advance_id).first()
+            if adv:
+                if self.from_employee_id and adv.employee_id != self.from_employee_id:
+                    raise ValidationError({"from_advance": _("السلفة المصدر المحددة لا تخص الموظف المسلّم.")})
+                if self.currency_id and adv.currency_id != self.currency_id:
+                    raise ValidationError({"currency": _("عملة المناقلة يجب أن تطابق عملة السلفة المصدر.")})
+        if self.to_advance_id:
+            to_adv = getattr(self, "to_advance", None) or EmployeeCustodyAdvance.objects.filter(pk=self.to_advance_id).first()
+            if to_adv:
+                if self.to_employee_id and to_adv.employee_id != self.to_employee_id:
+                    raise ValidationError({"to_advance": _("السلفة المستقبلة المحددة لا تخص الموظف المستلم.")})
+                if self.currency_id and to_adv.currency_id != self.currency_id:
+                    raise ValidationError({"currency": _("عملة المناقلة يجب أن تطابق عملة السلفة المستقبلة.")})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = _("تحويل ومناقلة عهدة")
         verbose_name_plural = _("تحويلات ومناقلات العهد")
@@ -788,6 +1139,11 @@ class CustodyTransfer(models.Model):
 
     def __str__(self):
         return f"{self.transfer_number} - من {self.from_employee} إلى {self.to_employee} ({self.amount})"
+
+    def delete(self, *args, **kwargs):
+        if self.journal_entry_id:
+            raise ValidationError(_("حظر حوكمة: لا يجوز حذف مناقلة عهدة مرحلة محاسبياً ولها قيد يومية."))
+        super().delete(*args, **kwargs)
 
 
 class PettyCashCount(models.Model):

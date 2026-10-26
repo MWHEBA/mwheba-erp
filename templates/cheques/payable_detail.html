@@ -117,33 +117,47 @@
 
         <!-- شريط الإجراءات السريعة -->
         <div class="d-flex flex-wrap gap-2 pt-2 border-top">
-            {% if cheque.status == 'DRAFT' %}
+            {% if cheque.status == 'DRAFT' and perms.cheques.add_cheque %}
                 <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#issueDraftModal">
                     <i class="fas fa-check-double me-1"></i>{% trans "اعتماد وإصدار الشيك وترحيله" %}
                 </button>
+            {% endif %}
+            {% if cheque.status == 'DRAFT' and perms.cheques.cancel_cheque %}
                 <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
                     <i class="fas fa-ban me-1"></i>{% trans "إلغاء المسودة" %}
                 </button>
             {% endif %}
 
             {% if cheque.status == 'ISSUED' %}
+                {% if not cheque.is_guarantee and perms.cheques.collect_cheque %}
                 <button type="button" class="btn btn-success px-3" data-bs-toggle="modal" data-bs-target="#clearModal">
                     <i class="fas fa-check-double me-1"></i>{% trans "إثبات صرف وخصم الشيك بنكياً" %}
                 </button>
+                {% endif %}
+                {% if not cheque.is_guarantee and perms.cheques.bounce_cheque %}
                 <button type="button" class="btn btn-danger px-3" data-bs-toggle="modal" data-bs-target="#bounceModal">
                     <i class="fas fa-times-circle me-1"></i>{% trans "تسجيل ارتداد ورفض" %}
                 </button>
+                {% endif %}
+                {% if perms.cheques.cancel_cheque %}
                 <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
                     <i class="fas fa-ban me-1"></i>{% trans "إلغاء الشيك" %}
                 </button>
-                {% if cheque.checkbook_leaf %}
+                {% endif %}
+                {% if cheque.checkbook_leaf and perms.cheques.manage_checkbooks %}
                     <a href="{% url 'cheques:checkbook_ruined_leaf' cheque.checkbook_leaf.pk %}" class="btn btn-outline-warning text-dark px-3">
                         <i class="fas fa-file-excel me-1"></i>{% trans "استبدال ورقة تالفة بالدفتر" %}
                     </a>
                 {% endif %}
             {% endif %}
 
-            {% if action_logs.exists %}
+            {% if cheque.is_guarantee and perms.cheques.convert_guarantee %}
+                <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#convertGuaranteeModal">
+                    <i class="fas fa-exchange-alt me-1"></i>{% trans "اعتماد تحويل لشيك تشغيلي" %}
+                </button>
+            {% endif %}
+
+            {% if action_logs.exists and perms.cheques.reverse_cheque_action %}
                 <button type="button" class="btn btn-outline-danger px-3 ms-auto" data-bs-toggle="modal" data-bs-target="#reverseModal">
                     <i class="fas fa-undo me-1"></i>{% trans "تراجع تدقيقي عن آخر حركة" %}
                 </button>
@@ -305,6 +319,7 @@
         <div class="modal-content border-0 shadow-lg">
             <form action="{% url 'cheques:cheque_clear_action' cheque.pk %}" method="post">
                 {% csrf_token %}
+                {{ clear_form.idempotency_key }}
                 <div class="modal-header bg-light border-bottom px-4 py-3">
                     <h5 class="modal-title fw-bold text-dark mb-0">
                         <i class="fas fa-check-double text-success me-2"></i>{% trans "إثبات صرف وخصم الشيك من الحساب البنكي" %}
@@ -314,11 +329,29 @@
                 <div class="modal-body p-4">
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-1"></i>
-                        {% trans "سيقوم النظام بتوليد قيد الخصم من البنك وتسوية حساب أوراق الدفع بتاريخ القيمة المحدد." %}
+                        {% trans "سيقوم النظام بتوليد قيد الخصم من البنك وتسوية حساب أوراق الدفع بتاريخ القيمة المحدد ومعالجة فروق أسعار الصرف آلياً." %}
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">{% trans "تاريخ الخصم الفعلي بالبنك (Value Date)" %} <span class="text-danger">*</span></label>
-                        <input type="date" name="clearing_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                        <label class="form-label fw-bold">{{ clear_form.clearing_date.label }} <span class="text-danger">*</span></label>
+                        {{ clear_form.clearing_date }}
+                        <small class="text-muted">{% trans "تاريخ القيمة البنكي الفعلي للخصم (Value Date)" %}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ clear_form.exchange_rate.label }} <span class="text-danger">*</span></label>
+                        {{ clear_form.exchange_rate }}
+                        <small class="text-muted">
+                            {% trans "سعر الصرف عند التحرير" %}: <strong>{{ cheque.original_exchange_rate|floatformat:4 }}</strong>
+                            {% if cheque.currency %}({{ cheque.currency.code }}){% endif %}
+                            — {% trans "يُستخدم لاحتساب أرباح/خسائر فروق العملة المحققة" %}
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ clear_form.bank_account.label }}</label>
+                        {{ clear_form.bank_account }}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ clear_form.notes.label }}</label>
+                        {{ clear_form.notes }}
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top px-4 py-3">
@@ -454,4 +487,65 @@
     </div>
 </div>
 
+<!-- 6. مودال تحويل شيك الضمان الصادر -->
+<div class="modal fade" id="convertGuaranteeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_convert_guarantee_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                {{ convert_guarantee_form.idempotency_key }}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-exchange-alt text-primary me-2"></i>{% trans "تحويل شيك الضمان إلى شيك تشغيلي" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيؤدي هذا الإجراء لنقل الشيك من خارج الميزانية إلى حسابات أوراق الدفع وتوليد قيد الالتزام للمورد في الأستاذ العام." %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ convert_guarantee_form.new_purpose.label }} <span class="text-danger">*</span></label>
+                        {{ convert_guarantee_form.new_purpose }}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ convert_guarantee_form.approval_notes.label }} <span class="text-danger">*</span></label>
+                        {{ convert_guarantee_form.approval_notes }}
+                        {% if convert_guarantee_form.approval_notes.errors %}
+                            <div class="text-danger small mt-1">{{ convert_guarantee_form.approval_notes.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "اعتماد التحويل وتوليد القيد" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // ضبط Select2 داخل المودالات مع dropdownParent
+    ['clearModal', 'bounceModal', 'convertGuaranteeModal'].forEach(function(modalId) {
+        var modalEl = document.getElementById(modalId);
+        if (modalEl && typeof $ !== 'undefined' && $.fn.select2) {
+            $(modalEl).on('shown.bs.modal', function () {
+                $(this).find('.select2-filter').select2({
+                    dropdownParent: $(this),
+                    dir: "rtl",
+                    language: "ar",
+                    width: '100%'
+                });
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
+

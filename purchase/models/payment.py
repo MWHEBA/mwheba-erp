@@ -98,6 +98,20 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         default=Decimal("0.00"),
         help_text=_("صافي أرباح أو خسائر فروق العملة الناتجة عن السداد"),
     )
+    discount_amount = models.DecimalField(
+        _("الخصم المكتسب"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("مبلغ الخصم المكتسب عند السداد"),
+    )
+    withholding_tax_amount = models.DecimalField(
+        _("ضريبة الخصم والإضافة"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("مبلغ ضريبة أ.ت.ص المخصومة من المورد"),
+    )
 
     # مفتاح منع التكرار اللحظي (Backend Idempotency Key)
     idempotency_key = models.CharField(
@@ -163,18 +177,27 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         verbose_name_plural = _("دفعات الفواتير")
         ordering = ["-payment_date"]
 
-    def save(self, *args, **kwargs):
-        self.populate_monetary_fields()
-        super().save(*args, **kwargs)
-
     def __str__(self):
         return f"{self.purchase} - {self.amount} - {self.payment_date}"
+
+    @property
+    def is_custody_payment(self) -> bool:
+        """هل الدفعة مرتبطة بتسوية عهدة نقدية"""
+        if self.source_type == "CUSTODY":
+            return True
+        if self.financial_transaction and (
+            getattr(self.financial_transaction, "source_model", "") == "PettyCashSettlement"
+            or getattr(self.financial_transaction, "entry_type", "") == "settlement"
+        ):
+            return True
+        return False
 
     SOURCE_TYPE_CHOICES = (
         ("CASH", _("نقدي")),
         ("BANK", _("تحويل بنكي / شيك")),
         ("PREPAID_BALANCE", _("خصم من الرصيد المسبق / دفعة مقدمة للمورد")),
         ("DEBIT_NOTE", _("تسوية إشعار خصم/مردودات")),
+        ("CUSTODY", _("العهدة / السلفة")),
     )
     source_type = models.CharField(
         _("نوع مصدر الدفعة"),
@@ -185,14 +208,15 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
     )
 
     def clean(self):
-        """التحقق من صحة البيانات"""
+        """التحقق من صحة البيانات وحوكمة دفعات العهد"""
         super().clean()
 
         # التحقق من أن الحساب المالي نقدي أو بنكي أو عهدة معتمدة (إلا لو كانت الدفعة مخصومة من رصيد مسبق للمورد)
         if self.financial_account and not (self.source_type == "PREPAID_BALANCE"):
             is_custody = (
-                self.financial_account.code.startswith("1145")
-                or self.financial_account.code.startswith("1051")
+                self.source_type == "CUSTODY"
+                or getattr(self.financial_account, "is_custody_account", False)
+                or self.financial_account.code.startswith(("1113", "1123", "1145", "1051"))
                 or (getattr(self.financial_account, "account_type", None) and getattr(self.financial_account.account_type, "code", "").upper() == "OTHER_DEBIT")
                 or "عهدة" in (self.financial_account.name or "")
             )
@@ -209,7 +233,51 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         if self.amount and self.amount <= 0:
             raise ValidationError({"amount": _("يجب أن يكون المبلغ أكبر من صفر")})
 
+        # حارس حوكمة دفعات العهد النقدية: تجميد الحقول المالية ومنع تعديلها أو فك ارتباطها من موديول المشتريات
+        if self.pk:
+            orig = PurchasePayment.objects.filter(pk=self.pk).select_related("financial_transaction").first()
+            if orig:
+                orig_is_custody = (
+                    orig.source_type == "CUSTODY"
+                    or (
+                        orig.financial_transaction
+                        and (
+                            getattr(orig.financial_transaction, "source_model", "") == "PettyCashSettlement"
+                            or getattr(orig.financial_transaction, "entry_type", "") == "settlement"
+                        )
+                    )
+                )
+                if orig_is_custody and not getattr(self, "_allow_custody_reversal", False):
+                    protected_fields = [
+                        "amount", "purchase_id", "financial_transaction_id",
+                        "financial_account_id", "payment_currency_id", "payment_exchange_rate",
+                        "amount_paid_currency", "amount_settled_invoice_currency",
+                        "amount_functional", "realized_fx_difference"
+                    ]
+                    for f in ["discount_amount", "withholding_tax_amount"]:
+                        if hasattr(self, f) and hasattr(orig, f):
+                            protected_fields.append(f)
+
+                    for field in protected_fields:
+                        if getattr(self, field) != getattr(orig, field):
+                            raise ValidationError(
+                                f"حظر حوكمة: لا يمكن تعديل الحقل المالي '{field}' لدفعة مسددة من تسوية عهدة نقدية. "
+                                f"التعديل أو الإلغاء يتم حصرياً عبر شاشة تسوية العهد."
+                            )
+
+                    if self.status != orig.status and orig.status == "posted":
+                        raise ValidationError(
+                            "حظر حوكمة: لا يمكن تغيير حالة دفعة العهدة من مرحّلة إلى مسودة. "
+                            "الإلغاء يتم حصرياً عبر العكس المحاسبي المعتمد للتسوية."
+                        )
+
     def delete(self, *args, **kwargs):
+        if self.is_custody_payment and not getattr(self, "_allow_custody_reversal", False):
+            raise ValidationError(
+                "حظر حوكمة: لا يمكن حذف دفعة مشتريات مسددة من تسوية عهدة نقدية. "
+                "الإلغاء يتم حصرياً عبر العكس المحاسبي المعتمد لتسوية العهدة."
+            )
+
         if self.purchase and self.purchase.supplier:
             from financial.services.partner_balance_service import PartnerBalanceService
             settled = getattr(self, "amount_settled_invoice_currency", self.amount) or self.amount
@@ -307,7 +375,42 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         return self.status == "draft"
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
+        # التحقق من حوكمة دفعات العهد عند الحفظ المباشر
+        if self.pk:
+            orig = PurchasePayment.objects.filter(pk=self.pk).select_related("financial_transaction").first()
+            if orig:
+                orig_is_custody = (
+                    orig.source_type == "CUSTODY"
+                    or (
+                        orig.financial_transaction
+                        and (
+                            getattr(orig.financial_transaction, "source_model", "") == "PettyCashSettlement"
+                            or getattr(orig.financial_transaction, "entry_type", "") == "settlement"
+                        )
+                    )
+                )
+                if orig_is_custody and not getattr(self, "_allow_custody_reversal", False):
+                    protected_fields = [
+                        "amount", "purchase_id", "financial_transaction_id",
+                        "financial_account_id", "payment_currency_id", "payment_exchange_rate",
+                        "amount_paid_currency", "amount_settled_invoice_currency",
+                        "amount_functional", "realized_fx_difference"
+                    ]
+                    for f in ["discount_amount", "withholding_tax_amount"]:
+                        if hasattr(self, f) and hasattr(orig, f):
+                            protected_fields.append(f)
+
+                    for field in protected_fields:
+                        if getattr(self, field) != getattr(orig, field):
+                            raise ValidationError(
+                                f"حظر حوكمة: لا يمكن تعديل الحقل المالي '{field}' لدفعة مسددة من تسوية عهدة نقدية."
+                            )
+                    if self.status != orig.status and orig.status == "posted":
+                        raise ValidationError(
+                            "حظر حوكمة: لا يمكن تغيير حالة دفعة العهدة إلا عبر العكس المحاسبي المعتمد للتسوية."
+                        )
+
+        self.populate_monetary_fields()
         super().save(*args, **kwargs)
 
         # تحديث حالة الدفع للفاتورة
@@ -318,6 +421,12 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         """إلغاء ترحيل الدفعة بحذف القيد المحاسبي"""
         if not self.is_posted:
             return {"success": False, "message": "الدفعة غير مرحّلة"}
+
+        if self.is_custody_payment:
+            return {
+                "success": False,
+                "message": "حظر حوكمة: لا يمكن إلغاء ترحيل دفعة مرتبطة بتسوية عهدة نقدية من موديول المشتريات. يجب عكس تسوية العهدة بالكامل من موديول العهد."
+            }
 
         try:
             # تسجيل البيانات القديمة للتدقيق
@@ -505,10 +614,3 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
                 )
 
         return {"success": True, "message": "تم تحديث الدفعة بنجاح"}
-
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-
-        # تحديث حالة الدفع للفاتورة بعد الحذف
-        if self.purchase:
-            self.purchase.update_payment_status()

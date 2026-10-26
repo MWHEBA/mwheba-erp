@@ -1,0 +1,81 @@
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+{% if advances %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle border mb-0">
+        <thead class="table-light">
+            <tr>
+                <th style="width: 140px;">رقم السند</th>
+                <th>الموظف المستلم</th>
+                <th>خزينة الصرف</th>
+                <th>تاريخ الصرف</th>
+                <th>تاريخ الاستحقاق</th>
+                <th class="text-end">المبلغ الأصلي</th>
+                <th class="text-end">الرصيد المتبقي</th>
+                <th class="text-center">الحالة</th>
+                <th class="text-center col-actions" style="width: 140px;">الإجراءات</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adv in advances %}
+            <tr class="clickable-row cursor-pointer" data-href="{% url 'financial:custody_advance_detail' adv.id %}">
+                <td>
+                    <span class="badge bg-light text-dark border fw-bold">{{ adv.advance_number }}</span>
+                </td>
+                <td>
+                    <div class="fw-bold text-dark">{{ adv.employee.name }}</div>
+                    <small class="text-muted">{{ adv.purpose|truncatechars:35 }}</small>
+                </td>
+                <td>{{ adv.source_treasury.name|default:"-" }}</td>
+                <td>{{ adv.issue_date|date:"Y-m-d" }}</td>
+                <td>
+                    <span class="{% if adv.status == 'overdue' %}text-danger fw-bold{% endif %}">
+                        {{ adv.due_date|date:"Y-m-d" }}
+                    </span>
+                </td>
+                <td class="text-end fw-bold">{{ adv.amount|smart_float }} <small class="text-muted">{{ adv.currency.code }}</small></td>
+                <td class="text-end fw-bold text-success">{{ adv.current_balance|smart_float }} <small class="text-muted">{{ adv.currency.code }}</small></td>
+                <td class="text-center">
+                    {% if adv.status == 'active' %}
+                    <span class="badge bg-info bg-opacity-10 text-info border border-info">نشطة / جارية</span>
+                    {% elif adv.status == 'partially_settled' %}
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">مسواة جزئياً</span>
+                    {% elif adv.status == 'settled' %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">مسواة بالكامل</span>
+                    {% elif adv.status == 'overdue' %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">متأخرة</span>
+                    {% elif adv.status == 'cancelled' %}
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary border">ملغاة</span>
+                    {% else %}
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ adv.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-center col-actions">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'financial:custody_advance_detail' adv.id %}" class="btn btn-outline-secondary" title="عرض التفاصيل">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{% url 'financial:custody_advance_print' adv.id %}" target="_blank" class="btn btn-outline-secondary" title="طباعة سند الصرف">
+                            <i class="fas fa-print"></i>
+                        </a>
+                        {% if adv.status != 'settled' and adv.status != 'cancelled' %}
+                        <a href="{% url 'financial:custody_settlement_create' %}?advance_id={{ adv.id }}&employee_id={{ adv.employee_id }}" class="btn btn-outline-primary" title="تسوية العهدة">
+                            <i class="fas fa-receipt"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3"></i>
+    <h6 class="text-muted">لا توجد عهد نقدية مسجلة مطابقة للفلاتر الحالية.</h6>
+</div>
+{% endif %}

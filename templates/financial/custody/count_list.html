@@ -30,6 +30,8 @@
  <th class="text-end">فواتير معلقة</th>
  <th class="text-end">مبلغ الفارق</th>
  <th class="text-center">النتيجة</th>
+ <th class="text-center">الحالة</th>
+ <th class="text-center" style="width: 110px;">الإجراءات</th>
  </tr>
  </thead>
  <tbody>
@@ -59,6 +61,27 @@
  <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">زيادة نقدية</span>
  {% endif %}
  </td>
+ <td class="text-center">
+ {% if c.status == 'adjusted' %}
+ <span class="badge bg-success bg-opacity-10 text-success border border-success">تمت التسوية</span>
+ {% else %}
+ <span class="badge bg-secondary bg-opacity-10 text-secondary border">معلق</span>
+ {% endif %}
+ </td>
+ <td class="text-center">
+ {% if c.status != 'adjusted' and c.variance_type != 'matched' and perms.financial.can_post_settlement %}
+ <button type="button" class="btn btn-outline-primary btn-sm px-2 btn-adjust-count"
+         data-count-num="{{ c.count_number }}"
+         data-variance-type="{{ c.variance_type }}"
+         data-variance="{{ c.variance_amount|smart_float }}"
+         data-url="{% url 'financial:custody_count_adjust' c.id %}"
+         title="تسوية الفروق محاسبياً">
+     <i class="fas fa-balance-scale me-1"></i>تسوية
+ </button>
+ {% else %}
+ <span class="text-muted fs-8">-</span>
+ {% endif %}
+ </td>
  </tr>
  {% endfor %}
  </tbody>
@@ -77,4 +100,101 @@
  {% endif %}
  </div>
 </div>
+
+<!-- مودال تسوية فروق الجرد الفعلي -->
+<div class="modal fade" id="adjustCountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="adjustCountForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-balance-scale text-primary me-2"></i>تسوية فروق محضر الجرد <span id="modalAdjustCountNum"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 mb-3 fs-7">
+                        مبلغ الفارق المسجل بالمحضر: <strong id="modalAdjustVariance">0.00</strong> ج.م
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">طريقة تسوية الفارق المحاسبي <span class="text-danger">*</span></label>
+                        <select name="adjustment_type" id="modalAdjustmentType" class="form-select" required>
+                            <!-- خيارات العجز -->
+                            <option value="hr_deduction" class="opt-shortage">تحميل العجز على ذمة وراتب الموظف (استقطاع)</option>
+                            <option value="expense_loss" class="opt-shortage">تحميل العجز كخسائر وأعباء تشغيلية على الشركة</option>
+                            <!-- خيارات الزيادة -->
+                            <option value="revenue" class="opt-surplus">إثبات الزيادة كإيرادات متنوعة</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-check-circle me-1"></i>ترحيل قيد التسوية
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.btn-adjust-count').on('click', function() {
+        var btn = $(this);
+        var url = btn.data('url');
+        var num = btn.data('count-num');
+        var vType = btn.data('variance-type');
+        var variance = btn.data('variance');
+
+        $('#adjustCountForm').attr('action', url);
+        $('#modalAdjustCountNum').text(num);
+        $('#modalAdjustVariance').text(variance);
+
+        if (vType === 'shortage') {
+            $('.opt-shortage').removeClass('d-none');
+            $('.opt-surplus').addClass('d-none');
+            $('#modalAdjustmentType').val('hr_deduction');
+        } else {
+            $('.opt-shortage').addClass('d-none');
+            $('.opt-surplus').removeClass('d-none');
+            $('#modalAdjustmentType').val('revenue');
+        }
+
+        var myModal = new bootstrap.Modal(document.getElementById('adjustCountModal'));
+        myModal.show();
+    });
+
+    $('#adjustCountForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                $('#adjustCountModal').modal('hide');
+                if (window.showNotification) {
+                    window.showNotification(resp.message || 'تم ترحيل تسوية فروق الجرد بنجاح', 'success');
+                }
+                setTimeout(function() { location.reload(); }, 1200);
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false);
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء ترحيل التسوية';
+                if (window.showNotification) {
+                    window.showNotification(msg, 'error');
+                }
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

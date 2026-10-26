@@ -311,3 +311,29 @@ class TestCustodyModelsAndSequences:
         )
         assert asset_transfer.id is not None
         assert asset_transfer.to_employee == self.employee2
+
+    def test_custody_models_role_registry_standards(self):
+        """التحقق من توافق نماذج العهد مع الحسابات المعيارية وسجل الأدوار"""
+        from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+
+        temp_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_TEMPORARY_CONTROL)
+        assert temp_acc.code == "11130"
+
+        perm_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_PERMANENT_CONTROL)
+        assert perm_acc.code == "11230"
+
+        # ربط السلفة بالحساب المعياري 11130
+        adv = EmployeeCustodyAdvance.objects.create(
+            advance_number="CADV-TEST-REGISTRY",
+            employee=self.employee1,
+            user=self.user,
+            source_treasury=self.main_treasury,
+            custody_account=temp_acc,
+            amount=Decimal("5000.00"),
+            currency=self.currency,
+            due_date=timezone.now().date() + timezone.timedelta(days=10),
+            purpose="اختبار ربط الحساب المعياري",
+            status=CustodyAdvanceStatus.ACTIVE,
+        )
+        assert adv.custody_account.code == "11130"
+

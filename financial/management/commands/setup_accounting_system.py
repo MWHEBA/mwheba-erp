@@ -190,9 +190,11 @@ class Command(BaseCommand):
             ("211", "الدائنون", "21", "LIABILITY", 3, False, False, False),
             ("21210", "بضاعة غير مفوترة (GRNI)", "21", "LIABILITY", 3, True, False, False),
             ("21220", "مصروفات مستحقة", "21", "LIABILITY", 3, True, False, False),
+            ("21230", "مستحقات عهد الموظفين", "21", "LIABILITY", 3, True, False, False),
             ("21310", "ضريبة القيمة المضافة - مخرجات (مبيعات)", "21", "LIABILITY", 3, True, False, False),
             ("21320", "ضريبة كسب العمل", "21", "LIABILITY", 3, True, False, False),
             ("21330", "ضرائب مخصومة للغير (خصم وإضافة)", "21", "LIABILITY", 3, True, False, False),
+            ("21350", "أرباح تقسيط مؤجلة", "21", "LIABILITY", 3, True, False, False),
             ("21410", "رواتب وأجور مستحقة", "21", "LIABILITY", 3, True, False, False),
             ("21420", "تأمينات اجتماعية مستحقة", "21", "LIABILITY", 3, True, False, False),
             ("21510", "دفعات مقدمة من العملاء", "21", "LIABILITY", 3, True, False, False),
@@ -209,7 +211,10 @@ class Command(BaseCommand):
             ("41200", "إيرادات الخدمات", "41", "REVENUE", 3, True, False, False),
             ("41910", "مردودات ومسموحات المبيعات", "41", "REVENUE", 3, True, False, False),
             ("41930", "الخصم المسموح به", "41", "REVENUE", 3, True, False, False),
+            ("41940", "خصم تعجيل سداد الأقساط", "41", "REVENUE", 3, True, False, False),
             ("42110", "فوائد بنكية واستثمارات", "42", "REVENUE", 3, True, False, False),
+            ("42310", "إيرادات فوائد تقسيط محققة", "42", "REVENUE", 3, True, False, False),
+            ("42400", "غرامات ورسوم تأخير سداد الأقساط", "42", "REVENUE", 3, True, False, False),
             ("43100", "أرباح فروق العملة", "43", "REVENUE", 3, True, False, False),
             ("49110", "أرباح بيع أصول وإيرادات متنوعة", "42", "REVENUE", 3, True, False, False),
             ("51100", "المشتريات / تكلفة البضاعة", "51", "EXPENSE", 3, True, False, False),
@@ -653,11 +658,32 @@ class Command(BaseCommand):
             # حقوق الملكية والأرصدة الافتتاحية
             ("opening_balance_equity", "31010", "حساب الأرصدة الافتتاحية للمنشأة"),
 
-            # الرواتب والتأمينات
+            # أوراق القبض والدفع والشيكات برسم التحصيل
+            ("notes_receivable_control", "11220", "أوراق القبض (كمبيالات وشيكات آجلة)"),
+            ("cheques_under_collection", "11190", "نقدية في الطريق وشيكات برسم التحصيل"),
+            ("notes_payable_control", "21120", "أوراق الدفع (شيكات وكمبيالات صادرة)"),
+
+            # الرواتب والتأمينات ومكافأة نهاية الخدمة
             ("salary_expense", "52100", "مصروف الرواتب والأجور"),
+            ("social_insurance_expense", "52200", "مصروف التأمينات الاجتماعية"),
             ("social_insurance", "21420", "تأمينات اجتماعية مستحقة"),
             ("salary_payables", "21410", "رواتب وأجور مستحقة"),
             ("employee_advance", "11230", "سلف وعهد الموظفين"),
+            ("end_of_service_expense", "52300", "مصروف مكافأة نهاية الخدمة"),
+            ("end_of_service_provision", "22210", "مخصص مكافأة نهاية الخدمة"),
+
+            # العهد النقدية ومستحقات العهد والتأمينات والعجز
+            ("custody_temporary_control", "11130", "العهد النقدية المستديمة والمؤقتة"),
+            ("custody_permanent_control", "11230", "حسابات وسلف الموظفين والعهد"),
+            ("custody_overrun_payables", "21230", "مستحقات عهد الموظفين (فائض المنصرفات)"),
+            ("refundable_deposits_asset", "11440", "تأمينات مستردة لدى الغير"),
+            ("custody_shortage_loss", "54900", "خسائر بيع أصول ومصروفات متنوعة (عجز العهد)"),
+
+            # مبيعات التقسيط والفوائد
+            ("installment_unearned_interest", "21350", "أرباح وفوائد تقسيط مؤجلة"),
+            ("installment_realized_interest", "42310", "إيرادات فوائد تقسيط محققة"),
+            ("installment_late_fees", "42400", "غرامات ورسوم تأخير سداد الأقساط"),
+            ("installment_early_settlement_discount", "41940", "خصم تعجيل سداد الأقساط"),
         ]
 
         seeded_count = 0

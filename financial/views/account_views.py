@@ -1020,30 +1020,40 @@ def assign_custody_account_employee(request):
     employee_id = request.POST.get("employee_id")
     notes = request.POST.get("notes", "")
 
-    try:
-        account = ChartOfAccounts.objects.get(id=account_id, is_custody_account=True)
-    except ChartOfAccounts.DoesNotExist:
-        return JsonResponse({"status": "error", "message": "حساب العهدة غير موجود."}, status=404)
+    from django.db import transaction
 
-    employee = None
-    if employee_id:
+    with transaction.atomic():
         try:
-            employee = Employee.objects.get(id=employee_id, is_active=True)
-        except Employee.DoesNotExist:
-            return JsonResponse({"status": "error", "message": "الموظف المحدد غير موجود أو غير نشط."}, status=404)
+            account = ChartOfAccounts.objects.select_for_update().get(id=account_id, is_custody_account=True)
+        except ChartOfAccounts.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "حساب العهدة غير موجود."}, status=404)
 
-    old_employee = account.assigned_employee
-    account.assigned_employee = employee
-    account.save(update_fields=["assigned_employee"])
+        old_employee = account.assigned_employee
+        employee = Employee.objects.filter(id=employee_id, status="active").first() if employee_id else None
+        account.assigned_employee = employee
+        account.save(update_fields=["assigned_employee"])
 
-    if employee:
-        CustodyAssignmentHistory.objects.create(
-            account=account,
-            employee=employee,
-            assigned_by=request.user,
-            opening_balance_on_handover=account.current_balance if hasattr(account, 'current_balance') else Decimal("0.00"),
-            notes=notes or f"إسناد وتكليف إدارة العهدة للموظف {employee.name}" + (f" (بدلاً من {old_employee.name})" if old_employee else ""),
+        # إغلاق سجل المسؤول السابق ذرياً وتحديد تاريخ انتهاء المسؤولية في جميع الأحوال (إسناد جديد أو إلغاء)
+        CustodyAssignmentHistory.objects.filter(account=account, is_active=True).update(
+            is_active=False,
+            end_date=timezone.localdate(),
         )
+
+        if employee:
+            handover_balance = (
+                account.get_balance(currency_type="local")
+                if hasattr(account, "get_balance")
+                else Decimal("0.00")
+            )
+
+            CustodyAssignmentHistory.objects.create(
+                account=account,
+                employee=employee,
+                assigned_by=request.user,
+                is_active=True,
+                opening_balance_on_handover=handover_balance,
+                notes=notes or f"إسناد وتكليف إدارة العهدة للموظف {employee.name}" + (f" (بدلاً من {old_employee.name})" if old_employee else ""),
+            )
 
     return JsonResponse({
         "status": "success",

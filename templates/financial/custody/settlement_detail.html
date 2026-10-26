@@ -1,0 +1,760 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- 1. كروت الـ KPI المالية لسند التسوية -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي فواتير ومصروفات التسوية</div>
+                        <div class="stats-card-value fs-4 fw-bold text-info">{{ settlement.total_expenses|smart_float }} <span class="fs-6 text-muted">{{ settlement.currency.code|default:'ج.م' }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
+                        <i class="fas fa-file-invoice-dollar fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">صافي مبلغ التسوية المعتمد</div>
+                        <div class="stats-card-value fs-4 fw-bold text-success">{{ settlement.total_settled_amount|smart_float }} <span class="fs-6 text-muted">{{ settlement.currency.code|default:'ج.م' }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-success p-3 rounded-circle">
+                        <i class="fas fa-check-double fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">ضريبة القيمة المضافة (VAT)</div>
+                        <div class="stats-card-value fs-4 fw-bold text-warning">{{ settlement.total_tax|smart_float }} <span class="fs-6 text-muted">{{ settlement.currency.code|default:'ج.م' }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
+                        <i class="fas fa-percentage fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-danger h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">ضريبة الخصم والأرباح (WHT)</div>
+                        <div class="stats-card-value fs-4 fw-bold text-danger">{{ settlement.total_wht|smart_float }} <span class="fs-6 text-muted">{{ settlement.currency.code|default:'ج.م' }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-danger p-3 rounded-circle">
+                        <i class="fas fa-hand-holding-usd fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شريط الأزرار والإجراءات التفاعلية -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-7 text-muted">حالة السند:</span>
+                {% if settlement.status == 'posted' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 fs-7">مرحل محاسبياً</span>
+                {% elif settlement.status == 'submitted' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 fs-7">قيد المراجعة والاعتماد</span>
+                {% elif settlement.status == 'draft' %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary px-3 py-2 fs-7">مسودة غير مرسلة</span>
+                {% elif settlement.status == 'reversed' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 fs-7">معكوس محاسبياً</span>
+                {% elif settlement.status == 'rejected' %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 fs-7">مرفوض مع بيان السبب</span>
+                {% else %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 fs-7">{{ settlement.get_status_display }}</span>
+                {% endif %}
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'financial:custody_settlement_print' settlement.id %}" target="_blank" class="btn btn-outline-secondary btn-sm px-3">
+                    <i class="fas fa-print me-1"></i>طباعة السند
+                </a>
+
+                {% if settlement.status == 'draft' %}
+                <a href="{% url 'financial:custody_settlement_edit' settlement.id %}" class="btn btn-outline-primary btn-sm px-3 fw-bold">
+                    <i class="fas fa-edit me-1"></i>تعديل واستكمال المسودة
+                </a>
+                <button type="button" class="btn btn-primary btn-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#submitDraftModal">
+                    <i class="fas fa-paper-plane me-1"></i>إرسال للمراجعة والاعتماد
+                </button>
+                {% endif %}
+
+                {% if settlement.status == 'submitted' %}
+                    {% if perms.financial.can_post_settlement or request.user.is_superuser %}
+                    <button type="button" class="btn btn-success btn-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#postModal">
+                        <i class="fas fa-check-double me-1"></i>اعتماد وترحيل القيد
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm px-3" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                        <i class="fas fa-times-circle me-1"></i>رفض مسبب
+                    </button>
+                    {% endif %}
+                {% endif %}
+
+                {% if settlement.status == 'posted' %}
+                    {% if settlement.eligible_replenishment_amount > 0 and not settlement.is_replenished %}
+                        {% if perms.financial.can_disburse_custody or request.user.is_superuser %}
+                        <button type="button" class="btn btn-primary btn-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#replenishModal">
+                            <i class="fas fa-coins me-1"></i>صرف استعاضة الصندوق ({{ settlement.eligible_replenishment_amount|smart_float }} {{ settlement.currency.code|default:'ج.م' }})
+                        </button>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if perms.financial.can_reverse_settlement or request.user.is_superuser %}
+                    <button type="button" class="btn btn-outline-danger btn-sm px-3" data-bs-toggle="modal" data-bs-target="#reverseModal">
+                        <i class="fas fa-undo me-1"></i>عكس التسوية محاسبياً
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- تنبيه إذا كانت التسوية مرفوضة -->
+    {% if settlement.status == 'rejected' and settlement.rejection_reason %}
+    <div class="alert alert-danger border-0 shadow-sm mb-4">
+        <h6 class="fw-bold mb-1"><i class="fas fa-exclamation-circle me-2"></i>سبب رفض التسوية:</h6>
+        <div class="fs-7">{{ settlement.rejection_reason }}</div>
+    </div>
+    {% endif %}
+
+    <!-- 2. تفاصيل وبيانات سند التسوية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-info-circle me-2 text-primary"></i>بيانات السند والأطراف المسؤولة
+        </h5>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">الموظف مقدم التسوية:</div>
+                    <div class="fw-bold text-dark fs-6">{{ settlement.employee.name }}</div>
+                    <small class="text-muted">{{ settlement.employee.job_title.title_ar|default:'' }}</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">العهدة المرتبطة:</div>
+                    {% if settlement.custody_advance %}
+                    <div class="fw-bold text-primary fs-6">
+                        <a href="{% url 'financial:custody_advance_detail' settlement.custody_advance.id %}">
+                            {{ settlement.custody_advance.advance_number }}
+                        </a>
+                    </div>
+                    <small class="text-muted">المبلغ الأصلي: {{ settlement.custody_advance.amount|smart_float }} {{ settlement.custody_advance.currency.code }}</small>
+                    {% else %}
+                    <div class="fw-bold text-dark fs-6">تسوية عهدة مستديمة / صندوق نثريات</div>
+                    <small class="text-muted">{{ settlement.custody_account.name|default:'حساب وسيط الصندوق' }}</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">تاريخ تحرير السند:</div>
+                    <div class="fw-bold text-dark fs-6">{{ settlement.settlement_date|date:"Y-m-d" }}</div>
+                    <small class="text-muted">تم التقديم بواسطة: {% if settlement.submitted_by %}{{ settlement.submitted_by.get_full_name|default:settlement.submitted_by.username }}{% else %}-{% endif %}</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">فائض نقدية مورد للخزينة:</div>
+                    <div class="fw-bold text-dark fs-6">{{ settlement.cash_returned_to_treasury|smart_float }} {{ settlement.currency.code|default:'ج.م' }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">الخصومات المكتسبة الفورية:</div>
+                    <div class="fw-bold text-dark fs-6">{{ settlement.total_discounts_earned|smart_float }} {{ settlement.currency.code|default:'ج.م' }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">حالة استعاضة الصندوق المستديم:</div>
+                    {% if settlement.is_replenished %}
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success">تمت الاستعاضة</span>
+                    {% elif settlement.eligible_replenishment_amount > 0 %}
+                    <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">مؤهل للاستعاضة</span>
+                    {% else %}
+                    <span class="text-muted">غير مطلوب استعاضة</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if settlement.notes %}
+            <div class="col-12">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">ملاحظات وبيان التسوية:</div>
+                    <div class="text-dark">{{ settlement.notes }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 3. جدول بنود وفواتير المصروفات التفصيلية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-list-ol me-2 text-primary"></i>تفاصيل بنود وفواتير ومستندات المصروفات
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light fs-7 text-center">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>نوع البند</th>
+                        <th>حساب المصروف</th>
+                        <th>المورد والملف الضريبي</th>
+                        <th>رقم وتاريخ الفاتورة</th>
+                        <th class="text-end">المبلغ المسجل</th>
+                        <th class="text-center">العملة / الصرف</th>
+                        <th class="text-end">المبلغ المعتمد</th>
+                        <th class="text-end">VAT</th>
+                        <th class="text-end">WHT</th>
+                        <th class="text-end">الخصم</th>
+                        <th>مركز التكلفة</th>
+                        <th class="text-center">الحالة</th>
+                        <th>البيان</th>
+                        <th style="width: 60px;">المرفق</th>
+                        {% if settlement.status in 'submitted,draft' and perms.financial.can_post_settlement %}
+                        <th style="width: 70px;">مراجعة</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ln in lines %}
+                    <tr class="fs-7">
+                        <td class="text-center fw-bold">{{ ln.line_number }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ ln.get_line_type_display }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-bold">{{ ln.expense_account.name|default:'-' }}</div>
+                            <small class="text-muted">{{ ln.expense_account.code|default:'' }}</small>
+                        </td>
+                        <td>
+                            {% if ln.supplier %}
+                            <div class="fw-bold text-primary">{{ ln.supplier.name }}</div>
+                            {% elif ln.supplier_name %}
+                            <div class="fw-bold">{{ ln.supplier_name }}</div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                            {% if ln.supplier_tax_id %}
+                            <small class="text-muted d-block">ضريبي: {{ ln.supplier_tax_id }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ ln.invoice_number|default:'-' }}</div>
+                            <small class="text-muted">{{ ln.invoice_date|date:"Y-m-d" }}</small>
+                        </td>
+                        <td class="text-end fw-bold">{{ ln.amount|smart_float }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border">{{ ln.currency.code|default:'EGP' }}</span>
+                            {% if ln.exchange_rate and ln.exchange_rate != 1 %}
+                            <small class="text-muted d-block fs-8">{{ ln.exchange_rate|smart_float:4 }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold text-success">{{ ln.approved_amount|smart_float }}</td>
+                        <td class="text-end text-info">{{ ln.tax_amount|smart_float }}</td>
+                        <td class="text-end text-danger">{{ ln.wht_amount|smart_float }}</td>
+                        <td class="text-end text-success">{{ ln.discount_amount|smart_float }}</td>
+                        <td>{{ ln.cost_center.name|default:'-' }}</td>
+                        <td class="text-center">
+                            {% if ln.status == 'approved' %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success">معتمد</span>
+                            {% elif ln.status == 'adjusted' %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">معدل</span>
+                            {% elif ln.status == 'rejected' %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">مرفوض</span>
+                            {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border">معلق</span>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ ln.description }}</small></td>
+                        <td class="text-center">
+                            {% if ln.receipt_file %}
+                            <a href="{{ ln.receipt_file.url }}" target="_blank" class="btn btn-outline-primary btn-sm p-1" title="معاينة الفاتورة">
+                                <i class="fas fa-file-invoice"></i>
+                            </a>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% if settlement.status in 'submitted,draft' and perms.financial.can_post_settlement %}
+                        <td class="text-center">
+                            <button type="button" class="btn btn-outline-secondary btn-sm p-1 px-2 btn-review-line"
+                                    data-line-id="{{ ln.id }}"
+                                    data-line-num="{{ ln.line_number }}"
+                                    data-amount="{{ ln.amount }}"
+                                    data-approved="{{ ln.approved_amount }}"
+                                    data-status="{{ ln.status }}"
+                                    data-reason="{{ ln.rejection_reason|default:'' }}"
+                                    data-url="{% url 'financial:custody_settlement_line_review' settlement.id ln.id %}"
+                                    title="مراجعة البند">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="16" class="text-center py-4 text-muted">لا توجد بنود مصروفات مسجلة في هذا السند.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light fw-bold fs-7">
+                    <tr>
+                        <td colspan="5" class="text-end">الإجماليات الكلية ({{ settlement.currency.code|default:'ج.م' }}):</td>
+                        <td class="text-end text-primary">{{ settlement.total_expenses|smart_float }}</td>
+                        <td></td>
+                        <td class="text-end text-success">{{ settlement.total_settled_amount|smart_float }}</td>
+                        <td class="text-end text-info">{{ settlement.total_tax|smart_float }}</td>
+                        <td class="text-end text-danger">{{ settlement.total_wht|smart_float }}</td>
+                        <td class="text-end text-success">{{ settlement.total_discounts_earned|smart_float }}</td>
+                        <td colspan="{% if settlement.status in 'submitted,draft' and perms.financial.can_post_settlement %}5{% else %}4{% endif %}"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- 4. القيود اليومية العامة المرتبطة بالسند -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-book me-2 text-primary"></i>القيود المحاسبية المرتبطة بالسند
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle border mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>نوع القيد</th>
+                        <th>رقم القيد</th>
+                        <th>تاريخ القيد</th>
+                        <th>البيان المحاسبي</th>
+                        <th class="text-end">إجمالي المدين</th>
+                        <th class="text-end">إجمالي الدائن</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center" style="width: 100px;">عرض</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if settlement.journal_entry %}
+                    <tr>
+                        <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary">قيد التسوية الرئيسي</span></td>
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ settlement.journal_entry.number }}</span></td>
+                        <td>{{ settlement.journal_entry.date|date:"Y-m-d" }}</td>
+                        <td>{{ settlement.journal_entry.description }}</td>
+                        <td class="text-end fw-bold">{{ settlement.journal_entry.total_debit|smart_float }}</td>
+                        <td class="text-end fw-bold">{{ settlement.journal_entry.total_credit|smart_float }}</td>
+                        <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success border border-success">مرحل</span></td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:journal_entry_detail' settlement.journal_entry.id %}" class="btn btn-outline-secondary btn-sm" title="عرض القيد">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {% if settlement.reversal_entry %}
+                    <tr>
+                        <td><span class="badge bg-danger bg-opacity-10 text-danger border border-danger">قيد العكس المحاسبي</span></td>
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ settlement.reversal_entry.number }}</span></td>
+                        <td>{{ settlement.reversal_entry.date|date:"Y-m-d" }}</td>
+                        <td>{{ settlement.reversal_entry.description }}</td>
+                        <td class="text-end fw-bold">{{ settlement.reversal_entry.total_debit|smart_float }}</td>
+                        <td class="text-end fw-bold">{{ settlement.reversal_entry.total_credit|smart_float }}</td>
+                        <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success border border-success">مرحل</span></td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:journal_entry_detail' settlement.reversal_entry.id %}" class="btn btn-outline-secondary btn-sm" title="عرض القيد">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {% if settlement.replenishment_entry %}
+                    <tr>
+                        <td><span class="badge bg-success bg-opacity-10 text-success border border-success">قيد استعاضة الصندوق</span></td>
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ settlement.replenishment_entry.number }}</span></td>
+                        <td>{{ settlement.replenishment_entry.date|date:"Y-m-d" }}</td>
+                        <td>{{ settlement.replenishment_entry.description }}</td>
+                        <td class="text-end fw-bold">{{ settlement.replenishment_entry.total_debit|smart_float }}</td>
+                        <td class="text-end fw-bold">{{ settlement.replenishment_entry.total_credit|smart_float }}</td>
+                        <td class="text-center"><span class="badge bg-success bg-opacity-10 text-success border border-success">مرحل</span></td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:journal_entry_detail' settlement.replenishment_entry.id %}" class="btn btn-outline-secondary btn-sm" title="عرض القيد">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    {% if not settlement.journal_entry and not settlement.reversal_entry and not settlement.replenishment_entry %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">لم يتم توليد قيود محاسبية لهذا السند حتى الآن.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- Modals المتوافقة بالكامل مع Rule 8         -->
+<!-- ========================================== -->
+
+<!-- 1. مودال اعتماد وترحيل التسوية -->
+<div class="modal fade" id="postModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="postForm" method="POST" action="{% url 'financial:custody_settlement_post' settlement.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-check-double text-primary me-2"></i>اعتماد وترحيل سند التسوية
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-file-invoice-dollar fa-3x text-primary mb-3"></i>
+                    <h6 class="fw-bold mb-2">هل أنت متأكد من رغبتك في اعتماد وترحيل سند التسوية {{ settlement.settlement_number }}؟</h6>
+                    <p class="text-muted fs-7 mb-0">سيتم توليد القيد المحاسبي المركب وتحديث رصيد العهدة وذمة الموظف فورياً.</p>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-check-double me-1"></i>تأكيد الترحيل المحاسبي
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 2. مودال رفض التسوية المسبب -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="rejectForm" method="POST" action="{% url 'financial:custody_settlement_reject' settlement.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-times-circle text-danger me-2"></i>رفض سند تسوية العهدة
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">سبب الرفض المسبب <span class="text-danger">*</span></label>
+                        <textarea name="rejection_reason" class="form-control" rows="3" required placeholder="بيان ملاحظات المراجعة وأسباب الرفض بالتفصيل..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">
+                        <i class="fas fa-times-circle me-1"></i>تأكيد الرفض
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 3. مودال استعاضة الصندوق المستديم -->
+<div class="modal fade" id="replenishModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="replenishForm" method="POST" action="{% url 'financial:custody_settlement_replenish' settlement.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-coins text-primary me-2"></i>استعاضة صندوق العهدة المستديمة
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 mb-3 fs-7">
+                        سيتم صرف مبلغ الاستعاضة التعويضي ({{ settlement.eligible_replenishment_amount|smart_float }} ج.م) من الخزينة لتغذية رصيد الصندوق وإعادته لسقفه الافتراضي.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">خزينة الصرف والتمويل <span class="text-danger">*</span></label>
+                        <select name="treasury_account_id" class="form-select select2-replenish" required>
+                            {% for tr in treasuries %}
+                            <option value="{{ tr.id }}">{{ tr.name }} (كود: {{ tr.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-coins me-1"></i>تأكيد صرف الاستعاضة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 4. مودال العكس المحاسبي للتسوية -->
+<div class="modal fade" id="reverseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="reverseForm" method="POST" action="{% url 'financial:custody_settlement_reverse' settlement.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-undo text-danger me-2"></i>العكس المحاسبي لسند التسوية
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-2"></i>
+                        <h6 class="fw-bold mb-1">هل أنت متأكد من إجراء العكس المحاسبي لسند التسوية {{ settlement.settlement_number }}؟</h6>
+                        <p class="text-muted fs-7 mb-0">سيتم إصدار قيد يومية عكسي متناظر وإعادة فتح رصيد العهدة دون حذف السجل لضمان سلامة مسار التدقيق.</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">سبب العكس المحاسبي <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="2" required placeholder="بيان وتوضيح سبب العكس المحاسبي بالتفصيل..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">تاريخ القيد العكسي</label>
+                        <input type="date" name="reversal_date" class="form-control" value="{% now 'Y-m-d' %}">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">
+                        <i class="fas fa-undo me-1"></i>تأكيد العكس المحاسبي
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 5. مودال مراجعة وتعديل/رفض بند تسوية منفرد -->
+<div class="modal fade" id="lineReviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="lineReviewForm" method="POST" action="">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-check-circle text-primary me-2"></i>مراجعة بند المصروف رقم <span id="modalLineNum"></span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-muted fs-7">المبلغ الأصلي المسجل للبند:</label>
+                        <div class="fs-5 fw-bold text-dark" id="modalLineOrigAmount">0.00</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">إجراء المراجعة <span class="text-danger">*</span></label>
+                        <select name="action" id="modalLineAction" class="form-select" required>
+                            <option value="approve">اعتماد البند بالكامل</option>
+                            <option value="adjust">تعديل المبلغ المعتمد (اعتماد جزئي)</option>
+                            <option value="reject">رفض البند بالكامل واستبعاده</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="approvedAmountGroup">
+                        <label class="form-label fw-bold">المبلغ المعتمد النهائي <span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" min="0" name="approved_amount" id="modalApprovedAmount" class="form-control fw-bold">
+                    </div>
+                    <div class="mb-3 d-none" id="rejectionReasonGroup">
+                        <label class="form-label fw-bold">سبب الرفض المسبب <span class="text-danger">*</span></label>
+                        <textarea name="rejection_reason" id="modalRejectionReason" class="form-control" rows="2" placeholder="بيان سبب رفض هذا البند بالتفصيل..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i>حفظ قرار المراجعة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 6. مودال إرسال المسودة للمراجعة والاعتماد -->
+<div class="modal fade" id="submitDraftModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="submitDraftForm" method="POST" action="{% url 'financial:custody_settlement_submit' settlement.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-paper-plane text-primary me-2"></i>إرسال التسوية للمراجعة والاعتماد
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-paper-plane fa-3x text-primary mb-3"></i>
+                    <h6 class="fw-bold mb-2">هل أنت متأكد من إرسال سند تسوية العهدة {{ settlement.settlement_number }} للمراجعة والاعتماد المالي؟</h6>
+                    <p class="text-muted fs-7 mb-0">ستتحول حالة السند من «مسودة» إلى «قيد المراجعة» وتصبح جاهزة للمراجعة المحاسبية وترحيل القيود اليومية.</p>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-paper-plane me-1"></i>تأكيد وإرسال للمراجعة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    if ($.fn.select2) {
+        $('.select2-replenish').select2({
+            dir: 'rtl',
+            language: 'ar',
+            dropdownParent: $('#replenishModal'),
+            width: '100%'
+        });
+    }
+
+    $('.btn-review-line').on('click', function() {
+        var btn = $(this);
+        var url = btn.data('url');
+        var num = btn.data('line-num');
+        var orig = btn.data('amount');
+        var approved = btn.data('approved');
+        var status = btn.data('status');
+        var reason = btn.data('reason');
+
+        $('#lineReviewForm').attr('action', url);
+        $('#modalLineNum').text(num);
+        $('#modalLineOrigAmount').text(parseFloat(orig).toFixed(2));
+        $('#modalApprovedAmount').val(parseFloat(approved).toFixed(2));
+        $('#modalRejectionReason').val(reason);
+
+        if (status === 'rejected') {
+            $('#modalLineAction').val('reject').trigger('change');
+        } else if (status === 'adjusted') {
+            $('#modalLineAction').val('adjust').trigger('change');
+        } else {
+            $('#modalLineAction').val('approve').trigger('change');
+        }
+
+        var myModal = new bootstrap.Modal(document.getElementById('lineReviewModal'));
+        myModal.show();
+    });
+
+    $('#modalLineAction').on('change', function() {
+        var val = $(this).val();
+        if (val === 'reject') {
+            $('#approvedAmountGroup').addClass('d-none');
+            $('#modalApprovedAmount').prop('required', false);
+            $('#rejectionReasonGroup').removeClass('d-none');
+            $('#modalRejectionReason').prop('required', true);
+        } else if (val === 'adjust') {
+            $('#approvedAmountGroup').removeClass('d-none');
+            $('#modalApprovedAmount').prop('required', true);
+            $('#rejectionReasonGroup').addClass('d-none');
+            $('#modalRejectionReason').prop('required', false);
+        } else {
+            $('#approvedAmountGroup').removeClass('d-none');
+            $('#modalApprovedAmount').val($('#modalLineOrigAmount').text());
+            $('#modalApprovedAmount').prop('required', true);
+            $('#rejectionReasonGroup').addClass('d-none');
+            $('#modalRejectionReason').prop('required', false);
+        }
+    });
+
+    $('#lineReviewForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                $('#lineReviewModal').modal('hide');
+                if (window.showNotification) {
+                    window.showNotification(resp.message || 'تم تحديث مراجعة البند بنجاح', 'success');
+                }
+                setTimeout(function() { location.reload(); }, 1200);
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false);
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء حفظ مراجعة البند';
+                if (window.showNotification) {
+                    window.showNotification(msg, 'error');
+                }
+            }
+        });
+    });
+
+    $('#postForm, #rejectForm, #replenishForm, #reverseForm, #submitDraftForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                $('.modal').modal('hide');
+                if (window.showNotification) {
+                    window.showNotification(resp.message || 'تمت العملية بنجاح', 'success');
+                }
+                setTimeout(function() { location.reload(); }, 3100);
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false);
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء تنفيذ الإجراء';
+                if (window.showNotification) {
+                    window.showNotification(msg, 'error');
+                }
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

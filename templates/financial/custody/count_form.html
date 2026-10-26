@@ -32,17 +32,23 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-bold">حساب العهدة / الخزينة</label>
-                        <select name="custody_account_id" class="form-select select2-filter">
-                            <option value="">-- اختياري --</option>
+                        <select name="custody_account_id" id="custody_account_id" class="form-select select2-filter">
+                            <option value="" data-balance="0.00">-- اختياري --</option>
                             {% for ca in custody_accounts %}
-                                <option value="{{ ca.id }}">{{ ca.name }} ({{ ca.code }})</option>
+                                <option value="{{ ca.id }}" data-balance="{{ ca.cached_gl_balance|default:'0.00' }}" data-currency="{{ ca.currency.code|default:'ج.م' }}">{{ ca.name }} ({{ ca.code }}){% if ca.currency %} - {{ ca.currency.code }}{% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">الرصيد الدفتري المسجل بالسيستم <span class="text-danger">*</span></label>
-                        <input type="number" name="gl_balance" id="gl_balance" step="0.01" class="form-control fw-bold" required placeholder="0.00" oninput="calculateVariance()">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label class="form-label fw-bold mb-0">الرصيد الدفتري المسجل بالسيستم</label>
+                            <span class="badge bg-secondary bg-opacity-10 text-muted border fs-8">يحتسب آلياً من الأستاذ العام</span>
+                        </div>
+                        <div class="input-group">
+                            <input type="number" name="gl_balance" id="gl_balance" step="0.01" class="form-control fw-bold bg-light" readonly placeholder="0.00" oninput="calculateVariance()">
+                            <span class="input-group-text bg-light fw-bold" id="account_currency_code">ج.م</span>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -190,6 +196,16 @@ $(document).ready(function() {
             width: '100%'
         });
     }
+
+    $('#custody_account_id').on('change', function() {
+        var opt = $(this).find('option:selected');
+        var bal = opt.data('balance') || '0.00';
+        var curr = opt.data('currency') || 'ج.م';
+        $('#gl_balance').val(parseFloat(bal).toFixed(2));
+        $('#account_currency_code').text(curr);
+        calculateVariance();
+    });
+
     calculateDenoms();
 });
 </script>

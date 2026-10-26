@@ -27,8 +27,8 @@
         }
         .cheque-print-container {
             position: relative;
-            width: var(--chq-width, 180mm);
-            height: var(--chq-height, 85mm);
+            width: var(--chq-width, 210mm);
+            height: var(--chq-height, 90mm);
             margin: 20px auto;
             background-color: var(--print-bg);
             border: 1px dashed var(--print-border);
@@ -37,39 +37,46 @@
         }
         .print-field {
             position: absolute;
-            font-size: 14px;
+            font-size: var(--font-size, 10pt);
             font-weight: bold;
             color: var(--print-text);
             white-space: nowrap;
         }
         /* إحداثيات الحقول بالمليمتر */
         .field-date {
-            top: var(--date-top, 12mm);
-            right: var(--date-right, 130mm);
-            letter-spacing: 2px;
+            top: var(--date-top, 15mm);
+            right: var(--date-right, 150mm);
+            letter-spacing: var(--date-spacing, 0mm);
         }
         .field-payee {
-            top: var(--payee-top, 26mm);
-            right: var(--payee-right, 30mm);
-            font-size: 15px;
+            top: var(--payee-top, 30mm);
+            right: var(--payee-right, 40mm);
+            font-size: calc(var(--font-size, 10pt) + 1pt);
         }
         .field-amount-numbers {
-            top: var(--amount-top, 26mm);
-            right: var(--amount-right, 135mm);
-            font-size: 16px;
+            top: var(--amount-top, 30mm);
+            right: var(--amount-right, 150mm);
+            font-size: calc(var(--font-size, 10pt) + 2pt);
             direction: ltr;
         }
-        .field-amount-words {
-            top: var(--words-top, 38mm);
-            right: var(--words-right, 25mm);
-            font-size: 13px;
-            max-width: 120mm;
+        .field-amount-words, .field-amount-words-line1 {
+            top: var(--words-top, 42mm);
+            right: var(--words-right, 40mm);
+            font-size: var(--font-size, 10pt);
+            max-width: 140mm;
+            line-height: 1.5;
+        }
+        .field-amount-words-line2 {
+            top: var(--words-line2-top, 50mm);
+            right: var(--words-line2-right, 40mm);
+            font-size: var(--font-size, 10pt);
+            max-width: 140mm;
             line-height: 1.5;
         }
         .cross-cheque-line {
             position: absolute;
-            top: 5mm;
-            right: 8mm;
+            top: var(--cross-top, 5mm);
+            right: var(--cross-right, 8mm);
             width: 25mm;
             height: 25mm;
             border-left: 2px solid var(--print-text);
@@ -116,23 +123,29 @@
     <div class="print-toolbar">
         <button class="btn-print" onclick="window.print();">🖨️ طباعة الشيك الآن</button>
         <span style="margin: 0 15px; color: var(--print-text-muted);">
-            البنك: <strong>{{ cheque.deposit_bank_account.name|default:"افتراضي" }}</strong> | 
-            القالب: <strong>{{ layout.name|default:"قياسي (180mm × 85mm)" }}</strong>
+            البنك: <strong>{{ bank_account.name|default:"افتراضي" }}</strong> | 
+            القالب: <strong>{{ layout.template_name|default:"قياسي (210mm × 90mm)" }}</strong>
         </span>
         <button class="btn-close-print" onclick="window.close();">إغلاق</button>
     </div>
 
     <div class="cheque-print-container" style="
-        --chq-width: {% if layout %}{{ layout.width_mm }}{% else %}180{% endif %}mm;
-        --chq-height: {% if layout %}{{ layout.height_mm }}{% else %}85{% endif %}mm;
-        --date-top: {% if layout %}{{ layout.date_top_mm }}{% else %}12{% endif %}mm;
-        --date-right: {% if layout %}{{ layout.date_right_mm }}{% else %}130{% endif %}mm;
-        --payee-top: {% if layout %}{{ layout.payee_top_mm }}{% else %}26{% endif %}mm;
-        --payee-right: {% if layout %}{{ layout.payee_right_mm }}{% else %}30{% endif %}mm;
-        --amount-top: {% if layout %}{{ layout.amount_top_mm }}{% else %}26{% endif %}mm;
-        --amount-right: {% if layout %}{{ layout.amount_right_mm }}{% else %}135{% endif %}mm;
-        --words-top: {% if layout %}{{ layout.amount_words_top_mm }}{% else %}38{% endif %}mm;
-        --words-right: {% if layout %}{{ layout.amount_words_right_mm }}{% else %}25{% endif %}mm;
+        --chq-width: {% if layout %}{{ layout.paper_width_mm }}{% else %}210{% endif %}mm;
+        --chq-height: {% if layout %}{{ layout.paper_height_mm }}{% else %}90{% endif %}mm;
+        --date-top: {% if layout %}{{ layout.date_pos_y_mm }}{% else %}15{% endif %}mm;
+        --date-right: {% if layout %}{{ layout.date_pos_x_mm }}{% else %}150{% endif %}mm;
+        --date-spacing: {% if layout %}{{ layout.date_spacing_mm }}{% else %}0{% endif %}mm;
+        --payee-top: {% if layout %}{{ layout.payee_pos_y_mm }}{% else %}30{% endif %}mm;
+        --payee-right: {% if layout %}{{ layout.payee_pos_x_mm }}{% else %}40{% endif %}mm;
+        --amount-top: {% if layout %}{{ layout.amount_digits_pos_y_mm }}{% else %}30{% endif %}mm;
+        --amount-right: {% if layout %}{{ layout.amount_digits_pos_x_mm }}{% else %}150{% endif %}mm;
+        --words-top: {% if layout %}{{ layout.amount_words_line1_pos_y_mm }}{% else %}42{% endif %}mm;
+        --words-right: {% if layout %}{{ layout.amount_words_line1_pos_x_mm }}{% else %}40{% endif %}mm;
+        --words-line2-top: {% if layout and layout.amount_words_line2_pos_y_mm %}{{ layout.amount_words_line2_pos_y_mm }}{% else %}50{% endif %}mm;
+        --words-line2-right: {% if layout and layout.amount_words_line2_pos_x_mm %}{{ layout.amount_words_line2_pos_x_mm }}{% else %}40{% endif %}mm;
+        --font-size: {% if layout %}{{ layout.font_size_pt }}{% else %}10{% endif %}pt;
+        --cross-top: {% if layout and layout.cross_mark_pos_y_mm %}{{ layout.cross_mark_pos_y_mm }}mm{% else %}5mm{% endif %};
+        --cross-right: {% if layout and layout.cross_mark_pos_x_mm %}{{ layout.cross_mark_pos_x_mm }}mm{% else %}8mm{% endif %};
     ">
         {% if cheque.is_cross_cheque %}
             <div class="cross-cheque-line"></div>
@@ -140,7 +153,13 @@
 
         <!-- تاريخ الاستحقاق -->
         <div class="print-field field-date">
-            {{ cheque.due_date|date:"Y / m / d" }}
+            {% if layout and layout.date_format == 'YYYY/MM/DD' %}
+                {{ cheque.due_date|date:"Y / m / d" }}
+            {% elif layout and layout.date_format == 'YYYY-MM-DD' %}
+                {{ cheque.due_date|date:"Y - m - d" }}
+            {% else %}
+                {{ cheque.due_date|date:"d / m / Y" }}
+            {% endif %}
         </div>
 
         <!-- المستفيد -->
@@ -153,10 +172,19 @@
             # {{ cheque.amount|floatformat:2 }} #
         </div>
 
-        <!-- المبلغ بالتفقيط العربي -->
-        <div class="print-field field-amount-words">
-            {{ amount_words }}
-        </div>
+        <!-- المبلغ بالتفقيط العربي سطر 1 وسطر 2 لمعايرة البنوك -->
+        {% if amount_words_line2 %}
+            <div class="print-field field-amount-words-line1">
+                {{ amount_words_line1 }}
+            </div>
+            <div class="print-field field-amount-words-line2">
+                {{ amount_words_line2 }}
+            </div>
+        {% else %}
+            <div class="print-field field-amount-words">
+                {{ amount_words }}
+            </div>
+        {% endif %}
     </div>
 </body>
 </html>

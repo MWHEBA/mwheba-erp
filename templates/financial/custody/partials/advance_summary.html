@@ -1,0 +1,45 @@
+{% load pricing_filters %}
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-4 col-md-6">
+        <div class="stats-card stats-card-info h-100 shadow-sm border-0">
+            <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                <div>
+                    <div class="stats-card-title text-muted fs-7 mb-1">إجمالي العهد المنصرفة الجارية</div>
+                    <div class="stats-card-value fs-4 fw-bold text-info">{{ total_active_advances|smart_float }} <span class="fs-6 text-muted">ج.م</span></div>
+                </div>
+                <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
+                    <i class="fas fa-hand-holding-usd fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6">
+        <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
+            <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                <div>
+                    <div class="stats-card-title text-muted fs-7 mb-1">الرصيد المتبقي في ذمة الموظفين</div>
+                    <div class="stats-card-value fs-4 fw-bold text-warning">{{ total_current_balance|smart_float }} <span class="fs-6 text-muted">ج.م</span></div>
+                </div>
+                <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
+                    <i class="fas fa-balance-scale fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6">
+        <div class="stats-card stats-card-danger h-100 shadow-sm border-0">
+            <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                <div>
+                    <div class="stats-card-title text-muted fs-7 mb-1">عهد متأخرة عن الاستحقاق</div>
+                    <div class="stats-card-value fs-4 fw-bold text-danger">{{ count_overdue }} <span class="fs-7 text-muted">عهدة معلقة</span></div>
+                </div>
+                <div class="stats-card-icon bg-light text-danger p-3 rounded-circle">
+                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

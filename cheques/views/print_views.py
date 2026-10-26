@@ -21,25 +21,47 @@ class ChequePrintView(LoginRequiredMixin, PermissionRequiredMixin, View):
 
     def get(self, request, pk, *args, **kwargs):
         cheque = get_object_or_404(
-            Cheque.objects.select_related('currency', 'supplier', 'customer', 'deposit_bank_account'),
+            Cheque.objects.select_related(
+                'currency', 'supplier', 'customer', 'deposit_bank_account',
+                'checkbook_leaf__checkbook__bank_account'
+            ),
             pk=pk
         )
 
-        # تحويل المبلغ إلى تفقيط عربي معتمد
+        # تحويل المبلغ إلى تفقيط عربي معتمد وتقسيمه لسطرين لمعايرة دفاتر الشيكات
         curr_code = cheque.currency.code if cheque.currency else "EGP"
         amount_words = amount_to_arabic_words(cheque.amount, curr_code)
 
-        # جلب قالب المعايرة الخاص بالبنك إن وجد
+        words = amount_words.split()
+        if len(words) > 4 or len(amount_words) > 40:
+            mid = (len(words) + 1) // 2
+            amount_words_line1 = " ".join(words[:mid])
+            amount_words_line2 = " ".join(words[mid:])
+        else:
+            amount_words_line1 = amount_words
+            amount_words_line2 = ""
+
+        # تحديد الحساب البنكي سواء من الإيداع (قبض) أو من دفتر الشيكات الصادرة (دفع)
+        bank_account = cheque.deposit_bank_account
+        if not bank_account and cheque.checkbook_leaf and cheque.checkbook_leaf.checkbook:
+            bank_account = cheque.checkbook_leaf.checkbook.bank_account
+
+        # جلب قالب المعايرة الخاص بالبنك إن وجد (الأولوية للقالب الافتراضي ثم أول قالب معرف)
         layout = None
-        if cheque.deposit_bank_account:
+        if bank_account:
             layout = BankChequeLayout.objects.filter(
-                bank_account=cheque.deposit_bank_account,
-                is_active=True
+                bank_account=bank_account,
+                is_default=True
+            ).first() or BankChequeLayout.objects.filter(
+                bank_account=bank_account
             ).first()
 
         context = {
             'cheque': cheque,
+            'bank_account': bank_account,
             'amount_words': amount_words,
+            'amount_words_line1': amount_words_line1,
+            'amount_words_line2': amount_words_line2,
             'layout': layout,
         }
         return render(request, self.template_name, context)

@@ -5,10 +5,20 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
+from django.db import models
 from financial.models import ChartOfAccounts
 from financial.services.treasury_security_service import TreasurySecurityService
 from supplier.models import Supplier
-from cheques.models import Cheque, ChequeType, ChequeStatus, ChequeBatchDeposit, ChequePurpose
+from cheques.models import (
+    Cheque,
+    ChequeType,
+    ChequeStatus,
+    ChequeBatchDeposit,
+    ChequePurpose,
+    ChequeInvoiceAllocation,
+    AllocationStatus,
+)
+from sale.models import Sale
 
 
 class ChequeActionBaseForm(forms.Form):
@@ -340,3 +350,325 @@ class ChequeBatchDepositForm(forms.Form):
         if not cheques or cheques.count() == 0:
             raise ValidationError(_('يجب اختيار شيك واحد على الأقل في الحافظة.'))
         return cheques
+
+
+class ChequeClearActionForm(ChequeActionBaseForm):
+    """
+    نموذج إثبات صرف وخصم شيك الدفع الصادر من الحساب البنكي (CLEAR)
+    مع دعم سعر الصرف الفعلي لحساب وتوليد فروق أسعار الصرف المحققة
+    """
+    clearing_date = forms.DateField(
+        label=_('تاريخ الخصم الفعلي بالبنك (Value Date)'),
+        initial=timezone.localdate,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        required=True
+    )
+    exchange_rate = forms.DecimalField(
+        label=_('سعر الصرف الفعلي عند الخصم'),
+        max_digits=18,
+        decimal_places=6,
+        initial=Decimal('1.000000'),
+        min_value=Decimal('0.000001'),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.000001'}),
+        required=False
+    )
+    bank_account = forms.ModelChoiceField(
+        label=_('حساب البنك المخصوم منه'),
+        queryset=ChartOfAccounts.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'}),
+        required=False
+    )
+    notes = forms.CharField(
+        label=_('ملاحظات الصرف والخصم'),
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': _('أي ملاحظات على عملية الصرف البنكي...')}),
+        required=False
+    )
+
+    def clean_exchange_rate(self):
+        rate = self.cleaned_data.get('exchange_rate')
+        if not rate:
+            if self.cheque and self.cheque.original_exchange_rate:
+                return self.cheque.original_exchange_rate
+            return Decimal('1.000000')
+        return rate
+
+    def clean_bank_account(self):
+        bank_acc = self.cleaned_data.get('bank_account')
+        if not bank_acc and self.cheque:
+            fallback = self.cheque.deposit_bank_account
+            if not fallback and getattr(self.cheque, 'checkbook_leaf', None) and self.cheque.checkbook_leaf.checkbook:
+                fallback = self.cheque.checkbook_leaf.checkbook.bank_account
+            if fallback:
+                bank_acc = fallback
+
+        if not bank_acc:
+            raise ValidationError(_("يجب تحديد حساب بنكي صالح للصرف والمقاصة."))
+
+        # التحقق من عدم استخدام حسابات مراقبة أوراق القبض أو أوراق الدفع
+        try:
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+            rec_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
+            pay_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
+            if bank_acc.id in [rec_ctrl.id, pay_ctrl.id]:
+                raise ValidationError(_("لا يمكن اختيار حساب مراقبة أوراق القبض أو أوراق الدفع للمقاصة. يجب تحديد حساب بنكي."))
+        except Exception as e:
+            if isinstance(e, ValidationError):
+                raise
+
+        if bank_acc.account_type and bank_acc.account_type.category != 'asset':
+            raise ValidationError(_("الحساب المالي المختار ليس حساباً نقدياً أو بنكياً."))
+
+        # التحقق الصارم من أن الحساب هو حساب بنكي فعلي
+        is_bank = (
+            getattr(bank_acc, 'is_bank_account', False)
+            or (bank_acc.account_type and (
+                bank_acc.account_type.code.lower() == 'bank'
+                or 'بنك' in bank_acc.account_type.name
+                or 'مصرف' in bank_acc.account_type.name
+            ))
+            or ('بنك' in bank_acc.name or 'مصرف' in bank_acc.name)
+            or str(bank_acc.code).startswith(('1116', '1117'))
+        )
+        is_prohibited = (
+            getattr(bank_acc, 'is_cash_account', False)
+            or getattr(bank_acc, 'is_custody_account', False)
+            or str(bank_acc.code).startswith(('1119', '1122', '2112'))
+        )
+        if not is_bank or is_prohibited:
+            raise ValidationError(_("الحساب المالي المختار ليس حساباً بنكياً صالحاً لإجراء المقاصة."))
+
+        if self.user and not (self.user.is_superuser or getattr(self.user, 'is_financial_manager', False)):
+            accessible = TreasurySecurityService.get_user_accessible_treasuries(self.user, action='disburse')
+            if not accessible.filter(pk=bank_acc.pk).exists():
+                raise ValidationError(_("ليس لديك صلاحية صرف أو مقاصة على هذا الحساب البنكي."))
+        return bank_acc
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.cheque = kwargs.pop('cheque', None)
+        super().__init__(*args, **kwargs)
+
+        try:
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+            rec_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
+            pay_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
+            exclude_ids = [acc.id for acc in (rec_ctrl, pay_ctrl) if acc]
+        except Exception:
+            exclude_ids = []
+
+        bank_q = (
+            models.Q(is_bank_account=True)
+            | models.Q(account_type__code__iexact="bank")
+            | models.Q(account_type__name__icontains="بنك")
+            | models.Q(account_type__name__icontains="مصرف")
+            | models.Q(name__icontains="بنك")
+            | models.Q(name__icontains="مصرف")
+            | models.Q(code__startswith="1116")
+            | models.Q(code__startswith="1117")
+        )
+        non_bank_exclude = (
+            models.Q(is_cash_account=True)
+            | models.Q(is_custody_account=True)
+            | models.Q(code__startswith="1119")
+            | models.Q(code__startswith="1122")
+            | models.Q(code__startswith="2112")
+        )
+
+        bank_accounts_base = ChartOfAccounts.objects.filter(
+            is_active=True,
+            is_leaf=True,
+            account_type__category='asset'
+        ).filter(bank_q).exclude(non_bank_exclude).exclude(id__in=exclude_ids)
+
+        if self.user and not (self.user.is_superuser or getattr(self.user, 'is_financial_manager', False)):
+            accessible = TreasurySecurityService.get_user_accessible_treasuries(self.user, action='disburse')
+            self.fields['bank_account'].queryset = accessible.filter(bank_q).exclude(non_bank_exclude).exclude(id__in=exclude_ids)
+        else:
+            self.fields['bank_account'].queryset = bank_accounts_base
+
+        if self.cheque:
+            if self.cheque.original_exchange_rate:
+                self.initial['exchange_rate'] = self.cheque.original_exchange_rate
+
+            bank_acc = self.cheque.deposit_bank_account
+            if not bank_acc and getattr(self.cheque, 'checkbook_leaf', None) and self.cheque.checkbook_leaf.checkbook:
+                bank_acc = self.cheque.checkbook_leaf.checkbook.bank_account
+            if bank_acc:
+                # التأكد من أن الحساب الافتراضي موجود ضمن الخيارات المسموحة
+                if self.fields['bank_account'].queryset.filter(pk=bank_acc.pk).exists():
+                    self.initial['bank_account'] = bank_acc
+
+
+class ChequeReturnToDrawerActionForm(ChequeActionBaseForm):
+    """
+    نموذج رد واسترداد الشيك للساحب (RETURN_TO_DRAWER)
+    مع إقفال الشيك بالدفاتر وإعادة فتح مديونية العميل
+    """
+    action_date = forms.DateField(
+        label=_('تاريخ إعادة الشيك للساحب'),
+        initial=timezone.localdate,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        required=True
+    )
+    reason = forms.CharField(
+        label=_('أسباب ومبررات رد الشيك للساحب'),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': _('أدخل أسباب رد الشيك للعميل (مثل: استبدال بسداد نقدي، إلغاء المعاملة، تسليم شيك بديل)...')
+        }),
+        required=True
+    )
+
+
+class ChequeAllocateToInvoiceForm(ChequeActionBaseForm):
+    """
+    نموذج تخصيص شيك القبض على فاتورة مبيعات محددة (ALLOCATE_TO_INVOICE)
+    مع التحقق الدقيق من الحدود المالية وعدم تجاوز رصيد الشيك أو الفاتورة
+    """
+    sale = forms.ModelChoiceField(
+        label=_('فاتورة المبيعات'),
+        queryset=Sale.objects.none(),
+        widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'}),
+        required=True
+    )
+    amount = forms.DecimalField(
+        label=_('مبلغ التخصيص (بعملة الشيك)'),
+        max_digits=15,
+        decimal_places=2,
+        min_value=Decimal('0.01'),
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': _('0.00')}),
+        required=True
+    )
+    notes = forms.CharField(
+        label=_('ملاحظات التخصيص'),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': _('أي ملاحظات على تخصيص الشيك على هذه الفاتورة...')
+        }),
+        required=False
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.cheque = kwargs.pop('cheque', None)
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        if self.cheque and self.cheque.customer:
+            qs = Sale.objects.filter(
+                customer=self.cheque.customer,
+                status='confirmed',
+                payment_status__in=['unpaid', 'partially_paid']
+            )
+
+            # استخراج مفتاح منع التكرار للتحقق مما إذا كان الطلب إعادة تنفيذ
+            idem_key = self.data.get('idempotency_key', '').strip() if self.data else None
+            replayed_sale_id = None
+            if idem_key:
+                from customer.models import CustomerAllocationAudit
+                alloc_ref = f"ALLOC:{idem_key}"
+                existing_audit = CustomerAllocationAudit.objects.filter(
+                    allocation_reference=alloc_ref,
+                    allocation_status="APPLIED"
+                ).first()
+                if existing_audit:
+                    existing_alloc = ChequeInvoiceAllocation.objects.filter(
+                        allocation_audit=existing_audit
+                    ).first()
+                    if existing_alloc:
+                        replayed_sale_id = existing_alloc.sale_id
+
+            if self.cheque.currency:
+                qs = qs.filter(currency=self.cheque.currency)
+            else:
+                qs = qs.filter(currency__isnull=True)
+
+            open_sale_ids = [s.id for s in qs if s.amount_due > Decimal('0.00') or s.id == replayed_sale_id]
+            self.fields['sale'].queryset = Sale.objects.filter(id__in=open_sale_ids).order_by('-date', '-id')
+            self.fields['sale'].label_from_instance = lambda obj: (
+                f"{obj.number} - {obj.date} "
+                f"({_('المتبقي:')} {obj.amount_due:,.2f} {obj.currency.code if obj.currency else 'EGP'})"
+            )
+
+            already_allocated = self.cheque.invoice_allocations.filter(
+                allocation_status=AllocationStatus.APPLIED
+            ).aggregate(total=models.Sum('allocated_amount'))['total'] or Decimal('0.00')
+            available = max(Decimal('0.00'), self.cheque.amount - already_allocated)
+            self.fields['amount'].help_text = _(
+                f"الرصيد المتاح غير المخصص في الشيك: {available:,.2f} {self.cheque.currency.code if self.cheque.currency else 'EGP'}"
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        sale = cleaned_data.get('sale')
+        amount = cleaned_data.get('amount')
+
+        # فحص ما إذا كان الطلب إعادة تنفيذ لنفس مفتاح عدم التكرار (Idempotency Replay)
+        idem_key = self.cleaned_data.get('idempotency_key') or (self.data.get('idempotency_key', '').strip() if self.data else None)
+        if idem_key and self.cheque:
+            from customer.models import CustomerAllocationAudit
+            alloc_ref = f"ALLOC:{idem_key}"
+            existing_audit = CustomerAllocationAudit.objects.filter(
+                allocation_reference=alloc_ref,
+                allocation_status="APPLIED"
+            ).first()
+            if existing_audit:
+                existing_alloc = ChequeInvoiceAllocation.objects.filter(
+                    allocation_audit=existing_audit
+                ).first()
+                if existing_alloc:
+                    # التحقق من تعارض البيانات (الشيك أو الفاتورة أو المبلغ)
+                    if (
+                        existing_alloc.cheque_id != self.cheque.id
+                        or (sale and existing_alloc.sale_id != sale.id)
+                        or (amount is not None and existing_alloc.allocated_amount != amount)
+                    ):
+                        raise ValidationError(
+                            _("تعارض في مفتاح عدم التكرار: المفتاح مستخدم مسبقاً لعملية تخصيص أخرى أو بمبلغ مختلف.")
+                        )
+                    # إعادة تنفيذ متطابقة بنجاح
+                    return cleaned_data
+
+        if self.cheque and sale and amount:
+            already_allocated = self.cheque.invoice_allocations.filter(
+                allocation_status=AllocationStatus.APPLIED
+            ).aggregate(total=models.Sum('allocated_amount'))['total'] or Decimal('0.00')
+            available = max(Decimal('0.00'), self.cheque.amount - already_allocated)
+
+            if amount > available:
+                self.add_error(
+                    'amount',
+                    _("المبلغ المطلوب ({amount}) يتجاوز الرصيد المتاح غير المخصص في الشيك ({available}).").format(
+                        amount=amount, available=available
+                    )
+                )
+
+            if amount > sale.amount_due:
+                self.add_error(
+                    'amount',
+                    _("المبلغ المطلوب ({amount}) يتجاوز المبلغ المتبقي على الفاتورة ({due}).").format(
+                        amount=amount, due=sale.amount_due
+                    )
+                )
+
+        return cleaned_data
+
+
+class ChequeDeallocateActionForm(ChequeActionBaseForm):
+    """
+    نموذج إلغاء وفك تخصيص شيك القبض عن فاتورة المبيعات (DEALLOCATE)
+    مع إثبات سبب العكس واستعادة مديونية الفاتورة بدفتر الأستاذ المساعد
+    """
+    reason = forms.CharField(
+        label=_('سبب إلغاء وفك التخصيص'),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 2,
+            'placeholder': _('أدخل سبب فك التخصيص واستعادة مديونية الفاتورة...')
+        }),
+        required=True
+    )
+
+
+

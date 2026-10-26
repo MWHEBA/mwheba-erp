@@ -627,6 +627,32 @@
                         {% endif %}
                         {% endif %}
 
+                        <!-- العهد النقدية والمصروفات النثرية -->
+                        {% if perms.financial.view_employeecustodyadvance or perms.financial.view_pettycashsettlement or user.is_superuser %}
+                        <div class="nav-divider"></div>
+                        <li class="submenu-title">{% trans "العهد النقدية والنثريات" %}</li>
+                        <li>
+                            <a href="{% url 'financial:custody_advance_list' %}" class="submenu-link">
+                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "عهد وسلف الموظفين" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:custody_settlement_list' %}" class="submenu-link">
+                                <i class="fas fa-receipt me-2"></i>{% trans "سندات تسوية العهد" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:custody_transfer_list' %}" class="submenu-link">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "مناقلات العهد" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:custody_count_list' %}" class="submenu-link">
+                                <i class="fas fa-calculator me-2"></i>{% trans "محاضر الجرد الفعلي" %}
+                            </a>
+                        </li>
+                        {% endif %}
+
                         <!-- المعاملات اليومية -->
                         {% if perms.financial.view_expense or perms.financial.view_income or user.is_superuser %}
                         <div class="nav-divider"></div>

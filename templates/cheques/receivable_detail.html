@@ -128,43 +128,77 @@
 
         <!-- شريط إجراءات العمليات السريعة (Corporate Action Bar) -->
         <div class="d-flex flex-wrap gap-2 pt-2 border-top">
-            {% if cheque.status == 'DRAFT' %}
+            {% if cheque.status == 'DRAFT' and perms.cheques.add_cheque %}
                 <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#receiveDraftModal">
                     <i class="fas fa-check-double me-1"></i>{% trans "اعتماد واستلام الشيك بالمحفظة" %}
                 </button>
+            {% endif %}
+            {% if cheque.status == 'DRAFT' and perms.cheques.cancel_cheque %}
                 <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
                     <i class="fas fa-ban me-1"></i>{% trans "إلغاء المسودة" %}
                 </button>
             {% endif %}
 
             {% if cheque.status == 'IN_PORTFOLIO' and not cheque.is_guarantee %}
+                {% if perms.cheques.deposit_cheque %}
                 <button type="button" class="btn btn-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#depositModal">
                     <i class="fas fa-university me-1"></i>{% trans "إيداع بالبنك برسم التحصيل" %}
                 </button>
+                {% endif %}
+                {% if perms.cheques.endorse_cheque %}
                 <button type="button" class="btn btn-secondary px-3" data-bs-toggle="modal" data-bs-target="#endorseModal">
                     <i class="fas fa-share me-1"></i>{% trans "تظهير لمورد" %}
                 </button>
+                {% endif %}
+                {% if perms.cheques.bounce_cheque %}
+                <button type="button" class="btn btn-outline-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#returnToDrawerModal">
+                    <i class="fas fa-undo-alt me-1"></i>{% trans "رد الشيك للساحب" %}
+                </button>
+                {% endif %}
+                {% if perms.cheques.cancel_cheque %}
                 <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
                     <i class="fas fa-ban me-1"></i>{% trans "إلغاء الشيك" %}
                 </button>
+                {% endif %}
             {% endif %}
 
             {% if cheque.status == 'UNDER_COLLECTION' or cheque.status == 'PARTIALLY_COLLECTED' %}
+                {% if perms.cheques.collect_cheque %}
                 <button type="button" class="btn btn-success px-3" data-bs-toggle="modal" data-bs-target="#collectModal">
                     <i class="fas fa-check-circle me-1"></i>{% trans "إثبات تحصيل بنكي (كلي أو جزئي)" %}
                 </button>
+                {% endif %}
+                {% if perms.cheques.bounce_cheque %}
                 <button type="button" class="btn btn-danger px-3" data-bs-toggle="modal" data-bs-target="#bounceModal">
                     <i class="fas fa-times-circle me-1"></i>{% trans "إثبات ارتداد ورفض" %}
                 </button>
+                {% endif %}
+                {% if not cheque.is_guarantee and perms.cheques.bounce_cheque %}
+                <button type="button" class="btn btn-outline-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#returnToDrawerModal">
+                    <i class="fas fa-undo-alt me-1"></i>{% trans "رد الشيك للساحب" %}
+                </button>
+                {% endif %}
             {% endif %}
 
-            {% if cheque.is_guarantee %}
+            {% if cheque.status == 'BOUNCED' and not cheque.is_guarantee and perms.cheques.bounce_cheque %}
+                <button type="button" class="btn btn-outline-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#returnToDrawerModal">
+                    <i class="fas fa-undo-alt me-1"></i>{% trans "رد الشيك للساحب" %}
+                </button>
+            {% endif %}
+
+            {% if cheque.is_guarantee and perms.cheques.convert_guarantee %}
                 <button type="button" class="btn btn-primary px-3" data-bs-toggle="modal" data-bs-target="#convertGuaranteeModal">
                     <i class="fas fa-exchange-alt me-1"></i>{% trans "اعتماد تحويل لشيك تشغيلي" %}
                 </button>
             {% endif %}
 
-            {% if action_logs.exists %}
+            {% if can_allocate and perms.cheques.change_cheque %}
+                <button type="button" class="btn btn-outline-primary px-3" data-bs-toggle="modal" data-bs-target="#allocateInvoiceModal">
+                    <i class="fas fa-link me-1"></i>{% trans "تخصيص على فاتورة" %}
+                </button>
+            {% endif %}
+
+            {% if action_logs.exists and perms.cheques.reverse_cheque_action %}
                 <button type="button" class="btn btn-outline-danger px-3 ms-auto" data-bs-toggle="modal" data-bs-target="#reverseModal">
                     <i class="fas fa-undo me-1"></i>{% trans "تراجع تدقيقي عن آخر حركة" %}
                 </button>
@@ -304,9 +338,115 @@
                 </div>
             </div>
         </div>
+    <!-- 4. تخصيصات الشيك على فواتير المبيعات (ChequeInvoiceAllocation) -->
+    <div class="section-container mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "تخصيصات الشيك على فواتير المبيعات" %}
+            </h5>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="badge bg-light text-dark border">
+                    {% trans "إجمالي الشيك:" %} <strong class="text-primary">{{ cheque.amount|floatformat:2 }}</strong> {{ cheque.currency.code }}
+                </span>
+                <span class="badge bg-light text-dark border">
+                    {% trans "المخصص:" %} <strong class="text-success">{{ applied_allocations_sum|floatformat:2 }}</strong> {{ cheque.currency.code }}
+                </span>
+                <span class="badge bg-light text-dark border">
+                    {% trans "المتاح للتخصيص:" %} <strong class="text-info">{{ unallocated_amount|floatformat:2 }}</strong> {{ cheque.currency.code }}
+                </span>
+                {% if can_allocate and perms.cheques.change_cheque %}
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#allocateInvoiceModal">
+                    <i class="fas fa-plus me-1"></i>{% trans "تخصيص على فاتورة" %}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>{% trans "فاتورة المبيعات" %}</th>
+                        <th>{% trans "تاريخ الفاتورة" %}</th>
+                        <th>{% trans "المبلغ المخصص" %}</th>
+                        <th>{% trans "المعادل المحلي" %}</th>
+                        <th>{% trans "حالة التخصيص" %}</th>
+                        <th>{% trans "تاريخ التخصيص" %}</th>
+                        <th>{% trans "القيد المحاسبي" %}</th>
+                        <th>{% trans "سجل التدقيق المشفر" %}</th>
+                        <th style="width: 110px;">{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for alloc in allocations %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="fw-bold">
+                            <a href="{% url 'sale:sale_detail' alloc.sale.pk %}" class="text-decoration-none">
+                                <i class="fas fa-file-invoice text-primary me-1"></i>{{ alloc.sale.number }}
+                            </a>
+                        </td>
+                        <td>{{ alloc.sale.date|date:"Y-m-d" }}</td>
+                        <td class="fw-bold text-success">{{ alloc.allocated_amount|floatformat:2 }} {{ cheque.currency.code }}</td>
+                        <td class="fw-bold">{{ alloc.allocated_amount_functional|floatformat:2 }} ج.م</td>
+                        <td>
+                            {% if alloc.allocation_status == 'APPLIED' %}
+                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>{% trans "مطبق وساري" %}</span>
+                            {% else %}
+                                <span class="badge bg-secondary"><i class="fas fa-undo me-1"></i>{% trans "معكوس" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ alloc.allocation_date|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if alloc.journal_entry %}
+                                <a href="{% url 'financial:journal_entries_detail' alloc.journal_entry.pk %}" class="badge bg-outline-primary text-primary border text-decoration-none">
+                                    <i class="fas fa-receipt me-1"></i>{{ alloc.journal_entry.number }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if alloc.allocation_audit %}
+                                <span class="font-monospace small text-muted" title="{{ alloc.allocation_audit.evidence_hash }}">
+                                    {{ alloc.allocation_audit.evidence_hash|slice:":10" }}...
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if alloc.allocation_status == 'APPLIED' and perms.cheques.change_cheque %}
+                                <button type="button" class="btn btn-outline-danger btn-sm px-2" data-bs-toggle="modal" data-bs-target="#deallocateModal-{{ alloc.id }}" title="{% trans 'فك وإلغاء التخصيص' %}">
+                                    <i class="fas fa-unlink me-1"></i>{% trans "فك" %}
+                                </button>
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            {% trans "لم يتم تخصيص هذا الشيك على أي فواتير مبيعات حتى الآن." %}
+                            {% if can_allocate and perms.cheques.change_cheque %}
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#allocateInvoiceModal">
+                                    <i class="fas fa-plus me-1"></i>{% trans "تخصيص الآن على فاتورة مفتوحة" %}
+                                </button>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- 4. سجل التدقيق والحركات المحاسبية المنفذة (ChequeActionLog) -->
+    <!-- 5. سجل التدقيق والحركات المحاسبية المنفذة (ChequeActionLog) -->
     <div class="section-container mb-4">
         <h5 class="section-title"><i class="fas fa-history me-2"></i>{% trans "سجل التدقيق والحركات المحاسبية المترتبة" %}</h5>
         <div class="table-responsive">
@@ -577,8 +717,11 @@
                         {{ convert_guarantee_form.new_purpose }}
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-bold">{{ convert_guarantee_form.notes.label }}</label>
-                        {{ convert_guarantee_form.notes }}
+                        <label class="form-label fw-bold">{{ convert_guarantee_form.approval_notes.label }} <span class="text-danger">*</span></label>
+                        {{ convert_guarantee_form.approval_notes }}
+                        {% if convert_guarantee_form.approval_notes.errors %}
+                            <div class="text-danger small mt-1">{{ convert_guarantee_form.approval_notes.errors.0 }}</div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top px-4 py-3">
@@ -645,13 +788,138 @@
     </div>
 </div>
 
+<!-- 9. مودال رد الشيك للساحب -->
+<div class="modal fade" id="returnToDrawerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_return_to_drawer_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                {{ return_to_drawer_form.idempotency_key }}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-undo-alt text-warning me-2"></i>{% trans "رد الشيك للساحب (العميل)" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "سيقوم النظام بإخراج الشيك من المحفظة/البنك وإقفاله، وإعادة فتح مديونية العميل في دفتر الأستاذ العام." %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ return_to_drawer_form.action_date.label }} <span class="text-danger">*</span></label>
+                        {{ return_to_drawer_form.action_date }}
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ return_to_drawer_form.reason.label }} <span class="text-danger">*</span></label>
+                        {{ return_to_drawer_form.reason }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">{% trans "تأكيد رد الشيك للساحب" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 10. مودال تخصيص الشيك على فاتورة مبيعات -->
+{% if can_allocate and perms.cheques.change_cheque and allocate_invoice_form %}
+<div class="modal fade" id="allocateInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'cheques:cheque_allocate_invoice_action' cheque.pk %}" method="post">
+                {% csrf_token %}
+                {{ allocate_invoice_form.idempotency_key }}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-link text-primary me-2"></i>{% trans "تخصيص الشيك على فاتورة مبيعات" %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-info-circle me-1"></i>{% trans "الرصيد المتاح غير المخصص:" %}</span>
+                            <span class="fw-bold fs-6 text-primary">{{ unallocated_amount|floatformat:2 }} {{ cheque.currency.code }}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ allocate_invoice_form.sale.label }} <span class="text-danger">*</span></label>
+                        {{ allocate_invoice_form.sale }}
+                        {% if allocate_invoice_form.sale.errors %}
+                            <div class="text-danger small mt-1">{{ allocate_invoice_form.sale.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ allocate_invoice_form.amount.label }} <span class="text-danger">*</span></label>
+                        {{ allocate_invoice_form.amount }}
+                        <div class="form-text text-muted">{{ allocate_invoice_form.amount.help_text }}</div>
+                        {% if allocate_invoice_form.amount.errors %}
+                            <div class="text-danger small mt-1">{{ allocate_invoice_form.amount.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">{{ allocate_invoice_form.notes.label }}</label>
+                        {{ allocate_invoice_form.notes }}
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "تأكيد التخصيص" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 11. مودالات فك وإلغاء التخصيص -->
+{% for alloc in allocations %}
+    {% if alloc.allocation_status == 'APPLIED' and perms.cheques.change_cheque %}
+    <div class="modal fade" id="deallocateModal-{{ alloc.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <form action="{% url 'cheques:cheque_deallocate_invoice_action' cheque.pk alloc.id %}" method="post">
+                    {% csrf_token %}
+                    <div class="modal-header bg-light border-bottom px-4 py-3">
+                        <h5 class="modal-title fw-bold text-dark mb-0">
+                            <i class="fas fa-unlink text-danger me-2"></i>{% trans "فك وإلغاء تخصيص الفاتورة" %}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {% trans "سيؤدي فك التخصيص إلى إلغاء سداد الفاتورة رقم" %} <strong>{{ alloc.sale.number }}</strong> {% trans "بمبلغ" %} <strong>{{ alloc.allocated_amount|floatformat:2 }} {{ cheque.currency.code }}</strong>، {% trans "وإعادة فتح مديونيتها في حساب العميل واستعادة رصيد الشيك غير المخصص." %}
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-bold">{{ deallocate_form.reason.label }} <span class="text-danger">*</span></label>
+                            {{ deallocate_form.reason }}
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-top px-4 py-3">
+                        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+                        <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد فك التخصيص" %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+{% endfor %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     // ضبط Select2 داخل المودالات مع dropdownParent
-    ['depositModal', 'collectModal', 'endorseModal'].forEach(function(modalId) {
+    ['depositModal', 'collectModal', 'endorseModal', 'allocateInvoiceModal'].forEach(function(modalId) {
         var modalEl = document.getElementById(modalId);
         if (modalEl && typeof $ !== 'undefined' && $.fn.select2) {
             $(modalEl).on('shown.bs.modal', function () {

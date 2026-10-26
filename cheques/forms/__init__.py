@@ -9,6 +9,10 @@ from cheques.forms.action_forms import (
     ChequeReversalActionForm,
     ChequeConvertGuaranteeActionForm,
     ChequeBatchDepositForm,
+    ChequeClearActionForm,
+    ChequeReturnToDrawerActionForm,
+    ChequeAllocateToInvoiceForm,
+    ChequeDeallocateActionForm,
 )
 from cheques.forms.layout_forms import BankChequeLayoutForm
 
@@ -24,5 +28,9 @@ __all__ = [
     'ChequeReversalActionForm',
     'ChequeConvertGuaranteeActionForm',
     'ChequeBatchDepositForm',
+    'ChequeClearActionForm',
+    'ChequeReturnToDrawerActionForm',
+    'ChequeAllocateToInvoiceForm',
+    'ChequeDeallocateActionForm',
     'BankChequeLayoutForm',
 ]

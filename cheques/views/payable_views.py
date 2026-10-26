@@ -25,6 +25,8 @@ from cheques.forms.cheque_forms import ChequePayableForm
 from cheques.forms.action_forms import (
     ChequeBounceActionForm,
     ChequeReversalActionForm,
+    ChequeClearActionForm,
+    ChequeConvertGuaranteeActionForm,
 )
 from cheques.forms.checkbook_forms import RuinedLeafReplacementForm
 from financial.models import ChartOfAccounts
@@ -269,16 +271,18 @@ class ChequePayableDetailView(LoginRequiredMixin, PermissionRequiredMixin, View)
         bounce_form = ChequeBounceActionForm()
         reverse_form = ChequeReversalActionForm()
         ruined_leaf_form = RuinedLeafReplacementForm()
+        clear_form = ChequeClearActionForm(cheque=cheque, user=request.user)
+        convert_guarantee_form = ChequeConvertGuaranteeActionForm()
 
-        header_buttons = [
-            {
+        header_buttons = []
+        if request.user.has_perm('cheques.print_cheque'):
+            header_buttons.append({
                 'url': reverse('cheques:cheque_print', kwargs={'pk': cheque.pk}),
                 'icon': 'fa-print',
                 'text': _('طباعة الشيك البنكي'),
                 'class': 'btn-primary',
                 'target': '_blank'
-            }
-        ]
+            })
 
         context = {
             'page_title': f"{_('شيك دفع رقم')} {cheque.cheque_number}",
@@ -292,5 +296,7 @@ class ChequePayableDetailView(LoginRequiredMixin, PermissionRequiredMixin, View)
             'bounce_form': bounce_form,
             'reverse_form': reverse_form,
             'ruined_leaf_form': ruined_leaf_form,
+            'clear_form': clear_form,
+            'convert_guarantee_form': convert_guarantee_form,
         }
         return render(request, self.template_name, context)

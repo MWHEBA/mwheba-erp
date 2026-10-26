@@ -63,6 +63,17 @@ class AccountRoleNames(str, Enum):
     CHEQUES_UNDER_COLLECTION = "cheques_under_collection"
     NOTES_PAYABLE_CONTROL = "notes_payable_control"
 
+    # عهد وأقساط وتأمينات
+    CUSTODY_TEMPORARY_CONTROL = "custody_temporary_control"
+    CUSTODY_PERMANENT_CONTROL = "custody_permanent_control"
+    CUSTODY_OVERRUN_PAYABLES = "custody_overrun_payables"
+    REFUNDABLE_DEPOSITS_ASSET = "refundable_deposits_asset"
+    CUSTODY_SHORTAGE_LOSS = "custody_shortage_loss"
+    INSTALLMENT_UNEARNED_INTEREST = "installment_unearned_interest"
+    INSTALLMENT_REALIZED_INTEREST = "installment_realized_interest"
+    INSTALLMENT_LATE_FEES = "installment_late_fees"
+    INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT = "installment_early_settlement_discount"
+
 
 # مصفوفة التحقق الدلالي للأدوار المالية (Semantic Type Guard)
 ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
@@ -102,9 +113,29 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
     AccountRoleNames.NOTES_RECEIVABLE_CONTROL.value: "asset",
     AccountRoleNames.CHEQUES_UNDER_COLLECTION.value: "asset",
     AccountRoleNames.NOTES_PAYABLE_CONTROL.value: "liability",
+    AccountRoleNames.CUSTODY_TEMPORARY_CONTROL.value: "asset",
+    AccountRoleNames.CUSTODY_PERMANENT_CONTROL.value: "asset",
+    AccountRoleNames.CUSTODY_OVERRUN_PAYABLES.value: "liability",
+    AccountRoleNames.REFUNDABLE_DEPOSITS_ASSET.value: "asset",
+    AccountRoleNames.CUSTODY_SHORTAGE_LOSS.value: "expense",
+    AccountRoleNames.INSTALLMENT_UNEARNED_INTEREST.value: "liability",
+    AccountRoleNames.INSTALLMENT_REALIZED_INTEREST.value: "revenue",
+    AccountRoleNames.INSTALLMENT_LATE_FEES.value: "revenue",
+    AccountRoleNames.INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT.value: "revenue",
     "NOTES_RECEIVABLE_CONTROL": "asset",
     "CHEQUES_UNDER_COLLECTION": "asset",
     "NOTES_PAYABLE_CONTROL": "liability",
+    "CUSTODY_TEMPORARY_CONTROL": "asset",
+    "CUSTODY_PERMANENT_CONTROL": "asset",
+    "CUSTODY_OVERRUN_PAYABLES": "liability",
+    "REFUNDABLE_DEPOSITS_ASSET": "asset",
+    "refundable_deposits_asset": "asset",
+    "CUSTODY_SHORTAGE_LOSS": "expense",
+    "custody_shortage_loss": "expense",
+    "INSTALLMENT_UNEARNED_INTEREST": "liability",
+    "INSTALLMENT_REALIZED_INTEREST": "revenue",
+    "INSTALLMENT_LATE_FEES": "revenue",
+    "INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT": "revenue",
     "OPENING_BALANCE_EQUITY": "equity",
     "OPENING_BALANCES": "equity",
     "RETAINED_EARNINGS": "equity",
@@ -124,6 +155,30 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "CHEQUES_UNDER_COLLECTION": "11190",
     AccountRoleNames.NOTES_PAYABLE_CONTROL.value: "21120",
     "NOTES_PAYABLE_CONTROL": "21120",
+
+    # عهد نقدية وسلف ومستحقات عهد وتأمينات وعجز
+    AccountRoleNames.CUSTODY_TEMPORARY_CONTROL.value: "11130",
+    "CUSTODY_TEMPORARY_CONTROL": "11130",
+    AccountRoleNames.CUSTODY_PERMANENT_CONTROL.value: "11230",
+    "CUSTODY_PERMANENT_CONTROL": "11230",
+    AccountRoleNames.CUSTODY_OVERRUN_PAYABLES.value: "21230",
+    "CUSTODY_OVERRUN_PAYABLES": "21230",
+    AccountRoleNames.REFUNDABLE_DEPOSITS_ASSET.value: "11440",
+    "REFUNDABLE_DEPOSITS_ASSET": "11440",
+    "refundable_deposits_asset": "11440",
+    AccountRoleNames.CUSTODY_SHORTAGE_LOSS.value: "54900",
+    "CUSTODY_SHORTAGE_LOSS": "54900",
+    "custody_shortage_loss": "54900",
+
+    # مبيعات التقسيط والفوائد
+    AccountRoleNames.INSTALLMENT_UNEARNED_INTEREST.value: "21350",
+    "INSTALLMENT_UNEARNED_INTEREST": "21350",
+    AccountRoleNames.INSTALLMENT_REALIZED_INTEREST.value: "42310",
+    "INSTALLMENT_REALIZED_INTEREST": "42310",
+    AccountRoleNames.INSTALLMENT_LATE_FEES.value: "42400",
+    "INSTALLMENT_LATE_FEES": "42400",
+    AccountRoleNames.INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT.value: "41940",
+    "INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT": "41940",
 
     # النقدية والبنوك
     AccountRoleNames.DEFAULT_CASH_DRAWER.value: "11110",
@@ -381,6 +436,12 @@ class AccountRoleRegistry:
                 "32010": ("الأرباح والخسائر المرحلة", "equity", "credit"),
                 "42000": ("إيرادات أخرى", "revenue", "credit"),
                 "53000": ("مصروفات أخرى", "expense", "debit"),
+                "11130": ("العهد النقدية المؤقتة", "asset", "debit"),
+                "11135": ("صندوق المصروفات النثرية", "asset", "debit"),
+                "11230": ("سلف ومستحقات العاملين", "asset", "debit"),
+                "21230": ("مستحقات عهد وتجاوزات منصرفة", "liability", "credit"),
+                "11440": ("تأمينات مستردة لدى الغير", "asset", "debit"),
+                "54900": ("خسائر عجز العهد النقدية", "expense", "debit"),
             }
             if account_code in account_defaults:
                 name, category, nature = account_defaults[account_code]

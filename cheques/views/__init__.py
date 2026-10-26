@@ -20,6 +20,9 @@ from cheques.views.action_views import (
     cheque_cancel_action,
     cheque_reverse_action,
     cheque_convert_guarantee_action,
+    cheque_return_to_drawer_action,
+    cheque_allocate_invoice_action,
+    cheque_deallocate_invoice_action,
 )
 from cheques.views.batch_views import (
     ChequeBatchDepositListView,
@@ -61,6 +64,9 @@ __all__ = [
     'cheque_cancel_action',
     'cheque_reverse_action',
     'cheque_convert_guarantee_action',
+    'cheque_return_to_drawer_action',
+    'cheque_allocate_invoice_action',
+    'cheque_deallocate_invoice_action',
     'ChequeBatchDepositListView',
     'ChequeBatchDepositCreateView',
     'ChequeBatchDepositDetailView',

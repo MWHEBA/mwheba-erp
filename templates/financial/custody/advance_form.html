@@ -42,21 +42,26 @@
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">مبلغ العهدة <span class="text-danger">*</span></label>
                             <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">العملة <span class="text-danger">*</span></label>
-                            <select name="currency_id" class="form-select" required>
+                            <select name="currency_id" id="currencySelect" class="form-select" required>
                                 {% for cur in currencies %}
-                                    <option value="{{ cur.id }}" {% if cur.is_functional %}selected{% endif %}>{{ cur.name }} ({{ cur.code }})</option>
+                                    <option value="{{ cur.id }}" data-functional="{{ cur.is_functional|yesno:'1,0' }}" {% if cur.is_functional %}selected{% endif %}>{{ cur.name }} ({{ cur.code }})</option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">سعر الصرف (للعملات الأجنبية)</label>
+                            <input type="number" name="exchange_rate" id="exchangeRateInput" step="0.000001" min="0.000001" class="form-control" placeholder="1.000000">
+                        </div>
+
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">تاريخ الاستحقاق المتوقع للتسوية <span class="text-danger">*</span></label>
                             <input type="date" name="due_date" class="form-control" required>
                         </div>

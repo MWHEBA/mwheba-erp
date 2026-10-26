@@ -43,11 +43,12 @@ class ChequeAllocationService:
         sale: Sale,
         amount: Decimal,
         user=None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        idempotency_key: Optional[str] = None
     ) -> ChequeInvoiceAllocation:
         """
         تخصيص ورقة قبض على فاتورة مبيعات محددة:
-        1. التحقق من تطابق العميل والحدود المالية
+        1. التحقق من تطابق العميل والحدود المالية ومنع التكرار الحتمي (Idempotency)
         2. إنشاء أو جلب CustomerTransaction للفاتورة والشيك
         3. تسجيل CustomerAllocationAudit مع التوقيع المشفر SHA-256
         4. تسجيل سجل السداد SalePayment (financial_account=None, source_type='CHEQUE')
@@ -73,7 +74,32 @@ class ChequeAllocationService:
         if cheque.customer_id and sale.customer_id and cheque.customer_id != sale.customer_id:
             raise ValidationError(_("العميل في الشيك لا يتطابق مع العميل في فاتورة المبيعات."))
 
+        alloc_ref = f"ALLOC:{idempotency_key}" if idempotency_key else f"ALLOC-{cheque.voucher_number}->{sale.number}-{uuid.uuid4().hex[:8]}"
+
         with transaction.atomic():
+            # فحص منع التكرار الحتمي Idempotency Guard
+            if idempotency_key:
+                existing_audit = CustomerAllocationAudit.objects.filter(
+                    allocation_reference=alloc_ref,
+                    allocation_status="APPLIED"
+                ).first()
+                if existing_audit:
+                    existing_alloc = ChequeInvoiceAllocation.objects.filter(
+                        allocation_audit=existing_audit
+                    ).first()
+                    if existing_alloc:
+                        # فحص تطابق المعلمات الأساسية (الشيك، الفاتورة، المبلغ) لمنع التعارض والنجاح المضلل
+                        if (
+                            existing_alloc.cheque_id != cheque.id
+                            or existing_alloc.sale_id != sale.id
+                            or existing_alloc.allocated_amount != amount
+                        ):
+                            raise ValidationError(
+                                _("تعارض في مفتاح عدم التكرار: المفتاح مستخدم مسبقاً لعملية تخصيص أخرى أو بمبلغ مختلف.")
+                            )
+                        logger.info(f"Idempotent retry hit for allocation: {idempotency_key}")
+                        return existing_alloc
+
             # قفل السجلات لمنع تضارب العمليات المتزامنة
             locked_cheque = Cheque.objects.select_for_update().get(pk=cheque.pk)
             locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
@@ -171,7 +197,7 @@ class ChequeAllocationService:
 
             audit = CustomerAllocationAudit.objects.create(
                 customer=locked_sale.customer,
-                allocation_reference=f"ALLOC-{locked_cheque.voucher_number}->{locked_sale.number}-{uuid.uuid4().hex[:8]}",
+                allocation_reference=alloc_ref,
                 payment_transaction=pay_txn,
                 invoice_transaction=inv_txn,
                 source_document_type="CHEQUE",

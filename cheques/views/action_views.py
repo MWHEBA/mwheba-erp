@@ -13,9 +13,18 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_POST
 from django.db import transaction
 
-from cheques.models import Cheque, ChequeType, ChequeStatus, ChequeActionLog, ChequeActionType
+from cheques.models import (
+    Cheque,
+    ChequeType,
+    ChequeStatus,
+    ChequeActionLog,
+    ChequeActionType,
+    ChequeInvoiceAllocation,
+    AllocationStatus,
+)
 from cheques.services.accounting_service import ChequeAccountingService
 from cheques.services.reversal_service import ChequeReversalService
+from cheques.services.allocation_service import ChequeAllocationService
 from cheques.forms.action_forms import (
     ChequeDepositActionForm,
     ChequeCollectActionForm,
@@ -23,6 +32,10 @@ from cheques.forms.action_forms import (
     ChequeEndorseActionForm,
     ChequeReversalActionForm,
     ChequeConvertGuaranteeActionForm,
+    ChequeClearActionForm,
+    ChequeReturnToDrawerActionForm,
+    ChequeAllocateToInvoiceForm,
+    ChequeDeallocateActionForm,
 )
 
 
@@ -192,33 +205,35 @@ def cheque_endorse_action(request, pk):
 @permission_required('cheques.collect_cheque', raise_exception=True)
 @require_POST
 def cheque_clear_action(request, pk):
-    """إثبات خصم وصرف شيك الدفع الصادر من الحساب البنكي"""
+    """إثبات خصم وصرف شيك الدفع الصادر من الحساب البنكي مع معالجة فروق الصرف"""
     cheque = get_object_or_404(Cheque, pk=pk, cheque_type=ChequeType.PAYABLE)
     redirect_url = reverse('cheques:payable_detail', kwargs={'pk': cheque.pk})
-    clearing_date_raw = request.POST.get('clearing_date')
-    if clearing_date_raw:
-        if isinstance(clearing_date_raw, str):
-            try:
-                from datetime import datetime
-                clearing_date = datetime.strptime(clearing_date_raw.strip(), '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                clearing_date = timezone.localdate()
-        else:
-            clearing_date = clearing_date_raw
-    else:
-        clearing_date = timezone.localdate()
-    idempotency_key = request.POST.get('idempotency_key') or f"CLR-{cheque.id}-{uuid.uuid4().hex[:8]}"
+    form = ChequeClearActionForm(request.POST, user=request.user, cheque=cheque)
 
-    try:
-        ChequeAccountingService.clear_payable_cheque(
-            cheque_or_id=cheque.id,
-            user=request.user,
-            idempotency_key=idempotency_key,
-            value_date=clearing_date,
-        )
-        return _handle_response(request, True, _("تم إثبات صرف وخصم الشيك من الحساب البنكي بنجاح."), redirect_url)
-    except (ValidationError, Exception) as e:
-        return _handle_response(request, False, str(e), redirect_url)
+    if form.is_valid():
+        clearing_date = form.cleaned_data['clearing_date']
+        exchange_rate = form.cleaned_data.get('exchange_rate') or cheque.original_exchange_rate or Decimal('1.000000')
+        bank_account = form.cleaned_data.get('bank_account')
+        notes = form.cleaned_data.get('notes', '')
+        user_key = form.cleaned_data.get('idempotency_key') or request.POST.get('idempotency_key', '').strip()
+        idempotency_key = user_key or f"CLR-{cheque.id}-{uuid.uuid4().hex[:8]}"
+
+        try:
+            ChequeAccountingService.clear_payable_cheque(
+                cheque_or_id=cheque.id,
+                user=request.user,
+                idempotency_key=idempotency_key,
+                value_date=clearing_date,
+                exchange_rate=exchange_rate,
+                bank_account_id=bank_account.id if bank_account else None,
+                notes=notes,
+            )
+            return _handle_response(request, True, _("تم إثبات صرف وخصم الشيك من الحساب البنكي بنجاح."), redirect_url)
+        except (ValidationError, Exception) as e:
+            return _handle_response(request, False, str(e), redirect_url)
+
+    error_msg = "; ".join([f"{f}: {e[0]}" for f, e in form.errors.items()])
+    return _handle_response(request, False, error_msg, redirect_url)
 
 
 @login_required
@@ -342,3 +357,163 @@ def cheque_convert_guarantee_action(request, pk):
 
     error_msg = "; ".join([f"{f}: {e[0]}" for f, e in form.errors.items()])
     return _handle_response(request, False, error_msg, redirect_url)
+
+
+@login_required
+@permission_required('cheques.bounce_cheque', raise_exception=True)
+@require_POST
+def cheque_return_to_drawer_action(request, pk):
+    """رد واسترداد شيك القبض للساحب مع إقفاله وإعادة فتح المديونية أو الدفعة المقدمة"""
+    cheque = get_object_or_404(Cheque, pk=pk, cheque_type=ChequeType.RECEIVABLE)
+    redirect_url = reverse('cheques:receivable_detail', kwargs={'pk': cheque.pk})
+    form = ChequeReturnToDrawerActionForm(request.POST)
+
+    if form.is_valid():
+        action_date = form.cleaned_data['action_date']
+        reason = form.cleaned_data['reason']
+        user_key = form.cleaned_data.get('idempotency_key') or request.POST.get('idempotency_key', '').strip()
+        idempotency_key = user_key or f"RTD-{cheque.id}-{uuid.uuid4().hex[:8]}"
+
+        try:
+            ChequeAccountingService.return_to_drawer(
+                cheque_or_id=cheque.id,
+                user=request.user,
+                idempotency_key=idempotency_key,
+                value_date=action_date,
+                reason=reason,
+            )
+            return _handle_response(request, True, _("تم إثبات رد الشيك للساحب وترحيل القيد المحاسبي بنجاح."), redirect_url)
+        except (ValidationError, Exception) as e:
+            return _handle_response(request, False, str(e), redirect_url)
+
+    error_msg = "; ".join([f"{f}: {e[0]}" for f, e in form.errors.items()])
+    return _handle_response(request, False, error_msg, redirect_url)
+
+
+@login_required
+@permission_required('cheques.change_cheque', raise_exception=True)
+@require_POST
+def cheque_allocate_invoice_action(request, pk):
+    """تخصيص شيك القبض على فاتورة مبيعات محددة"""
+    cheque = get_object_or_404(Cheque, pk=pk, cheque_type=ChequeType.RECEIVABLE)
+    redirect_url = reverse('cheques:receivable_detail', kwargs={'pk': cheque.pk})
+
+    if cheque.status in [ChequeStatus.DRAFT, ChequeStatus.BOUNCED, ChequeStatus.CANCELLED, ChequeStatus.RETURNED_TO_DRAWER]:
+        return _handle_response(
+            request, False,
+            _("لا يمكن تخصيص شيك في حالة: {status}.").format(status=cheque.get_status_display()),
+            redirect_url
+        )
+
+    if cheque.is_guarantee:
+        return _handle_response(
+            request, False,
+            _("لا يمكن تخصيص شيك الضمان على فواتير المبيعات قبل تحويله إلى شيك تشغيلي."),
+            redirect_url
+        )
+
+    # 1. فحص مسبق لمنع التكرار الحتمي (Idempotency Replay Guard)
+    user_key = request.POST.get('idempotency_key', '').strip()
+    if user_key:
+        from customer.models import CustomerAllocationAudit
+        alloc_ref = f"ALLOC:{user_key}"
+        existing_audit = CustomerAllocationAudit.objects.filter(
+            allocation_reference=alloc_ref,
+            allocation_status="APPLIED"
+        ).first()
+        if existing_audit:
+            existing_alloc = ChequeInvoiceAllocation.objects.filter(
+                allocation_audit=existing_audit
+            ).first()
+            if existing_alloc:
+                post_sale_id = request.POST.get('sale')
+                post_amount_raw = request.POST.get('amount')
+                try:
+                    post_amount = Decimal(str(post_amount_raw)) if post_amount_raw else None
+                except Exception:
+                    post_amount = None
+
+                # التحقق من تطابق الشيك والفاتورة والمبلغ لمنع التعارض والنجاح المضلل
+                if (
+                    existing_alloc.cheque_id != cheque.id
+                    or (post_sale_id and str(existing_alloc.sale_id) != str(post_sale_id))
+                    or (post_amount is not None and existing_alloc.allocated_amount != post_amount)
+                ):
+                    return _handle_response(
+                        request, False,
+                        _("تعارض في مفتاح عدم التكرار: المفتاح مستخدم مسبقاً لعملية تخصيص أخرى أو بمبلغ مختلف."),
+                        redirect_url
+                    )
+
+                # مطابقة تامة: إعادة نجاح فوري للعملية السابقة دون أي إعادة خصم أو خطأ في الرصيد المتبقي
+                return _handle_response(
+                    request, True,
+                    _("تم تخصيص الشيك بمبلغ {amount} على فاتورة المبيعات رقم {sale_num} بنجاح.").format(
+                        amount=existing_alloc.allocated_amount, sale_num=existing_alloc.sale.number
+                    ),
+                    redirect_url
+                )
+
+    form = ChequeAllocateToInvoiceForm(request.POST, cheque=cheque, user=request.user)
+    if form.is_valid():
+        sale = form.cleaned_data['sale']
+        amount = form.cleaned_data['amount']
+        notes = form.cleaned_data.get('notes', '')
+        idempotency_key = user_key or f"ALLOC-{cheque.id}-{sale.id}-{uuid.uuid4().hex[:8]}"
+
+        try:
+            alloc = ChequeAllocationService.allocate_cheque_to_invoice(
+                cheque=cheque,
+                sale=sale,
+                amount=amount,
+                user=request.user,
+                notes=notes,
+                idempotency_key=idempotency_key
+            )
+            return _handle_response(
+                request, True,
+                _("تم تخصيص الشيك بمبلغ {amount} على فاتورة المبيعات رقم {sale_num} بنجاح.").format(
+                    amount=amount, sale_num=sale.number
+                ),
+                redirect_url
+            )
+        except (ValidationError, Exception) as e:
+            return _handle_response(request, False, str(e), redirect_url)
+
+    error_msg = "; ".join([f"{f}: {e[0]}" for f, e in form.errors.items()])
+    return _handle_response(request, False, error_msg, redirect_url)
+
+
+@login_required
+@permission_required('cheques.change_cheque', raise_exception=True)
+@require_POST
+def cheque_deallocate_invoice_action(request, pk, allocation_id):
+    """إلغاء وفك تخصيص الشيك عن فاتورة المبيعات واستعادة مديونيتها"""
+    cheque = get_object_or_404(Cheque, pk=pk, cheque_type=ChequeType.RECEIVABLE)
+    redirect_url = reverse('cheques:receivable_detail', kwargs={'pk': cheque.pk})
+    allocation = get_object_or_404(ChequeInvoiceAllocation, pk=allocation_id, cheque=cheque)
+
+    form = ChequeDeallocateActionForm(request.POST)
+    if form.is_valid():
+        reason = form.cleaned_data['reason']
+
+        try:
+            ChequeAllocationService.reverse_cheque_allocation(
+                allocation=allocation,
+                reason=reason,
+                user=request.user
+            )
+            return _handle_response(
+                request, True,
+                _("تم فك وإلغاء تخصيص الشيك على الفاتورة رقم {sale_num} بنجاح.").format(
+                    sale_num=allocation.sale.number
+                ),
+                redirect_url
+            )
+        except (ValidationError, Exception) as e:
+            return _handle_response(request, False, str(e), redirect_url)
+
+    error_msg = "; ".join([f"{f}: {e[0]}" for f, e in form.errors.items()])
+    return _handle_response(request, False, error_msg, redirect_url)
+
+

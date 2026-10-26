@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <!-- 1. كروت الـ KPI المالية للعهدة -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-info h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">المبلغ الأصلي المنصرف</div>
+                        <div class="stats-card-value fs-4 fw-bold text-info">{{ advance.amount|smart_float }} <span class="fs-6 text-muted">{{ advance.currency.code }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-info p-3 rounded-circle">
+                        <i class="fas fa-hand-holding-usd fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-success h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">الرصيد المتبقي بذمة الموظف</div>
+                        <div class="stats-card-value fs-4 fw-bold text-success">{{ advance.current_balance|smart_float }} <span class="fs-6 text-muted">{{ advance.currency.code }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-success p-3 rounded-circle">
+                        <i class="fas fa-balance-scale fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-warning h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">إجمالي المنصرفات المسواة</div>
+                        <div class="stats-card-value fs-4 fw-bold text-warning">{{ advance.settled_amount|smart_float }} <span class="fs-6 text-muted">{{ advance.currency.code }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-warning p-3 rounded-circle">
+                        <i class="fas fa-receipt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="stats-card stats-card-danger h-100 shadow-sm border-0">
+                <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+                    <div>
+                        <div class="stats-card-title text-muted fs-7 mb-1">التمويل الإضافي (التعزيز)</div>
+                        <div class="stats-card-value fs-4 fw-bold text-danger">{{ advance.top_up_amount|smart_float }} <span class="fs-6 text-muted">{{ advance.currency.code }}</span></div>
+                    </div>
+                    <div class="stats-card-icon bg-light text-danger p-3 rounded-circle">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شريط الأزرار والإجراءات التفاعلية -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-2 py-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="fs-7 text-muted">حالة العهدة:</span>
+                {% if advance.status == 'active' %}
+                <span class="badge bg-info bg-opacity-10 text-info border border-info px-3 py-2 fs-7">نشطة / جارية</span>
+                {% elif advance.status == 'partially_settled' %}
+                <span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-3 py-2 fs-7">مسواة جزئياً</span>
+                {% elif advance.status == 'settled' %}
+                <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 fs-7">مسواة بالكامل</span>
+                {% elif advance.status == 'overdue' %}
+                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 fs-7">متأخرة عن الاستحقاق</span>
+                {% elif advance.status == 'draft' %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 fs-7">مسودة / قيد الاعتماد</span>
+                {% elif advance.status == 'cancelled' %}
+                <span class="badge bg-secondary bg-opacity-10 text-secondary border px-3 py-2 fs-7">ملغاة</span>
+                {% endif %}
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{% url 'financial:custody_advance_print' advance.id %}" target="_blank" class="btn btn-outline-secondary btn-sm px-3">
+                    <i class="fas fa-print me-1"></i>طباعة السند
+                </a>
+
+                {% if advance.status == 'draft' or advance.status == 'pending_approval' %}
+                    {% if perms.financial.can_disburse_custody or request.user.is_superuser %}
+                    <button type="button" class="btn btn-success btn-sm px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#disburseModal">
+                        <i class="fas fa-hand-holding-usd me-1"></i>صرف العهدة الآن
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times-circle me-1"></i>إلغاء الطلب
+                    </button>
+                    {% endif %}
+                {% endif %}
+
+                {% if advance.status == 'active' or advance.status == 'partially_settled' %}
+                    {% if perms.financial.can_disburse_custody or request.user.is_superuser %}
+                    <button type="button" class="btn btn-outline-warning btn-sm px-3 fw-bold text-dark" data-bs-toggle="modal" data-bs-target="#topUpModal">
+                        <i class="fas fa-plus-circle me-1"></i>تعزيز رصيد العهدة
+                    </button>
+                    {% endif %}
+                    <a href="{% url 'financial:custody_settlement_create' %}?advance_id={{ advance.id }}&employee_id={{ advance.employee_id }}" class="btn btn-primary btn-sm px-3 fw-bold">
+                        <i class="fas fa-receipt me-1"></i>إنشاء سند تسوية
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. تفاصيل وبيانات العهدة الأساسية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-info-circle me-2 text-primary"></i>البيانات التعاقدية والإدارية للعهدة
+        </h5>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">الموظف المستلم:</div>
+                    <div class="fw-bold text-dark fs-6">{{ advance.employee.name }} ({{ advance.employee.employee_number|default:'-' }})</div>
+                    <small class="text-muted">{{ advance.employee.department.name|default:'' }}</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">خزينة الصرف الرئيسية:</div>
+                    <div class="fw-bold text-dark fs-6">{{ advance.source_treasury.name|default:'-' }}</div>
+                    <small class="text-muted">كود: {{ advance.source_treasury.code|default:'-' }}</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">نوع العهدة والعملة:</div>
+                    <div class="fw-bold text-dark fs-6">{{ advance.get_custody_type_display }} ({{ advance.currency.name }} - {{ advance.currency.code }})</div>
+                    <small class="text-muted">سعر الصرف: {{ advance.exchange_rate }}</small>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">تاريخ الصرف الفعلي:</div>
+                    <div class="fw-bold text-dark fs-6">{{ advance.issue_date|date:"Y-m-d" }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">تاريخ الاستحقاق المتوقع:</div>
+                    <div class="fw-bold text-dark fs-6 {% if advance.status == 'overdue' %}text-danger{% endif %}">
+                        {{ advance.due_date|date:"Y-m-d" }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">حساب الأستاذ العام المرتبط:</div>
+                    <div class="fw-bold text-dark fs-6">{{ advance.custody_account.name|default:'حساب وسيط العهد النقدية' }}</div>
+                    <small class="text-muted">{{ advance.custody_account.code|default:'' }}</small>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="p-3 bg-light rounded">
+                    <div class="text-muted fs-7 mb-1">الغرض من العهدة وبيان المأمورية:</div>
+                    <div class="text-dark">{{ advance.purpose|default:'لا يوجد بيان مسجل' }}</div>
+                    {% if advance.notes %}
+                    <div class="mt-2 text-muted fs-7 border-top pt-2"><strong>ملاحظات إضافية:</strong> {{ advance.notes }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. جدول سندات التسوية المرتبطة بالعهدة -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-file-invoice-dollar me-2 text-primary"></i>سندات التسوية المرتبطة
+        </h5>
+
+        {% if settlements %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle border mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>رقم سند التسوية</th>
+                        <th>تاريخ التسوية</th>
+                        <th class="text-end">إجمالي المصروفات</th>
+                        <th class="text-end">ضريبة VAT</th>
+                        <th class="text-end">صافي المخصوم</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center" style="width: 120px;">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for st in settlements %}
+                    <tr class="clickable-row cursor-pointer" data-href="{% url 'financial:custody_settlement_detail' st.id %}">
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ st.settlement_number }}</span></td>
+                        <td>{{ st.settlement_date|date:"Y-m-d" }}</td>
+                        <td class="text-end fw-bold">{{ st.total_expenses|smart_float }}</td>
+                        <td class="text-end text-info">{{ st.total_tax|smart_float }}</td>
+                        <td class="text-end fw-bold text-success">{{ st.total_settled_amount|smart_float }}</td>
+                        <td class="text-center">
+                            {% if st.status == 'posted' %}
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success">مرحل</span>
+                            {% elif st.status == 'submitted' %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning">قيد المراجعة</span>
+                            {% elif st.status == 'reversed' %}
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">معكوس</span>
+                            {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ st.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <a href="{% url 'financial:custody_settlement_detail' st.id %}" class="btn btn-outline-secondary btn-sm" title="عرض التفاصيل">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="fas fa-receipt fa-2x mb-2 text-muted"></i>
+            <div>لم يتم تسجيل أي سندات تسوية لهذه العهدة حتى الآن.</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 4. القيود اليومية المرتبطة بالعهدة -->
+    <div class="section-container mb-4">
+        <h5 class="section-title mb-3">
+            <i class="fas fa-book me-2 text-primary"></i>قيود اليومية العامة الناتجة
+        </h5>
+
+        {% if journal_entries %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle border mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>رقم القيد</th>
+                        <th>تاريخ القيد</th>
+                        <th>البيان المحاسبي</th>
+                        <th class="text-end">إجمالي المدين</th>
+                        <th class="text-end">إجمالي الدائن</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center" style="width: 100px;">عرض</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in journal_entries %}
+                    <tr>
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ entry.number }}</span></td>
+                        <td>{{ entry.date|date:"Y-m-d" }}</td>
+                        <td>{{ entry.description }}</td>
+                        <td class="text-end fw-bold">{{ entry.total_debit|smart_float }}</td>
+                        <td class="text-end fw-bold">{{ entry.total_credit|smart_float }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success">مرحل</span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:journal_entry_detail' entry.id %}" class="btn btn-outline-secondary btn-sm" title="عرض القيد">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="fas fa-book-open fa-2x mb-2 text-muted"></i>
+            <div>لا توجد قيود يومية مسجلة برقم هذا السند.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- Modals المتوافقة بالكامل مع Rule 8         -->
+<!-- ========================================== -->
+
+<!-- 1. مودال صرف العهدة -->
+<div class="modal fade" id="disburseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="disburseForm" method="POST" action="{% url 'financial:custody_advance_disburse' advance.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-hand-holding-usd text-primary me-2"></i>اعتماد وصرف العهدة النقدية
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info border-0 mb-3 fs-7">
+                        سيتم توليد قيد يومية محاسبي تلقائياً لخصم المبلغ من الخزينة المحددة وإضافته لذمة الموظف.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">خزينة الصرف <span class="text-danger">*</span></label>
+                        <select name="treasury_account_id" class="form-select select2-modal" required>
+                            {% for tr in treasuries %}
+                            <option value="{{ tr.id }}" {% if advance.source_treasury_id == tr.id %}selected{% endif %}>{{ tr.name }} (كود: {{ tr.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">المبلغ المصروف</label>
+                        <input type="text" class="form-control" value="{{ advance.amount|smart_float }} {{ advance.currency.code }}" disabled readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ملاحظات الصرف</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="ملاحظات سند الصرف..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-check me-1"></i>تأكيد الصرف المحاسبي
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 2. مودال تعزيز العهدة بمبلغ إضافي -->
+<div class="modal fade" id="topUpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="topUpForm" method="POST" action="{% url 'financial:custody_advance_top_up' advance.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="topup_id" id="topupIdInput" value="{{ topup_id_token }}">
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-plus-circle text-warning me-2"></i>تعزيز رصيد العهدة بمبلغ إضافي
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning border-0 mb-3 fs-7">
+                        سيتم صرف مبلغ تمويل إضافي من نفس خزينة الصرف الأصلية وقيده في حساب الأستاذ العام وتحديث رصيد العهدة فورياً.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">المبلغ الإضافي المطلوب تعزيزه <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" name="additional_amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+                            <span class="input-group-text">{{ advance.currency.code }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">ملاحظات وسبب التعزيز الإضافي</label>
+                        <textarea name="notes" class="form-control" rows="2" placeholder="بيان سبب طلب التعزيز..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fas fa-plus-circle me-1"></i>تأكيد التعزيز والصرف
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 3. مودال إلغاء طلب العهدة -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form id="cancelForm" method="POST" action="{% url 'financial:custody_advance_cancel' advance.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="fas fa-times-circle text-danger me-2"></i>إلغاء طلب العهدة النقدية
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h6 class="fw-bold mb-2">هل أنت متأكد من رغبتك في إلغاء طلب العهدة {{ advance.advance_number }}؟</h6>
+                    <p class="text-muted fs-7 mb-0">لن تتمكن من صرف هذه العهدة بعد الإلغاء، ويمكنك إنشاء طلب جديد عند الحاجة.</p>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">تراجع</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">
+                        <i class="fas fa-trash me-1"></i>تأكيد الإلغاء
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Select2 داخل المودال مع dropdownParent لمنع فتح القائمة خلف الـ backdrop طبقاً لـ Rule 8
+    if ($.fn.select2) {
+        $('.select2-modal').select2({
+            dir: 'rtl',
+            language: 'ar',
+            dropdownParent: $('#disburseModal'),
+            width: '100%'
+        });
+    }
+
+    // معالجة نماذج الـ AJAX للمودالات مع احترام Rule 10 (3100ms)
+    $('#disburseForm, #topUpForm, #cancelForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        submitBtn.prop('disabled', true);
+
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                $('.modal').modal('hide');
+                if (window.showNotification) {
+                    window.showNotification(resp.message || 'تمت العملية بنجاح', 'success');
+                }
+                setTimeout(function() { location.reload(); }, 3100);
+            },
+            error: function(xhr) {
+                submitBtn.prop('disabled', false);
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء تنفيذ الإجراء';
+                if (window.showNotification) {
+                    window.showNotification(msg, 'error');
+                }
+            }
+        });
+    });
+
+    $('.clickable-row').on('click', function(e) {
+        if ($(e.target).closest('.col-actions, .btn, a, button').length === 0) {
+            var href = $(this).data('href');
+            if (href) window.location.href = href;
+        }
+    });
+});
+</script>
+{% endblock %}

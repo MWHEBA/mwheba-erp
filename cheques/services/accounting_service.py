@@ -17,6 +17,7 @@ from financial.models import ChartOfAccounts, JournalEntry
 from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames, RoleConfigurationError
 from financial.services.subledger_account_service import SubledgerAccountService
 from financial.services.period_control_service import PeriodControlService
+from financial.services.treasury_security_service import TreasurySecurityService
 from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
 from governance.exceptions import ConcurrencyError, GovernanceError
 
@@ -335,6 +336,47 @@ class ChequeAccountingService:
                 else:
                     target_status = ChequeStatus.COLLECTED
             target_status = cls._validate_state_transition(cheque, action_type, target_status)
+
+            # التحقق الأمني من الحساب البنكي وصلاحية المستخدم عند الصرف والمقاصة (CLEAR)
+            if action_type == ChequeActionType.CLEAR:
+                bank_account_id = params.get("bank_account_id") or params.get("deposit_bank_account_id") or cheque.deposit_bank_account_id
+                if not bank_account_id:
+                    default_bank = AccountRoleRegistry.get_account(AccountRoleNames.DEFAULT_BANK_ACCOUNT)
+                    bank_account_id = default_bank.id
+
+                bank_acc_obj = ChartOfAccounts.objects.filter(pk=bank_account_id, is_active=True).first()
+                if not bank_acc_obj:
+                    raise ValidationError(_("الحساب البنكي المحدد غير صالح أو غير نشط."))
+
+                # منع استخدام حسابات أوراق القبض أو أوراق الدفع كحساب بنك للمقاصة
+                rec_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
+                pay_ctrl = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
+                if bank_acc_obj.id in [rec_ctrl.id, pay_ctrl.id]:
+                    raise ValidationError(_("لا يمكن استخدام حساب أوراق القبض أو أوراق الدفع كحساب بنكي للمقاصة والصرف."))
+
+                # التحقق الصارم من أن الحساب هو حساب بنكي فعلي
+                is_bank = (
+                    getattr(bank_acc_obj, 'is_bank_account', False)
+                    or (bank_acc_obj.account_type and (
+                        bank_acc_obj.account_type.code.lower() == 'bank'
+                        or 'بنك' in bank_acc_obj.account_type.name
+                        or 'مصرف' in bank_acc_obj.account_type.name
+                    ))
+                    or ('بنك' in bank_acc_obj.name or 'مصرف' in bank_acc_obj.name)
+                    or str(bank_acc_obj.code).startswith(('1116', '1117'))
+                )
+                is_prohibited = (
+                    getattr(bank_acc_obj, 'is_cash_account', False)
+                    or getattr(bank_acc_obj, 'is_custody_account', False)
+                    or str(bank_acc_obj.code).startswith(('1119', '1122', '2112'))
+                )
+                if not is_bank or is_prohibited:
+                    raise ValidationError(_("الحساب المالي المختار ليس حساباً بنكياً صالحاً لإجراء المقاصة والصرف."))
+
+                if user and not (user.is_superuser or getattr(user, 'is_financial_manager', False)):
+                    accessible = TreasurySecurityService.get_user_accessible_treasuries(user, action='disburse')
+                    if not accessible.filter(pk=bank_acc_obj.id).exists():
+                        raise ValidationError(_("ليس لديك صلاحية صرف أو مقاصة على الحساب البنكي المحدد."))
 
             # 8. إنشاء سجل الحركة أولاً لحجز المعرّف
             value_date = params.get("value_date") or timezone.localdate()

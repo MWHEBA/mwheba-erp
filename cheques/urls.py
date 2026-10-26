@@ -26,6 +26,10 @@ urlpatterns = [
     path('actions/<int:pk>/cancel/', views.cheque_cancel_action, name='cheque_cancel_action'),
     path('actions/<int:pk>/reverse/', views.cheque_reverse_action, name='cheque_reverse_action'),
     path('actions/<int:pk>/convert-guarantee/', views.cheque_convert_guarantee_action, name='cheque_convert_guarantee_action'),
+    path('actions/<int:pk>/return-to-drawer/', views.cheque_return_to_drawer_action, name='cheque_return_to_drawer_action'),
+    path('actions/<int:pk>/allocate-invoice/', views.cheque_allocate_invoice_action, name='cheque_allocate_invoice_action'),
+    path('actions/<int:pk>/deallocate-invoice/<int:allocation_id>/', views.cheque_deallocate_invoice_action, name='cheque_deallocate_invoice_action'),
+
 
     # 4. حافظات الإيداع البنكية المجمعة
     path('batches/', views.ChequeBatchDepositListView.as_view(), name='batch_deposit_list'),

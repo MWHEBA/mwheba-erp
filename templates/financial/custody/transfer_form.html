@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -12,44 +13,82 @@
         <div class="col-lg-8">
             <div class="section-container mb-4">
                 <h5 class="section-title mb-4">
-                    <i class="fas fa-exchange-alt me-2 text-primary"></i>بيانات سند مناقلة العهدة
+                    <i class="fas fa-exchange-alt me-2 text-primary"></i>بيانات سند مناقلة وتحويل العهدة النقدية
                 </h5>
 
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data" id="transferForm">
                     {% csrf_token %}
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">الموظف المُسلِّم (المحول منه) <span class="text-danger">*</span></label>
-                            <select name="from_employee_id" class="form-select select2-filter" required>
+                            <select name="from_employee_id" id="from_employee_select" class="form-select select2-filter" required onchange="filterSenderAdvances()">
                                 <option value="">-- اختر الموظف المُسلِّم --</option>
                                 {% for emp in employees %}
-                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }})</option>
+                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number|default:'-' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">سلفة / عهدة المُسلِّم المرتبطة</label>
+                            <select name="from_advance_id" id="from_advance_select" class="form-select select2-filter">
+                                <option value="">-- العهدة الجارية التلقائية للموظف --</option>
+                                {% for adv in active_advances %}
+                                    <option value="{{ adv.id }}" data-emp="{{ adv.employee_id }}" data-balance="{{ adv.current_balance }}" data-curr="{{ adv.currency_id }}">
+                                        {{ adv.advance_number }} (رصيد متاح: {{ adv.current_balance|smart_float }} {{ adv.currency.code }}) - {{ adv.employee.name }}
+                                    </option>
                                 {% endfor %}
                             </select>
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label fw-bold">الموظف المُستلِم (المحول إليه) <span class="text-danger">*</span></label>
-                            <select name="to_employee_id" class="form-select select2-filter" required>
+                            <select name="to_employee_id" id="to_employee_select" class="form-select select2-filter" required onchange="filterReceiverAdvances()">
                                 <option value="">-- اختر الموظف المُستلِم --</option>
                                 {% for emp in employees %}
-                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number }})</option>
+                                    <option value="{{ emp.id }}">{{ emp.name }} ({{ emp.employee_number|default:'-' }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">سلفة / عهدة المُستلِم المستهدفة (اختياري)</label>
+                            <select name="to_advance_id" id="to_advance_select" class="form-select select2-filter">
+                                <option value="">-- إنشاء سلفة نشطة جديدة للمستلم آلياً --</option>
+                                {% for adv in active_advances %}
+                                    <option value="{{ adv.id }}" data-emp="{{ adv.employee_id }}">
+                                        {{ adv.advance_number }} - {{ adv.employee.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">المبلغ المحول <span class="text-danger">*</span></label>
+                            <input type="number" name="amount" id="transfer_amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">العملة <span class="text-danger">*</span></label>
+                            <select name="currency_id" id="currency_select" class="form-select select2-filter" required>
+                                {% for c in currencies %}
+                                    <option value="{{ c.id }}" {% if c.is_functional %}selected{% endif %}>{{ c.name }} ({{ c.code }})</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">المبلغ المحول <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <input type="number" name="amount" step="0.01" min="0.01" class="form-control" required placeholder="0.00">
-                            <span class="input-group-text bg-light">ج.م</span>
-                        </div>
+                        <label class="form-label fw-bold">مرفق محضر التسليم والتسلم الموقع (ورقي / PDF / صورة)</label>
+                        <input type="file" name="signed_transfer_file" class="form-control" accept=".pdf,.png,.jpg,.jpeg">
+                        <small class="text-muted">إرفاق البروتوكول الموقع من المسلّم والمستلم بالموقع لحوكمة نقل الأمانات.</small>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold">سبب المناقلة وتفاصيل محضر التسليم والتسلم</label>
+                        <label class="form-label fw-bold">سبب المناقلة وتفاصيل المحضر</label>
                         <textarea name="notes" class="form-control" rows="3" placeholder="بيان سبب نقل العهدة وتوقيعات الطرفين بالموقع..."></textarea>
                     </div>
 
@@ -68,6 +107,30 @@
 
 {% block extra_js %}
 <script>
+function filterSenderAdvances() {
+    var empId = $('#from_employee_select').val();
+    $('#from_advance_select option').each(function() {
+        var optEmp = $(this).data('emp');
+        if (!optEmp || optEmp == empId) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+}
+
+function filterReceiverAdvances() {
+    var empId = $('#to_employee_select').val();
+    $('#to_advance_select option').each(function() {
+        var optEmp = $(this).data('emp');
+        if (!optEmp || optEmp == empId) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+}
+
 $(document).ready(function() {
     if ($.fn.select2) {
         $('.select2-filter').select2({
@@ -76,6 +139,24 @@ $(document).ready(function() {
             width: '100%'
         });
     }
+
+    $('#transferForm').on('submit', function(e) {
+        var fromEmp = $('#from_employee_select').val();
+        var toEmp = $('#to_employee_select').val();
+        var amt = parseFloat($('#transfer_amount').val()) || 0;
+
+        if (fromEmp && toEmp && fromEmp === toEmp) {
+            alert('لا يمكن عمل مناقلة عهدة لنفس الموظف.');
+            e.preventDefault();
+            return false;
+        }
+
+        if (amt <= 0) {
+            alert('يرجى إدخال مبلغ صحيح أكبر من الصفر.');
+            e.preventDefault();
+            return false;
+        }
+    });
 });
 </script>
 {% endblock %}

@@ -12,7 +12,7 @@ from financial.models.chart_of_accounts import (
     ChartOfAccounts,
     AccountType,
 )
-from financial.models.journal_entry import AccountingPeriod, JournalEntry
+from financial.models.journal_entry import AccountingPeriod, JournalEntry, JournalEntryLine
 from financial.models.custody import (
     EmployeeCustodyAdvance,
     CustodyAdvanceStatus,
@@ -90,8 +90,8 @@ class TestCustodyService:
         )
 
         self.custody_acc = ChartOfAccounts.objects.create(
-            code="11240",
-            name="مراقبة عهد الموظفين النقدية",
+            code="11130",
+            name="العهد النقدية المستديمة والمؤقتة",
             account_type=self.asset_type,
             currency=self.currency,
             is_custody_account=True,
@@ -106,7 +106,36 @@ class TestCustodyService:
             account_type=self.asset_type,
             currency=self.currency,
             is_active=True,
+            is_cash_account=True,
             created_by=self.user,
+        )
+
+        # تغذية رصيد الخزينة لتمكين عمليات الصرف وفق حوكمة كفاية السيولة
+        open_entry = JournalEntry.objects.create(
+            number="OPB-TREASURY-01",
+            date=date(2026, 1, 1),
+            accounting_period=self.period,
+            entry_type="opening",
+            status="posted",
+            description="رصيد افتتاحي للخزينة الرئيسية",
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=open_entry,
+            account=self.treasury_acc,
+            debit=Decimal("100000.00"),
+            credit=Decimal("0.00"),
+            currency="EGP",
+        )
+        equity_acc, _ = ChartOfAccounts.objects.get_or_create(
+            code="31010",
+            defaults={"name": "الأرصدة الافتتاحية", "account_type": self.asset_type, "is_active": True}
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=open_entry,
+            account=equity_acc,
+            debit=Decimal("0.00"),
+            credit=Decimal("100000.00"),
+            currency="EGP",
         )
 
         self.expense_acc = ChartOfAccounts.objects.create(
@@ -119,7 +148,7 @@ class TestCustodyService:
         )
 
         self.vat_acc = ChartOfAccounts.objects.create(
-            code="11410",
+            code="11510",
             name="ضريبة القيمة المضافة على المدخلات",
             account_type=self.asset_type,
             currency=self.currency,
@@ -128,7 +157,7 @@ class TestCustodyService:
         )
 
         self.wht_acc = ChartOfAccounts.objects.create(
-            code="21320",
+            code="21330",
             name="ضريبة الخصم والتحصيل من المنبع",
             account_type=self.liability_type,
             currency=self.currency,
@@ -137,9 +166,9 @@ class TestCustodyService:
         )
 
         self.discount_acc = ChartOfAccounts.objects.create(
-            code="42200",
-            name="خصم مكتسب",
-            account_type=self.revenue_type,
+            code="51930",
+            name="الخصم المكتسب من الموردين",
+            account_type=self.expense_type,
             currency=self.currency,
             is_active=True,
             created_by=self.user,
@@ -235,6 +264,7 @@ class TestCustodyService:
             settlement_date=date(2026, 2, 10),
             total_expenses=Decimal("10000.00"),
             total_settled_amount=Decimal("10000.00"),
+            cash_returned_to_treasury=Decimal("187.72"),
             status=SettlementStatus.SUBMITTED,
             submitted_by=self.user,
         )
@@ -274,11 +304,26 @@ class TestCustodyService:
 
     def test_custody_transfer_success(self):
         """اختبار مناقلة العهدة بين موظفين وتحديث سجل الإسناد"""
+        adv_num = SequenceService.get_next_number(DocumentType.CUSTODY_ADVANCE)
+        from_adv = EmployeeCustodyAdvance.objects.create(
+            advance_number=adv_num,
+            employee=self.employee1,
+            user=self.user,
+            source_treasury=self.treasury_acc,
+            amount=Decimal("10000.00"),
+            currency=self.currency,
+            issue_date=date(2026, 2, 1),
+            due_date=date(2026, 2, 28),
+            status=CustodyAdvanceStatus.PENDING_APPROVAL,
+        )
+        CustodyManagementService.disburse_advance(from_adv, self.user)
+
         trf_num = SequenceService.get_next_number(DocumentType.CUSTODY_TRANSFER)
         transfer = CustodyTransfer.objects.create(
             transfer_number=trf_num,
             from_employee=self.employee1,
             to_employee=self.employee2,
+            from_advance=from_adv,
             amount=Decimal("5000.00"),
             currency=self.currency,
             transfer_date=date(2026, 2, 15),
@@ -322,3 +367,28 @@ class TestCustodyService:
         assert result.variance_amount == Decimal("0.00")
         assert result.variance_type == "matched"
         assert result.denomination_breakdown == denoms
+
+    def test_custody_roles_resolution_in_registry(self):
+        """اختبار التحقق من حل أدوار العهد النقدية والمستديمة والسلف عبر AccountRoleRegistry"""
+        from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+
+        temp_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_TEMPORARY_CONTROL)
+        assert temp_acc is not None
+        assert temp_acc.code == "11130"
+
+        perm_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_PERMANENT_CONTROL)
+        assert perm_acc is not None
+        assert perm_acc.code == "11230"
+
+        overrun_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_OVERRUN_PAYABLES)
+        assert overrun_acc is not None
+        assert overrun_acc.code == "21230"
+
+        deposits_acc = AccountRoleRegistry.get_account(AccountRoleNames.REFUNDABLE_DEPOSITS_ASSET)
+        assert deposits_acc is not None
+        assert deposits_acc.code == "11440"
+
+        shortage_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTODY_SHORTAGE_LOSS)
+        assert shortage_acc is not None
+        assert shortage_acc.code == "54900"
+

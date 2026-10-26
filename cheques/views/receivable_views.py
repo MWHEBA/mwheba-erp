@@ -17,6 +17,8 @@ from cheques.models import (
     ChequeType,
     ChequeStatus,
     ChequePurpose,
+    ChequeInvoiceAllocation,
+    AllocationStatus,
 )
 from cheques.forms.cheque_forms import ChequeReceivableForm
 from cheques.forms.action_forms import (
@@ -26,6 +28,9 @@ from cheques.forms.action_forms import (
     ChequeEndorseActionForm,
     ChequeReversalActionForm,
     ChequeConvertGuaranteeActionForm,
+    ChequeReturnToDrawerActionForm,
+    ChequeAllocateToInvoiceForm,
+    ChequeDeallocateActionForm,
 )
 from financial.models import ChartOfAccounts
 from cheques.services.toggle_service import ChequeToggleService
@@ -281,16 +286,43 @@ class ChequeReceivableDetailView(LoginRequiredMixin, PermissionRequiredMixin, Vi
         endorse_form = ChequeEndorseActionForm()
         reverse_form = ChequeReversalActionForm()
         convert_guarantee_form = ChequeConvertGuaranteeActionForm()
+        return_to_drawer_form = ChequeReturnToDrawerActionForm()
 
-        header_buttons = [
-            {
+        # تخصيصات الشيك على فواتير المبيعات
+        allocations = cheque.invoice_allocations.select_related(
+            'sale', 'journal_entry', 'sale_payment', 'allocation_audit'
+        ).order_by('-allocation_date', '-id')
+
+        applied_allocations_sum = allocations.filter(
+            allocation_status=AllocationStatus.APPLIED
+        ).aggregate(total=Sum('allocated_amount'))['total'] or Decimal('0.00')
+
+        unallocated_amount = max(Decimal('0.00'), cheque.amount - applied_allocations_sum)
+
+        can_allocate = (
+            cheque.status not in [
+                ChequeStatus.DRAFT,
+                ChequeStatus.BOUNCED,
+                ChequeStatus.CANCELLED,
+                ChequeStatus.RETURNED_TO_DRAWER,
+            ]
+            and not cheque.is_guarantee
+            and bool(cheque.customer_id)
+            and unallocated_amount > Decimal('0.00')
+        )
+
+        allocate_invoice_form = ChequeAllocateToInvoiceForm(cheque=cheque, user=request.user) if can_allocate else None
+        deallocate_form = ChequeDeallocateActionForm()
+
+        header_buttons = []
+        if request.user.has_perm('cheques.print_cheque'):
+            header_buttons.append({
                 'url': reverse('cheques:cheque_print', kwargs={'pk': cheque.pk}),
                 'icon': 'fa-print',
                 'text': _('طباعة إشعار الاستلام'),
                 'class': 'btn-outline-secondary',
                 'target': '_blank'
-            }
-        ]
+            })
 
         context = {
             'page_title': f"{_('شيك قبض رقم')} {cheque.cheque_number}",
@@ -301,11 +333,18 @@ class ChequeReceivableDetailView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             'cheque': cheque,
             'action_logs': action_logs,
             'settlement_lines': settlement_lines,
+            'allocations': allocations,
+            'applied_allocations_sum': applied_allocations_sum,
+            'unallocated_amount': unallocated_amount,
+            'can_allocate': can_allocate,
+            'allocate_invoice_form': allocate_invoice_form,
+            'deallocate_form': deallocate_form,
             'deposit_form': deposit_form,
             'collect_form': collect_form,
             'bounce_form': bounce_form,
             'endorse_form': endorse_form,
             'reverse_form': reverse_form,
             'convert_guarantee_form': convert_guarantee_form,
+            'return_to_drawer_form': return_to_drawer_form,
         }
         return render(request, self.template_name, context)

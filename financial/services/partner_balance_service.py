@@ -22,7 +22,10 @@ class PartnerBalanceService:
         if not partner_id:
             return
 
-        rate = Decimal(str(invoice_rate or "1.000000"))
+        if invoice_rate is None or Decimal(str(invoice_rate)) <= Decimal("0.000000"):
+            raise ValueError(f"سعر صرف الفاتورة (invoice_rate) إلزامي وموجب لتحديث رصيد الشريك، القيمة الممررة: {invoice_rate}")
+
+        rate = Decimal(str(invoice_rate))
         settled = Decimal(str(settled_invoice_amount or "0.00"))
         delta_functional = (settled * rate).quantize(Decimal("0.01"))
 
@@ -102,5 +105,8 @@ class PartnerBalanceService:
             elif partner_type == "supplier":
                 from supplier.models import Supplier
                 Supplier.objects.filter(pk=partner_id).update(balance=models.F("balance") + delta)
+            else:
+                raise ValueError(f"نوع الشريك غير معروف: {partner_type}")
         except Exception as e:
             logger.error(f"❌ خطأ في تحديث رصيد {partner_type} #{partner_id} بقيمة {delta}: {e}")
+            raise
