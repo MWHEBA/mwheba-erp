@@ -469,7 +469,7 @@
                         </a>
                         {% endif %}
                         
-                        <button type="button" class="btn btn-outline-success btn-wa-action" data-wa-trigger data-content-type-id="{{ payment_content_type_id }}" data-object-id="{{ payment.pk }}" data-partner-id="{{ payment.customer.pk|default:sale.customer.pk }}" data-partner-type="customer" data-has-pdf="false" data-doc-number="{{ payment.payment_code|default:payment.pk }}" data-doc-title="{% trans 'سند قبض مالي' %}" data-phone="{{ payment.customer.phone_primary|default:payment.customer.phone|default:sale.customer.phone_primary|default:sale.customer.phone }}">
+                        <button type="button" class="btn btn-outline-success btn-wa-action" data-wa-trigger data-content-type-id="{{ payment_content_type_id }}" data-object-id="{{ payment.pk }}" data-partner-id="{% if payment.sale and payment.sale.customer %}{{ payment.sale.customer.pk }}{% elif sale and sale.customer %}{{ sale.customer.pk }}{% endif %}" data-partner-type="customer" data-has-pdf="false" data-doc-number="{{ payment.payment_code|default:payment.pk }}" data-doc-title="{% trans 'سند قبض مالي' %}" data-phone="{% if payment.sale and payment.sale.customer %}{{ payment.sale.customer.phone_primary|default:payment.sale.customer.phone }}{% elif sale and sale.customer %}{{ sale.customer.phone_primary|default:sale.customer.phone }}{% endif %}">
                             <i class="fab fa-whatsapp me-1"></i>{% trans "إرسال إشعار سداد (واتساب)" %}
                         </button>
                         

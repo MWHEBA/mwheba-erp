@@ -2189,7 +2189,7 @@ def supplier_detail(request, pk):
             "icon": "fab fa-whatsapp",
             "text": _("إرسال كشف الحساب واتساب"),
             "class": "btn-success",
-            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': supplier_ct_id, 'objectId': supplier.pk, 'partnerId': supplier.pk, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier), 'docNumber': supplier.code or str(supplier.name), 'docTitle': 'كشف حساب مورد', 'pdfUrl': reverse('supplier:supplier_statement_pdf', kwargs={'pk': supplier.pk}), 'hasPdf': True})}); return false;",
+            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': supplier_ct_id, 'objectId': supplier.pk, 'partnerId': supplier.pk, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier), 'docNumber': supplier.code or str(supplier.name), 'docTitle': 'كشف حساب مورد', 'hasPdf': True})}); return false;",
         },
     ]
 

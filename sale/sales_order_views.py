@@ -866,7 +866,7 @@ def sales_order_detail(request, pk):
             "class": "btn-outline-success",
             "items": [
                 {
-                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(SalesOrder).id, 'objectId': so.pk, 'partnerId': so.customer.pk if so.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(so.customer), 'docNumber': so.order_number or str(so.pk), 'docTitle': 'أمر بيع', 'pdfUrl': reverse('sale:sales_order_pdf', kwargs={'pk': so.pk}), 'hasPdf': True})})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(SalesOrder).id, 'objectId': so.pk, 'partnerId': so.customer.pk if so.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(so.customer), 'docNumber': so.order_number or str(so.pk), 'docTitle': 'أمر بيع', 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

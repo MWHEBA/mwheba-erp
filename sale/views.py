@@ -2009,7 +2009,7 @@ def sale_return_detail(request, pk):
             "class": "btn-outline-success",
             "items": [
                 {
-                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(SaleReturn).id, 'objectId': sale_return.pk, 'partnerId': sale_return.sale.customer.pk if sale_return.sale and sale_return.sale.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(sale_return.sale.customer if sale_return.sale else None), 'docNumber': sale_return.number or str(sale_return.pk), 'docTitle': 'مرتجع مبيعات', 'pdfUrl': reverse('sale:sale_return_pdf', kwargs={'pk': sale_return.pk}), 'hasPdf': True})})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(SaleReturn).id, 'objectId': sale_return.pk, 'partnerId': sale_return.sale.customer.pk if sale_return.sale and sale_return.sale.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(sale_return.sale.customer if sale_return.sale else None), 'docNumber': sale_return.number or str(sale_return.pk), 'docTitle': 'مرتجع مبيعات', 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

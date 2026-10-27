@@ -270,7 +270,8 @@
  partnerType: options.partnerType || 'customer',
  templateName: options.templateName || null,
  fromDate: options.fromDate || '',
- toDate: options.toDate || ''
+ toDate: options.toDate || '',
+ pdfUrl: options.pdfUrl || ''
  };
 
  // تصفير الواجهة
@@ -504,11 +505,12 @@
 
  if (window.shareWhatsAppPDF) {
      modalInstance().hide();
+     const fallbackPdf = `/api/whatsapp/pdf-download/?content_type_id=${currentPayload.contentTypeId}&object_id=${currentPayload.objectId}&from_date=${encodeURIComponent(currentPayload.fromDate || '')}&to_date=${encodeURIComponent(currentPayload.toDate || '')}`;
      window.shareWhatsAppPDF({
          phone: cleanPhone,
          docNumber: currentPayload.docNumber,
          docTitle: currentPayload.docTitle,
-         pdfUrl: currentPayload.pdfUrl,
+         pdfUrl: currentPayload.pdfUrl || fallbackPdf,
          hasPdf: currentPayload.hasPdf !== false
      });
      return;

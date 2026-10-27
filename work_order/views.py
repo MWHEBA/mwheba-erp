@@ -618,7 +618,7 @@ def work_order_detail(request, pk):
         "icon": "fab fa-whatsapp",
         "text": _("إرسال واتساب"),
         "class": "btn-success",
-        "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': wo_ct_id, 'objectId': work_order.pk, 'partnerId': cust_id or None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(work_order.customer), 'docNumber': work_order.number or str(work_order.pk), 'docTitle': 'أمر شغل تصنيع', 'pdfUrl': reverse('work_order:work_order_pdf', kwargs={'pk': work_order.pk}), 'hasPdf': True})}); return false;",
+        "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': wo_ct_id, 'objectId': work_order.pk, 'partnerId': cust_id or None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(work_order.customer), 'docNumber': work_order.number or str(work_order.pk), 'docTitle': 'أمر شغل تصنيع', 'hasPdf': True})}); return false;",
     })
 
     context.update({

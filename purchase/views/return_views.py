@@ -408,7 +408,7 @@ def purchase_return_detail(request, pk):
             "icon": "fab fa-whatsapp",
             "text": "إرسال واتساب",
             "class": "btn-success",
-            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ct_id, 'objectId': purchase_return.pk, 'partnerId': supplier_id or None, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier_obj), 'docNumber': purchase_return.number or str(purchase_return.pk), 'docTitle': 'مرتجع مشتريات', 'pdfUrl': reverse('purchase:purchase_return_pdf', kwargs={'pk': purchase_return.pk}), 'hasPdf': True})}); return false;",
+            "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ct_id, 'objectId': purchase_return.pk, 'partnerId': supplier_id or None, 'partnerType': 'supplier', 'phone': WhatsAppService.get_partner_best_mobile(supplier_obj), 'docNumber': purchase_return.number or str(purchase_return.pk), 'docTitle': 'مرتجع مشتريات', 'hasPdf': True})}); return false;",
         })
 
     context = {

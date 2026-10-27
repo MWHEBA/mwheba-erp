@@ -284,7 +284,7 @@ def delivery_note_detail(request, pk):
             "class": "btn-outline-success",
             "items": [
                 {
-                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(DeliveryNote).id, 'objectId': dn.pk, 'partnerId': dn.customer.pk if dn.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(dn.customer), 'docNumber': dn.delivery_number or str(dn.pk), 'docTitle': 'إذن تسليم بضاعة', 'pdfUrl': reverse('sale:delivery_note_pdf', kwargs={'pk': dn.pk}), 'hasPdf': True})})",
+                    "onclick": f"openWhatsAppModal({json.dumps({'contentTypeId': ContentType.objects.get_for_model(DeliveryNote).id, 'objectId': dn.pk, 'partnerId': dn.customer.pk if dn.customer else None, 'partnerType': 'customer', 'phone': WhatsAppService.get_partner_best_mobile(dn.customer), 'docNumber': dn.delivery_number or str(dn.pk), 'docTitle': 'إذن تسليم بضاعة', 'hasPdf': True})})",
                     "icon": "fab fa-whatsapp text-success",
                     "text": _("إرسال واتساب")
                 },

@@ -5,6 +5,7 @@ FIN-CORE-SSOT: SubledgerAccountService
 """
 
 import logging
+from decimal import Decimal
 from typing import Optional, Tuple, Any
 from django.db import transaction, DatabaseError
 from django.contrib.auth import get_user_model
@@ -326,8 +327,13 @@ class SubledgerAccountService:
                     updated_fields.append("currency")
 
             if account.is_active != is_active:
-                account.is_active = is_active
-                updated_fields.append("is_active")
+                if not is_active and hasattr(account, "current_balance") and account.current_balance != Decimal("0.00"):
+                    logger.warning(
+                        f"⚠️ تعذر إلغاء تنشيط الحساب {account.code} للكيان {entity.pk} لأن رصيده غير صفري ({account.current_balance}). سيظل الحساب نشطاً."
+                    )
+                else:
+                    account.is_active = is_active
+                    updated_fields.append("is_active")
 
             if updated_fields:
                 account.save(update_fields=updated_fields)
