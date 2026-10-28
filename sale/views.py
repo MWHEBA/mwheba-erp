@@ -1057,8 +1057,10 @@ def sale_list(request):
     # تحويل الـ queryset لـ list of dicts للجدول الموحد
     sales_data = []
     for sale in sales_page:
-        # تحديد حالة الدفع badge
-        if sale.payment_status == 'paid':
+        # تحديد حالة الفاتورة والدفع badge
+        if sale.status == 'cancelled':
+            payment_status_html = '<span class="badge bg-secondary">ملغاة</span>'
+        elif sale.payment_status == 'paid':
             payment_status_html = '<span class="badge bg-success">مدفوعة</span>'
         elif sale.payment_status == 'partially_paid':
             payment_status_html = '<span class="badge bg-warning">مدفوعة جزئياً</span>'
@@ -1076,7 +1078,7 @@ def sale_list(request):
             'class': 'action-view',
         })
 
-        # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل ومع الصلاحية)
+        # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل وليست ملغية ومع الصلاحية)
         is_owner_draft_row = (sale.created_by_id == request.user.id and (getattr(sale, 'status', '') == 'draft' or not getattr(sale, 'is_posted', False)))
         can_add_pay_row = (
             request.user.has_perm('sale.add_salepayment')
@@ -1084,7 +1086,7 @@ def sale_list(request):
             or is_owner_draft_row
             or request.user.is_superuser
         )
-        if sale.payment_status != 'paid' and can_add_pay_row:
+        if sale.status != 'cancelled' and sale.payment_status != 'paid' and can_add_pay_row:
             actions.append({
                 'url': reverse('sale:sale_add_payment', args=[sale.pk]),
                 'icon': 'fa-money-bill-wave',

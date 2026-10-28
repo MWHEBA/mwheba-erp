@@ -1526,46 +1526,79 @@ class SaleService:
                         f"لا يمكن حذف الفاتورة رقم {sale.number} لأن أمر الشغل المرتبط ({sale.work_order.number}) في مرحلة التشغيل الفعلي ({sale.work_order.get_status_display()})."
                     )
 
+        # 0.3 حراسة المدفوعات والمرتجعات
+        if sale.payments.filter(status='posted').exists():
+            raise ValidationError("عفواً، لا يمكن حذف هذه الفاتورة لوجود مدفوعات مرحلة مرتبطة بها. يرجى إلغاء المدفوعات أولاً.")
+
+        if sale.returns.filter(status='confirmed').exists():
+            raise ValidationError("عفواً، لا يمكن حذف هذه الفاتورة لوجود مرتجعات مبيعات مؤكدة مرتبطة بها.")
+
         try:
             customer = sale.customer
-            # 1. حذف القيد المحاسبي
-            if sale.journal_entry:
+            # 1. حذف القيد المحاسبي بأسرع طريقة وفك الارتباط
+            if sale.journal_entry_id:
                 try:
-                    # فك قفل القيد وتغيير الحالة قبل الحذف
                     from financial.models import JournalEntry, FinancialPostingReference
-                    journal_entry = sale.journal_entry
-                    journal_entry._allow_lock_operation = True
-                    FinancialPostingReference.objects.filter(journal_entry_id=journal_entry.pk).delete()
-                    JournalEntry.objects.filter(pk=journal_entry.pk).update(status='draft', is_locked=False)
-                    journal_entry.status = 'draft'
-                    journal_entry.delete()
+                    je_id = sale.journal_entry_id
+                    # فك ارتباط القيد بالفاتورة لتجنب الفحص الدائري
+                    Sale.objects.filter(pk=sale.pk).update(journal_entry=None)
+                    sale.journal_entry = None
+                    
+                    FinancialPostingReference.objects.filter(journal_entry_id=je_id).delete()
+                    je = JournalEntry.objects.filter(pk=je_id).first()
+                    if je:
+                        je._allow_lock_operation = True
+                        JournalEntry.objects.filter(pk=je_id).update(status='draft', is_locked=False)
+                        je.status = 'draft'
+                        # حذف بنود القيد دفعة واحدة لتسريع الحذف
+                        je.lines.all().delete()
+                        je.delete()
                     logger.info(f"✅ تم حذف القيد المحاسبي للفاتورة: {sale.number}")
                 except Exception as e:
                     logger.warning(f"فشل حذف القيد المحاسبي: {str(e)}")
             
-            # 2. حذف حركات المخزون
-            from product.models import StockMovement
-            item_ids = list(sale.items.values_list('id', flat=True))
-            movements = StockMovement.objects.filter(
-                reference_number__in=[f"SALE_ITEM_{item_id}" for item_id in item_ids]
-            )
-            movements_count = movements.count()
-            movements.delete()
+            # 2. استعادة رصيد المخزون بحذف حركات الصرف (الـ signal تعيد المخزون تلقائياً)
+            if not sale.delivery_note_id:
+                from product.models import StockMovement
+                # استخدام الفهرس المزدوج السريع (document_type, document_number)
+                movements = list(StockMovement.objects.filter(
+                    document_type='sale',
+                    document_number=sale.number
+                ).select_related('product', 'warehouse'))
+                
+                if not movements:
+                    item_ids = list(sale.items.values_list('id', flat=True))
+                    movements = list(StockMovement.objects.filter(
+                        reference_number__in=[f"SALE_ITEM_{item_id}" for item_id in item_ids]
+                    ).select_related('product', 'warehouse'))
+                
+                for movement in movements:
+                    movement.delete()
+                
+                if movements:
+                    logger.info(f"✅ تم حذف {len(movements)} حركة مخزون واستعادة رصيد المخزون للفاتورة: {sale.number}")
+
+            # 3. تسوية الكميات المفوترة على أمر البيع المرتبط إن وجد
+            if sale.sales_order_id:
+                from sale.services.sales_service import SalesService
+                billed_items = []
+                for it in sale.items.all():
+                    so_item = sale.sales_order.items.filter(product_id=it.product_id).first()
+                    if so_item:
+                        billed_items.append({
+                            'so_item_id': so_item.id,
+                            'billed_qty': it.quantity
+                        })
+                if billed_items:
+                    SalesService.rollback_invoice_quantities(sale.sales_order_id, billed_items, user)
             
-            if movements_count > 0:
-                logger.info(f"✅ تم حذف {movements_count} حركة مخزون للفاتورة: {sale.number}")
-            
-            # 3. حذف الفاتورة (سيقوم الـ cascade بحذف الدفعات التلقائية المربوطة بها)
+            # 4. حذف الفاتورة (الـ signal update_customer_balance_on_sale_delete ستحدث رصيد العميل تلقائياً)
             sale_number = sale.number
             sale.delete()
             logger.info(f"✅ تم حذف الفاتورة بنجاح: {sale_number}")
 
-            # 4. إعادة حساب رصيد العميل بعد حذف الفاتورة والدفعات المرتبطة
-            if customer:
-                from sale.signals import recalculate_customer_balance
-                recalculate_customer_balance(customer)
-                logger.info(f"✅ تم إعادة حساب رصيد العميل: {customer.name}")
-            
+            return True
+
         except Exception as e:
             logger.error(f"❌ خطأ في حذف الفاتورة {sale.number}: {str(e)}")
             raise
@@ -1694,24 +1727,3 @@ class SaleService:
                 
         return merged
 
-    @staticmethod
-    @transaction.atomic
-    def delete_sale(sale, user):
-        """
-        حذف فاتورة المبيعات بأمان تام ومطابقة لمبدأ الثبات المحاسبي
-        """
-        if not user.has_perm('sale.delete_sale') and not user.is_superuser:
-            raise PermissionDenied("ليس لديك صلاحية حذف فاتورة المبيعات.")
-
-        # حظر حذف الفواتير المرحلة أو المكتملة
-        if sale.status in ['completed', 'confirmed'] or sale.journal_entry_id or sale.payments.filter(status='posted').exists():
-            raise ValidationError("لا يمكن حذف فاتورة مبيعات مرحلة أو معتمدة أو تحتوي على قيود/مدفوعات. الإلغاء يتم حصراً عبر مردودات المبيعات وإشعار دائن.")
-
-        # إذا كانت مسودة فقط
-        if sale.status != 'draft':
-            raise ValidationError("يُسمح بحذف فواتير المبيعات بحالة مسودة فقط.")
-
-        sale_number = sale.number
-        sale.delete()
-        logger.info(f"Sale invoice #{sale_number} deleted by {user.username}.")
-        return True

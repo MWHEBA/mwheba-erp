@@ -97,15 +97,15 @@
         </div>
         
         <div class="confirmation-actions">
-            <form method="post">
+            <form method="post" id="deleteForm" onsubmit="var btn = document.getElementById('submitDeleteBtn'); if(btn){ btn.disabled = true; btn.innerHTML = '<i class=\'fas fa-spinner fa-spin me-1\'></i> جاري الحذف...'; }">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> تأكيد الحذف
+                <button type="submit" id="submitDeleteBtn" class="btn btn-danger px-4">
+                    <i class="fas fa-trash me-1"></i> تأكيد الحذف
                 </button>
             </form>
             
-            <a href="#" onclick="window.history.back(); return false;"sale:sale_detail' sale.id %}" class="btn btn-secondary">
-                <i class="fas fa-times"></i> إلغاء
+            <a href="{% url 'sale:sale_detail' sale.id %}" class="btn btn-secondary px-3">
+                <i class="fas fa-times me-1"></i> إلغاء
             </a>
         </div>
     </div>

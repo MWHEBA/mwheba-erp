@@ -344,7 +344,9 @@ def _process_stock_movement_update(stock_movement):
     critical=True,
     description="إرجاع تغييرات المخزون عند حذف الحركة"
 )
-@receiver(post_delete, sender=StockMovement)
+# DISABLED: Replaced by product/signals_governed.py:revert_stock_on_movement_delete_governed
+# to avoid duplicate stock reversion on movement delete.
+# @receiver(post_delete, sender=StockMovement)
 def revert_stock_on_movement_delete(sender, instance, **kwargs):
     """
     إلغاء تأثير حركة المخزون عند حذفها

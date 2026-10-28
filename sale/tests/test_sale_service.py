@@ -458,6 +458,14 @@ class TestSaleServiceDeleteSale:
             ]
         }
         sale = SaleService.create_sale(data=sale_data, user=user)
+        SalePayment.objects.create(
+            sale=sale,
+            amount=Decimal('300.00'),
+            payment_date=timezone.now().date(),
+            payment_method='cash',
+            status='posted',
+            created_by=user
+        )
         from django.core.exceptions import ValidationError
         with pytest.raises(ValidationError):
             SaleService.delete_sale(sale, user)

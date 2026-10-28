@@ -34,26 +34,26 @@ def recalculate_customer_balance(customer):
             return
 
         # مجموع كل فواتير المبيعات للعميل بالمعادل الوظيفي (المؤكدة وغير الملغاة)
-        sales_qs = Sale.objects.filter(customer=locked_customer).exclude(status='cancelled')
+        sales_data = Sale.objects.filter(customer=locked_customer).exclude(status='cancelled').values_list('total_functional', 'total', 'exchange_rate')
         total_sales = sum(
-            (getattr(s, 'total_functional', None) or (s.total * (getattr(s, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
-            for s in sales_qs
-        ) if sales_qs.exists() else Decimal('0.00')
+            (tf if tf is not None else (tot * (rate or Decimal('1.000000')))).quantize(Decimal('0.01'))
+            for tf, tot, rate in sales_data
+        ) if sales_data else Decimal('0.00')
         
         # مجموع كل المرتجعات المؤكدة للعميل بالمعادل الوظيفي
-        returns_qs = SaleReturn.objects.filter(sale__customer=locked_customer, status='confirmed').select_related('sale')
+        returns_data = SaleReturn.objects.filter(sale__customer=locked_customer, status='confirmed').values_list('total', 'sale__exchange_rate')
         total_returns = sum(
-            (r.total * (getattr(r.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000'))).quantize(Decimal('0.01'))
-            for r in returns_qs
-        ) if returns_qs.exists() else Decimal('0.00')
+            (tot * (rate or Decimal('1.000000'))).quantize(Decimal('0.01'))
+            for tot, rate in returns_data
+        ) if returns_data else Decimal('0.00')
 
         # مجموع كل الدفعات المرحلة للعميل بالمعادل الوظيفي
-        payments_qs = SalePayment.objects.filter(sale__customer=locked_customer, status='posted').select_related('sale')
+        payments_data = SalePayment.objects.filter(sale__customer=locked_customer, status='posted').values_list('amount', 'amount_settled_invoice_currency', 'sale__exchange_rate')
         total_payments = Decimal('0.00')
-        for p in payments_qs:
-            rate = getattr(p.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
-            settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
-            func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+        for amt, settled, rate in payments_data:
+            s_val = settled if settled is not None else amt
+            r_val = rate or Decimal('1.000000')
+            func_amt = (Decimal(str(s_val)) * Decimal(str(r_val))).quantize(Decimal('0.01'))
             total_payments += func_amt
         
         # تحديث الحقل المخزن بالرصيد الفعلي بحماية ضد الـ Race Conditions
