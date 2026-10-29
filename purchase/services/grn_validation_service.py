@@ -92,3 +92,51 @@ class GRNValidationService:
                             f"الكمية المستلمة للمنتج ({po_item.product.name}) تتجاوز الكمية المطلوبة بالفيصل المسموح ({max_allowed}). "
                             f"المستلم سابقاً: {po_item.received_qty}، المطلوبة: {po_item.ordered_qty}."
                         )
+
+    @classmethod
+    def validate_grn_for_posting(cls, grn: GoodsReceivedNote) -> None:
+        """
+        التحقق الصارم من جاهزية وصحة إذن الاستلام للترحيل المخزني والمالي (GRN Posting Validation)
+        """
+        if not grn:
+            raise FinancialCoreError("إذن الاستلام غير موجود.")
+
+        if grn.status in ["POSTED", "REVERSED"]:
+            raise FinancialCoreError(f"لا يمكن ترحيل إذن استلام بحالة {grn.get_status_display()}.")
+
+        items = grn.items.all()
+        if not items.exists():
+            raise FinancialCoreError("لا يمكن ترحيل إذن استلام لا يحتوي على بنود.")
+
+        if not grn.warehouse:
+            raise FinancialCoreError("يلزم تحديد المخزن المستهدف لإتمام الترحيل المخزني.")
+
+        has_valid_qty = False
+        tolerance_pct = Decimal(str(getattr(settings, "GRN_OVER_RECEIPT_PERCENTAGE", "0")))
+
+        for item in items:
+            if not item.product:
+                raise FinancialCoreError("أحد بنود إذن الاستلام لا يحتوي على منتج محدد.")
+
+            received_qty = Decimal(str(item.received_qty or "0"))
+            if received_qty < Decimal("0.0000"):
+                raise FinancialCoreError(f"لا يمكن أن تكون الكمية المستلمة سالبة للمنتج ({item.product.name}).")
+            elif received_qty > Decimal("0.0000"):
+                has_valid_qty = True
+
+            unit_price = Decimal(str(item.unit_price or "0"))
+            if unit_price < Decimal("0.00"):
+                raise FinancialCoreError(f"سعر الوحدة للمنتج ({item.product.name}) لا يمكن أن يكون سالباً.")
+
+            if item.po_item and received_qty > Decimal("0.0000"):
+                max_allowed = (item.po_item.ordered_qty * (Decimal("1.00") + (tolerance_pct / Decimal("100")))).quantize(Decimal("0.0001"))
+                current_total = item.po_item.received_qty + received_qty
+                if current_total > max_allowed:
+                    raise FinancialCoreError(
+                        f"الكمية المستلمة للمنتج ({item.product.name}) تتجاوز الكمية المطلوبة بأمر الشراء بالفيصل المسموح ({max_allowed}). "
+                        f"المستلم سابقاً: {item.po_item.received_qty}، المطلوبة: {item.po_item.ordered_qty}."
+                    )
+
+        if not has_valid_qty:
+            raise FinancialCoreError("لا توجد كميات مستلمة أكبر من الصفر في بنود إذن الاستلام.")
+

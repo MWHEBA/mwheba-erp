@@ -199,3 +199,39 @@ class TestSprint6ProcurementEngine:
         ProcurementService.approve_purchase_order(po.id, user=user)
         po.refresh_from_db()
         assert po.status == "APPROVED"
+
+    def test_fin_pur_008_validate_grn_for_posting(self, setup_procurement_data):
+        from purchase.services.grn_validation_service import GRNValidationService
+        from purchase.services.grn_application_service import GRNApplicationService
+        user, supplier, warehouse, product = setup_procurement_data
+
+        # 1. Test validation on empty items
+        empty_grn = GoodsReceivedNote.objects.create(
+            grn_number="GRN-TEST-EMPTY",
+            supplier=supplier,
+            warehouse=warehouse,
+            status="DRAFT"
+        )
+        with pytest.raises(FinancialCoreError, match="لا يحتوي على بنود"):
+            GRNValidationService.validate_grn_for_posting(empty_grn)
+
+        # 2. Test validation on valid GRN
+        items_data = [{"product": product, "received_qty": Decimal("10.0000"), "unit_price": Decimal("50.00")}]
+        valid_grn = GRNApplicationService.create_grn(
+            po_id=None,
+            warehouse_id=warehouse.id,
+            supplier_id=supplier.id,
+            delivery_note_ref="DN-VAL-01",
+            items_data=items_data,
+            user=user,
+            is_direct_override=True
+        )
+        # Should pass without error
+        GRNValidationService.validate_grn_for_posting(valid_grn)
+
+        # 3. Test validation on already posted GRN
+        valid_grn.status = "POSTED"
+        valid_grn.save(update_fields=["status"])
+        with pytest.raises(FinancialCoreError, match="لا يمكن ترحيل إذن استلام"):
+            GRNValidationService.validate_grn_for_posting(valid_grn)
+
