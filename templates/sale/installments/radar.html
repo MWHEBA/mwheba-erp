@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title|default:"رادار التحصيل وجدولة الأقساط" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+  .table-danger-light {
+    background-color: var(--danger-soft, var(--bs-danger-bg-subtle)) !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon="fas fa-satellite-dish" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+  <!-- صف البطاقات الإحصائية المستقلة (KPI Grid) - RULE 7 -->
+  <div class="row g-3 mb-4" id="kpi-cards-row">
+    <!-- شيكات بالخزينة مستحقة الإيداع اليوم -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-hand-holding-usd"></i></div>
+          <div class="stats-card-title">{% trans "شيكات بالخزينة مستحقة الإيداع" %}</div>
+          <div class="stats-card-value" id="kpi-due-cheques">{{ due_portfolio_cheques_amount|floatformat:2 }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+    <!-- أقساط مكشوفة بدون شيكات متأخرة -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-user-clock"></i></div>
+          <div class="stats-card-title">{% trans "أقساط مكشوفة تجاوزت السماح" %}</div>
+          <div class="stats-card-value" id="kpi-overdue-uncovered">{{ overdue_uncovered_amount|floatformat:2 }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+    <!-- شيكات مودعة بالبنوك برسم التحصيل -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-university"></i></div>
+          <div class="stats-card-title">{% trans "شيكات بالبنوك برسم التحصيل" %}</div>
+          <div class="stats-card-value" id="kpi-under-collection">{{ under_collection_amount|floatformat:2 }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+    <!-- التدفق النقدي الفعلي المتوقع 30 يوماً -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+          <div class="stats-card-title">{% trans "تدفق نقدي متوقع (30 يوماً)" %}</div>
+          <div class="stats-card-value" id="kpi-expected-cashflow">{{ expected_cashflow_30d|floatformat:2 }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قسم التصفية والبحث القابل للطي (Collapsible Filter Section) - RULE 6 -->
+  <div class="section-container mb-4">
+    <h5 class="section-title cursor-pointer {% if not q and not selected_customer and not selected_cost_center and not selected_status and not selected_coverage and not selected_risk and not date_from and not date_to %}collapsed{% endif %}" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if q or selected_customer or selected_cost_center or selected_status or selected_coverage or selected_risk or date_from or date_to %}true{% else %}false{% endif %}">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وفحص مؤشرات الرادار" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if q or selected_customer or selected_cost_center or selected_status or selected_coverage or selected_risk or date_from or date_to %}show{% endif %} mt-3" id="filterSection">
+      <form method="get" id="radarSearchForm" class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label small text-muted">{% trans "بحث بالعميل أو الفاتورة" %}</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="q" id="search-input" class="form-control" placeholder="{% trans 'اكتب للبحث...' %}" value="{{ q }}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small text-muted">{% trans "العميل" %}</label>
+          <select name="customer" id="customer-select" class="form-select form-select-sm select2-filter" dir="rtl">
+            <option value="">{% trans "كل العملاء" %}</option>
+            {% for c in customers %}
+              <option value="{{ c.id }}" {% if selected_customer == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "مركز التكلفة / الفرع" %}</label>
+          <select name="cost_center" id="cost-center-select" class="form-select form-select-sm select2-filter" dir="rtl">
+            <option value="">{% trans "كل المراكز" %}</option>
+            {% for cc in cost_centers %}
+              <option value="{{ cc.id }}" {% if selected_cost_center == cc.id|stringformat:"s" %}selected{% endif %}>{{ cc.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "الحالة النقدية" %}</label>
+          <select name="cash_status" id="status-select" class="form-select form-select-sm">
+            <option value="">{% trans "كل الحالات" %}</option>
+            {% for key, val in cash_statuses %}
+              <option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "التغطية الورقية" %}</label>
+          <select name="paper_coverage" id="coverage-select" class="form-select form-select-sm">
+            <option value="">{% trans "الكل" %}</option>
+            {% for key, val in paper_coverages %}
+              <option value="{{ key }}" {% if selected_coverage == key %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "أولوية المخاطر" %}</label>
+          <select name="risk_level" id="risk-select" class="form-select form-select-sm">
+            <option value="">{% trans "كل المستويات" %}</option>
+            <option value="HIGH" {% if selected_risk == 'HIGH' %}selected{% endif %}>{% trans "حرج / متأخر ومكشوف" %}</option>
+            <option value="MEDIUM" {% if selected_risk == 'MEDIUM' %}selected{% endif %}>{% trans "متوسط / يستحق قريباً" %}</option>
+            <option value="LOW" {% if selected_risk == 'LOW' %}selected{% endif %}>{% trans "منخفض / مغطى بالكامل" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "من تاريخ استحقاق" %}</label>
+          <input type="date" name="date_from" id="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "إلى تاريخ استحقاق" %}</label>
+          <input type="date" name="date_to" id="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+        </div>
+        <div class="col-md-6 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-sm btn-primary px-3"><i class="fas fa-search me-1"></i>{% trans "تطبيق الفلاتر" %}</button>
+          <a href="{% url 'sale:installment_radar' %}" class="btn btn-sm btn-outline-secondary px-3"><i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- قسم جدول بيانات الرادار (Unified Data Table Container) -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list-ol me-2"></i>{% trans "بيان محفظة الأقساط وجدول الاستحقاقات" %}</h5>
+    <div id="radar-table-container">
+      {% include "sale/installments/partials/radar_table.html" %}
+    </div>
+
+    <!-- Pagination Wrapper -->
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+    </div>
+  </div>
+</div>
+
+<!-- Quick Collect Modal Include -->
+{% include "sale/installments/partials/quick_collect_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  function initTableEvents() {
+    $('#radarTable tbody tr.clickable-row').off('click').on('click', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button, input').length > 0) return;
+      var href = $(this).data('href');
+      if (href) window.location.href = href;
+    });
+  }
+
+  function doSearch() {
+    var form = $('#radarSearchForm');
+    var url = form.attr('action') || window.location.pathname;
+    var params = form.serialize() + '&ajax=1';
+
+    $.ajax({
+      url: url,
+      data: params,
+      method: 'GET',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      beforeSend: function() {
+        $('#radar-table-container').css('opacity', '0.6');
+      },
+      success: function(data) {
+        $('#radar-table-container').html(data.table_html).css('opacity', '1');
+        $('#pagination-wrapper').html(data.pagination_html);
+        if (data.due_portfolio_cheques_amount) $('#kpi-due-cheques').text(data.due_portfolio_cheques_amount);
+        if (data.overdue_uncovered_amount) $('#kpi-overdue-uncovered').text(data.overdue_uncovered_amount);
+        if (data.under_collection_amount) $('#kpi-under-collection').text(data.under_collection_amount);
+        if (data.expected_cashflow_30d) $('#kpi-expected-cashflow').text(data.expected_cashflow_30d);
+        initTableEvents();
+
+        // تحديث عنوان URL دون إعادة تحميل الصفحة
+        var cleanUrl = url + '?' + form.serialize();
+        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+      },
+      error: function() {
+        $('#radar-table-container').css('opacity', '1');
+      }
+    });
+  }
+
+  function openQuickCollectModal(itemId, itemNum, remainingBal, customerName) {
+    $('#modal_installment_id').val(itemId);
+    $('#modal_customer_name').val(customerName);
+    $('#modal_installment_num').val('#' + itemNum);
+    $('#modal_remaining_balance').val(remainingBal + ' ج.م');
+    $('#collect_amount').val(remainingBal.replace(/,/g, ''));
+    $('#quickCollectModal').modal('show');
+  }
+
+  $(document).ready(function() {
+    $('.select2-filter').select2({
+      dir: 'rtl',
+      language: 'ar',
+      width: '100%'
+    });
+
+    initTableEvents();
+
+    $('#radarSearchForm').on('submit', function(e) {
+      e.preventDefault();
+      doSearch();
+    });
+
+    $('#customer-select, #cost-center-select, #status-select, #coverage-select, #risk-select').on('change', function() {
+      doSearch();
+    });
+
+    // معالجة نموذج التحصيل السريع
+    $('#quickCollectForm').on('submit', function(e) {
+      e.preventDefault();
+      var itemId = $('#modal_installment_id').val();
+      var submitBtn = $('#btnSubmitCollect');
+      var originalText = submitBtn.html();
+
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التسجيل...');
+
+      $.ajax({
+        url: '/sale/installments/' + itemId + '/quick-collect/',
+        method: 'POST',
+        data: $(this).serialize(),
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(res) {
+          submitBtn.prop('disabled', false).html(originalText);
+          $('#quickCollectModal').modal('hide');
+          if (window.showNotification) {
+            window.showNotification(res.message, 'success', 'تم التحصيل');
+          } else if (window.showToastr) {
+            window.showToastr(res.message, 'success');
+          } else {
+            alert(res.message);
+          }
+          doSearch();
+        },
+        error: function(xhr) {
+          submitBtn.prop('disabled', false).html(originalText);
+          var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء تسجيل التحصيل';
+          if (window.showNotification) {
+            window.showNotification(msg, 'error', 'خطأ');
+          } else {
+            alert(msg);
+          }
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

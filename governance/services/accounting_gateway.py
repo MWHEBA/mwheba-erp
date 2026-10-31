@@ -159,6 +159,9 @@ class AccountingGateway:
         'cheques.Cheque',
         'cheques.ChequeActionLog',
         'cheques.ChequeBatchDeposit',
+        'sale.InstallmentItem',
+        'sale.InstallmentPlan',
+        'sale.InstallmentSettlement',
     }
     
     # High-priority workflows that require strict validation

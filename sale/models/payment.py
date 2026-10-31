@@ -129,6 +129,42 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         related_name="allocations",
     )
 
+    # حقول نظام أقساط المبيعات ورادار التحصيل
+    installment_item = models.ForeignKey(
+        'sale.InstallmentItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payments',
+        verbose_name=_('القسط المجدول المرتبط'),
+    )
+    batch_id = models.CharField(
+        _('معرف حزمة العملية المركبة'),
+        max_length=120,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    third_party_payer_name = models.CharField(
+        _('اسم الدافع الطرف الثالث / الشركة الشقيقة'),
+        max_length=200,
+        blank=True,
+        null=True,
+    )
+    third_party_authorization_doc = models.FileField(
+        _('صورة خطاب تفويض السداد للطرف الثالث'),
+        upload_to='third_party_auth/%Y/%m/',
+        blank=True,
+        null=True,
+    )
+    instapay_reference = models.CharField(
+        _('الرقم المرجعي لتحويل إنستاباي'),
+        max_length=100,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
     # حقل للإشارة إلى حركة الخزن المرتبطة (تم إزالة CashMovement)
     # cash_movement = models.ForeignKey('financial.CashMovement', on_delete=models.SET_NULL,
     #                                  null=True, blank=True, verbose_name=_('حركة الخزن'))

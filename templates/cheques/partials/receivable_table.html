@@ -23,7 +23,9 @@
                 <td>{{ forloop.counter }}</td>
                 <td class="fw-bold text-primary">
                     <i class="fas fa-money-check me-1"></i>{{ chq.cheque_number }}
-                    {% if chq.is_guarantee %}
+                    {% if chq.purpose == 'SECURITY_GUARANTEE' %}
+                        <span class="badge bg-primary-subtle text-primary border ms-1" style="font-size:0.75rem;"><i class="fas fa-shield-alt me-1"></i>{% trans "ضمان تقسيط" %}</span>
+                    {% elif chq.is_guarantee %}
                         <span class="badge bg-secondary ms-1">{% trans "ضمان" %}</span>
                     {% endif %}
                 </td>

@@ -287,6 +287,12 @@ class SalesService:
             if so.status not in ["APPROVED", "CONFIRMED", "PARTIALLY_DELIVERED"]:
                 raise FinancialCoreError(f"Cannot issue delivery note for Sales Order #{so.order_number} in status {so.status}.")
 
+            from sale.services.delivery_block_service import DeliveryBlockService
+            dummy_dn = DeliveryNote(sales_order=so, customer=so.customer, warehouse=so.warehouse)
+            allowed, block_reason = DeliveryBlockService.check_delivery_allowed(dummy_dn, user)
+            if not allowed:
+                raise FinancialCoreError(block_reason)
+
             from core.services.sequence_service import SequenceService
             from core.enums.document_types import DocumentType
             deliv_num = SequenceService.get_next_number(

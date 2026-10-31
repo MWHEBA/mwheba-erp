@@ -109,4 +109,11 @@ urlpatterns = [
     path("pricing/discount-rules/<int:pk>/edit/", views.discount_rule_edit, name="discount_rule_edit"),
     path("pricing/discount-rules/<int:pk>/toggle/", views.discount_rule_toggle_status, name="discount_rule_toggle"),
     path("pricing/discount-rules/<int:pk>/delete/", views.discount_rule_delete, name="discount_rule_delete"),
+
+    # رادار التحصيل وجدولة الأقساط (Collection Radar & Installments)
+    path("installments/radar/", views.installment_radar, name="installment_radar"),
+    path("installments/<int:pk>/quick-collect/", views.quick_collection_action, name="quick_collect_action"),
+    path("installments/sale/<int:pk>/promissory-note/", views.promissory_note_print_view, name="promissory_note_print"),
+    path("installments/compliance/export/", views.export_compliance_pack, name="installment_compliance_export"),
+    path("installments/preview-schedule/", views.preview_installment_schedule, name="preview_installment_schedule"),
 ]

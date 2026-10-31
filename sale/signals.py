@@ -14,7 +14,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from decimal import Decimal
 from customer.models import Customer
-from .models import SalePayment, Sale, SaleReturn, CustomFieldDefinition
+from .models import SalePayment, Sale, SaleReturn, CustomFieldDefinition, InstallmentSettlement
 from django.core.cache import cache
 from django.conf import settings
 
@@ -23,6 +23,7 @@ def recalculate_customer_balance(customer):
     """
     إعادة حساب رصيد العميل الفعلي وتحديثه بحماية كاملة للتزامن (Atomic Transaction & Row Locking)
     الحسبة الشاملة بالمعادل الوظيفي: (إجمالي الفواتير الوظيفية - إجمالي المرتجعات الوظيفية - إجمالي المدفوعات الوظيفية)
+    مع مراعاة فواتير التقسيط والمبلغ التعاقدي الشامل شاملاً الفوائد
     """
     if not customer or not customer.pk:
         return
@@ -34,10 +35,17 @@ def recalculate_customer_balance(customer):
             return
 
         # مجموع كل فواتير المبيعات للعميل بالمعادل الوظيفي (المؤكدة وغير الملغاة)
-        sales_data = Sale.objects.filter(customer=locked_customer).exclude(status='cancelled').values_list('total_functional', 'total', 'exchange_rate')
+        # مع مراعاة المبلغ التعاقدي الشامل في حالة فواتير التقسيط
+        sales_data = Sale.objects.filter(customer=locked_customer).exclude(status='cancelled').values_list(
+            'is_installment_sale', 'contract_total_functional', 'contract_total', 'total_functional', 'total', 'exchange_rate'
+        )
         total_sales = sum(
-            (tf if tf is not None else (tot * (rate or Decimal('1.000000')))).quantize(Decimal('0.01'))
-            for tf, tot, rate in sales_data
+            (
+                (ctf if ctf is not None else (ct * (rate or Decimal('1.000000'))))
+                if (is_inst and (ctf is not None or ct is not None))
+                else (tf if tf is not None else (tot * (rate or Decimal('1.000000'))))
+            ).quantize(Decimal('0.01'))
+            for is_inst, ctf, ct, tf, tot, rate in sales_data
         ) if sales_data else Decimal('0.00')
         
         # مجموع كل المرتجعات المؤكدة للعميل بالمعادل الوظيفي
@@ -55,9 +63,22 @@ def recalculate_customer_balance(customer):
             r_val = rate or Decimal('1.000000')
             func_amt = (Decimal(str(s_val)) * Decimal(str(r_val))).quantize(Decimal('0.01'))
             total_payments += func_amt
+
+        # مجموع كل التسويات الدائمة السارية المؤثرة على المديونية بالمعادل الوظيفي
+        from sale.models.installments import InstallmentSettlement
+        settlements_data = InstallmentSettlement.objects.filter(
+            sale__customer=locked_customer,
+            affects_invoice_due=True,
+            status='POSTED',
+            is_reversed=False
+        ).values_list('amount', 'sale__exchange_rate')
+        total_settlements = sum(
+            (Decimal(str(amt)) * Decimal(str(rate or '1.000000'))).quantize(Decimal('0.01'))
+            for amt, rate in settlements_data
+        ) if settlements_data else Decimal('0.00')
         
         # تحديث الحقل المخزن بالرصيد الفعلي بحماية ضد الـ Race Conditions
-        new_balance = (total_sales - total_returns - total_payments).quantize(Decimal('0.01'))
+        new_balance = (total_sales - total_returns - total_payments - total_settlements).quantize(Decimal('0.01'))
         locked_customer.balance = new_balance
         locked_customer.save(update_fields=['balance'])
         customer.balance = new_balance
@@ -143,4 +164,3 @@ def update_customer_balance_on_sale_delete(sender, instance, **kwargs):
 #     ❌ معطل: الحذف يتم عبر SaleService.delete_sale()
 #     """
 #     pass
-

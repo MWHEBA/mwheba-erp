@@ -25,6 +25,14 @@ class ChequeInvoiceAllocation(models.Model):
         related_name='cheque_allocations',
         verbose_name=_('فاتورة المبيعات')
     )
+    installment_item = models.ForeignKey(
+        'sale.InstallmentItem',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='cheque_allocations',
+        verbose_name=_('القسط المجدول المرتبط')
+    )
     allocated_amount = models.DecimalField(
         max_digits=15,
         decimal_places=2,

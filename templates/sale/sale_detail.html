@@ -748,6 +748,17 @@
                                         <div class="summary-label">{% trans "المدفوع:" %}</div>
                                         <div class="summary-value fw-medium">{{ sale.amount_paid|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
                                     </div>
+                                    {% if sale.is_installment_sale %}
+                                    <div class="summary-row text-warning">
+                                        <div class="summary-label">{% trans "أرباح / فوائد التقسيط:" %}</div>
+                                        <div class="summary-value">+{{ sale.markup_amount|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
+                                    </div>
+                                    <div class="summary-row">
+                                        <div class="summary-label">{% trans "إجمالي العقد بالتقسيط:" %}</div>
+                                        <div class="summary-value font-weight-bold text-dark">{{ sale.contract_total|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
+                                    </div>
+                                    {% endif %}
+                                    </div>
                                 </div>
                                 <div class="summary-row border-top pt-2 mt-2">
                                     <div class="summary-label">{% trans "المتبقي:" %}</div>
@@ -757,6 +768,138 @@
                         </div>
                     </div>
                     
+                    <!-- قسم جدول استحقاق الأقساط والضمانات -->
+                    {% if sale.installment_plan %}
+                    <div class="section-container mt-4 mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="section-title mb-0"><i class="fas fa-calendar-check text-primary me-2"></i>{% trans "خطة وجدول استحقاق الأقساط" %}</h5>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'sale:promissory_note_print' sale.id %}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-file-signature me-1"></i>{% trans "طباعة السندات لأمر (الكمبيالات)" %}
+                                </a>
+                                {% if sale.installment_plan.collateral_cheque %}
+                                <a href="{% url 'cheques:receivable_detail' sale.installment_plan.collateral_cheque_id %}" class="btn btn-sm btn-outline-info">
+                                    <i class="fas fa-money-check me-1"></i>{% trans "شيك الضمان" %} #{{ sale.installment_plan.collateral_cheque.cheque_number }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- إحصائيات سريعة لخطة التقسيط -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 bg-light rounded border text-center">
+                                    <small class="text-muted d-block">أصل الدين الممول</small>
+                                    <span class="fs-6 fw-bold text-primary">{{ sale.installment_plan.total_principal|smart_float:2 }}</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 bg-light rounded border text-center">
+                                    <small class="text-muted d-block">إجمالي الفوائد التمويلية</small>
+                                    <span class="fs-6 fw-bold text-warning">{{ sale.installment_plan.total_markup|smart_float:2 }}</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 bg-light rounded border text-center">
+                                    <small class="text-muted d-block">الدفعة المقدمة</small>
+                                    <span class="fs-6 fw-bold text-success">{{ sale.installment_plan.down_payment|smart_float:2 }}</span>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="p-3 bg-light rounded border text-center">
+                                    <small class="text-muted d-block">عدد الأقساط والدورية</small>
+                                    <span class="fs-6 fw-bold text-dark">{{ sale.installment_plan.number_of_installments }} ({{ sale.installment_plan.get_frequency_display }})</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- جدول الأقساط -->
+                        <div class="table-responsive">
+                            <table class="related-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>{% trans "تاريخ الاستحقاق" %}</th>
+                                        <th>{% trans "أصل القسط" %}</th>
+                                        <th>{% trans "الفائدة" %}</th>
+                                        <th>{% trans "إجمالي القسط" %}</th>
+                                        <th>{% trans "المسدد" %}</th>
+                                        <th>{% trans "المتبقي" %}</th>
+                                        <th>{% trans "التغطية المستندية" %}</th>
+                                        <th>{% trans "حالة التحصيل" %}</th>
+                                        <th>{% trans "غرامة التأخير" %}</th>
+                                        <th>{% trans "إجراءات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in sale.installment_plan.items.all %}
+                                    <tr>
+                                        <td class="fw-bold">{{ item.installment_number }}</td>
+                                        <td>
+                                            {{ item.due_date|date:"Y-m-d" }}
+                                            {% if item.is_overdue and item.cash_status != 'SETTLED' %}
+                                                <span class="badge bg-danger-subtle text-danger ms-1">متأخر {{ item.days_overdue }} يوم</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ item.principal_amount|smart_float:2 }}</td>
+                                        <td>{{ item.interest_amount|smart_float:2 }}</td>
+                                        <td class="fw-bold">{{ item.total_amount|smart_float:2 }}</td>
+                                        <td class="text-success">{{ item.paid_amount|smart_float:2 }}</td>
+                                        <td class="fw-bold {% if item.balance_due > 0 %}text-danger{% else %}text-muted{% endif %}">{{ item.balance_due|smart_float:2 }}</td>
+                                        <td>
+                                            {% if item.paper_coverage == 'PORTFOLIO_CHEQUE' or item.paper_coverage == 'BANK_DEPOSITED' or item.paper_coverage == 'DIRECT_CASH' or item.paper_coverage == 'BANK_LG' or item.paper_coverage == 'ENDORSED_TO_SUPPLIER' %}
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                    <i class="fas fa-check-circle me-1"></i>{{ item.get_paper_coverage_display }}
+                                                </span>
+                                            {% elif item.paper_coverage == 'CHEQUE_SIGNATURE_PENDING' or item.paper_coverage == 'PARTIALLY_COVERED' %}
+                                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>{{ item.get_paper_coverage_display }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                                    <i class="fas fa-times-circle me-1"></i>{{ item.get_paper_coverage_display }}
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if item.cash_status == 'SETTLED' %}
+                                                <span class="badge bg-success"><i class="fas fa-check me-1"></i>مكتمل السداد</span>
+                                            {% elif item.cash_status == 'PARTIALLY_PAID' %}
+                                                <span class="badge bg-info">مسدد جزئياً</span>
+                                            {% elif item.cash_status == 'OVERDUE' %}
+                                                <span class="badge bg-danger">متعثر / متأخر</span>
+                                            {% elif item.cash_status == 'DISPUTED_HOLD' %}
+                                                <span class="badge bg-secondary">نزاع تشغيلي</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">مستحق / قيد الانتظار</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="{% if item.penalty_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                            {{ item.penalty_amount|smart_float:2 }}
+                                        </td>
+                                        <td>
+                                            {% if item.balance_due > 0 and sale.status != 'cancelled' %}
+                                            <button type="button" class="btn btn-sm btn-outline-success quick-collect-btn"
+                                                    data-bs-toggle="modal" data-bs-target="#quickCollectModal"
+                                                    data-item-id="{{ item.id }}"
+                                                    data-installment-number="{{ item.installment_number }}"
+                                                    data-customer-name="{{ sale.customer.name }}"
+                                                    data-balance-due="{{ item.balance_due }}"
+                                                    data-penalty="{{ item.penalty_amount|default:'0.00' }}">
+                                                <i class="fas fa-hand-holding-usd me-1"></i>تحصيل
+                                            </button>
+                                            {% else %}
+                                            <span class="text-muted small">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- بداية قسم المرتجعات -->
                     {% if returns %}
                     <div class="mt-5">
@@ -1090,6 +1233,8 @@
 </div>
 {% endblock %}
 
+{% include "sale/installments/partials/quick_collect_modal.html" %}
+
 {% block extra_js %}
 {% if show_post_alert %}
 <div id="django-post-alert-data" class="d-none" data-payment-id="{{ show_post_alert.payment_id }}"></div>
@@ -1175,6 +1320,66 @@
         );
     });
     
+    // ربط نافذة التحصيل النقدي السريع لقسط الفاتورة
+    $(document).ready(function() {
+        $('.quick-collect-btn').on('click', function() {
+            var itemId = $(this).data('item-id');
+            var instNum = $(this).data('installment-number');
+            var custName = $(this).data('customer-name');
+            var balDue = $(this).data('balance-due');
+
+            $('#modal_installment_id').val(itemId);
+            $('#modal_customer_name').val(custName);
+            $('#modal_installment_num').val(instNum);
+            $('#modal_remaining_balance').val(parseFloat(balDue).toFixed(2) + ' ج.م');
+            $('#collect_amount').val(parseFloat(balDue).toFixed(2)).attr('max', parseFloat(balDue).toFixed(2));
+            $('#quickCollectForm').attr('action', '/sales/installments/' + itemId + '/quick-collect/');
+        });
+
+        $('#quickCollectForm').on('submit', function(e) {
+            e.preventDefault();
+            var itemId = $('#modal_installment_id').val();
+            var submitBtn = $(this).find('button[type="submit"]');
+            var origText = submitBtn.html();
+
+            submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التسجيل...');
+
+            $.ajax({
+                url: '/sales/installments/' + itemId + '/quick-collect/',
+                method: 'POST',
+                data: $(this).serialize(),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                success: function(res) {
+                    submitBtn.prop('disabled', false).html(origText);
+                    $('#quickCollectModal').modal('hide');
+                    if (window.showNotification) {
+                        window.showNotification(res.message, 'success', 'تم التحصيل');
+                    } else if (window.showToastr) {
+                        window.showToastr(res.message, 'success');
+                    } else {
+                        alert(res.message);
+                    }
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 3100);
+                },
+                error: function(xhr) {
+                    submitBtn.prop('disabled', false).html(origText);
+                    var msg = 'حدث خطأ أثناء معالجة التحصيل';
+                    try {
+                        var parsed = JSON.parse(xhr.responseText);
+                        if (parsed.message) msg = parsed.message;
+                    } catch(err) {}
+                    if (window.showNotification) {
+                        window.showNotification(msg, 'error', 'خطأ');
+                    } else {
+                        alert(msg);
+                    }
+                }
+            });
+        });
+    });
+
     // عرض SweetAlert للترحيل بعد حفظ الدفعة
     document.addEventListener('DOMContentLoaded', function() {
         var postAlertData = document.getElementById('django-post-alert-data');

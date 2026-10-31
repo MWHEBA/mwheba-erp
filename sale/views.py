@@ -337,13 +337,77 @@ def sale_create(request, customer_id=None):
                 
                 # إنشاء الفاتورة مع معالجة الدفعة في وحدة تزامنية قواعد بيانات (Atomic Transaction)
                 from django.db import transaction
+                is_installment = (
+                    request.POST.get('is_installment_sale') in ('on', 'true', '1') or
+                    invoice_type == 'installment'
+                )
+                if is_installment:
+                    sale_data['is_installment_sale'] = True
+                    sale_data['number_of_installments'] = int(request.POST.get('number_of_installments', '1') or '1')
+                    sale_data['markup_rate'] = Decimal(str(request.POST.get('markup_rate', '0') or '0'))
+                    sale_data['plan_type'] = request.POST.get('installment_plan_type', 'ASSET_FINANCING')
+                    sale_data['frequency'] = request.POST.get('installment_frequency', 'MONTHLY')
+                    sale_data['fresh_down_payment'] = down_payment_amount
+                    st_date_str = request.POST.get('installment_start_date')
+                    if st_date_str:
+                        try:
+                            from datetime import datetime
+                            sale_data['first_installment_date'] = datetime.strptime(st_date_str, '%Y-%m-%d').date()
+                        except ValueError:
+                            pass
+
                 sale = None
                 with transaction.atomic():
                     # إنشاء الفاتورة عبر SaleService (مع الحوكمة الكاملة)
                     sale = SaleService.create_sale(data=sale_data, user=request.user)
-                    
-                    # معالجة الدفعة التلقائية حسب نوع الفاتورة
-                    if invoice_type == "cash":
+
+                    # معالجة خطة التقسيط أو الدفعة التلقائية حسب نوع الفاتورة
+                    if is_installment:
+                        from sale.services.installment_engine import InstallmentEngine
+                        num_inst = int(request.POST.get('number_of_installments', '1') or '1')
+                        m_rate = Decimal(str(request.POST.get('markup_rate', '0') or '0'))
+                        p_type = request.POST.get('installment_plan_type', 'ASSET_FINANCING')
+                        freq = request.POST.get('installment_frequency', 'MONTHLY')
+                        st_date_str = request.POST.get('installment_start_date')
+                        st_date = None
+                        if st_date_str:
+                            try:
+                                from datetime import datetime
+                                st_date = datetime.strptime(st_date_str, '%Y-%m-%d').date()
+                            except ValueError:
+                                pass
+
+                        collat_chq = None
+                        chq_id = request.POST.get('collateral_cheque')
+                        if chq_id and str(chq_id).isdigit():
+                            from cheques.models.cheque import Cheque
+                            collat_chq = Cheque.objects.filter(pk=int(chq_id)).first()
+
+                        if not hasattr(sale, 'installment_plan') or not sale.installment_plan:
+                            InstallmentEngine.generate_installment_plan(
+                                sale=sale,
+                                user=request.user,
+                                number_of_installments=num_inst,
+                                markup_rate=m_rate,
+                                fresh_down_payment=down_payment_amount,
+                                plan_type=p_type,
+                                frequency=freq,
+                                start_date=st_date,
+                                collateral_cheque=collat_chq,
+                                collateral_lg_number=request.POST.get('collateral_lg_number', ''),
+                                collateral_lg_expiry_date=request.POST.get('collateral_lg_expiry_date') or None,
+                                collateral_lg_bank=request.POST.get('collateral_lg_bank', ''),
+                                guarantor_name=request.POST.get('guarantor_name', ''),
+                                guarantor_national_id=request.POST.get('guarantor_national_id', ''),
+                                guarantor_phone=request.POST.get('guarantor_phone', ''),
+                                guarantor_address=request.POST.get('guarantor_address', ''),
+                                notes=request.POST.get('installment_notes', ''),
+                            )
+                        elif collat_chq:
+                            sale.installment_plan.collateral_cheque = collat_chq
+                            sale.installment_plan.save(update_fields=['collateral_cheque'])
+                        logger.info(f"✅ تم تأكيد وتوثيق خطة وجدول التقسيط للفاتورة: {sale.number}")
+                    elif invoice_type == "cash":
                         if payment_method:
                             payment_data = {
                                 'amount': sale.total,
@@ -552,10 +616,18 @@ def sale_create(request, customer_id=None):
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "show_line_details": SystemSetting.get_bool("show_sale_invoice_line_details", False) or SystemSetting.get_bool("show_sale_line_details", False),
+        "sale": None,
         "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
         "page_subtitle": "إضافة فاتورة مبيعات جديدة إلى النظام",
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": ([
+            {
+                "url": reverse("sale:installment_radar"),
+                "icon": "fa-radar",
+                "text": "رادار تحصيل الأقساط",
+                "class": "btn-outline-primary",
+            }
+        ] if request.user.has_perm('sale.view_installmentplan') or request.user.is_superuser else []) + ([
             {
                 "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}) + "?tab=sales",
                 "icon": "fa-arrow-right",
@@ -900,6 +972,14 @@ def sale_detail(request, pk):
                 or (sale.created_by_id == request.user.id and (getattr(sale, 'status', '') == 'draft' or not getattr(sale, 'is_posted', False)))
                 or request.user.is_superuser
             ) else [])
+            + ([
+                {
+                    "url": reverse("sale:promissory_note_print", kwargs={"pk": sale.pk}),
+                    "icon": "fa-file-signature",
+                    "text": "السندات لأمر",
+                    "class": "btn-outline-primary",
+                }
+            ] if hasattr(sale, 'installment_plan') and sale.installment_plan else [])
             + [
                 {
                     "url": reverse("sale:sale_print", kwargs={"pk": sale.pk}),
@@ -1022,6 +1102,13 @@ def sale_list(request):
     if date_to:
         sales_query = sales_query.filter(date__lte=date_to)
 
+    # تصفية حسب نظام التقسيط
+    is_installment = request.GET.get("is_installment")
+    if is_installment == "1":
+        sales_query = sales_query.filter(is_installment_sale=True)
+    elif is_installment == "0":
+        sales_query = sales_query.filter(is_installment_sale=False)
+
     # التصدير المزدوج: تصدير كافة الفواتير المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
         from utils.export import export_queryset_to_excel
@@ -1137,13 +1224,13 @@ def sale_list(request):
         
         sales_data.append({
             'id': sale.id,
-            'number': sale.number,
+            'number': f'{sale.number} <span class="badge bg-primary-subtle text-primary border me-1" style="font-size:0.72rem;"><i class="fas fa-calendar-alt me-1"></i>تقسيط</span>' if getattr(sale, 'is_installment_sale', False) else sale.number,
             'created_at': sale.created_at,
             'customer': sale.customer.name if sale.customer else '-',
             'items_summary': items_summary,
             'salesman': sale.salesman_display_name,
             'warehouse': wh_display,
-            'total': sale.total,
+            'total': sale.contract_total if (getattr(sale, 'is_installment_sale', False) and sale.contract_total) else sale.total,
             'amount_paid': sale.amount_paid,
             'amount_due': sale.amount_due,
             'currency_symbol': sale.currency_symbol,
@@ -1212,6 +1299,13 @@ def sale_list(request):
         "page_subtitle": "عرض وإدارة فواتير المبيعات",
         "page_icon": "fas fa-shopping-cart",
         "header_buttons": ([
+            {
+                "url": reverse("sale:installment_radar"),
+                "icon": "fa-radar",
+                "text": "رادار تحصيل الأقساط",
+                "class": "btn-outline-primary",
+            }
+        ] if request.user.has_perm('sale.view_installmentplan') or request.user.is_superuser else []) + ([
             {
                 "url": reverse("sale:sale_create"),
                 "icon": "fa-plus-circle",
@@ -2582,6 +2676,14 @@ from .quotation_views import (
     quotation_email_pdf,
     quotation_convert_to_sale,
     check_product_stock,
+)
+
+from .installment_views import (
+    installment_radar,
+    quick_collection_action,
+    promissory_note_print_view,
+    export_compliance_pack,
+    preview_installment_schedule,
 )
 
 from .pricing_api_views import (

@@ -252,6 +252,17 @@ class DeliveryNote(models.Model):
     driver_name = models.CharField(_("اسم السائق"), max_length=100, blank=True, null=True)
     truck_plate_number = models.CharField(_("رقم لوحة الشاحنة"), max_length=50, blank=True, null=True)
     driver_phone = models.CharField(_("هاتف السائق"), max_length=30, blank=True, null=True)
+    driver_authorization_doc = models.FileField(
+        _("صورة تفويض الاستلام الرسمي"),
+        upload_to="delivery_authorizations/%Y/%m/",
+        blank=True,
+        null=True,
+    )
+    is_pilot_run = models.BooleanField(
+        _("تشغيلة عينات تجريبية"),
+        default=False,
+        db_index=True,
+    )
     delivery_notes = models.TextField(_("ملاحظات التسليم والبوابة"), blank=True, null=True)
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")

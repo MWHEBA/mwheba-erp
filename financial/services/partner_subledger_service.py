@@ -24,21 +24,19 @@ class PartnerSubledgerService:
             from customer.models import CustomerTransaction
             from sale.models import SalePayment
 
-            paid_foreign = SalePayment.objects.filter(sale=sale, status="posted").aggregate(
-                t=models.Sum("amount")
-            )["t"] or Decimal("0.00")
-            due_foreign = max(Decimal("0.00"), sale.total - paid_foreign - getattr(sale, "amount_returned", Decimal("0.00")))
+            total_claim = sale.contract_total if (getattr(sale, 'is_installment_sale', False) and sale.contract_total) else sale.total
+            due_foreign = sale.amount_due
 
             curr_code = sale.currency.code if (hasattr(sale, "currency") and sale.currency) else (getattr(sale, "currency", None) or "EGP")
             raw_rate = getattr(sale, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000")
             rate = Decimal(str(raw_rate))
 
-            func_total = getattr(sale, "total_functional", None)
+            func_total = getattr(sale, "contract_total_functional", None) if getattr(sale, 'is_installment_sale', False) else getattr(sale, "total_functional", None)
             if not func_total or func_total == Decimal("0.00"):
-                func_total = (Decimal(str(sale.total)) * rate).quantize(Decimal("0.01"))
+                func_total = (Decimal(str(total_claim)) * rate).quantize(Decimal("0.01"))
 
             due_functional = (due_foreign * rate).quantize(Decimal("0.01"))
-            status = "CLOSED" if due_foreign <= Decimal("0.00") else ("PARTIAL" if paid_foreign > Decimal("0.00") else "OPEN")
+            status = "CLOSED" if due_foreign <= Decimal("0.00") else ("PARTIAL" if (total_claim - due_foreign) > Decimal("0.00") else "OPEN")
 
             txn, is_new = CustomerTransaction.objects.get_or_create(
                 customer=sale.customer,
@@ -49,7 +47,7 @@ class PartnerSubledgerService:
                     "issue_date": sale.date,
                     "due_date": sale.date,
                     "currency": curr_code,
-                    "foreign_amount": sale.total,
+                    "foreign_amount": total_claim,
                     "exchange_rate": rate,
                     "functional_amount": func_total,
                     "open_amount": due_functional,
@@ -61,7 +59,7 @@ class PartnerSubledgerService:
             if not is_new:
                 txn.currency = curr_code
                 txn.exchange_rate = rate
-                txn.foreign_amount = sale.total
+                txn.foreign_amount = total_claim
                 txn.functional_amount = func_total
                 txn.open_amount = due_functional
                 txn.open_amount_functional = due_functional

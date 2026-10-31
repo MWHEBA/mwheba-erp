@@ -78,6 +78,14 @@
           <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
           <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
         </div>
+        <div class="col-md-2">
+          <label for="is_installment" class="form-label">{% trans "نظام البيع" %}</label>
+          <select class="form-select" id="is_installment" name="is_installment">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="1" {% if request.GET.is_installment == '1' %}selected{% endif %}>{% trans "تقسيط فقط" %}</option>
+            <option value="0" {% if request.GET.is_installment == '0' %}selected{% endif %}>{% trans "نقدي وآجل عادي" %}</option>
+          </select>
+        </div>
         <div class="col-md-1 d-flex gap-2 align-items-end">
           <button type="submit" class="btn btn-primary w-100 px-0">
             <i class="fas fa-search"></i>
@@ -140,6 +148,7 @@
           warehouse: $('#warehouse').val() || '',
           salesman: $('#salesman').val() || '',
           payment_status: $('#payment_status').val() || '',
+          is_installment: $('#is_installment').val() || '',
           date_from: $('#date_from').val() || '',
           date_to: $('#date_to').val() || '',
           page: 1
@@ -168,7 +177,7 @@
       window.doSearch();
     });
 
-    $('#customer, #warehouse, #salesman, #payment_status').on('change', function() {
+    $('#customer, #warehouse, #salesman, #payment_status, #is_installment').on('change', function() {
       window.doSearch();
     });
     

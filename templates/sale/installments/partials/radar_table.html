@@ -1,0 +1,118 @@
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle table-striped mb-0" id="radarTable">
+    <thead class="table-light">
+      <tr>
+        <th class="text-center" style="width: 50px;">#</th>
+        <th>{% trans "الفاتورة / العميل" %}</th>
+        <th class="text-center">{% trans "تاريخ الاستحقاق" %}</th>
+        <th class="text-end">{% trans "أصل القسط" %}</th>
+        <th class="text-end">{% trans "الفائدة" %}</th>
+        <th class="text-end">{% trans "الإجمالي" %}</th>
+        <th class="text-end">{% trans "المسدد" %}</th>
+        <th class="text-end">{% trans "المتبقي" %}</th>
+        <th class="text-center">{% trans "التغطية الورقية" %}</th>
+        <th class="text-center">{% trans "الحالة النقدية" %}</th>
+        <th class="text-center">{% trans "أولوية المخاطر" %}</th>
+        <th class="text-center" style="width: 140px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr class="clickable-row {% if item.cash_status == 'HOLD_REWORK' %}table-warning{% elif item.due_date < today and item.remaining_balance > 0 %}table-danger-light{% endif %}" data-href="{% url 'sale:sale_detail' item.plan.sale.pk %}">
+        <td class="text-center fw-bold">{{ item.installment_number }}</td>
+        <td>
+          <div class="fw-bold text-dark">{{ item.plan.sale.customer.name }}</div>
+          <div class="small text-muted">
+            <span class="badge bg-light text-dark border"><i class="fas fa-file-invoice me-1"></i>{{ item.plan.sale.number }}</span>
+            {% if item.plan.sale.cost_center %}
+              <span class="badge bg-light text-secondary border me-1">{{ item.plan.sale.cost_center.name }}</span>
+            {% endif %}
+          </div>
+        </td>
+        <td class="text-center">
+          <div class="fw-bold">{{ item.due_date|date:"Y-m-d" }}</div>
+          {% if item.cash_status == 'COLLECTED' %}
+            <span class="badge bg-success-subtle text-success">{% trans "تم التحصيل" %}</span>
+          {% elif item.due_date < today and item.remaining_balance > 0 %}
+            <span class="badge bg-danger text-white">{% trans "متأخر" %}</span>
+          {% elif item.due_date == today %}
+            <span class="badge bg-primary text-white">{% trans "مستحق اليوم" %}</span>
+          {% else %}
+            <span class="badge bg-light text-muted border">{% trans "سارٍ" %}</span>
+          {% endif %}
+        </td>
+        <td class="text-end fw-semibold">{{ item.principal_amount|floatformat:2 }}</td>
+        <td class="text-end text-muted">{{ item.interest_amount|floatformat:2 }}</td>
+        <td class="text-end fw-bold">{{ item.total_amount|floatformat:2 }}</td>
+        <td class="text-end text-success fw-semibold">{{ item.paid_amount|floatformat:2 }}</td>
+        <td class="text-end fw-bold {% if item.remaining_balance > 0 %}text-danger{% else %}text-muted{% endif %}">
+          {{ item.remaining_balance|floatformat:2 }}
+        </td>
+        <td class="text-center">
+          {% if item.paper_coverage == 'PORTFOLIO_CHEQUE' or item.paper_coverage == 'BANK_DEPOSITED' or item.paper_coverage == 'DIRECT_CASH' or item.paper_coverage == 'FULLY_COVERED' %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-money-check me-1"></i>{% trans "مغطى بشيك" %}</span>
+          {% elif item.paper_coverage == 'PARTIALLY_COVERED' or item.paper_coverage == 'HYBRID' %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-money-check me-1"></i>{% trans "تغطية جزئية" %}</span>
+          {% elif item.paper_coverage == 'BANK_LETTER_OF_GUARANTEE' or item.paper_coverage == 'BANK_LG' %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-shield-alt me-1"></i>{% trans "خطاب ضمان بنكي" %}</span>
+          {% elif item.paper_coverage == 'ENDORSED_TO_SUPPLIER' %}
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-arrow-right me-1"></i>{% trans "مظهر لمورد" %}</span>
+          {% elif item.paper_coverage == 'CHEQUE_SIGNATURE_PENDING' %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-file-signature me-1"></i>{% trans "بانتظار توقيع ثانٍ" %}</span>
+          {% elif item.paper_coverage == 'CHEQUE_EXCEEDS_DUE' %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-lock me-1"></i>{% trans "شيك فائض القيمة" %}</span>
+          {% else %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "مكشوف بدون شيك" %}</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if item.cash_status == 'COLLECTED' %}
+            <span class="badge bg-success text-white">{% trans "محصل بالكامل" %}</span>
+          {% elif item.cash_status == 'HOLD_REWORK' %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-tools me-1"></i>{% trans "نزاع تشغيل/جودة" %}</span>
+          {% elif item.cash_status == 'LEGAL_ACTION' %}
+            <span class="badge bg-dark text-white"><i class="fas fa-gavel me-1"></i>{% trans "دعوى قضائية" %}</span>
+          {% elif item.cash_status == 'BOUNCED' %}
+            <span class="badge bg-danger text-white"><i class="fas fa-undo me-1"></i>{% trans "شيك مرتد" %}</span>
+          {% elif item.cash_status == 'WAIVED' %}
+            <span class="badge bg-secondary text-white">{% trans "مسقط / ملغى" %}</span>
+          {% elif item.due_date < today %}
+            <span class="badge bg-danger text-white">{% trans "متأخر" %}</span>
+          {% else %}
+            <span class="badge bg-light text-dark border">{% trans "معلق" %}</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          <span class="badge bg-{{ item.risk_badge }}">{{ item.risk_label }}</span>
+        </td>
+        <td class="text-center col-actions" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            {% if item.remaining_balance > 0 and item.cash_status != 'COLLECTED' and item.cash_status != 'WAIVED' %}
+              <button type="button" class="btn btn-outline-success" title="{% trans 'تحصيل نقدي سريع' %}" onclick="openQuickCollectModal('{{ item.id }}', '{{ item.installment_number }}', '{{ item.remaining_balance|floatformat:2 }}', '{{ item.plan.sale.customer.name|escapejs }}');">
+                <i class="fas fa-hand-holding-usd"></i>
+              </button>
+            {% endif %}
+            <a href="{% url 'sale:promissory_note_print' item.plan.sale.pk %}" target="_blank" class="btn btn-outline-secondary" title="{% trans 'طباعة السند لأمر' %}">
+              <i class="fas fa-print"></i>
+            </a>
+            <a href="{% url 'sale:sale_detail' item.plan.sale.pk %}" class="btn btn-outline-primary" title="{% trans 'عرض الفاتورة والخطة' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="12" class="text-center py-4 text-muted">
+          <i class="fas fa-inbox fa-3x mb-3 text-secondary d-block"></i>
+          {% trans "لا توجد أقساط مطابقة لمعايير البحث والرادار المحددة." %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

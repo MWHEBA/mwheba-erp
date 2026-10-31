@@ -72,6 +72,9 @@ class SourceLinkageService:
         'cheques.Cheque',
         'cheques.ChequeActionLog',
         'cheques.ChequeBatchDeposit',
+        'sale.InstallmentItem',
+        'sale.InstallmentPlan',
+        'sale.InstallmentSettlement',
     }
     
     @classmethod

@@ -202,6 +202,12 @@
           </button>
         </li>
         {% endif %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="installments-tab" data-bs-toggle="tab" data-bs-target="#installments-tab-pane" type="button" role="tab" aria-controls="installments-tab-pane" aria-selected="false">
+            <i class="fas fa-calendar-alt me-2"></i>{% trans "الأقساط والشيكات" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ customer_installments_count|default:"0" }}</span>
+          </button>
+        </li>
       </ul>
     </div>
     <div class="card-body p-3">
@@ -674,6 +680,11 @@
         </div>
 
         <!-- تاب أعمار الديون الكسول -->
+        <!-- تاب الأقساط والشيكات المجدولة -->
+        <div class="tab-pane fade" id="installments-tab-pane" role="tabpanel" aria-labelledby="installments-tab" tabindex="0">
+          {% include "customer/partials/customer_installments_tab.html" %}
+        </div>
+
         <div class="tab-pane fade" id="aging-tab-pane" role="tabpanel" aria-labelledby="aging-tab" tabindex="0">
           <div id="aging-loading-spinner" class="text-center py-4">
             <div class="spinner-border text-primary" role="status">

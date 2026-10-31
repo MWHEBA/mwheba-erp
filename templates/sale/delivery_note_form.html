@@ -12,7 +12,17 @@
   <!-- Page Header -->
   {% include "shared/page_header.html" %}
 
-  <form method="POST" action="" id="delivery-note-form">
+  {% if sales_order and sales_order.customer.has_overdue_installments %}
+  <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+    <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+    <div>
+      <h6 class="alert-heading fw-bold mb-1">{% trans "تحذير: العميل لديه أقساط متعثرة متأخرة السداد" %}</h6>
+      <p class="mb-0 small">{% trans "قد يتم حظر تسليم البضاعة بواسطة محرك حظر التسليم الائتماني إلا إذا كان إذن الصرف لتشغيلة تجريبية (Pilot Run) أو بتفويض مالي استثنائي." %}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="" id="delivery-note-form" enctype="multipart/form-data">
     {% csrf_token %}
 
     <!-- اختيار أمر البيع والبيانات اللوجستية -->
@@ -62,6 +72,18 @@
         <div class="col-md-4">
           <label for="driver_phone" class="form-label">{% trans "هاتف السائق" %}</label>
           <input type="text" class="form-control" id="driver_phone" name="driver_phone" placeholder="{% trans 'رقم التواصل' %}">
+        </div>
+        <div class="col-md-6">
+          <label for="driver_authorization_doc" class="form-label">{% trans "مستند تفويض السائق المعتمد" %}</label>
+          <input type="file" class="form-control" id="driver_authorization_doc" name="driver_authorization_doc" accept=".pdf,.png,.jpg,.jpeg">
+        </div>
+        <div class="col-md-6 d-flex align-items-center">
+          <div class="form-check form-switch pt-3">
+            <input class="form-check-input" type="checkbox" name="is_pilot_run" id="id_is_pilot_run">
+            <label class="form-check-label fw-bold text-dark" for="id_is_pilot_run">
+              <i class="fas fa-vial text-info me-1"></i>{% trans "تشغيلة تجريبية / عينات (Pilot Run)" %}
+            </label>
+          </div>
         </div>
         <div class="col-12">
           <label for="delivery_notes" class="form-label">{% trans "ملاحظات التسليم وتصريح الخروج" %}</label>

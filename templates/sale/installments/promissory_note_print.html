@@ -1,0 +1,204 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>سند لأمر وإقرار مديونية موحد - فاتورة {{ sale.number }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm 15mm 15mm 15mm;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      text-align: right;
+      color: #000;
+      background-color: #fff;
+      margin: 0;
+      padding: 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .header-box {
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .company-title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .doc-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      text-decoration: underline;
+      margin: 15px 0;
+    }
+    .meta-table, .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 15px;
+    }
+    .meta-table td {
+      padding: 5px 8px;
+      vertical-align: top;
+    }
+    .schedule-table th, .schedule-table td {
+      border: 1px solid #000;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .schedule-table th {
+      background-color: #f2f2f2;
+      font-weight: bold;
+    }
+    .legal-clause {
+      margin-bottom: 12px;
+      text-align: justify;
+      line-height: 1.7;
+    }
+    .signatures-box {
+      margin-top: 30px;
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .signatures-box td {
+      width: 50%;
+      vertical-align: top;
+      padding: 10px 20px;
+    }
+    .sig-line {
+      margin-top: 45px;
+      border-top: 1px dashed #000;
+    }
+    .no-print {
+      display: block;
+      margin: 10px auto;
+      text-align: center;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button onclick="window.print();" style="padding: 8px 20px; font-size: 14px; font-weight: bold; cursor: pointer; background: #004085; color: #fff; border: none; border-radius: 4px;">
+      طباعة السند لأمر (Print A4)
+    </button>
+  </div>
+
+  <div class="header-box">
+    <div>
+      <div class="company-title">شركة موهبة لطباعة وتصنيع مواد التعبئة والتغليف</div>
+      <div>سجل تجاري: 123456 | بطاقة ضريبية: 987-654-321</div>
+      <div>المقر الرئيسي: مدينة العاشر من رمضان - المنطقة الصناعية</div>
+    </div>
+    <div style="text-align: left;">
+      <div><strong>التاريخ:</strong> {{ today|date:"Y-m-d" }}</div>
+      <div><strong>رقم الفاتورة:</strong> {{ sale.number }}</div>
+      <div><strong>رقم العقد:</strong> PRO-{{ sale.id }}</div>
+    </div>
+  </div>
+
+  <div class="doc-title">سند لأمر وإقرار مديونية وتعهد سداد موحد</div>
+
+  <table class="meta-table">
+    <tr>
+      <td style="width: 50%;">
+        <strong>المشتري (المدين الأصلي):</strong> {{ customer.name }}<br>
+        <strong>السجل التجاري:</strong> {{ customer.commercial_register|default:"-" }}<br>
+        <strong>البطاقة الضريبية:</strong> {{ customer.tax_number|default:"-" }}<br>
+        <strong>العنوان القانوني:</strong> {{ customer.address|default:"-" }}
+      </td>
+      <td style="width: 50%;">
+        <strong>الكفيل الغارم المتضامن شخصياً:</strong> {{ plan.guarantor_name|default:"-" }}<br>
+        <strong>الرقم القومي للكفيل:</strong> {{ plan.guarantor_national_id|default:"-" }}<br>
+        <strong>هاتف الكفيل:</strong> {{ plan.guarantor_phone|default:"-" }}<br>
+        <strong>الموطن المختار للكفيل:</strong> {{ plan.guarantor_address|default:"-" }}
+      </td>
+    </tr>
+  </table>
+
+  <div class="legal-clause">
+    <strong>إقرار المديونية:</strong><br>
+    أقر أنا الموقع أدناه، بصفتي الممثل القانوني للمدين الأصلي وبصفتي الشخصية ككفيل غارم متضامن على وجه التضامن والتكافل، بأن في ذمتنا للشركة الدائنة (شركة موهبة لطباعة وتصنيع مواد التعبئة والتغليف) ديناً ثابتاً حال الأداء والوفاء غير معلق على شرط، بمبلغ إجمالي قدره: 
+    <strong>{{ sale.contract_total|floatformat:2 }} {{ currency_code }}</strong> (فقط وقدره: {{ total_words }} لا غير).
+    وهو يمثل قيمة التوريدات والكرتون والمنتجات المسلمة بموجب الفاتورة رقم ({{ sale.number }})، ونتعهد بسداد هذا الدين كاملاً وفق جدول الأقساط الزمني والتفقيط التالي دون تأخير:
+  </div>
+
+  <table class="schedule-table">
+    <thead>
+      <tr>
+        <th style="width: 40px;">القسط</th>
+        <th>تاريخ الاستحقاق</th>
+        <th>أصل القسط</th>
+        <th>فائدة التقسيط</th>
+        <th>إجمالي القسط</th>
+        <th>المبلغ كتابةً وتفقيطاً (بالحروف)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td>#{{ it.installment_number }}</td>
+        <td>{{ it.due_date|date:"Y-m-d" }}</td>
+        <td style="text-align: right;">{{ it.principal_amount|floatformat:2 }}</td>
+        <td style="text-align: right;">{{ it.interest_amount|floatformat:2 }}</td>
+        <td style="text-align: right; font-weight: bold;">{{ it.total_amount|floatformat:2 }}</td>
+        <td style="text-align: right; font-size: 11px;">{{ it.amount_words }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="legal-clause">
+    <strong>الشروط والضمانات القانونية المحصنة:</strong>
+    <ol style="margin-top: 5px; padding-right: 20px;">
+      <li>
+        <strong>سقوط الأجل الجبري وحلول كامل الأقساط:</strong>
+        في حال التأخر عن سداد أي قسط من الأقساط الموضحة أعلاه في ميعاد استحقاقه، تسقط آجال جميع الأقساط اللاحقة فوراً وتصبح واجبة الأداء بالكامل دفعة واحدة دون حاجة إلى إنذار أو إعذار أو حكم قضائي، ويحق للشركة استصدار أمر أداء فوري من القضاء المستعجل.
+      </li>
+      <li>
+        <strong>التعويض الاتفاقي وغرامة التأخير (المادة 232 مدني وتجاري):</strong>
+        اتفق الطرفان رضاءً على استحقاق تعويض اتفاقي وغرامة تأخير يومية عن كل يوم تأخير في الوفاء بأصل الدين بعد فوات مواعيد الاستحقاق بنسبة تعادل الفائدة القانونية المقررة من البنك المركزي المصري دون الإخلال بحق الشركة الدائنة في الرجوع بالتعويض الكامل عن أي أضرار تجارية أو خسائر تفويت ربح ناتجة عن المماطلة.
+      </li>
+      <li>
+        <strong>الموطن المختار والاختصاص القضائي الحصري:</strong>
+        يقر كل من المدين الأصلي والكفيل المتضامن باتخاذ العناوين المبينة بصدر هذا السند موطناً مختاراً لهما تصح وتنتج كافة الإعلانات القضائية والمطالبات آثارها القانونية عليها، وتنعقد ولاية الاختصاص القضائي الحصري لمحاكم القاهرة والجيزة الاقتصادية والتجارية لنظر أي نزاع ناتج عن هذا السند.
+      </li>
+      <li>
+        <strong>انتقال تبعة الهلاك والحلول التأميني المباشر (Insurance Subrogation):</strong>
+        تقر الجهة المدينة بانتقال تبعة الهلاك للمنتجات والكرتون إليها بمجرد خروجها من بوابة مخازن الشركة الدائنة، وفي حال تعرض بضاعة المدين لأي تلف أو حريق أو حادث، يحل الدائن رضاءً وقانوناً محل المدين في تحصيل مبالغ التعويض المباشرة من شركات التأمين لحين استيفاء كامل المديونية.
+      </li>
+    </ol>
+  </div>
+
+  <table class="signatures-box">
+    <tr>
+      <td>
+        <strong>المدين الأصلي (المشتري):</strong><br>
+        الاسم والصفة:<br>
+        التوقيع:<br>
+        خاتم المنشأة:<br>
+        <div class="sig-line"></div>
+      </td>
+      <td>
+        <strong>الكفيل الغارم المتضامن شخصياً:</strong><br>
+        الاسم: {{ plan.guarantor_name|default:"................................" }}<br>
+        الرقم القومي: {{ plan.guarantor_national_id|default:"...................." }}<br>
+        التوقيع وبصمة الإبهام:<br>
+        <div class="sig-line"></div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

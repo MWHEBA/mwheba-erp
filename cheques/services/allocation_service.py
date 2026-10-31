@@ -42,18 +42,21 @@ class ChequeAllocationService:
         cheque: Cheque,
         sale: Sale,
         amount: Decimal,
+        installment_item: Optional[Any] = None,
         user=None,
         notes: Optional[str] = None,
         idempotency_key: Optional[str] = None
     ) -> ChequeInvoiceAllocation:
         """
-        تخصيص ورقة قبض على فاتورة مبيعات محددة:
+        تخصيص ورقة قبض على فاتورة مبيعات محددة (أو قسط محدد من فاتورة تقسيط):
         1. التحقق من تطابق العميل والحدود المالية ومنع التكرار الحتمي (Idempotency)
-        2. إنشاء أو جلب CustomerTransaction للفاتورة والشيك
-        3. تسجيل CustomerAllocationAudit مع التوقيع المشفر SHA-256
-        4. تسجيل سجل السداد SalePayment (financial_account=None, source_type='CHEQUE')
-        5. إنشاء ChequeInvoiceAllocation
-        6. تحديث حالة سداد الفاتورة تلقائياً
+        2. فحص سقف التخصيص المشترك للشيك (الفواتير + الدفعات المقدمة)
+        3. التحقق من رصيد القسط في حال التخصيص على قسط تقسيط محدد
+        4. إنشاء أو جلب CustomerTransaction للفاتورة والشيك
+        5. تسجيل CustomerAllocationAudit مع التوقيع المشفر SHA-256
+        6. تسجيل سجل السداد SalePayment (financial_account=None, source_type='CHEQUE')
+        7. إنشاء ChequeInvoiceAllocation وتحديث التغطية الورقية للقسط
+        8. تحديث حالة سداد الفاتورة تلقائياً
         """
         if not isinstance(amount, Decimal):
             amount = Decimal(str(amount))
@@ -104,12 +107,28 @@ class ChequeAllocationService:
             locked_cheque = Cheque.objects.select_for_update().get(pk=cheque.pk)
             locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
 
-            # التحقق من المتبقي غير المخصص في الشيك
+            # التحقق من قسط التقسيط المرتبط إن وجد
+            locked_installment = None
+            if installment_item:
+                from sale.models import InstallmentItem
+                inst_id = installment_item.pk if hasattr(installment_item, "pk") else installment_item
+                locked_installment = InstallmentItem.objects.select_for_update().get(pk=inst_id)
+
+                if locked_installment.plan.sale_id != locked_sale.id:
+                    raise ValidationError(_("القسط المحدد لا ينتمي إلى فاتورة المبيعات المختارة."))
+
+                if amount > locked_installment.total_remaining_balance:
+                    raise ValidationError(
+                        _(f"مبلغ التخصيص ({amount}) يتجاوز الرصيد الإجمالي المتبقي للقسط ({locked_installment.total_remaining_balance}).")
+                    )
+
+            # التحقق من المتبقي غير المخصص في الشيك (سقف التخصيص المشترك المانع للازدواج)
             already_allocated = locked_cheque.invoice_allocations.filter(
                 allocation_status=AllocationStatus.APPLIED
             ).aggregate(total=models.Sum('allocated_amount'))['total'] or Decimal('0.00')
+            prepaid_allocated = locked_cheque.prepaid_allocated_amount or Decimal('0.00')
 
-            available_on_cheque = locked_cheque.amount - already_allocated
+            available_on_cheque = locked_cheque.amount - already_allocated - prepaid_allocated
             if amount > available_on_cheque:
                 raise ValidationError(
                     _(f"المبلغ المطلوب تخصيصه ({amount}) يتجاوز الرصيد المتاح في الشيك ({available_on_cheque}).")
@@ -386,6 +405,7 @@ class ChequeAllocationService:
             alloc = ChequeInvoiceAllocation.objects.create(
                 cheque=locked_cheque,
                 sale=locked_sale,
+                installment_item=locked_installment,
                 allocated_amount=amount,
                 allocated_amount_functional=functional_amount,
                 allocation_status=AllocationStatus.APPLIED,
@@ -396,7 +416,12 @@ class ChequeAllocationService:
                 notes=notes or f"تخصيص شيك {locked_cheque.voucher_number} على فاتورة {locked_sale.number}"
             )
 
-            # 7. تحديث حالة سداد الفاتورة
+            # إذا كان التخصيص لقسط تقسيط: ربط الشيك وإعادة احتساب التغطية الورقية
+            if locked_installment:
+                locked_installment.cheques.add(locked_cheque)
+                cls.recalculate_installment_paper_coverage(locked_installment)
+
+            # 8. تحديث حالة سداد الفاتورة
             locked_sale.update_payment_status()
 
             logger.info(
@@ -532,7 +557,43 @@ class ChequeAllocationService:
                 pay_txn.status = "OPEN" if pay_txn.open_amount >= pay_txn.functional_amount else "PARTIAL"
                 pay_txn.save()
 
+            # 7. تحديث التغطية الورقية للقسط المرتبط إن وجد
+            if locked_alloc.installment_item:
+                cls.recalculate_installment_paper_coverage(locked_alloc.installment_item)
+
             logger.info(
                 f"↩️ تم عكس تخصيص الشيك {cheque.voucher_number} على الفاتورة {sale.number} "
                 f"بمبلغ {locked_alloc.allocated_amount} (السبب: {reason})"
             )
+
+    @classmethod
+    def recalculate_installment_paper_coverage(cls, installment_item) -> None:
+        """
+        إعادة احتساب التغطية الورقية ومبلغ التغطية للشيكات السارية المرتبطة بالقسط
+        """
+        from cheques.models import ChequeStatus, AllocationStatus
+        from sale.models.installments import PaperCoverage
+
+        active_allocations = installment_item.cheque_allocations.filter(
+            allocation_status=AllocationStatus.APPLIED
+        ).select_related('cheque')
+
+        total_cheque_coverage = sum(alloc.allocated_amount for alloc in active_allocations)
+        installment_item.coverage_cheque_amount = total_cheque_coverage
+
+        if total_cheque_coverage <= Decimal("0.00"):
+            installment_item.paper_coverage = PaperCoverage.UNCOVERED
+        else:
+            rem_balance = installment_item.total_remaining_balance
+            if total_cheque_coverage < rem_balance:
+                installment_item.paper_coverage = PaperCoverage.PARTIALLY_COVERED
+            else:
+                cheque_statuses = {alloc.cheque.status for alloc in active_allocations}
+                if ChequeStatus.UNDER_COLLECTION in cheque_statuses:
+                    installment_item.paper_coverage = PaperCoverage.BANK_DEPOSITED
+                elif ChequeStatus.ENDORSED in cheque_statuses:
+                    installment_item.paper_coverage = PaperCoverage.ENDORSED_TO_SUPPLIER
+                else:
+                    installment_item.paper_coverage = PaperCoverage.PORTFOLIO_CHEQUE
+
+        installment_item.save(update_fields=['paper_coverage', 'coverage_cheque_amount'])

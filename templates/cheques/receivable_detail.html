@@ -279,6 +279,7 @@
                                 <th class="bg-light text-muted">{% trans "الغرض من الشيك" %}</th>
                                 <td>
                                     <span class="badge bg-light text-dark border">{{ cheque.get_purpose_display }}</span>
+                                    {% if cheque.purpose == 'SECURITY_GUARANTEE' %}<span class="badge bg-primary-subtle text-primary border ms-1"><i class="fas fa-shield-alt me-1"></i>{% trans "شيك ضمان خطة تقسيط" %}</span>{% endif %}
                                     {% if cheque.is_guarantee %}<span class="badge bg-warning text-dark ms-1">{% trans "خارج الميزانية" %}</span>{% endif %}
                                 </td>
                             </tr>
@@ -296,6 +297,47 @@
             </div>
         </div>
     </div>
+
+    <!-- خطط وأقساط المبيعات المضمونة بهذا الشيك -->
+    {% if cheque.secured_installment_plans.exists %}
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "خطط وأقساط المبيعات المضمونة بهذا الشيك" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>{% trans "رقم الفاتورة" %}</th>
+                        <th>{% trans "العميل" %}</th>
+                        <th>{% trans "إجمالي العقد بالتقسيط" %}</th>
+                        <th>{% trans "عدد الأقساط" %}</th>
+                        <th>{% trans "حالة الخطة" %}</th>
+                        <th>{% trans "إجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in cheque.secured_installment_plans.all %}
+                    <tr>
+                        <td class="fw-bold">
+                            <a href="{% url 'sale:sale_detail' plan.sale_id %}" class="text-primary">
+                                {{ plan.sale.number }}
+                            </a>
+                        </td>
+                        <td>{{ plan.customer.name }}</td>
+                        <td class="fw-bold">{{ plan.total_amount|floatformat:2 }} ج.م</td>
+                        <td>{{ plan.number_of_installments }}</td>
+                        <td><span class="badge bg-info">{{ plan.get_status_display }}</span></td>
+                        <td>
+                            <a href="{% url 'sale:sale_detail' plan.sale_id %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-eye me-1"></i>{% trans "عرض الفاتورة والأقساط" %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 3. صور ومرفقات الشيك -->
     <div class="section-container mb-4">

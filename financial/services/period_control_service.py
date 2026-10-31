@@ -220,6 +220,13 @@ class PeriodControlService:
         except Exception as fx_err:
             logger.warning(f"ملاحظة أثناء أتمتة تقييم العملات عند إغلاق الفترة {period.name}: {fx_err}")
 
+        # 5. إطفاء واستهلاك فوائد التقسيط المستحقة للفترة تلقائياً
+        try:
+            from financial.services.installment_amortization_service import InstallmentInterestAmortizationService
+            InstallmentInterestAmortizationService.amortize_matured_installments_for_period(period=period, user=user)
+        except Exception as amort_err:
+            logger.warning(f"ملاحظة أثناء إطفاء فوائد التقسيط عند إغلاق الفترة {period.name}: {amort_err}")
+
         period.status = 'closed'
         period.closed_at = timezone.now()
         period.closed_by = user

@@ -135,6 +135,16 @@
     <td>{% if is_english %}Grand Total{% else %}الإجمالي الكلي{% endif %}</td>
     <td>{{ sale.total|currency:currency_symbol_active }}</td>
 </tr>
+{% if sale.is_installment_sale %}
+<tr>
+    <td>{% if is_english %}Financing Markup{% else %}أرباح / فوائد التقسيط ({{ sale.markup_rate }}%){% endif %}</td>
+    <td>+{{ sale.markup_amount|currency:currency_symbol_active }}</td>
+</tr>
+<tr style="font-weight: 700; background-color: #f8fafc;">
+    <td>{% if is_english %}Contract Total{% else %}إجمالي العقد بالتقسيط{% endif %}</td>
+    <td>{{ sale.contract_total|currency:currency_symbol_active }}</td>
+{% endif %}
+</tr>
 {% if sale.amount_paid and sale.amount_paid > 0 %}
 <tr>
     <td>{% if is_english %}Amount Paid{% else %}المبلغ المدفوع{% endif %}</td>
@@ -214,6 +224,64 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
+{% endif %}
+
+{% if sale.installment_plan %}
+<div style="margin-top: 20px; margin-bottom: 20px; page-break-inside: avoid;">
+    <div style="font-weight: 700; font-size: 13px; color: #1e293b; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px;">
+        <i class="fas fa-calendar-alt me-1"></i> {% if is_english %}Official Installment Schedule Annex{% else %}ملحق جدول استحقاق الأقساط الرسمي{% endif %}
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; border: 1px solid #cbd5e1;">
+        <thead>
+            <tr style="background-color: #f1f5f9; font-weight: 700; color: #334155;">
+                <th style="padding: 6px; border: 1px solid #cbd5e1; width: 40px;">#</th>
+                <th style="padding: 6px; border: 1px solid #cbd5e1;">{% if is_english %}Due Date{% else %}تاريخ الاستحقاق{% endif %}</th>
+                <th style="padding: 6px; border: 1px solid #cbd5e1;">{% if is_english %}Principal{% else %}أصل القسط{% endif %}</th>
+                <th style="padding: 6px; border: 1px solid #cbd5e1;">{% if is_english %}Markup{% else %}الفائدة التمويلية{% endif %}</th>
+                <th style="padding: 6px; border: 1px solid #cbd5e1;">{% if is_english %}Total Amount{% else %}إجمالي القسط{% endif %}</th>
+                <th style="padding: 6px; border: 1px solid #cbd5e1;">{% if is_english %}Coverage / Cheque{% else %}التغطية / الشيك{% endif %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for it in sale.installment_plan.items.all %}
+            <tr style="{% cycle 'background-color: #ffffff;' 'background-color: #f8fafc;' %}">
+                <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight: 700;">{{ it.installment_number }}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;">{{ it.due_date|date:"d-m-Y" }}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;">{{ it.principal_amount|currency:currency_symbol_active }}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;">{{ it.interest_amount|currency:currency_symbol_active }}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight: 700;">{{ it.total_amount|currency:currency_symbol_active }}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; font-size: 10px;">{{ it.get_paper_coverage_display }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- إقرار والتزام قانوني بالسداد -->
+    <div style="margin-top: 10px; padding: 8px 12px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 10.5px; color: #334155; line-height: 1.5;">
+        <strong>{% if is_english %}Legal Acknowledgment:{% else %}إقرار والتزام قانوني بالموطن المختار:{% endif %}</strong>
+        {% if is_english %}
+        The debtor and co-guarantor acknowledge the correctness of the amounts and schedule above and commit to pay each tranche on its due date without need for formal notice.
+        {% else %}
+        يقر كل من المشتري (المدين) والكفيل الغارم المتضامن بصحة المبالغ وجدول استحقاق الأقساط أعلاه، ويتعهدان بالوفاء بها في مواعيد استحقاقها المحددة دون حاجة إلى إنذار أو إعذار، ويعد موطن كل منهما المدون بهذا العقد موطناً مختاراً للإعلانات القضائية.
+        {% endif %}
+    </div>
+
+    <!-- مربعات التوقيعات الثلاثية -->
+    <div style="display: flex; justify-content: space-between; margin-top: 15px; margin-bottom: 10px; text-align: center; font-size: 11px;">
+        <div style="width: 30%; border-top: 1px solid #94a3b8; padding-top: 5px;">
+            <strong>{% if is_english %}Buyer / Debtor{% else %}توقيع المشتري (المدين){% endif %}</strong>
+            <div style="height: 40px;"></div>
+        </div>
+        <div style="width: 30%; border-top: 1px solid #94a3b8; padding-top: 5px;">
+            <strong>{% if is_english %}Co-Guarantor{% else %}توقيع الكفيل الغارم المتضامن{% endif %}</strong>
+            <div style="height: 40px;"></div>
+        </div>
+        <div style="width: 30%; border-top: 1px solid #94a3b8; padding-top: 5px;">
+            <strong>{% if is_english %}Financial Dept. Approval{% else %}اعتماد الإدارة المالية{% endif %}</strong>
+            <div style="height: 40px;"></div>
+        </div>
+    </div>
 </div>
 {% endif %}
 

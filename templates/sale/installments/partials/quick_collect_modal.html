@@ -1,0 +1,76 @@
+{% load i18n %}
+
+<!-- Modal التحصيل النقدي السريع الموحد طبقاً لقواعد التصميم المؤسسي RULE 8 -->
+<div class="modal fade" id="quickCollectModal" tabindex="-1" aria-labelledby="quickCollectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="quickCollectModalLabel">
+          <i class="fas fa-hand-holding-usd text-success me-2"></i>{% trans "تحصيل قسط نقدي سريع" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickCollectForm" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <input type="hidden" id="modal_installment_id" name="installment_id">
+          
+          <div class="mb-3">
+            <label class="form-label text-muted small">{% trans "العميل" %}</label>
+            <input type="text" id="modal_customer_name" class="form-control bg-light" readonly>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-muted small">{% trans "رقم القسط" %}</label>
+              <input type="text" id="modal_installment_num" class="form-control bg-light text-center fw-bold" readonly>
+            </div>
+            <div class="col-6">
+              <label class="form-label text-muted small">{% trans "الرصيد المتبقي المستحق" %}</label>
+              <input type="text" id="modal_remaining_balance" class="form-control bg-light text-end fw-bold text-danger" readonly>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="collect_amount" class="form-label fw-bold">{% trans "المبلغ المحصل فعلياً" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" step="0.01" min="0.01" class="form-control fw-bold text-end" id="collect_amount" name="amount" required>
+              <span class="input-group-text">ج.م</span>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label for="collect_payment_method" class="form-label small text-muted">{% trans "طريقة الدفع" %}</label>
+              <select class="form-select form-select-sm" id="collect_payment_method" name="payment_method">
+                <option value="cash" selected>{% trans "نقدية / كاش الخزينة" %}</option>
+                <option value="bank">{% trans "تحويل بنكي" %}</option>
+                <option value="instapay">{% trans "إنستاباي / لحظي" %}</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label for="collect_payment_date" class="form-label small text-muted">{% trans "تاريخ التحصيل" %}</label>
+              <input type="date" class="form-control form-control-sm" id="collect_payment_date" name="payment_date" value="{{ today|date:'Y-m-d' }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="collect_receipt_ref" class="form-label small text-muted">{% trans "رقم إيصال القبض / المرجع" %}</label>
+            <input type="text" class="form-control form-control-sm" id="collect_receipt_ref" name="receipt_reference" placeholder="{% trans 'اختياري - رقم الإيصال الورقي أو المرجع' %}">
+          </div>
+
+          <div class="mb-0">
+            <label for="collect_notes" class="form-label small text-muted">{% trans "ملاحظات التحصيل" %}</label>
+            <textarea class="form-control form-control-sm" id="collect_notes" name="notes" rows="2" placeholder="{% trans 'ملاحظات المحصل أو المودع...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold" id="btnSubmitCollect">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد التحصيل والتسجيل" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

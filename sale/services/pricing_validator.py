@@ -311,3 +311,73 @@ class PricingSecurityValidator:
             raise
         except Exception as e:
             logger.warning(f"تعذر التحقق من سعر الصرف: {e}")
+
+    @classmethod
+    def validate_installment_sale_rules(
+        cls,
+        sale,
+        down_payment: Decimal = Decimal('0.00'),
+        items_schedule: list = None,
+        items_data: list = None,
+    ):
+        """
+        حوكمة قواعد تقسيط المبيعات الصناعية لمصانع الكرتون:
+        1. درع حماية سيولة ضريبة القيمة المضافة (Warranty Retention VAT Liquidity Guard):
+           اشتراط أن تغطي (الدفعة المقدمة + الأقساط المستحقة خلال أول 30 يوماً) كامل ضريبة القيمة المضافة (100% of VAT).
+        2. حظر تقسيط بنود الاسطمبات والتجهيزات الفنية (Non-Financed Tooling Policy):
+           إلزام سداد قيمة الاسطمبات والكليشيهات بالكامل ضمن الدفعة المقدمة.
+        """
+        # 1. فحص الاسطمبات والكليشيهات غير الممولة
+        tooling_total = Decimal('0.00')
+        if items_data:
+            for it in items_data:
+                prod_id = it.get('product_id')
+                prod = None
+                try:
+                    prod = Product.objects.get(id=prod_id)
+                except Exception:
+                    pass
+
+                is_tooling = False
+                if prod:
+                    prod_name = prod.name.lower()
+                    if getattr(prod, 'is_tooling', False) or 'اسطمب' in prod_name or 'كليشيه' in prod_name or 'فورمة' in prod_name:
+                        is_tooling = True
+
+                if is_tooling:
+                    qty = Decimal(str(it.get('quantity', 1)))
+                    price = Decimal(str(it.get('unit_price', 0)))
+                    tooling_total += (qty * price)
+
+        if tooling_total > Decimal('0.00'):
+            if down_payment < tooling_total:
+                raise ValidationError(
+                    _(
+                        "سياسة المصنع تحظر تقسيط تكاليف الاسطمبات والكليشيهات الفنية (%(tooling).2f ج.م). "
+                        "يجب ألا تقل الدفعة المقدمة عن إجمالي تكلفة الاسطمبات."
+                    )
+                    % {"tooling": tooling_total}
+                )
+
+        # 2. درع حماية سيولة ضريبة القيمة المضافة
+        vat_amount = getattr(sale, 'tax', Decimal('0.00')) or Decimal('0.00')
+        if vat_amount > Decimal('0.00') and items_schedule:
+            first_30d_coverage = down_payment
+            for item in items_schedule:
+                # إذا كان القسط يستحق خلال أول 30 يوماً
+                due_d = item.get('due_date')
+                from django.utils import timezone
+                now_d = timezone.now().date()
+                if hasattr(due_d, 'date'):
+                    due_d = due_d.date()
+                if due_d and (due_d - now_d).days <= 30:
+                    first_30d_coverage += Decimal(str(item.get('total_amount', 0)))
+
+            if first_30d_coverage < vat_amount:
+                raise ValidationError(
+                    _(
+                        "درع حماية السيولة الضريبية: يجب أن تكون (الدفعة المقدمة + الأقساط المستحقة خلال أول 30 يوماً) "
+                        "تغطي بالكامل ضريبة القيمة المضافة للفاتورة (المطلوب: %(vat).2f ج.م، المتوفر: %(cov).2f ج.م)."
+                    )
+                    % {"vat": vat_amount, "cov": first_30d_coverage}
+                )

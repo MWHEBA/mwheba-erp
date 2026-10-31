@@ -10,6 +10,16 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
+  {% if dn.customer and dn.customer.has_overdue_installments %}
+  <div class="alert alert-danger border-0 shadow-sm mb-4 d-flex align-items-center gap-3">
+    <i class="fas fa-ban fa-2x text-danger"></i>
+    <div>
+      <h6 class="alert-heading fw-bold mb-1">{% trans "تنبيه ائتماني: العميل لديه أقساط متعثرة / متأخرة" %}</h6>
+      <p class="mb-0 small">{% trans "يخضع هذا العميل لقيود الصرف وحظر تسليم البضائع لتجاوز فترة السماح في خطة التقسيط. يتطلب الصرف موافقة المدير المالي أو استيفاء مديونية الأقساط." %}</p>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- كروت الملخص -->
   <div class="row g-3 mb-4">
     <div class="col-md-3 col-sm-6">
@@ -110,6 +120,22 @@
       <div class="col-md-4">
         <span class="text-muted d-block small">{% trans "هاتف السائق" %}</span>
         <span class="fw-bold fs-6">{{ dn.driver_phone }}</span>
+      </div>
+      {% endif %}
+      {% if dn.is_pilot_run %}
+      <div class="col-md-4">
+        <span class="text-muted d-block small">{% trans "نوع التشغيلة" %}</span>
+        <span class="badge bg-info-subtle text-info border border-info-subtle fw-bold fs-6">
+          <i class="fas fa-vial me-1"></i>{% trans "تشغيلة تجريبية / عينات (Pilot Run)" %}
+        </span>
+      </div>
+      {% endif %}
+      {% if dn.driver_authorization_doc %}
+      <div class="col-md-4">
+        <span class="text-muted d-block small">{% trans "تفويض السائق المعتمد" %}</span>
+        <a href="{{ dn.driver_authorization_doc.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
+          <i class="fas fa-file-pdf me-1"></i>{% trans "عرض مستند التفويض" %}
+        </a>
       </div>
       {% endif %}
       {% if dn.delivery_notes %}

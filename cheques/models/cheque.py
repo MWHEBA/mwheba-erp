@@ -92,6 +92,7 @@ class Cheque(models.Model):
     amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name=_('مبلغ الشيك الأصلي'))
     collected_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_('المبلغ المحصل'))
     remaining_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_('المبلغ المتبقي'))
+    prepaid_allocated_amount = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'), verbose_name=_('المبلغ المخصص كرصيد دفعات مقدمة'))
 
     currency = models.ForeignKey('financial.Currency', on_delete=models.PROTECT, verbose_name=_('العملة'))
     original_exchange_rate = models.DecimalField(max_digits=18, decimal_places=6, default=Decimal('1.000000'), verbose_name=_('سعر الصرف الأولي'))
@@ -238,6 +239,29 @@ class Cheque(models.Model):
     def is_advance_payment(self) -> bool:
         """مصدر الحقيقة الأوحد: دفعة مقدمة"""
         return self.purpose == ChequePurpose.ADVANCE_PAYMENT
+
+    @property
+    def total_allocated_amount(self) -> Decimal:
+        """إجمالي المبالغ المخصصة من الشيك (تخصيصات الفواتير السارية + الدفعات المقدمة)"""
+        from cheques.models.allocation import AllocationStatus
+        allocated_invoices = self.invoice_allocations.filter(
+            allocation_status=AllocationStatus.APPLIED
+        ).aggregate(models.Sum('allocated_amount'))['allocated_amount__sum'] or Decimal('0.00')
+        return allocated_invoices + (self.prepaid_allocated_amount or Decimal('0.00'))
+
+    @property
+    def unallocated_amount(self) -> Decimal:
+        """المبلغ المتبقي غير المخصص من الشيك بعد الفواتير والدفعات المقدمة"""
+        return max(Decimal('0.00'), (self.amount or Decimal('0.00')) - self.total_allocated_amount)
+
+    @property
+    def is_shared_or_multi_allocated(self) -> bool:
+        """فحص ما إذا كان الشيك مخصصاً لأكثر من فاتورة أو قسط أو دفعة مقدمة"""
+        from cheques.models.allocation import AllocationStatus
+        applied_allocations = self.invoice_allocations.filter(allocation_status=AllocationStatus.APPLIED)
+        count = applied_allocations.count()
+        has_prepaid = (self.prepaid_allocated_amount or Decimal('0.00')) > Decimal('0.00')
+        return count > 1 or (has_prepaid and count > 0)
 
     def compute_remaining_functional(self) -> Decimal:
         """

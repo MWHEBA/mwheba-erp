@@ -5,6 +5,14 @@ from sale.models.return_model import SaleReturn, SaleReturnItem
 from sale.models.quotation import Quotation
 from sale.models.quotation_item import QuotationItem
 from sale.models.custom_field import CustomFieldDefinition
+from sale.models.installments import (
+    InstallmentPlan,
+    InstallmentItem,
+    InstallmentRescheduleLog,
+    InstallmentOperationAudit,
+    InstallmentSettlement,
+    CollectionRadarSnapshot,
+)
 
 try:
     from sale.models.sales_models import SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, SalesInvoice, SalesInvoiceItem

@@ -202,6 +202,44 @@ class Sale(models.Model):
         help_text=_("المستخدم أو مسؤول المبيعات الخاص بالفاتورة"),
     )
 
+    # حقول نظام أقساط المبيعات ورادار التحصيل (Sales Installments & Collection Radar)
+    is_installment_sale = models.BooleanField(
+        _("فاتورة بيع بالتقسيط"),
+        default=False,
+        db_index=True,
+    )
+    markup_amount = models.DecimalField(
+        _("إجمالي أرباح / فوائد التقسيط"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    markup_rate = models.DecimalField(
+        _("نسبة أرباح التقسيط (%)"),
+        max_digits=6,
+        decimal_places=3,
+        default=Decimal("0.000"),
+    )
+    contract_total = models.DecimalField(
+        _("المبلغ التعاقدي الشامل للتقسيط"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("إجمالي الفاتورة شاملاً أرباح التقسيط"),
+    )
+    contract_total_functional = models.DecimalField(
+        _("المبلغ التعاقدي بالعملة المحلية (EGP)"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("المعادل المحلي للمبلغ التعاقدي الشامل"),
+    )
+    delivery_blocked_on_overdue = models.BooleanField(
+        _("حظر تسليم المخزن للتعثر"),
+        default=False,
+        db_index=True,
+    )
+
     @property
     def currency_symbol(self):
         """إرجاع رمز العملة المعتمدة للفاتورة"""
@@ -334,12 +372,25 @@ class Sale(models.Model):
         )["total__sum"] or Decimal("0.00")
 
     @property
-    def amount_due(self):
+    def amount_settled(self):
         """
-        حساب المبلغ المتبقي بعد خصم المدفوعات والمرتجعات المؤكدة
+        حساب إجمالي التسويات والخصومات الدائمة المؤثرة على رصيد الفاتورة
+        (خصم تعجيل، إسقاط فوائد، رد فوائد مقدمة، مقاصة موردين، إعدام ديون)
         """
         from decimal import Decimal
-        due = self.total - self.amount_paid - self.amount_returned
+        return self.settlements.filter(
+            affects_invoice_due=True, status='POSTED', is_reversed=False
+        ).aggregate(models.Sum('amount'))['amount__sum'] or Decimal('0.00')
+
+    @property
+    def amount_due(self):
+        """
+        حساب المبلغ المتبقي بعد خصم المدفوعات والمرتجعات المؤكدة والتسويات الدائمة السارية
+        مع مراعاة المبلغ التعاقدي الشامل في حالة فواتير التقسيط
+        """
+        from decimal import Decimal
+        contract_total = self.contract_total if (getattr(self, 'is_installment_sale', False) and self.contract_total) else self.total
+        due = contract_total - self.amount_paid - self.amount_returned - self.amount_settled
         return max(Decimal("0.00"), due)
 
     @property
@@ -347,7 +398,7 @@ class Sale(models.Model):
         """
         هل الفاتورة مدفوعة بالكامل
         """
-        return self.amount_due <= 0
+        return self.amount_due <= Decimal("0.00")
 
     @property
     def has_posted_payments(self):

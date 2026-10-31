@@ -310,6 +310,16 @@
                                             {% include "components/currency_header.html" %}
 
                                             <!-- مبلغ الدفعة المقدمة -->
+                                            <!-- خيار البيع بالتقسيط -->
+                                            <div class="col-12 col-md-6 d-flex align-items-center">
+                                                <div class="form-check form-switch pt-2">
+                                                    <input class="form-check-input" type="checkbox" name="is_installment_sale" id="id_is_installment_sale" {% if sale and sale.is_installment_sale %}checked{% endif %}>
+                                                    <label class="form-check-label fw-bold text-dark" for="id_is_installment_sale">
+                                                        <i class="fas fa-calendar-alt text-primary me-1"></i> بيع بالتقسيط (جدولة أقساط)
+                                                    </label>
+                                                </div>
+                                            </div>
+
                                             <div class="col-12 col-md-6" id="down-payment-field" style="display: none;">
                                                 <label class="form-label text-dark fw-medium">
                                                     مبلغ الدفعة المقدمة <span class="text-muted small">(اختياري)</span>
@@ -331,6 +341,116 @@
                         </div>
                         <!-- حقول مخصصة معروضة بالرأس العلوي -->
                         <div id="header-custom-fields-container" class="row g-3 mt-2"></div>
+                    </div>
+                </div>
+
+                <!-- قسم جدولة الأقساط والتمويل (مخفي افتراضياً ويظهر عند تفعيل البيع بالتقسيط) -->
+                <div class="section-container mb-4" id="installment-plan-section"{% if not sale or not sale.is_installment_sale %} style="display: none;"{% endif %}>
+                    <h5 class="section-title"><i class="fas fa-calendar-check me-2"></i>بيانات خطة وجدولة الأقساط والضمانات</h5>
+                    <div class="p-3">
+                        <div class="row g-3 mb-3">
+                            <!-- نوع خطة التقسيط -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">نوع العقد / التمويل</label>
+                                <select name="installment_plan_type" id="id_installment_plan_type" class="form-select select2" dir="rtl">
+                                    <option value="ASSET_FINANCING" {% if not sale or not sale.installment_plan or sale.installment_plan.plan_type == 'ASSET_FINANCING' %}selected{% endif %}>تمويل أصول وماكينات</option>
+                                    <option value="SUPPLY_CONTRACT" {% if sale and sale.installment_plan and sale.installment_plan.plan_type == 'SUPPLY_CONTRACT' %}selected{% endif %}>عقد توريد مطبوعات دوري</option>
+                                </select>
+                            </div>
+
+                            <!-- عدد الأقساط -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">عدد الأقساط <span class="text-danger">*</span></label>
+                                <input type="number" name="number_of_installments" id="id_number_of_installments" class="form-control text-center" min="1" max="120" value="{% if sale and sale.installment_plan %}{{ sale.installment_plan.number_of_installments }}{% else %}12{% endif %}">
+                            </div>
+
+                            <!-- دورية الاستحقاق -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">دورية السداد</label>
+                                <select name="installment_frequency" id="id_installment_frequency" class="form-select select2" dir="rtl">
+                                    <option value="MONTHLY" {% if not sale or not sale.installment_plan or sale.installment_plan.frequency == 'MONTHLY' %}selected{% endif %}>شهري (Monthly)</option>
+                                    <option value="QUARTERLY" {% if sale and sale.installment_plan and sale.installment_plan.frequency == 'QUARTERLY' %}selected{% endif %}>ربع سنوي (Quarterly)</option>
+                                    <option value="BIWEEKLY" {% if sale and sale.installment_plan and sale.installment_plan.frequency == 'BIWEEKLY' %}selected{% endif %}>كل أسبوعين (Bi-weekly)</option>
+                                </select>
+                            </div>
+
+                            <!-- نسبة الفائدة التمويلية / المرابحة % -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">نسبة الفائدة / المرابحة %</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" name="markup_rate" id="id_markup_rate" class="form-control text-center" min="0" placeholder="0.000" value="{% if sale and sale.installment_plan %}{{ sale.installment_plan.markup_rate }}{% elif sale and sale.markup_rate %}{{ sale.markup_rate }}{% else %}0.000{% endif %}">
+                                    <span class="input-group-text bg-light text-muted">%</span>
+                                </div>
+                            </div>
+
+                            <!-- تاريخ بدء أول قسط -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">تاريخ استحقاق أول قسط</label>
+                                <input type="text" data-date-picker name="installment_start_date" id="id_installment_start_date" class="form-control text-center" value="{% if sale and sale.installment_plan and sale.installment_plan.start_date %}{{ sale.installment_plan.start_date|date:'Y-m-d' }}{% endif %}">
+                            </div>
+
+                            <!-- اسم الضامن / الكفيل الغارم -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">اسم الضامن / الكفيل</label>
+                                <input type="text" name="guarantor_name" id="id_guarantor_name" class="form-control" placeholder="الاسم الرباعي للضامن" value="{% if sale and sale.installment_plan and sale.installment_plan.guarantor_name %}{{ sale.installment_plan.guarantor_name }}{% endif %}">
+                            </div>
+
+                            <!-- الرقم القومي للضامن -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">الرقم القومي للضامن</label>
+                                <input type="text" name="guarantor_national_id" id="id_guarantor_national_id" class="form-control text-center" maxlength="14" placeholder="14 رقم" value="{% if sale and sale.installment_plan and sale.installment_plan.guarantor_national_id %}{{ sale.installment_plan.guarantor_national_id }}{% endif %}">
+                            </div>
+
+                            <!-- هاتف الضامن -->
+                            <div class="col-12 col-md-3">
+                                <label class="form-label fw-medium">هاتف الضامن</label>
+                                <input type="text" name="guarantor_phone" id="id_guarantor_phone" class="form-control text-center" placeholder="رقم الموبايل" value="{% if sale and sale.installment_plan and sale.installment_plan.guarantor_phone %}{{ sale.installment_plan.guarantor_phone }}{% endif %}">
+                            </div>
+                        </div>
+
+                        <!-- ملخص الحسبة والجدول المباشر -->
+                        <div class="p-3 rounded border mb-3" id="installment-calc-summary" style="display: none; background-color: var(--bs-tertiary-bg, var(--background-secondary, #f8f9fa));">
+                            <div class="row g-2 text-center">
+                                <div class="col-6 col-md-2">
+                                    <span class="text-muted small d-block">قيمة الفاتورة</span>
+                                    <strong class="fs-6 text-dark" id="calc-claim-val">0.00</strong>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <span class="text-muted small d-block">الدفعة المقدمة</span>
+                                    <strong class="fs-6 text-success" id="calc-downpay-val">0.00</strong>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <span class="text-muted small d-block">أصل الدين الممول</span>
+                                    <strong class="fs-6 text-primary" id="calc-principal-val">0.00</strong>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <span class="text-muted small d-block">إجمالي الفائدة / المرابحة</span>
+                                    <strong class="fs-6 text-warning" id="calc-markup-val">0.00</strong>
+                                </div>
+                                <div class="col-12 col-md-4">
+                                    <span class="text-muted small d-block">إجمالي العقد بالتقسيط</span>
+                                    <strong class="fs-5 text-dark" id="calc-contract-val">0.00</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- جدول معاينة الأقساط الحي -->
+                        <div class="table-responsive border rounded" id="installment-preview-table-wrapper" style="display: none; max-height: 280px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-hover mb-0 text-center" id="installment-preview-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>أصل القسط</th>
+                                        <th>الفائدة التمويلية</th>
+                                        <th>إجمالي القسط</th>
+                                        <th>فترة السماح</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="installment-preview-tbody">
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1914,6 +2034,104 @@
             } catch(e) {
                 console.error("Error parsing posted items JSON:", e);
             }
+        }
+
+        // ==========================================
+        // ميكنة جدولة الأقساط والمعاينة الحية (Live Schedule Preview)
+        // ==========================================
+        var installmentDebounceTimer = null;
+
+        function refreshInstallmentPreview() {
+            var isInstallment = $('#id_is_installment_sale').is(':checked');
+            if (!isInstallment) {
+                $('#installment-plan-section').slideUp(200);
+                $('#installment-calc-summary').hide();
+                $('#installment-preview-table-wrapper').hide();
+                return;
+            }
+
+            $('#installment-plan-section').slideDown(200);
+            $('#down-payment-field').show();
+
+            var totalVal = parseFloat(($('#invoice-total').text() || '0').replace(/[^\d.-]/g, '')) || 0;
+            var subtotalVal = parseFloat(($('#invoice-subtotal').text() || '0').replace(/[^\d.-]/g, '')) || 0;
+            var discountVal = parseFloat($('#id_discount').val()) || 0;
+            var numInstallments = parseInt($('#id_number_of_installments').val()) || 1;
+            var markupRate = parseFloat($('#id_markup_rate').val()) || 0;
+            var downPayment = parseFloat($('#id_down_payment_amount').val()) || 0;
+            var frequency = $('#id_installment_frequency').val() || 'MONTHLY';
+            var startDate = $('#id_installment_start_date').val() || '';
+            var customerId = $('#id_customer').val() || '';
+            var saleId = $('#django-sales-form-data').data('sale-id') || '';
+
+            if (totalVal <= 0) {
+                $('#installment-calc-summary').hide();
+                $('#installment-preview-table-wrapper').hide();
+                return;
+            }
+
+            clearTimeout(installmentDebounceTimer);
+            installmentDebounceTimer = setTimeout(function() {
+                $.ajax({
+                    url: '/sales/installments/preview-schedule/',
+                    type: 'GET',
+                    data: {
+                        sale_id: saleId,
+                        customer_id: customerId,
+                        subtotal: subtotalVal,
+                        discount: discountVal,
+                        total: totalVal,
+                        number_of_installments: numInstallments,
+                        markup_rate: markupRate,
+                        down_payment: downPayment,
+                        frequency: frequency,
+                        start_date: startDate
+                    },
+                    success: function(resp) {
+                        if (resp.success) {
+                            var s = resp.summary;
+                            $('#calc-claim-val').text(s.tax_inclusive_claim.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م');
+                            $('#calc-downpay-val').text(s.effective_down_payment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م');
+                            $('#calc-principal-val').text(s.net_financed_principal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م');
+                            $('#calc-markup-val').text(s.total_markup.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م');
+                            $('#calc-contract-val').text(s.contract_total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م');
+                            $('#installment-calc-summary').fadeIn(150);
+
+                            var tbody = $('#installment-preview-tbody');
+                            tbody.empty();
+                            resp.items.forEach(function(item) {
+                                var rowHtml = '<tr>' +
+                                    '<td class="fw-bold">' + item.installment_number + '</td>' +
+                                    '<td>' + item.due_date + '</td>' +
+                                    '<td class="text-primary fw-medium">' + item.principal_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+                                    '<td class="text-warning fw-medium">' + item.interest_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+                                    '<td class="fw-bold text-dark">' + item.total_amount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+                                    '<td class="text-muted small">' + item.grace_period_days + ' يوم</td>' +
+                                    '</tr>';
+                                tbody.append(rowHtml);
+                            });
+                            $('#installment-preview-table-wrapper').fadeIn(150);
+                        }
+                    },
+                    error: function(xhr) {
+                        console.warn("Installment preview calculation:", xhr.responseText);
+                    }
+                });
+            }, 300);
+        }
+
+        $(document).on('change', '#id_is_installment_sale', function() {
+            refreshInstallmentPreview();
+        });
+
+        $(document).on('input change', '#id_number_of_installments, #id_markup_rate, #id_down_payment_amount, #id_installment_frequency, #id_installment_start_date', function() {
+            if ($('#id_is_installment_sale').is(':checked')) {
+                refreshInstallmentPreview();
+            }
+        });
+
+        if ($('#id_is_installment_sale').is(':checked')) {
+            setTimeout(refreshInstallmentPreview, 600);
         }
     })();
 </script>

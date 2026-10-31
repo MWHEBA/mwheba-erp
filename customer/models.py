@@ -151,6 +151,13 @@ class Customer(models.Model):
     credit_limit = models.DecimalField(
         _("الحد الائتماني"), max_digits=12, decimal_places=2, default=0
     )
+    installment_credit_limit = models.DecimalField(
+        _("الحد الائتماني لأقساط البيع"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+    )
     balance = models.DecimalField(
         _("الرصيد الحالي"), max_digits=12, decimal_places=2, default=0
     )
@@ -698,6 +705,13 @@ class CustomerCreditProfile(models.Model):
 
     customer = models.OneToOneField(Customer, on_delete=models.CASCADE, related_name="credit_profile", verbose_name=_("العميل"))
     credit_limit = models.DecimalField(_("حد الائتمان المرخص"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    installment_credit_limit = models.DecimalField(
+        _("الحد الائتماني لأقساط البيع"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+    )
     currency = models.CharField(_("العملة"), max_length=3, default="EGP")
     payment_terms = models.CharField(_("شروط الدفع النصية"), max_length=50, default="NET_30")
     default_payment_term = models.ForeignKey(PaymentTerm, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("شروط الدفع المعيارية"))

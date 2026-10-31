@@ -180,7 +180,34 @@ class SaleService:
             # 3. حساب الإجماليات
             sale.refresh_from_db()
             SaleService._calculate_totals(sale)
-            
+
+            # معالجة وتوليد خطة التقسيط ذرياً قبل إنشاء القيد المحاسبي
+            if data.get('is_installment_sale'):
+                sale.is_installment_sale = True
+                sale.save(update_fields=['is_installment_sale'])
+                from sale.services.installment_engine import InstallmentEngine
+                num_inst = int(data.get('number_of_installments', 1) or 1)
+                m_rate = Decimal(str(data.get('markup_rate', '0') or '0'))
+                p_type = data.get('plan_type') or 'ASSET_FINANCING'
+                freq = data.get('frequency', 'MONTHLY')
+                st_date = data.get('first_installment_date')
+                down_payment = Decimal(str(data.get('fresh_down_payment') or data.get('down_payment') or '0.00'))
+                try:
+                    if not hasattr(sale, 'installment_plan') or not sale.installment_plan:
+                        InstallmentEngine.generate_installment_plan(
+                            sale=sale,
+                            user=user,
+                            number_of_installments=num_inst,
+                            markup_rate=m_rate,
+                            fresh_down_payment=down_payment,
+                            plan_type=p_type,
+                            frequency=freq,
+                            start_date=st_date,
+                        )
+                        sale.refresh_from_db()
+                except Exception as inst_err:
+                    logger.warning(f"ملاحظة أثناء إنشاء خطة التقسيط في create_sale: {inst_err}")
+
             # 4. إنشاء القيد المحاسبي عبر AccountingGateway
             journal_entry = SaleService._create_sale_journal_entry(sale, user)
             if journal_entry:
@@ -189,7 +216,11 @@ class SaleService:
                 logger.info(f"✅ تم ربط القيد المحاسبي: {journal_entry.number} بالفاتورة: {sale.number}")
             
             # 5. إنشاء حركات المخزون عبر MovementService (فقط إذا لم تكن البضاعة مسلمة مسبقاً بإذن تسليم)
-            if not sale.delivery_note_id:
+            is_supply_contract = getattr(sale, 'is_installment_sale', False) and (
+                getattr(sale, 'plan_type', '') == 'SUPPLY_CONTRACT' or
+                (hasattr(sale, 'installment_plan') and getattr(sale.installment_plan, 'plan_type', '') == 'SUPPLY_CONTRACT')
+            )
+            if not sale.delivery_note_id and not is_supply_contract:
                 SaleService._create_stock_movements(sale, user)
 
             # 6. تحديث رصيد العميل دفترياً والأستاذ المساعد
@@ -197,7 +228,8 @@ class SaleService:
                 from financial.services.partner_subledger_service import PartnerSubledgerService
                 from financial.services.partner_balance_service import PartnerBalanceService
                 PartnerSubledgerService.record_sale_invoice(sale, user)
-                PartnerBalanceService.apply_document_delta("customer", sale.customer.id, sale.total_functional, is_addition=True)
+                target_amount = sale.contract_total_functional if (getattr(sale, 'is_installment_sale', False) and sale.contract_total_functional) else sale.total_functional
+                PartnerBalanceService.apply_document_delta("customer", sale.customer.id, target_amount, is_addition=True)
             
             logger.info(f"✅ تم إنشاء فاتورة المبيعات بنجاح: {sale.number}")
             return sale
@@ -785,11 +817,12 @@ class SaleService:
             cust_suffix = f" - {customer_name}" if customer_name else ""
             
             # مدين: العملاء / الخزينة / البنك (بصافي المستحق على الفاتورة)
-            if sale.total > Decimal('0'):
+            target_debit_amount = sale.contract_total if (getattr(sale, 'is_installment_sale', False) and sale.contract_total) else sale.total
+            if target_debit_amount > Decimal('0'):
                 lines.append(
                     JournalEntryLineData(
                         account_code=debit_account.code,
-                        debit=sale.total,
+                        debit=target_debit_amount,
                         credit=Decimal('0'),
                         description=f'مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
@@ -858,6 +891,35 @@ class SaleService:
                         first_k = next(iter(revenue_groups))
                         revenue_groups[first_k] += sale.tax
 
+            # دائن: فوائد تقسيط غير محققة (21400) في حالة البيع بالتقسيط
+            if getattr(sale, 'is_installment_sale', False) and getattr(sale, 'markup_amount', Decimal('0.00')) > Decimal('0'):
+                unearned_account = None
+                try:
+                    unearned_account = AccountRoleRegistry.get_account("INSTALLMENT_UNEARNED_INTEREST")
+                except Exception:
+                    unearned_account = ChartOfAccounts.objects.filter(code__in=['21400', '2140'], is_active=True).first()
+
+                if not unearned_account:
+                    try:
+                        unearned_account = ChartOfAccounts.objects.create(
+                            code='21400',
+                            name='فوائد تقسيط غير محققة',
+                            account_type='liability',
+                            is_active=True
+                        )
+                    except Exception:
+                        unearned_account = None
+
+                if unearned_account:
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=unearned_account.code,
+                            debit=Decimal('0'),
+                            credit=sale.markup_amount,
+                            description=f'فوائد تقسيط غير محققة مؤجلة - فاتورة {sale.number}{cust_suffix}'
+                        )
+                    )
+
             # دائن: سطور الإيرادات المفككة حسب كل مركز تكلفة
             for (rev_code, cc_id), rev_amt in revenue_groups.items():
                 if rev_amt > Decimal('0'):
@@ -899,7 +961,11 @@ class SaleService:
 
             # حماية Double-COGS Guard: مدين ودائن قيد التكلفة فقط إذا لم تكن البضاعة مسلمة مسبقاً بإذن تسليم
             is_pre_delivered = bool(sale.delivery_note_id or (sale.sales_order and sale.sales_order.delivery_notes.filter(status='DELIVERED').exists()))
-            if not is_pre_delivered and total_cogs > Decimal('0'):
+            is_supply_contract = getattr(sale, 'is_installment_sale', False) and (
+                getattr(sale, 'plan_type', '') == 'SUPPLY_CONTRACT' or
+                (hasattr(sale, 'installment_plan') and getattr(sale.installment_plan, 'plan_type', '') == 'SUPPLY_CONTRACT')
+            )
+            if not is_pre_delivered and not is_supply_contract and total_cogs > Decimal('0'):
                 for cc_id, cogs_amt in cogs_groups.items():
                     if cogs_amt > Decimal('0'):
                         lines.append(
@@ -1558,7 +1624,11 @@ class SaleService:
                     logger.warning(f"فشل حذف القيد المحاسبي: {str(e)}")
             
             # 2. استعادة رصيد المخزون بحذف حركات الصرف (الـ signal تعيد المخزون تلقائياً)
-            if not sale.delivery_note_id:
+            is_supply_contract = getattr(sale, 'is_installment_sale', False) and (
+                getattr(sale, 'plan_type', '') == 'SUPPLY_CONTRACT' or
+                (hasattr(sale, 'installment_plan') and getattr(sale.installment_plan, 'plan_type', '') == 'SUPPLY_CONTRACT')
+            )
+            if not sale.delivery_note_id and not is_supply_contract:
                 from product.models import StockMovement
                 # استخدام الفهرس المزدوج السريع (document_type, document_number)
                 movements = list(StockMovement.objects.filter(

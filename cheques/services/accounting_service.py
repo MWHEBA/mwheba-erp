@@ -1115,6 +1115,58 @@ class ChequeAccountingService:
         cheque.status = target_status
         cheque.save(update_fields=update_fields)
 
+        # عند تمام تحصيل الشيك: تحديث الأقساط المرتبطة وإطفاء فوائدها التمويلية
+        if action_log.action == ChequeActionType.COLLECT and cheque.status == ChequeStatus.COLLECTED:
+            for alloc in cheque.invoice_allocations.filter(allocation_status="APPLIED"):
+                if alloc.installment_item:
+                    try:
+                        inst_item = alloc.installment_item
+                        from sale.models.installments import InstallmentCashStatus, PlanStatus
+                        from cheques.services.allocation_service import ChequeAllocationService
+                        from financial.services.installment_amortization_service import InstallmentInterestAmortizationService
+
+                        unpaid_i = max(Decimal("0.00"), inst_item.interest_amount - inst_item.paid_interest - inst_item.waived_interest)
+                        i_share = min(alloc.allocated_amount, unpaid_i)
+                        p_share = alloc.allocated_amount - i_share
+
+                        inst_item.paid_principal += p_share
+                        inst_item.paid_interest += i_share
+                        inst_item.paid_amount += alloc.allocated_amount
+                        if inst_item.total_remaining_balance <= Decimal("0.00"):
+                            inst_item.cash_status = InstallmentCashStatus.COLLECTED
+                        inst_item.save()
+
+                        # إعادة احتساب التغطية الورقية
+                        ChequeAllocationService.recalculate_installment_paper_coverage(inst_item)
+
+                        # إطفاء الفائدة التمويلية المؤجلة
+                        try:
+                            InstallmentInterestAmortizationService.amortize_installment_interest(
+                                installment_item=inst_item,
+                                user=user,
+                                posting_date=value_date
+                            )
+                        except Exception as amort_err:
+                            logger.warning(f"Failed to amortize installment interest on cheque collect: {amort_err}")
+
+                        # التحقق من إغلاق الخطة
+                        plan = inst_item.plan
+                        sale = plan.sale
+                        if sale:
+                            sale.update_payment_status()
+                        all_collected = not plan.items.filter(
+                            cash_status__in=[
+                                InstallmentCashStatus.PENDING,
+                                InstallmentCashStatus.OVERDUE,
+                                InstallmentCashStatus.BOUNCED
+                            ]
+                        ).exists()
+                        if all_collected and sale and sale.amount_due <= Decimal("0.00"):
+                            plan.status = PlanStatus.COMPLETED
+                            plan.save(update_fields=['status'])
+                    except Exception as inst_err:
+                        logger.error(f"Error updating installment on cheque collect: {inst_err}")
+
     @classmethod
     def _handle_bounced_invoice_allocations(cls, cheque: Cheque, user, is_full_bounce: bool = True, action_log: Optional[ChequeActionLog] = None) -> None:
         """
@@ -1232,6 +1284,36 @@ class ChequeAccountingService:
                             pay_txn.open_amount_foreign = Decimal("0.00")
                             pay_txn.status = "CLOSED"
                             pay_txn.save()
+
+                    # معالجة القسط المرتبط في حال ارتداد شيك قسط تقسيط
+                    if alloc.installment_item:
+                        from sale.models.installments import InstallmentCashStatus, PlanStatus
+                        from cheques.services.allocation_service import ChequeAllocationService
+                        from cheques.services.commission_clawback_service import CommissionClawbackHook
+
+                        inst_item = alloc.installment_item
+                        inst_item.cash_status = InstallmentCashStatus.BOUNCED
+                        inst_item.save(update_fields=['cash_status'])
+
+                        # إعادة احتساب التغطية الورقية للقسط
+                        ChequeAllocationService.recalculate_installment_paper_coverage(inst_item)
+
+                        # إعادة فتح خطة التقسيط إذا كانت قد أغلقت
+                        plan = inst_item.plan
+                        if plan.status == PlanStatus.COMPLETED:
+                            plan.status = PlanStatus.ACTIVE
+                            plan.save(update_fields=['status'])
+
+                        # استدعاء خطاف استرداد العمولة
+                        try:
+                            CommissionClawbackHook.handle_cheque_bounce(
+                                cheque=cheque,
+                                installment_item=inst_item,
+                                user=user,
+                                reason="CHEQUE_BOUNCE"
+                            )
+                        except Exception as hook_err:
+                            logger.error(f"CommissionClawbackHook error on bounce: {hook_err}")
                 else:
                     # ارتداد جزئي: تعديل مبلغ السداد ليقتصر على الحصة المحصلة فقط
                     ratio = (cheque.collected_amount / cheque.amount) if cheque.amount else Decimal("0.00")

@@ -1371,11 +1371,42 @@ def customer_detail(request, pk):
     # حساب الرصيد المتاح (credit_limit - المديونية الفعلية)
     # المديونية = إجمالي المبيعات - إجمالي المدفوعات (فواتير + تحت الحساب)
     actual_debt = total_sales - total_payments
+
+    # 10. جلب أقساط التقسيط والشيكات المرتبطة بالعميل
+    from sale.models.installments import InstallmentPlan, InstallmentItem
+    from cheques.models.cheque import Cheque
+
+    customer_installment_plans = list(
+        InstallmentPlan.objects.filter(sale__customer=customer)
+        .select_related("sale")
+        .prefetch_related("items")
+        .order_by("-id")
+    )
+    customer_installments = list(
+        InstallmentItem.objects.filter(plan__sale__customer=customer)
+        .select_related("plan", "plan__sale")
+        .order_by("due_date", "installment_number")
+    )
+    customer_cheques = list(
+        Cheque.objects.filter(customer=customer, cheque_type="RECEIVABLE")
+        .select_related("currency", "deposit_bank_account")
+        .order_by("-due_date", "-id")
+    )
+
+    total_installment_debt = sum(it.remaining_balance for it in customer_installments)
+    total_portfolio_cheques = sum(ch.amount for ch in customer_cheques if ch.status in ["IN_SAFE", "BANK_DEPOSITED"])
     available_credit = customer.credit_limit - actual_debt if customer.credit_limit else 0
     
     context = {
         "customer": customer,
         "available_credit": available_credit,
+        "customer_installment_plans": customer_installment_plans,
+        "customer_installments": customer_installments,
+        "customer_installments_count": len(customer_installments),
+        "customer_cheques": customer_cheques,
+        "customer_cheques_count": len(customer_cheques),
+        "total_installment_debt": total_installment_debt,
+        "total_portfolio_cheques": total_portfolio_cheques,
         "quick_action_buttons": quick_action_buttons,
         "payments": payments,
         "invoices": invoices,
