@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "المصفوفة المعمارية التفاعلية" %} - {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.unit-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+.matrix-container {
+  overflow-x: auto;
+  max-width: 100%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الوحدات" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ total_units }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-3">
+            <i class="fas fa-th"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المتاحة" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ available_count }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-3">
+            <i class="fas fa-door-open"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المحجوزة" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ reserved_count }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-3">
+            <i class="fas fa-bookmark"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المتعاقد عليها" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ contracted_count }}</div>
+          </div>
+          <div class="stats-card-icon text-primary fs-3">
+            <i class="fas fa-file-signature"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-secondary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المجمدة" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ blocked_count }}</div>
+          </div>
+          <div class="stats-card-icon text-secondary fs-3">
+            <i class="fas fa-lock"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "قيمة المحفظة" %}</div>
+            <div class="stats-card-value h6 mb-0 fw-bold text-dark">{{ total_portfolio_value|floatformat:0|intcomma }}</div>
+            <small class="text-muted">{{ project.currency.code|default:"" }}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-3">
+            <i class="fas fa-coins"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter & Legend Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-body p-3">
+        <div class="row align-items-center g-3">
+          <div class="col-12 col-lg-6">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+              <span class="small fw-bold text-dark">{% trans "دليل الحالات" %}:</span>
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>{% trans "متاحة للبيع" %}
+              </span>
+              <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+                <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>{% trans "محجوزة مؤقتاً" %}
+              </span>
+              <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>{% trans "مباعة / متعاقد عليها" %}
+              </span>
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>{% trans "مجمدة إدارياً" %}
+              </span>
+            </div>
+          </div>
+          <div class="col-12 col-lg-6">
+            <div class="d-flex justify-content-lg-end gap-2">
+              <input type="text" id="matrix-search" class="form-control form-control-sm w-auto" placeholder="{% trans 'بحث بكود الوحدة...' %}">
+              <select id="matrix-status-filter" class="form-select form-select-sm w-auto">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                <option value="AVAILABLE">{% trans "متاحة فقط" %}</option>
+                <option value="RESERVED">{% trans "محجوزة" %}</option>
+                <option value="CONTRACTED">{% trans "متعاقد عليها" %}</option>
+                <option value="BLOCKED">{% trans "مجمدة" %}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Architectural Matrix Layout -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-th-large text-primary me-2"></i>{% trans "المصفوفة المعمارية لطوابق المشروع" %}
+        </h5>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+          {{ project.name }} ({{ floors_data|length }} {% trans "طوابق" %})
+        </span>
+      </div>
+      <div class="card-body p-3 matrix-container" id="matrix-container">
+        {% for floor_data in floors_data %}
+          {% include "real_estate/partials/matrix_floor_row.html" with floor_data=floor_data %}
+        {% empty %}
+          <div class="text-center py-5 text-muted">
+            <i class="fas fa-layer-group fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
+            <p class="h6 mb-2">{% trans "لا توجد طوابق أو وحدات معمارية مسجلة لهذا المشروع" %}</p>
+            <p class="small text-muted">{% trans "يمكنك إضافة طوابق ووحدات من شاشة إدارة الوحدات." %}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Quick View & Booking Placeholders -->
+<div class="modal fade" id="unitDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-info-circle text-primary me-2"></i>{% trans "بطاقة تفاصيل الوحدة المعمارية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4" id="unit-detail-modal-body">
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top px-4 py-3" id="unit-detail-modal-footer">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "real_estate/modals/book_unit_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modalEl = document.getElementById('unitDetailModal');
+  const unitModal = new bootstrap.Modal(modalEl);
+  const modalBody = document.getElementById('unit-detail-modal-body');
+  const modalFooter = document.getElementById('unit-detail-modal-footer');
+
+  // Interactive Tile Click -> Fetch Details
+  document.querySelectorAll('.unit-tile').forEach(function(tile) {
+    tile.addEventListener('click', function() {
+      const unitId = this.getAttribute('data-unit-id');
+      modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">{% trans "جاري تحميل تفاصيل الوحدة..." %}</div></div>';
+      modalFooter.innerHTML = '<button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>';
+      unitModal.show();
+
+      fetch(`/real-estate/api/units/${unitId}/detail/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const u = data.unit;
+          let badgeClass = 'bg-secondary';
+          if (u.status === 'AVAILABLE') badgeClass = 'bg-success';
+          else if (u.status === 'RESERVED') badgeClass = 'bg-warning text-dark';
+          else if (u.status === 'CONTRACTED') badgeClass = 'bg-info text-dark';
+
+          modalBody.innerHTML = `
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <span class="text-muted d-block small mb-1">{% trans "كود الوحدة" %}</span>
+                <span class="fs-4 fw-bold font-monospace text-primary">${u.unit_code}</span>
+              </div>
+              <div class="col-12 col-md-6 text-md-end">
+                <span class="text-muted d-block small mb-1">{% trans "حالة الوحدة" %}</span>
+                <span class="badge ${badgeClass} fs-6 px-3 py-1">${u.status_display}</span>
+              </div>
+              <div class="col-12"><hr class="my-1 opacity-25"></div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small">{% trans "المشروع" %}</span>
+                <strong class="text-dark">${u.project_name}</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small">{% trans "البلوك / الطابق" %}</span>
+                <strong class="text-dark">${u.block_name || '-'} / ${u.floor_name || u.floor_number}</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small">{% trans "المساحة الإجمالية" %}</span>
+                <strong class="text-dark">${u.gross_area} م²</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small">{% trans "الغرف / الحمامات" %}</span>
+                <strong class="text-dark">${u.rooms_count || 0} / ${u.bathrooms_count || 0}</strong>
+              </div>
+              <div class="col-12"><hr class="my-1 opacity-25"></div>
+              <div class="col-6 col-md-6">
+                <span class="text-muted d-block small">{% trans "سعر المتر" %}</span>
+                <span class="fs-5 fw-bold text-secondary">${Number(u.meter_price).toLocaleString()} ${u.currency}</span>
+              </div>
+              <div class="col-6 col-md-6 text-md-end">
+                <span class="text-muted d-block small">{% trans "السعر الإجمالي للوحدة" %}</span>
+                <span class="fs-4 fw-bold text-success">${Number(u.total_price).toLocaleString()} ${u.currency}</span>
+              </div>
+            </div>
+          `;
+
+          let actionButtons = `
+            <a href="/real-estate/units/${u.id}/" class="btn btn-outline-secondary px-3">
+              <i class="fas fa-external-link-alt me-1"></i>{% trans "فتح الصفحة الكاملة" %}
+            </a>
+            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+          `;
+          modalFooter.innerHTML = actionButtons;
+        } else {
+          modalBody.innerHTML = `<div class="alert alert-danger mb-0">${data.error || '{% trans "تعذر جلب تفاصيل الوحدة." %}'}</div>`;
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        modalBody.innerHTML = '<div class="alert alert-danger mb-0">{% trans "حدث خطأ أثناء الاتصال بالخادم." %}</div>';
+      });
+    });
+  });
+
+  // Client-side filtering on matrix
+  const searchInput = document.getElementById('matrix-search');
+  const statusFilter = document.getElementById('matrix-status-filter');
+
+  function filterMatrix() {
+    const q = searchInput.value.trim().toUpperCase();
+    const st = statusFilter.value;
+
+    document.querySelectorAll('.unit-tile-wrapper').forEach(function(wrapper) {
+      const tile = wrapper.querySelector('.unit-tile');
+      const code = tile.getAttribute('data-unit-code').toUpperCase();
+      const status = tile.getAttribute('data-unit-status');
+
+      const matchQ = !q || code.includes(q);
+      const matchStatus = !st || status === st;
+
+      if (matchQ && matchStatus) {
+        wrapper.style.display = '';
+      } else {
+        wrapper.style.display = 'none';
+      }
+    });
+  }
+
+  searchInput.addEventListener('input', filterMatrix);
+  statusFilter.addEventListener('change', filterMatrix);
+});
+</script>
+{% endblock %}

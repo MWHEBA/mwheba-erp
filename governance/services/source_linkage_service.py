@@ -75,6 +75,23 @@ class SourceLinkageService:
         'sale.InstallmentItem',
         'sale.InstallmentPlan',
         'sale.InstallmentSettlement',
+        'real_estate.PropertyContract',
+        'real_estate.UnitBooking',
+        'real_estate.PropertyUnit',
+        'real_estate.RealEstateProject',
+        'real_estate.InstallmentPaymentTransaction',
+        'real_estate.BrokerCommission',
+        'real_estate.RealEstateBroker',
+        'real_estate.ContractorProgressCertificate',
+        'real_estate.PropertyHandoverReceipt',
+        'real_estate.BuildingFacilitySubledger',
+        'real_estate.MaintenanceFundOperation',
+        'real_estate.WarrantyTicket',
+        'real_estate.UnitSwapRecord',
+        'real_estate.ContractAssignmentEndorsement',
+        'real_estate.SharedInfrastructureApportionment',
+        'real_estate.AsBuiltSurveyAdjustment',
+        'real_estate.ResaleContingentRefund',
     }
     
     @classmethod

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+{% if is_edit %}{% trans "تعديل مشروع" %}: {{ project.name }}{% else %}{% trans "إضافة مشروع عقاري جديد" %}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-building text-primary me-2"></i>
+              {% if is_edit %}{% trans "تعديل بيانات المشروع العقاري" %}{% else %}{% trans "بيانات المشروع العقاري الجديد" %}{% endif %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <form method="post" id="project-form">
+              {% csrf_token %}
+
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                  <label for="id_code" class="form-label fw-semibold text-dark">
+                    {% trans "كود المشروع" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" name="code" id="id_code" class="form-control text-uppercase font-monospace"
+                         value="{{ project.code|default:'' }}" required placeholder="مثال: PRJ-01">
+                  <small class="text-muted">{% trans "كود فريد يمثل المشروع في الحسابات والعقود" %}</small>
+                </div>
+
+                <div class="col-12 col-md-8">
+                  <label for="id_name" class="form-label fw-semibold text-dark">
+                    {% trans "اسم المشروع العقاري" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" name="name" id="id_name" class="form-control"
+                         value="{{ project.name|default:'' }}" required placeholder="{% trans 'اسم البرج أو الكمبوند' %}">
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label for="id_project_type" class="form-label fw-semibold text-dark">
+                    {% trans "نوع المشروع" %}
+                  </label>
+                  <select name="project_type" id="id_project_type" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in type_choices %}
+                    <option value="{{ val }}" {% if project.project_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label for="id_status" class="form-label fw-semibold text-dark">
+                    {% trans "الحالة الإنشائية" %}
+                  </label>
+                  <select name="status" id="id_status" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in status_choices %}
+                    <option value="{{ val }}" {% if project.status == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-map-marker-alt text-primary me-2"></i>{% trans "الموقع والمساحات" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_city" class="form-label text-dark">{% trans "المدينة" %}</label>
+                  <input type="text" name="city" id="id_city" class="form-control" value="{{ project.city|default:'' }}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_district" class="form-label text-dark">{% trans "الحي / المنطقة" %}</label>
+                  <input type="text" name="district" id="id_district" class="form-control" value="{{ project.district|default:'' }}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_total_land_area" class="form-label text-dark">{% trans "إجمالي مساحة الأرض (م²)" %}</label>
+                  <input type="number" step="0.01" name="total_land_area" id="id_total_land_area" class="form-control"
+                         value="{{ project.total_land_area|default:'0.00' }}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_gross_built_area" class="form-label text-dark">{% trans "إجمالي المساحة المبنية GBA (م²)" %}</label>
+                  <input type="number" step="0.01" name="gross_built_area" id="id_gross_built_area" class="form-control"
+                         value="{{ project.gross_built_area|default:'0.00' }}">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "الجداول الزمنية والحسابات المالية" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_start_date" class="form-label text-dark">{% trans "تاريخ بدء التنفيذ" %}</label>
+                  <input type="date" name="start_date" id="id_start_date" class="form-control"
+                         value="{{ project.start_date|date:'Y-m-d'|default:'' }}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_expected_completion_date" class="form-label text-dark">{% trans "تاريخ التسليم المتوقع" %}</label>
+                  <input type="date" name="expected_completion_date" id="id_expected_completion_date" class="form-control"
+                         value="{{ project.expected_completion_date|date:'Y-m-d'|default:'' }}">
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label for="id_currency" class="form-label text-dark">{% trans "عملة المشروع" %}</label>
+                  <select name="currency" id="id_currency" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "العملة الافتراضية للنظام" %}</option>
+                    {% for curr in currencies %}
+                    <option value="{{ curr.id }}" {% if project.currency_id == curr.id %}selected{% endif %}>
+                      {{ curr.code }} - {{ curr.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label for="id_escrow_account" class="form-label text-dark">{% trans "حساب الضمان البنكي (Escrow)" %}</label>
+                  <select name="escrow_account" id="id_escrow_account" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "اختر حساب الضمان إن وجد" %}</option>
+                    {% for acc in escrow_accounts %}
+                    <option value="{{ acc.id }}" {% if project.escrow_account_id == acc.id %}selected{% endif %}>
+                      {{ acc.code }} - {{ acc.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% if is_edit %}{% url 'real_estate:project_detail' pk=project.id %}{% else %}{% url 'real_estate:project_list' %}{% endif %}" class="btn btn-secondary px-4">
+                  {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-save me-1"></i>
+                  {% if is_edit %}{% trans "حفظ التعديلات" %}{% else %}{% trans "إنشاء المشروع" %}{% endif %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

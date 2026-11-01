@@ -1,0 +1,81 @@
+{% load i18n humanize %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="contracts-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3" style="width: 140px;">{% trans "رقم العقد" %}</th>
+        <th>{% trans "العميل الرئيسي" %}</th>
+        <th>{% trans "الوحدة / المشروع" %}</th>
+        <th>{% trans "تاريخ العقد" %}</th>
+        <th class="text-end">{% trans "القيمة التعاقدية" %}</th>
+        <th class="text-end">{% trans "المقدم المسدد" %}</th>
+        <th class="text-center">{% trans "حالة العقد" %}</th>
+        <th class="text-center pe-3" style="width: 140px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contracts %}
+      <tr class="clickable-row" data-href="{% url 'real_estate:contract_detail' pk=c.id %}" style="cursor: pointer;">
+        <td class="ps-3 fw-bold font-monospace text-primary">{{ c.contract_number }}</td>
+        <td>
+          <div class="fw-semibold text-dark">{{ c.customer.name }}</div>
+          {% if c.customer.phone %}
+          <small class="text-muted"><i class="fas fa-phone me-1"></i>{{ c.customer.phone }}</small>
+          {% endif %}
+        </td>
+        <td>
+          <div class="fw-bold font-monospace text-dark">{{ c.unit.unit_code }}</div>
+          <small class="text-muted">{{ c.project.name }}</small>
+        </td>
+        <td>{{ c.contract_date|date:"Y-m-d" }}</td>
+        <td class="text-end fw-bold text-dark">
+          {{ c.final_contract_price|floatformat:2|intcomma }}
+          {% if c.currency %}<small class="text-muted">{{ c.currency.code }}</small>{% endif %}
+        </td>
+        <td class="text-end fw-semibold text-success">
+          {{ c.down_payment|floatformat:2|intcomma }}
+        </td>
+        <td class="text-center">
+          {% if c.status == 'ACTIVE' %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "سارٍ ونشط" %}</span>
+          {% elif c.status == 'COMPLETED' %}
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{% trans "مكتمل ومخالص" %}</span>
+          {% elif c.status == 'TERMINATED' %}
+          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{% trans "مفسوخ" %}</span>
+          {% elif c.status == 'LEGAL_DISPUTE' %}
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "نزاع قضائي" %}</span>
+          {% else %}
+          <span class="badge bg-light text-dark border">{{ c.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-center pe-3" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'real_estate:contract_detail' pk=c.id %}" class="btn btn-outline-secondary" title="{% trans 'التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'real_estate:contract_clearance_print' pk=c.id %}" class="btn btn-outline-success" target="_blank" title="{% trans 'شهادة المخالصة' %}">
+              <i class="fas fa-certificate"></i>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-5 text-muted">
+          <div class="py-4">
+            <i class="fas fa-file-contract fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
+            <p class="h6 mb-2">{% trans "لم يتم العثور على أي عقود بيع عقارية" %}</p>
+            <p class="small text-muted mb-3">{% trans "يمكنك إبرام عقد جديد أو تحويل حجز قائم." %}</p>
+            {% if perms.real_estate.add_propertycontract or user.is_superuser %}
+            <a href="{% url 'real_estate:contract_create' %}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إبرام عقد جديد" %}
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

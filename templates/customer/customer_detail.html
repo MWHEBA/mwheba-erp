@@ -5,6 +5,7 @@
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 {% load utils_extras %}
+{% load module_tags %}
 
 {% block title %}{{ customer.name }} - {% trans "تفاصيل العميل" %}{% endblock %}
 
@@ -208,6 +209,15 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ customer_installments_count|default:"0" }}</span>
           </button>
         </li>
+        {% is_module_enabled 'real_estate' as real_estate_enabled %}
+        {% if real_estate_enabled %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="real-estate-tab" data-bs-toggle="tab" data-bs-target="#real-estate-tab-pane" type="button" role="tab" aria-controls="real-estate-tab-pane" aria-selected="false">
+            <i class="fas fa-building me-2"></i>{% trans "العقارات والحجوزات" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ customer.property_contracts.count|default:"0" }}</span>
+          </button>
+        </li>
+        {% endif %}
       </ul>
     </div>
     <div class="card-body p-3">
@@ -684,6 +694,13 @@
         <div class="tab-pane fade" id="installments-tab-pane" role="tabpanel" aria-labelledby="installments-tab" tabindex="0">
           {% include "customer/partials/customer_installments_tab.html" %}
         </div>
+
+        {% is_module_enabled 'real_estate' as real_estate_enabled %}
+        {% if real_estate_enabled %}
+        <div class="tab-pane fade" id="real-estate-tab-pane" role="tabpanel" aria-labelledby="real-estate-tab" tabindex="0">
+          {% include "customer/partials/customer_real_estate_tab.html" %}
+        </div>
+        {% endif %}
 
         <div class="tab-pane fade" id="aging-tab-pane" role="tabpanel" aria-labelledby="aging-tab" tabindex="0">
           <div id="aging-loading-spinner" class="text-center py-4">

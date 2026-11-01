@@ -22,6 +22,8 @@ class ChequeInvoiceAllocation(models.Model):
     sale = models.ForeignKey(
         'sale.Sale',
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='cheque_allocations',
         verbose_name=_('فاتورة المبيعات')
     )
@@ -84,4 +86,5 @@ class ChequeInvoiceAllocation(models.Model):
         ordering = ['-allocation_date', '-id']
 
     def __str__(self):
-        return f"{self.cheque.voucher_number} -> {self.sale.number} ({self.allocated_amount})"
+        target = self.sale.number if self.sale else (f"قسط #{self.installment_item.installment_number}" if self.installment_item else f"ALLOC-{self.pk or 'NEW'}")
+        return f"{self.cheque.voucher_number} -> {target} ({self.allocated_amount})"

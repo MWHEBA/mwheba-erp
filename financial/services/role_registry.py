@@ -74,6 +74,26 @@ class AccountRoleNames(str, Enum):
     INSTALLMENT_LATE_FEES = "installment_late_fees"
     INSTALLMENT_EARLY_SETTLEMENT_DISCOUNT = "installment_early_settlement_discount"
 
+    # القطاع العقاري IFRS 15
+    REAL_ESTATE_BOOKING_ADVANCE = "real_estate_booking_advance"
+    REAL_ESTATE_CONTRACT_LIABILITY = "real_estate_contract_liability"
+    REAL_ESTATE_REVENUE = "real_estate_revenue"
+    REAL_ESTATE_FORFEITED_INCOME = "real_estate_forfeited_income"
+    REAL_ESTATE_FORFEITED_BALANCES = "real_estate_forfeited_balances"
+    REAL_ESTATE_BROKER_COMMISSION_EXPENSE = "real_estate_broker_commission_expense"
+    REAL_ESTATE_BROKER_PAYABLE = "real_estate_broker_payable"
+    REAL_ESTATE_BROKER_CLAWBACK_ASSET = "real_estate_broker_clawback_asset"
+    REAL_ESTATE_WIP_CONSTRUCTION = "real_estate_wip_construction"
+    REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE = "real_estate_contractor_retentions_payable"
+    REAL_ESTATE_CONTRACTOR_ADVANCE = "real_estate_contractor_advance"
+    REAL_ESTATE_LANDOWNER_PAYABLE = "real_estate_landowner_payable"
+    REAL_ESTATE_LAND_COST = "real_estate_land_cost"
+    REAL_ESTATE_RESTRICTED_CASH = "real_estate_restricted_cash"
+    REAL_ESTATE_MAINTENANCE_ESCROW_LIABILITY = "real_estate_maintenance_escrow_liability"
+    REAL_ESTATE_MAINTENANCE_LEVY_RECEIVABLE = "real_estate_maintenance_levy_receivable"
+    REAL_ESTATE_TRANSFER_FEE_INCOME = "real_estate_transfer_fee_income"
+    REAL_ESTATE_INFRASTRUCTURE_ASSET = "real_estate_infrastructure_asset"
+
 
 # مصفوفة التحقق الدلالي للأدوار المالية (Semantic Type Guard)
 ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
@@ -144,6 +164,42 @@ ROLE_EXPECTED_CATEGORIES: Dict[str, str] = {
     "OTHER_INCOME_ACCOUNT": "revenue",
     "OTHER_EXPENSE": "expense",
     "OTHER_EXPENSE_ACCOUNT": "expense",
+    AccountRoleNames.REAL_ESTATE_BOOKING_ADVANCE.value: "liability",
+    AccountRoleNames.REAL_ESTATE_CONTRACT_LIABILITY.value: "liability",
+    AccountRoleNames.REAL_ESTATE_REVENUE.value: "revenue",
+    AccountRoleNames.REAL_ESTATE_FORFEITED_INCOME.value: "revenue",
+    AccountRoleNames.REAL_ESTATE_FORFEITED_BALANCES.value: "liability",
+    "REAL_ESTATE_BOOKING_ADVANCE": "liability",
+    "REAL_ESTATE_CONTRACT_LIABILITY": "liability",
+    "REAL_ESTATE_REVENUE": "revenue",
+    "REAL_ESTATE_FORFEITED_INCOME": "revenue",
+    "REAL_ESTATE_FORFEITED_BALANCES": "liability",
+    AccountRoleNames.REAL_ESTATE_BROKER_COMMISSION_EXPENSE.value: "expense",
+    AccountRoleNames.REAL_ESTATE_BROKER_PAYABLE.value: "liability",
+    AccountRoleNames.REAL_ESTATE_BROKER_CLAWBACK_ASSET.value: "asset",
+    "REAL_ESTATE_BROKER_COMMISSION_EXPENSE": "expense",
+    "REAL_ESTATE_BROKER_PAYABLE": "liability",
+    "REAL_ESTATE_BROKER_CLAWBACK_ASSET": "asset",
+    AccountRoleNames.REAL_ESTATE_WIP_CONSTRUCTION.value: "asset",
+    "REAL_ESTATE_WIP_CONSTRUCTION": "asset",
+    AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value: "liability",
+    "REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE": "liability",
+    AccountRoleNames.REAL_ESTATE_CONTRACTOR_ADVANCE.value: "asset",
+    "REAL_ESTATE_CONTRACTOR_ADVANCE": "asset",
+    AccountRoleNames.REAL_ESTATE_LANDOWNER_PAYABLE.value: "liability",
+    "REAL_ESTATE_LANDOWNER_PAYABLE": "liability",
+    AccountRoleNames.REAL_ESTATE_LAND_COST.value: "asset",
+    "REAL_ESTATE_LAND_COST": "asset",
+    AccountRoleNames.REAL_ESTATE_RESTRICTED_CASH.value: "asset",
+    "REAL_ESTATE_RESTRICTED_CASH": "asset",
+    AccountRoleNames.REAL_ESTATE_MAINTENANCE_ESCROW_LIABILITY.value: "liability",
+    "REAL_ESTATE_MAINTENANCE_ESCROW_LIABILITY": "liability",
+    AccountRoleNames.REAL_ESTATE_MAINTENANCE_LEVY_RECEIVABLE.value: "asset",
+    "REAL_ESTATE_MAINTENANCE_LEVY_RECEIVABLE": "asset",
+    AccountRoleNames.REAL_ESTATE_TRANSFER_FEE_INCOME.value: "revenue",
+    "REAL_ESTATE_TRANSFER_FEE_INCOME": "revenue",
+    AccountRoleNames.REAL_ESTATE_INFRASTRUCTURE_ASSET.value: "asset",
+    "REAL_ESTATE_INFRASTRUCTURE_ASSET": "asset",
 }
 
 
@@ -323,6 +379,44 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "END_OF_SERVICE_EXPENSE": "52300",
     AccountRoleNames.END_OF_SERVICE_PROVISION.value: "21430",
     "END_OF_SERVICE_PROVISION": "21430",
+
+    # القطاع العقاري IFRS 15
+    AccountRoleNames.REAL_ESTATE_BOOKING_ADVANCE.value: "21101",
+    "REAL_ESTATE_BOOKING_ADVANCE": "21101",
+    AccountRoleNames.REAL_ESTATE_CONTRACT_LIABILITY.value: "21102",
+    "REAL_ESTATE_CONTRACT_LIABILITY": "21102",
+    AccountRoleNames.REAL_ESTATE_REVENUE.value: "41101",
+    "REAL_ESTATE_REVENUE": "41101",
+    AccountRoleNames.REAL_ESTATE_FORFEITED_INCOME.value: "42201",
+    "REAL_ESTATE_FORFEITED_INCOME": "42201",
+    AccountRoleNames.REAL_ESTATE_FORFEITED_BALANCES.value: "21701",
+    "REAL_ESTATE_FORFEITED_BALANCES": "21701",
+    AccountRoleNames.REAL_ESTATE_BROKER_COMMISSION_EXPENSE.value: "52510",
+    "REAL_ESTATE_BROKER_COMMISSION_EXPENSE": "52510",
+    AccountRoleNames.REAL_ESTATE_BROKER_PAYABLE.value: "21240",
+    "REAL_ESTATE_BROKER_PAYABLE": "21240",
+    AccountRoleNames.REAL_ESTATE_BROKER_CLAWBACK_ASSET.value: "11450",
+    "REAL_ESTATE_BROKER_CLAWBACK_ASSET": "11450",
+    AccountRoleNames.REAL_ESTATE_WIP_CONSTRUCTION.value: "12101",
+    "REAL_ESTATE_WIP_CONSTRUCTION": "12101",
+    AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value: "21310",
+    "REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE": "21310",
+    AccountRoleNames.REAL_ESTATE_CONTRACTOR_ADVANCE.value: "11350",
+    "REAL_ESTATE_CONTRACTOR_ADVANCE": "11350",
+    AccountRoleNames.REAL_ESTATE_LANDOWNER_PAYABLE.value: "21320",
+    "REAL_ESTATE_LANDOWNER_PAYABLE": "21320",
+    AccountRoleNames.REAL_ESTATE_LAND_COST.value: "12102",
+    "REAL_ESTATE_LAND_COST": "12102",
+    AccountRoleNames.REAL_ESTATE_RESTRICTED_CASH.value: "11170",
+    "REAL_ESTATE_RESTRICTED_CASH": "11170",
+    AccountRoleNames.REAL_ESTATE_MAINTENANCE_ESCROW_LIABILITY.value: "21520",
+    "REAL_ESTATE_MAINTENANCE_ESCROW_LIABILITY": "21520",
+    AccountRoleNames.REAL_ESTATE_MAINTENANCE_LEVY_RECEIVABLE.value: "11240",
+    "REAL_ESTATE_MAINTENANCE_LEVY_RECEIVABLE": "11240",
+    AccountRoleNames.REAL_ESTATE_TRANSFER_FEE_INCOME.value: "42202",
+    "REAL_ESTATE_TRANSFER_FEE_INCOME": "42202",
+    AccountRoleNames.REAL_ESTATE_INFRASTRUCTURE_ASSET.value: "12390",
+    "REAL_ESTATE_INFRASTRUCTURE_ASSET": "12390",
 }
 
 
@@ -442,6 +536,19 @@ class AccountRoleRegistry:
                 "21230": ("مستحقات عهد وتجاوزات منصرفة", "liability", "credit"),
                 "11440": ("تأمينات مستردة لدى الغير", "asset", "debit"),
                 "54900": ("خسائر عجز العهد النقدية", "expense", "debit"),
+                "21101": ("دفعات حجز عملاء عقارات", "liability", "credit"),
+                "21102": ("التزامات عقود بيع وحدات عقارية (مقدمات وأقساط مؤجلة)", "liability", "credit"),
+                "41101": ("إيرادات مبيعات عقارية محققة", "revenue", "credit"),
+                "42201": ("إيرادات غرامات وفوائد تأخير عقارية", "revenue", "credit"),
+                "21701": ("مبالغ محجوزة ومصادرة من عقود مفسوخة", "liability", "credit"),
+                "52510": ("مصروف عمولات وسطاء وتسويق عقاري", "expense", "debit"),
+                "21240": ("مستحقات وسطاء وشركات تسويق عقاري", "liability", "credit"),
+                "11450": ("أرصدة مدينة مستردة من عمولات وسطاء", "asset", "debit"),
+                "12101": ("مشروعات تحت التنفيذ - أعمال إنشائية وعقارية", "asset", "debit"),
+                "21310": ("تأمينات حسن تنفيذ محتجزة لمقاولي الباطن", "liability", "credit"),
+                "11350": ("دفعات مقدمة لمقاولي الباطن والتشييد", "asset", "debit"),
+                "21320": ("مستحقات ملاك الأراضي - مشروعات المشاركة", "liability", "credit"),
+                "12102": ("مشروعات تحت التنفيذ - تكلفة أراضي المشروع", "asset", "debit"),
             }
             if account_code in account_defaults:
                 name, category, nature = account_defaults[account_code]

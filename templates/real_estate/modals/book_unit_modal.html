@@ -1,0 +1,67 @@
+{% load i18n %}
+
+<div class="modal fade" id="bookUnitModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-bookmark text-warning me-2"></i>{% trans "حجز وحدة عقارية وسداد الأمانة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="book-unit-form" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <input type="hidden" name="unit_id" id="book_unit_id">
+
+          <div class="mb-3">
+            <label class="form-label small text-muted">{% trans "الوحدة العقارية" %}</label>
+            <input type="text" id="book_unit_display" class="form-control bg-light font-monospace fw-bold" readonly>
+          </div>
+
+          <div class="mb-3">
+            <label for="book_customer" class="form-label fw-semibold text-dark">
+              {% trans "العميل الحاجز" %} <span class="text-danger">*</span>
+            </label>
+            <select name="customer" id="book_customer" class="form-select select2-modal" dir="rtl" required>
+              <option value="">{% trans "اختر العميل..." %}</option>
+              {% for cust in customers %}
+              <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.phone|default:cust.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-8">
+              <label for="book_deposit" class="form-label fw-semibold text-dark">
+                {% trans "مبلغ جدية الحجز" %} <span class="text-danger">*</span>
+              </label>
+              <input type="number" step="0.01" name="holding_deposit" id="book_deposit" class="form-control fw-bold" required>
+            </div>
+            <div class="col-4">
+              <label for="book_deposit_currency" class="form-label text-dark">{% trans "العملة" %}</label>
+              <select name="deposit_currency" id="book_deposit_currency" class="form-select">
+                <option value="EGP">EGP</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="SAR">SAR</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="book_expiry_days" class="form-label text-dark">{% trans "مدة سريان الحجز (بالأيام)" %}</label>
+            <input type="number" name="expiry_days" id="book_expiry_days" class="form-control" value="7" min="1" max="60">
+            <small class="text-muted">{% trans "تنتهي صلاحية الحجز وتُتاح الوحدة تلقائياً بعد انتهاء المدة." %}</small>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد الحجز المالي" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,92 @@
+{% load i18n humanize %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="units-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3" style="width: 120px;">{% trans "كود الوحدة" %}</th>
+        <th>{% trans "المشروع" %}</th>
+        <th>{% trans "المبنى / الطابق" %}</th>
+        <th>{% trans "النوع" %}</th>
+        <th class="text-center">{% trans "المساحة (م²)" %}</th>
+        <th class="text-end">{% trans "سعر المتر" %}</th>
+        <th class="text-end">{% trans "إجمالي السعر" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center pe-3" style="width: 130px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for unit in units %}
+      <tr class="clickable-row" data-href="{% url 'real_estate:unit_detail' pk=unit.id %}" style="cursor: pointer;">
+        <td class="ps-3 fw-bold font-monospace text-primary">{{ unit.unit_code }}</td>
+        <td>
+          <div class="fw-semibold text-dark">{{ unit.project.name }}</div>
+          {% if unit.project.currency %}
+          <small class="text-muted"><i class="fas fa-coins me-1"></i>{{ unit.project.currency.code }}</small>
+          {% endif %}
+        </td>
+        <td>
+          <div class="text-dark">{{ unit.block.name|default:"-" }}</div>
+          <small class="text-muted">{{ unit.floor.name|default:unit.floor.floor_number }}</small>
+        </td>
+        <td>
+          <span class="badge bg-light text-dark border">{{ unit.get_unit_type_display }}</span>
+        </td>
+        <td class="text-center">
+          <span class="fw-semibold">{{ unit.gross_area }}</span>
+          <small class="text-muted d-block" style="font-size: 0.75rem;">صافي: {{ unit.net_area }}</small>
+        </td>
+        <td class="text-end fw-semibold text-secondary">
+          {{ unit.meter_price|floatformat:2|intcomma }}
+        </td>
+        <td class="text-end fw-bold text-success">
+          {{ unit.total_price|floatformat:2|intcomma }}
+        </td>
+        <td class="text-center">
+          {% if unit.status == 'AVAILABLE' %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "متاحة" %}</span>
+          {% elif unit.status == 'RESERVED' %}
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "محجوزة" %}</span>
+          {% elif unit.status == 'CONTRACTED' %}
+          <span class="badge bg-info-subtle text-info border border-info-subtle">{% trans "متعاقد عليها" %}</span>
+          {% elif unit.status == 'BLOCKED' %}
+          <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{% trans "مجمدة" %}</span>
+          {% else %}
+          <span class="badge bg-light text-dark border">{{ unit.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-center pe-3" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'real_estate:unit_detail' pk=unit.id %}" class="btn btn-outline-secondary" title="{% trans 'التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <button type="button" class="btn btn-outline-primary btn-quick-view" data-unit-id="{{ unit.id }}" title="{% trans 'معاينة سريعة' %}">
+              <i class="fas fa-search-plus"></i>
+            </button>
+            {% if perms.real_estate.change_propertyunit or user.is_superuser %}
+            <a href="{% url 'real_estate:unit_update' pk=unit.id %}" class="btn btn-outline-warning" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="text-center py-5 text-muted">
+          <div class="py-4">
+            <i class="fas fa-door-open fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
+            <p class="h6 mb-2">{% trans "لم يتم العثور على أي وحدات عقارية" %}</p>
+            <p class="small text-muted mb-3">{% trans "يمكنك إضافة وحدة جديدة أو تغيير معايير البحث." %}</p>
+            {% if perms.real_estate.add_propertyunit or user.is_superuser %}
+            <a href="{% url 'real_estate:unit_create' %}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة وحدة جديدة" %}
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

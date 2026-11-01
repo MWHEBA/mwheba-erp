@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{{ project.name }} - {% trans "تفاصيل المشروع" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الوحدات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_units }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-th-large"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المتاحة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ available_units }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-door-open"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المحجوزة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ reserved_units }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-bookmark"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المتعاقدة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ contracted_units }}</div>
+            <small class="text-muted">{% trans "نسبة الاستيعاب" %}: {{ absorption_rate }}%</small>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-file-contract"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Project Master Information -->
+    <div class="col-12 col-lg-8">
+      <div class="section-container">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-info-circle text-primary me-2"></i>{% trans "بيانات المشروع الرئيسية" %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "كود المشروع" %}</span>
+                <span class="fw-bold font-monospace text-primary fs-5">{{ project.code }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "نوع المشروع" %}</span>
+                <span class="badge bg-light text-dark border">{{ project.get_project_type_display }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "الحالة الإنشائية" %}</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ project.get_status_display }}</span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 text-muted opacity-25"></div>
+
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "المدينة / الحي" %}</span>
+                <span class="text-dark fw-semibold">{{ project.city|default:"-" }} / {{ project.district|default:"-" }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "إجمالي مساحة الأرض" %}</span>
+                <span class="text-dark fw-semibold">{{ project.total_land_area|intcomma }} م²</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "إجمالي المساحة المبنية (GBA)" %}</span>
+                <span class="text-dark fw-semibold">{{ project.gross_built_area|intcomma }} م²</span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 text-muted opacity-25"></div>
+
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "تاريخ البدء" %}</span>
+                <span class="text-dark">{{ project.start_date|date:"Y-m-d"|default:"-" }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "التسليم المتوقع" %}</span>
+                <span class="text-dark">{{ project.expected_completion_date|date:"Y-m-d"|default:"-" }}</span>
+              </div>
+              <div class="col-12 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "حساب الضمان البنكي (Escrow)" %}</span>
+                <span class="text-dark fw-semibold">{{ project.escrow_account.name|default:"-" }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Navigation / Stats Summary -->
+    <div class="col-12 col-lg-4">
+      <div class="section-container">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-layer-group text-primary me-2"></i>{% trans "المباني والبلوكات" %}
+            </h5>
+          </div>
+          <div class="card-body p-3">
+            <ul class="list-group list-group-flush">
+              {% for block in blocks %}
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <div>
+                  <i class="fas fa-building text-secondary me-2"></i>
+                  <span class="fw-semibold text-dark">{{ block.name }}</span>
+                  <small class="text-muted ms-1">({{ block.code }})</small>
+                </div>
+                <span class="badge bg-light text-secondary border">
+                  {{ block.floors.count }} {% trans "طوابق" %}
+                </span>
+              </li>
+              {% empty %}
+              <li class="list-group-item text-center text-muted py-4">
+                <i class="fas fa-cubes fa-2x mb-2 text-secondary" style="opacity: 0.5;"></i>
+                <div>{% trans "لم يتم تعريف بلوكات حتى الآن" %}</div>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Units Section -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-th text-primary me-2"></i>{% trans "الوحدات العقارية التابعة للمشروع" %}
+        </h5>
+        <div>
+          <a href="{% url 'real_estate:project_matrix' project_id=project.id %}" class="btn btn-sm btn-outline-primary me-2">
+            <i class="fas fa-th-large me-1"></i>{% trans "عرض المصفوفة المعمارية" %}
+          </a>
+          <a href="{% url 'real_estate:unit_list' %}?project={{ project.id }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-list me-1"></i>{% trans "عرض كافة الوحدات" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "كود الوحدة" %}</th>
+                <th>{% trans "البلوك" %}</th>
+                <th>{% trans "الطابق" %}</th>
+                <th>{% trans "النوع" %}</th>
+                <th>{% trans "المساحة الإجمالية" %}</th>
+                <th>{% trans "سعر المتر" %}</th>
+                <th>{% trans "السعر الإجمالي" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراء" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for unit in recent_units %}
+              <tr class="clickable-row" data-href="{% url 'real_estate:unit_detail' pk=unit.id %}" style="cursor: pointer;">
+                <td class="ps-3 fw-bold font-monospace text-primary">{{ unit.unit_code }}</td>
+                <td>{{ unit.block.name|default:"-" }}</td>
+                <td>{{ unit.floor.name|default:unit.floor.floor_number }}</td>
+                <td><span class="badge bg-light text-dark border">{{ unit.get_unit_type_display }}</span></td>
+                <td>{{ unit.gross_area }} م²</td>
+                <td>{{ unit.meter_price|floatformat:2|intcomma }} {{ project.currency.code|default:"" }}</td>
+                <td class="fw-bold text-dark">{{ unit.total_price|floatformat:2|intcomma }} {{ project.currency.code|default:"" }}</td>
+                <td class="text-center">
+                  {% if unit.status == 'AVAILABLE' %}
+                  <span class="badge bg-success-subtle text-success border">{% trans "متاحة" %}</span>
+                  {% elif unit.status == 'RESERVED' %}
+                  <span class="badge bg-warning-subtle text-warning border">{% trans "محجوزة" %}</span>
+                  {% elif unit.status == 'CONTRACTED' %}
+                  <span class="badge bg-info-subtle text-info border">{% trans "متعاقد عليها" %}</span>
+                  {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary border">{{ unit.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-3" onclick="event.stopPropagation();">
+                  <a href="{% url 'real_estate:unit_detail' pk=unit.id %}" class="btn btn-sm btn-outline-secondary" title="{% trans 'التفاصيل' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center py-4 text-muted">
+                  {% trans "لا توجد وحدات مضافة بعد في هذا المشروع." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (!e.target.closest('a, button')) {
+        const href = this.getAttribute('data-href');
+        if (href) window.location.href = href;
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

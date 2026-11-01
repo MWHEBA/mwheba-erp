@@ -1,0 +1,66 @@
+{% load i18n humanize %}
+
+<div class="unit-tile-wrapper">
+  <div class="card unit-tile h-100 border text-center p-2 position-relative 
+              {% if unit.status == 'AVAILABLE' %}border-success-subtle bg-white
+              {% elif unit.status == 'RESERVED' %}border-warning-subtle bg-white
+              {% elif unit.status == 'CONTRACTED' %}border-info-subtle bg-white
+              {% elif unit.status == 'BLOCKED' %}border-secondary bg-light
+              {% else %}border-light bg-white{% endif %}"
+       data-unit-id="{{ unit.id }}"
+       data-unit-code="{{ unit.unit_code }}"
+       data-unit-status="{{ unit.status }}"
+       data-unit-area="{{ unit.gross_area }}"
+       data-meter-price="{{ unit.meter_price }}"
+       data-total-price="{{ unit.total_price }}"
+       data-currency="{{ unit.project.currency.code|default:'' }}"
+       data-rooms="{{ unit.rooms_count|default:'0' }}"
+       data-baths="{{ unit.bathrooms_count|default:'0' }}"
+       data-floor="{{ unit.floor.name|default:unit.floor.floor_number }}"
+       data-block="{{ unit.block.name|default:'' }}"
+       style="cursor: pointer; min-width: 140px; transition: transform 0.15s ease, box-shadow 0.15s ease;">
+    
+    <!-- Status Badge Indicator -->
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span class="badge {% if unit.status == 'AVAILABLE' %}bg-success-subtle text-success border border-success-subtle
+                         {% elif unit.status == 'RESERVED' %}bg-warning-subtle text-warning border border-warning-subtle
+                         {% elif unit.status == 'CONTRACTED' %}bg-info-subtle text-info border border-info-subtle
+                         {% elif unit.status == 'BLOCKED' %}bg-secondary-subtle text-secondary border border-secondary-subtle
+                         {% else %}bg-light text-dark border{% endif %} px-2 py-1" style="font-size: 0.72rem;">
+        {% if unit.status == 'AVAILABLE' %}{% trans "متاحة" %}
+        {% elif unit.status == 'RESERVED' %}{% trans "محجوزة" %}
+        {% elif unit.status == 'CONTRACTED' %}{% trans "مباعة" %}
+        {% elif unit.status == 'BLOCKED' %}{% trans "مجمدة" %}
+        {% else %}{{ unit.get_status_display }}{% endif %}
+      </span>
+      <small class="text-muted font-monospace" style="font-size: 0.7rem;">#{{ unit.unit_number|default:unit.unit_code }}</small>
+    </div>
+
+    <!-- Unit Code & Typology -->
+    <div class="fw-bold font-monospace text-primary text-truncate my-1" style="font-size: 0.95rem;">
+      {{ unit.unit_code }}
+    </div>
+
+    <div class="text-muted small mb-1" style="font-size: 0.75rem;">
+      {{ unit.get_unit_type_display }}
+    </div>
+
+    <!-- Area & Specs -->
+    <div class="d-flex justify-content-center gap-2 small text-secondary mb-2" style="font-size: 0.75rem;">
+      <span><i class="fas fa-vector-square me-1"></i>{{ unit.gross_area }} م²</span>
+      {% if unit.rooms_count %}
+      <span><i class="fas fa-bed me-1"></i>{{ unit.rooms_count }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Pricing Summary -->
+    <div class="pt-1 border-top mt-auto">
+      <div class="fw-bold text-dark" style="font-size: 0.85rem;">
+        {{ unit.total_price|floatformat:0|intcomma }} <small class="text-muted">{{ unit.project.currency.code|default:"" }}</small>
+      </div>
+      <div class="text-muted" style="font-size: 0.7rem;">
+        {{ unit.meter_price|floatformat:0|intcomma }}/م²
+      </div>
+    </div>
+  </div>
+</div>

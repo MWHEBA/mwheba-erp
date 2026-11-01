@@ -189,6 +189,256 @@
                 {% endif %}
 
                 <!-- الموردين -->
+                <!-- Real Estate Enterprise Architecture (Abo Zahra Pattern) -->
+                {% is_module_enabled 'real_estate' as real_estate_enabled %}
+                {% if real_estate_enabled %}
+                {% if perms.real_estate.view_realestateproject or perms.real_estate.view_propertyunit or perms.real_estate.view_unitbooking or perms.real_estate.view_propertycontract or perms.real_estate.view_contractorprogresscertificate or perms.real_estate.view_propertyhandoverreceipt or perms.real_estate.view_realestatebroker or user.is_superuser %}
+
+                <!-- 1. إدارة المشروعات -->
+                {% if perms.real_estate.view_realestateproject or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reProjectsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'real_estate' and active_submenu in 're_dashboard,projects' or active_menu == 're_projects' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-city sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "إدارة المشروعات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'real_estate' and active_submenu in 're_dashboard,projects' or active_menu == 're_projects' %}show{% endif %}"
+                        id="reProjectsMenu">
+                        <li>
+                            <a href="{% url 'real_estate:dashboard' %}"
+                                class="submenu-link {% if active_submenu == 're_dashboard' %}active{% endif %}">
+                                <i class="fas fa-chart-pie me-2"></i>{% trans "لوحة المؤشرات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'real_estate:project_list' %}"
+                                class="submenu-link {% if active_submenu == 'projects' %}active{% endif %}">
+                                <i class="fas fa-layer-group me-2"></i>{% trans "قائمة المشروعات" %}
+                            </a>
+                        </li>
+                        {% if perms.real_estate.add_realestateproject or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:project_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة مشروع" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_landownerpartnership or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:partnership_list' %}"
+                                class="submenu-link {% if active_submenu == 'partnerships' %}active{% endif %}">
+                                <i class="fas fa-handshake me-2"></i>{% trans "الشركاء وملاك الأراضي" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- 2. إدارة الوحدات -->
+                {% if perms.real_estate.view_propertyunit or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reUnitsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'real_estate' and active_submenu == 'units' or active_menu == 're_units' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-th-large sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "إدارة الوحدات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'real_estate' and active_submenu == 'units' or active_menu == 're_units' %}show{% endif %}"
+                        id="reUnitsMenu">
+                        <li>
+                            <a href="{% url 'real_estate:unit_list' %}"
+                                class="submenu-link {% if active_submenu == 'units' and not request.GET.status %}active{% endif %}">
+                                <i class="fas fa-boxes me-2"></i>{% trans "دليل الوحدات" %}
+                            </a>
+                        </li>
+                        {% if perms.real_estate.add_propertyunit or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:unit_create' %}" class="submenu-link">
+                                <i class="fas fa-plus me-2"></i>{% trans "إضافة وحدة" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        <div class="nav-divider"></div>
+                        <li class="submenu-title">حالات الوحدات</li>
+                        <li>
+                            <a href="{% url 'real_estate:unit_list' %}?status=AVAILABLE" class="submenu-link">
+                                <i class="fas fa-check-circle text-success me-2"></i>{% trans "الوحدات المتاحة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'real_estate:unit_list' %}?status=RESERVED" class="submenu-link">
+                                <i class="fas fa-bookmark text-warning me-2"></i>{% trans "الوحدات المحجوزة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'real_estate:unit_list' %}?status=CONTRACTED" class="submenu-link">
+                                <i class="fas fa-file-signature text-primary me-2"></i>{% trans "الوحدات المتعاقد عليها" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- 3. إدارة التعاقدات -->
+                {% if perms.real_estate.view_unitbooking or perms.real_estate.view_propertycontract or perms.real_estate.view_realestatebroker or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reSalesMenu"
+                        class="sidebar-link collapsed {% if active_menu == 'real_estate' and active_submenu in 'bookings,contracts' or active_menu == 're_sales' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-file-signature sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "إدارة التعاقدات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'real_estate' and active_submenu in 'bookings,contracts' or active_menu == 're_sales' %}show{% endif %}"
+                        id="reSalesMenu">
+                        {% if perms.real_estate.view_unitbooking or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:booking_list' %}"
+                                class="submenu-link {% if active_submenu == 'bookings' %}active{% endif %}">
+                                <i class="fas fa-bookmark me-2"></i>{% trans "استمارات الحجز" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_propertycontract or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:contract_list' %}"
+                                class="submenu-link {% if active_submenu == 'contracts' %}active{% endif %}">
+                                <i class="fas fa-file-contract me-2"></i>{% trans "عقود البيع" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.add_propertycontract or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:contract_create' %}" class="submenu-link">
+                                <i class="fas fa-plus me-2"></i>{% trans "تحرير عقد جديد" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        <div class="nav-divider"></div>
+                        <li class="submenu-title">الوسطاء والتبديلات</li>
+                        {% if perms.real_estate.view_realestatebroker or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:broker_list' %}"
+                                class="submenu-link {% if active_submenu == 'brokers' %}active{% endif %}">
+                                <i class="fas fa-user-tie me-2"></i>{% trans "الوسطاء والمسوقين" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_brokercommission or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:commission_list' %}"
+                                class="submenu-link {% if active_submenu == 'commissions' %}active{% endif %}">
+                                <i class="fas fa-percent me-2"></i>{% trans "عمولات البيع" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_unitswaprecord or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:swap_list' %}"
+                                class="submenu-link {% if active_submenu == 'unit_swaps' %}active{% endif %}">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "تبديل الوحدات" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- 4. الإدارة الهندسية -->
+                {% if perms.real_estate.view_contractorprogresscertificate or perms.real_estate.view_clientvariationorder or perms.real_estate.view_unitsnagitem or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reEngineeringMenu"
+                        class="sidebar-link collapsed {% if active_menu == 're_engineering' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-hard-hat sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الإدارة الهندسية" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 're_engineering' %}show{% endif %}"
+                        id="reEngineeringMenu">
+                        {% if perms.real_estate.view_contractorprogresscertificate or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:contractor_list' %}"
+                                class="submenu-link {% if active_submenu == 'contractor_certificates' %}active{% endif %}">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "مستخلصات المقاولين" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_clientvariationorder or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:variation_list' %}"
+                                class="submenu-link {% if active_submenu == 'variation_orders' %}active{% endif %}">
+                                <i class="fas fa-tools me-2"></i>{% trans "تعديلات العملاء" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_unitsnagitem or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:snag_list' %}"
+                                class="submenu-link {% if active_submenu == 'snag_items' %}active{% endif %}">
+                                <i class="fas fa-clipboard-check me-2"></i>{% trans "ملاحظات الفحص" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- 5. إدارة التسليمات -->
+                {% if perms.real_estate.view_propertyhandoverreceipt or perms.real_estate.view_warrantyticket or perms.real_estate.view_maintenancefundoperation or perms.real_estate.view_legalnotice or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reServiceMenu"
+                        class="sidebar-link collapsed {% if active_menu == 're_service' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-key sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "إدارة التسليمات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 're_service' %}show{% endif %}"
+                        id="reServiceMenu">
+                        {% if perms.real_estate.view_propertyhandoverreceipt or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:handover_list' %}"
+                                class="submenu-link {% if active_submenu == 'handovers' %}active{% endif %}">
+                                <i class="fas fa-file-signature me-2"></i>{% trans "محاضر التسليم" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_warrantyticket or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:warranty_list' %}"
+                                class="submenu-link {% if active_submenu == 'warranties' %}active{% endif %}">
+                                <i class="fas fa-shield-alt me-2"></i>{% trans "تذاكر الضمان" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_maintenancefundoperation or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:facility_list' %}"
+                                class="submenu-link {% if active_submenu == 'maintenance_fund' %}active{% endif %}">
+                                <i class="fas fa-coins me-2"></i>{% trans "صندوق الصيانة" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_legalnotice or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:legal_list' %}"
+                                class="submenu-link {% if active_submenu == 'legal_notices' %}active{% endif %}">
+                                <i class="fas fa-gavel me-2"></i>{% trans "الإنذارات القانونية" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                {% endif %}
+                {% endif %}
+
                 {% is_module_enabled 'suppliers_purchases' as suppliers_purchases_enabled %}
                 {% if suppliers_purchases_enabled %}
                 {% if perms.supplier.view_supplier or perms.supplier.add_supplier or user.is_superuser %}

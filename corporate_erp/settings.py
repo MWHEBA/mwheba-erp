@@ -151,6 +151,7 @@ INSTALLED_APPS = [
     'api',
     'work_order',
     'cheques.apps.ChequesConfig',
+    'real_estate.apps.RealEstateConfig',
 ]
 
 MIDDLEWARE = [
@@ -170,6 +171,7 @@ MIDDLEWARE = [
     "core.middleware.security_headers.AdvancedSecurityHeadersMiddleware",
     # "simple_history.middleware.HistoryRequestMiddleware",  # ❌ DISABLED - no HistoricalRecords in any model
     "corsheaders.middleware.CorsMiddleware",
+    "core.middleware.module_control.ModuleAccessMiddleware",
 ]
 
 # تعطيل Debug Toolbar مؤقتا

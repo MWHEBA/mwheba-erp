@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{{ booking.booking_number }} - {% trans "تفاصيل استمارة الحجز" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-4">
+    <!-- Booking Master Information -->
+    <div class="col-12 col-lg-8">
+      <div class="section-container mb-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-file-invoice text-primary me-2"></i>{% trans "بيانات استمارة الحجز والأمانة" %}
+            </h5>
+            <span class="badge {% if booking.status == 'ACTIVE' %}bg-warning-subtle text-warning border border-warning-subtle{% elif booking.status == 'CONVERTED_TO_CONTRACT' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-secondary-subtle text-secondary border{% endif %} px-3 py-1">
+              {{ booking.get_status_display }}
+            </span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "رقم الاستمارة" %}</span>
+                <span class="fs-5 fw-bold font-monospace text-primary">{{ booking.booking_number }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "تاريخ الحجز" %}</span>
+                <span class="fw-semibold text-dark">{{ booking.booking_date|date:"Y-m-d" }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "تاريخ انتهاء الصلاحية" %}</span>
+                <span class="fw-semibold {% if booking.status == 'ACTIVE' and booking.is_expired %}text-danger{% else %}text-dark{% endif %}">
+                  {{ booking.expiry_date|date:"Y-m-d" }}
+                </span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "العميل الحاجز" %}</span>
+                <a href="{% url 'customer:customer_detail' pk=booking.customer.id %}" class="fw-bold text-dark text-decoration-none">
+                  {{ booking.customer.name }}
+                </a>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "رقم الهاتف" %}</span>
+                <span class="text-dark">{{ booking.customer.phone|default:"-" }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "المشروع والوحدة" %}</span>
+                <a href="{% url 'real_estate:unit_detail' pk=booking.unit.id %}" class="fw-bold font-monospace text-primary text-decoration-none">
+                  {{ booking.unit.unit_code }}
+                </a>
+                <small class="text-muted d-block">{{ booking.unit.project.name }}</small>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "مبلغ جدية الحجز (الأمانة)" %}</span>
+                <span class="fs-4 fw-bold text-success">{{ booking.holding_deposit|floatformat:2|intcomma }}</span>
+                <small class="text-muted">{{ booking.deposit_currency.code|default:"EGP" }}</small>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "حساب التحصيل (الخزينة/البنك)" %}</span>
+                <span class="text-dark">{{ booking.payment_account.name|default:"-" }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "القيد المحاسبي المرتبط" %}</span>
+                {% if booking.journal_entry %}
+                <span class="badge bg-light text-primary border font-monospace">#{{ booking.journal_entry.id }}</span>
+                {% else %}
+                <span class="text-muted small">{% trans "لا يوجد قيد مرتبط" %}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Actions Card -->
+    <div class="col-12 col-lg-4">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-cogs text-primary me-2"></i>{% trans "إجراءات الحجز والتحويل" %}
+            </h5>
+          </div>
+          <div class="card-body p-3">
+            {% if booking.status == 'ACTIVE' %}
+            <div class="d-grid gap-2">
+              <button type="button" class="btn btn-success fw-bold py-2" data-bs-toggle="modal" data-bs-target="#convertBookingModal">
+                <i class="fas fa-file-signature me-1"></i>{% trans "تحويل الحجز إلى عقد بيع رسمي" %}
+              </button>
+              <button type="button" class="btn btn-outline-danger py-2" data-bs-toggle="modal" data-bs-target="#cancelBookingModal">
+                <i class="fas fa-times me-1"></i>{% trans "إلغاء الحجز / تحرير الوحدة" %}
+              </button>
+            </div>
+            {% elif booking.status == 'CANCELLED_PENDING_REFUND' %}
+            <div class="d-grid gap-2">
+              <div class="alert alert-warning py-2 small mb-2">
+                <i class="fas fa-info-circle me-1"></i>{% trans "تم إلغاء الحجز وبانتظار صرف سند استرداد الأمانة للعميل." %}
+              </div>
+              <button type="button" class="btn btn-primary fw-bold py-2" data-bs-toggle="modal" data-bs-target="#refundBookingModal">
+                <i class="fas fa-hand-holding-usd me-1"></i>{% trans "إثبات صرف استرداد الأمانة" %}
+              </button>
+            </div>
+            {% elif booking.status == 'CONVERTED_TO_CONTRACT' %}
+            <div class="alert alert-success py-3 text-center mb-0">
+              <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+              <div class="fw-bold">{% trans "تم تحويل الحجز لعقد بيع رسمي بنجاح" %}</div>
+            </div>
+            {% else %}
+            <div class="alert alert-secondary py-3 text-center mb-0">
+              <i class="fas fa-archive fa-2x mb-2 text-muted"></i>
+              <div>{% trans "الحجز مغلق / مؤرشف" %}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Corporate Modals Include -->
+{% include "real_estate/modals/cancel_booking_modal.html" %}
+{% include "real_estate/modals/refund_booking_modal.html" %}
+{% include "real_estate/modals/convert_booking_modal.html" %}
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "سجل الشركاء وملاك الأراضي" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي اتفاقيات الشراكة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_partnerships|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-handshake"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#partnerFilterCollapse" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث الشركاء" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="partnerFilterCollapse">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
+              <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                     placeholder="{% trans 'المشروع، اسم الشريك...' %}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold">{% trans "الحالة" %}</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+              </button>
+              <a href="{% url 'real_estate:partnership_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-redo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "المشروع العقاري" %}</th>
+                <th>{% trans "اسم الشريك / مالك الأرض" %}</th>
+                <th>{% trans "نموذج الشراكة" %}</th>
+                <th class="text-center">{% trans "نسبة الشراكة" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in partnerships %}
+              <tr>
+                <td class="ps-3 fw-bold text-primary">{{ p.project.name }}</td>
+                <td class="fw-semibold">{{ p.partner.name }}</td>
+                <td><span class="badge bg-light text-dark border">{{ p.get_partnership_model_display }}</span></td>
+                <td class="text-center fw-bold">{{ p.share_percentage }}%</td>
+                <td class="text-center">
+                  <span class="badge bg-secondary">{{ p.get_status_display }}</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center py-5 text-muted">
+                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد شراكات مسجلة." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-3">
+    {% include "partials/pagination.html" %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

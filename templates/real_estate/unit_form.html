@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+{% if is_edit %}{% trans "تعديل وحدة عقارية" %}: {{ unit.unit_code }}{% else %}{% trans "إضافة وحدة عقارية جديدة" %}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-home text-primary me-2"></i>
+              {% if is_edit %}{% trans "تعديل بيانات ومواصفات الوحدة" %}{% else %}{% trans "بيانات الوحدة العقارية الجديدة" %}{% endif %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <form method="post" id="unit-form">
+              {% csrf_token %}
+
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                  <label for="id_project" class="form-label fw-semibold text-dark">
+                    {% trans "المشروع العقاري" %} <span class="text-danger">*</span>
+                  </label>
+                  <select name="project" id="id_project" class="form-select select2-filter" dir="rtl" required>
+                    <option value="">{% trans "اختر المشروع..." %}</option>
+                    {% for p in projects %}
+                    <option value="{{ p.id }}" {% if unit.project_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.code }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_block" class="form-label text-dark">{% trans "المبنى / العمارة" %}</label>
+                  <select name="block" id="id_block" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "اختر المبنى..." %}</option>
+                    {% for b in blocks %}
+                    <option value="{{ b.id }}" {% if unit.block_id == b.id %}selected{% endif %}>{{ b.name }} ({{ b.code }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_floor" class="form-label text-dark">{% trans "الطابق المعماري" %}</label>
+                  <select name="floor" id="id_floor" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "اختر الطابق..." %}</option>
+                    {% for fl in floors %}
+                    <option value="{{ fl.id }}" {% if unit.floor_id == fl.id %}selected{% endif %}>{{ fl.name|default:fl.floor_number }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                  <label for="id_unit_code" class="form-label fw-semibold text-dark">
+                    {% trans "كود الوحدة الفريد" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" name="unit_code" id="id_unit_code" class="form-control text-uppercase font-monospace"
+                         value="{{ unit.unit_code|default:'' }}" required placeholder="مثال: A-101">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_unit_type" class="form-label fw-semibold text-dark">{% trans "نوع الوحدة" %}</label>
+                  <select name="unit_type" id="id_unit_type" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in unit_types %}
+                    <option value="{{ val }}" {% if unit.unit_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_finishing_type" class="form-label text-dark">{% trans "نوع التشطيب" %}</label>
+                  <select name="finishing_type" id="id_finishing_type" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in finishing_types %}
+                    <option value="{{ val }}" {% if unit.finishing_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-ruler-combined text-primary me-2"></i>{% trans "المساحات والمواصفات" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label for="id_gross_area" class="form-label fw-semibold text-dark">
+                    {% trans "المساحة الإجمالية البيعية (م²)" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" step="0.01" name="gross_area" id="id_gross_area" class="form-control"
+                         value="{{ unit.gross_area|default:'0.00' }}" required>
+                </div>
+                <div class="col-12 col-md-3">
+                  <label for="id_net_area" class="form-label text-dark">{% trans "المساحة الصافية (م²)" %}</label>
+                  <input type="number" step="0.01" name="net_area" id="id_net_area" class="form-control"
+                         value="{{ unit.net_area|default:'0.00' }}">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label for="id_terrace_area" class="form-label text-dark">{% trans "مساحة التراس (م²)" %}</label>
+                  <input type="number" step="0.01" name="terrace_area" id="id_terrace_area" class="form-control"
+                         value="{{ unit.terrace_area|default:'0.00' }}">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label for="id_garden_area" class="form-label text-dark">{% trans "مساحة الحديقة (م²)" %}</label>
+                  <input type="number" step="0.01" name="garden_area" id="id_garden_area" class="form-control"
+                         value="{{ unit.garden_area|default:'0.00' }}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_orientation" class="form-label text-dark">{% trans "الواجهة والاتجاه" %}</label>
+                  <select name="orientation" id="id_orientation" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in orientations %}
+                    <option value="{{ val }}" {% if unit.orientation == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_view_type" class="form-label text-dark">{% trans "نوع الإطلالة" %}</label>
+                  <select name="view_type" id="id_view_type" class="form-select select2-filter" dir="rtl">
+                    {% for val, label in view_types %}
+                    <option value="{{ val }}" {% if unit.view_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-4 d-flex align-items-center mt-4">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_corner" id="id_is_corner" value="true"
+                           {% if unit.is_corner %}checked{% endif %}>
+                    <label class="form-check-label text-dark fw-semibold" for="id_is_corner">
+                      {% trans "وحدة ناصية مميزة (Corner Unit)" %}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-coins text-primary me-2"></i>{% trans "التسعير المالي" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_meter_price" class="form-label fw-semibold text-dark">
+                    {% trans "سعر المتر البيعي" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" step="0.01" name="meter_price" id="id_meter_price" class="form-control"
+                         value="{{ unit.meter_price|default:'0.00' }}" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_garden_price" class="form-label text-dark">{% trans "سعر الحديقة الملحقة" %}</label>
+                  <input type="number" step="0.01" name="garden_price" id="id_garden_price" class="form-control"
+                         value="{{ unit.garden_price|default:'0.00' }}">
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_parking_price" class="form-label text-dark">{% trans "سعر مكان الجراج" %}</label>
+                  <input type="number" step="0.01" name="parking_price" id="id_parking_price" class="form-control"
+                         value="{{ unit.parking_price|default:'0.00' }}">
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% if is_edit %}{% url 'real_estate:unit_detail' pk=unit.id %}{% else %}{% url 'real_estate:unit_list' %}{% endif %}" class="btn btn-secondary px-4">
+                  {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-save me-1"></i>
+                  {% if is_edit %}{% trans "حفظ التعديلات" %}{% else %}{% trans "إضافة الوحدة" %}{% endif %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -179,6 +179,11 @@ class DataRetentionService:
             model_class = self._get_model_class(policy.model_name)
             if not model_class:
                 raise Exception(f"Model not found: {policy.model_name}")
+
+            # Statutory Exemption Guard for Real Estate App (10-Year Decennial Liability)
+            if model_class._meta.app_label in ['real_estate'] or policy.model_name.startswith('real_estate.'):
+                logger.info(f"Model {policy.model_name} is strictly EXEMPT from data retention deletion (Statutory Decennial Liability).")
+                return policy_result
             
             # Build query for expired records
             query_filters = self._build_query_filters(policy, policy_result['cutoff_date'])

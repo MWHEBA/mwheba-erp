@@ -40,24 +40,28 @@ class ChequeAllocationService:
     def allocate_cheque_to_invoice(
         cls,
         cheque: Cheque,
-        sale: Sale,
-        amount: Decimal,
+        sale: Optional[Sale] = None,
+        amount: Decimal = Decimal('0.00'),
         installment_item: Optional[Any] = None,
         user=None,
         notes: Optional[str] = None,
         idempotency_key: Optional[str] = None
     ) -> ChequeInvoiceAllocation:
         """
-        تخصيص ورقة قبض على فاتورة مبيعات محددة (أو قسط محدد من فاتورة تقسيط):
+        تخصيص ورقة قبض على فاتورة مبيعات محددة أو قسط تقسيط (يدعم فواتير المبيعات وعقود التطوير العقاري المستقلة):
         1. التحقق من تطابق العميل والحدود المالية ومنع التكرار الحتمي (Idempotency)
-        2. فحص سقف التخصيص المشترك للشيك (الفواتير + الدفعات المقدمة)
-        3. التحقق من رصيد القسط في حال التخصيص على قسط تقسيط محدد
-        4. إنشاء أو جلب CustomerTransaction للفاتورة والشيك
-        5. تسجيل CustomerAllocationAudit مع التوقيع المشفر SHA-256
-        6. تسجيل سجل السداد SalePayment (financial_account=None, source_type='CHEQUE')
-        7. إنشاء ChequeInvoiceAllocation وتحديث التغطية الورقية للقسط
-        8. تحديث حالة سداد الفاتورة تلقائياً
+        2. تطبيق بروتوكول القفل الهرمي (Plan-First Locking): قفل الخطة أولاً ثم القسط
+        3. فحص سقف التخصيص المشترك للشيك (الفواتير + الدفعات المقدمة)
+        4. التحقق من رصيد القسط في حال التخصيص على قسط تقسيط محدد
+        5. إنشاء أو جلب CustomerTransaction للفاتورة والشيك (عند وجود فاتورة)
+        6. تسجيل CustomerAllocationAudit مع التوقيع المشفر SHA-256 (عند وجود فاتورة)
+        7. تسجيل سجل السداد SalePayment (عند وجود فاتورة)
+        8. إنشاء ChequeInvoiceAllocation وتحديث التغطية الورقية للقسط
+        9. تحديث حالة سداد الفاتورة تلقائياً (عند وجود فاتورة)
         """
+        if not sale and not installment_item:
+            raise ValidationError(_("يجب تحديد فاتورة مبيعات أو قسط تقسيط لإتمام عملية التخصيص."))
+
         if not isinstance(amount, Decimal):
             amount = Decimal(str(amount))
 
@@ -73,11 +77,12 @@ class ChequeAllocationService:
         if cheque.status in [ChequeStatus.DRAFT, ChequeStatus.BOUNCED, ChequeStatus.CANCELLED, ChequeStatus.RETURNED_TO_DRAWER]:
             raise ValidationError(_(f"لا يمكن تخصيص شيك في حالة: {cheque.get_status_display()}."))
 
-        # التحقق من تطابق العميل
-        if cheque.customer_id and sale.customer_id and cheque.customer_id != sale.customer_id:
+        # التحقق من تطابق العميل في حالة وجود فاتورة مبيعات
+        if sale and cheque.customer_id and sale.customer_id and cheque.customer_id != sale.customer_id:
             raise ValidationError(_("العميل في الشيك لا يتطابق مع العميل في فاتورة المبيعات."))
 
-        alloc_ref = f"ALLOC:{idempotency_key}" if idempotency_key else f"ALLOC-{cheque.voucher_number}->{sale.number}-{uuid.uuid4().hex[:8]}"
+        target_ref = sale.number if sale else f"INST-{getattr(installment_item, 'pk', installment_item)}"
+        alloc_ref = f"ALLOC:{idempotency_key}" if idempotency_key else f"ALLOC-{cheque.voucher_number}->{target_ref}-{uuid.uuid4().hex[:8]}"
 
         with transaction.atomic():
             # فحص منع التكرار الحتمي Idempotency Guard
@@ -91,10 +96,10 @@ class ChequeAllocationService:
                         allocation_audit=existing_audit
                     ).first()
                     if existing_alloc:
-                        # فحص تطابق المعلمات الأساسية (الشيك، الفاتورة، المبلغ) لمنع التعارض والنجاح المضلل
+                        # فحص تطابق المعلمات الأساسية لمنع التعارض والنجاح المضلل
                         if (
                             existing_alloc.cheque_id != cheque.id
-                            or existing_alloc.sale_id != sale.id
+                            or existing_alloc.sale_id != (sale.id if sale else None)
                             or existing_alloc.allocated_amount != amount
                         ):
                             raise ValidationError(
@@ -105,17 +110,28 @@ class ChequeAllocationService:
 
             # قفل السجلات لمنع تضارب العمليات المتزامنة
             locked_cheque = Cheque.objects.select_for_update().get(pk=cheque.pk)
-            locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
+            locked_sale = Sale.objects.select_for_update().get(pk=sale.pk) if sale else None
 
-            # التحقق من قسط التقسيط المرتبط إن وجد
+            # التحقق من قسط التقسيط المرتبط وتطبيق بروتوكول القفل الهرمي (Plan-First Locking)
             locked_installment = None
             if installment_item:
-                from sale.models import InstallmentItem
+                from sale.models import InstallmentPlan, InstallmentItem
                 inst_id = installment_item.pk if hasattr(installment_item, "pk") else installment_item
+                raw_item = InstallmentItem.objects.only('plan_id').get(pk=inst_id)
+                # قفل الخطة أولاً
+                locked_plan = InstallmentPlan.objects.select_for_update().get(pk=raw_item.plan_id)
+                # ثم قفل القسط
                 locked_installment = InstallmentItem.objects.select_for_update().get(pk=inst_id)
 
-                if locked_installment.plan.sale_id != locked_sale.id:
-                    raise ValidationError(_("القسط المحدد لا ينتمي إلى فاتورة المبيعات المختارة."))
+                if locked_sale:
+                    if locked_installment.plan.sale_id != locked_sale.id:
+                        raise ValidationError(_("القسط المحدد لا ينتمي إلى فاتورة المبيعات المختارة."))
+                else:
+                    if locked_installment.plan.sale_id is not None:
+                        raise ValidationError(_("هذا القسط مرتبط بفاتورة مبيعات، يجب تمرير الفاتورة للتخصيص."))
+                    plan_cust_id = getattr(getattr(locked_plan, 'property_contract', None), 'customer_id', None) or locked_plan.customer_id
+                    if cheque.customer_id and plan_cust_id and cheque.customer_id != plan_cust_id:
+                        raise ValidationError(_("العميل في الشيك لا يتطابق مع عميل الخطة/العقد."))
 
                 if amount > locked_installment.total_remaining_balance:
                     raise ValidationError(
@@ -136,17 +152,47 @@ class ChequeAllocationService:
 
             # التحقق من تطابق عملة الشيك والفاتورة لضمان اتساق الأستاذ المساعد
             cheque_curr = locked_cheque.currency.code if locked_cheque.currency else "EGP"
-            sale_curr = locked_sale.currency.code if locked_sale.currency else "EGP"
-            if cheque_curr != sale_curr:
-                raise ValidationError(
-                    _(f"لا يمكن تخصيص شيك بعملة ({cheque_curr}) على فاتورة بعملة ({sale_curr}). يجب تطابق عملة الشيك والفاتورة لضمان سلامة الأستاذ المساعد.")
-                )
+            if locked_sale:
+                sale_curr = locked_sale.currency.code if locked_sale.currency else "EGP"
+                if cheque_curr != sale_curr:
+                    raise ValidationError(
+                        _(f"لا يمكن تخصيص شيك بعملة ({cheque_curr}) على فاتورة بعملة ({sale_curr}). يجب تطابق عملة الشيك والفاتورة لضمان سلامة الأستاذ المساعد.")
+                    )
 
-            # التحقق من المتبقي على الفاتورة
-            if amount > locked_sale.amount_due:
-                raise ValidationError(
-                    _(f"المبلغ المطلوب تخصيصه ({amount}) يتجاوز المبلغ المتبقي على الفاتورة ({locked_sale.amount_due}).")
+                # التحقق من المتبقي على الفاتورة
+                if amount > locked_sale.amount_due:
+                    raise ValidationError(
+                        _(f"المبلغ المطلوب تخصيصه ({amount}) يتجاوز المبلغ المتبقي على الفاتورة ({locked_sale.amount_due}).")
+                    )
+
+            rate = locked_cheque.original_exchange_rate or Decimal("1.000000")
+            functional_amount = (amount * rate).quantize(Decimal("0.01"))
+            now = timezone.now()
+
+            # مسار التخصيص المستقل لعقود التطوير العقاري (بدون فاتورة مبيعات)
+            if not locked_sale:
+                alloc = ChequeInvoiceAllocation.objects.create(
+                    cheque=locked_cheque,
+                    sale=None,
+                    installment_item=locked_installment,
+                    allocated_amount=amount,
+                    allocated_amount_functional=functional_amount,
+                    allocation_status=AllocationStatus.APPLIED,
+                    allocation_date=now.date(),
+                    journal_entry=None,
+                    sale_payment=None,
+                    allocation_audit=None,
+                    notes=notes or f"تخصيص شيك {locked_cheque.voucher_number} على قسط #{locked_installment.installment_number}"
                 )
+                if locked_installment:
+                    locked_installment.cheques.add(locked_cheque)
+                    cls.recalculate_installment_paper_coverage(locked_installment)
+
+                logger.info(
+                    f"✅ تم تخصيص الشيك {locked_cheque.voucher_number} على القسط #{locked_installment.installment_number} "
+                    f"بمبلغ {amount} {cheque_curr} (Real Estate Contract Tranche)"
+                )
+                return alloc
 
             # 1. ضمان وجود معاملة الأستاذ المساعد للفاتورة
             inv_txn = PartnerSubledgerService.record_sale_invoice(locked_sale)
@@ -460,7 +506,7 @@ class ChequeAllocationService:
 
             # 2. جلب سجل التدقيق المرتبط بالتخصيص المحدد وإنشاء سجل العكس
             orig_audit = getattr(locked_alloc, "allocation_audit", None)
-            if not orig_audit:
+            if not orig_audit and sale:
                 orig_audit = CustomerAllocationAudit.objects.filter(
                     target_document_number=sale.number,
                     source_document_number=cheque.voucher_number,
@@ -483,8 +529,8 @@ class ChequeAllocationService:
                     invoice_transaction=orig_audit.invoice_transaction,
                     source_document_type="CHEQUE",
                     source_document_number=cheque.voucher_number,
-                    target_document_type="SALES_INVOICE",
-                    target_document_number=sale.number,
+                    target_document_type=orig_audit.target_document_type or "SALES_INVOICE",
+                    target_document_number=orig_audit.target_document_number or (sale.number if sale else ""),
                     allocation_type="REVERSAL",
                     allocated_amount=locked_alloc.allocated_amount,
                     functional_amount=locked_alloc.allocated_amount_functional,
@@ -496,43 +542,46 @@ class ChequeAllocationService:
                 )
 
             # 3. تحويل دفعة الفاتورة SalePayment الخاصة بهذا التخصيص فقط إلى reversed
-            if getattr(locked_alloc, "sale_payment", None):
-                locked_alloc.sale_payment.status = "reversed"
-                locked_alloc.sale_payment.save(update_fields=["status"])
-            else:
-                target_payment = SalePayment.objects.filter(
-                    sale=sale,
-                    source_type="CHEQUE",
-                    reference_number=cheque.voucher_number,
-                    amount=locked_alloc.allocated_amount,
-                    status="posted"
-                ).first()
-                if target_payment:
-                    target_payment.status = "reversed"
-                    target_payment.save(update_fields=["status"])
+            if sale:
+                if getattr(locked_alloc, "sale_payment", None):
+                    locked_alloc.sale_payment.status = "reversed"
+                    locked_alloc.sale_payment.save(update_fields=["status"])
                 else:
-                    SalePayment.objects.filter(
+                    target_payment = SalePayment.objects.filter(
                         sale=sale,
                         source_type="CHEQUE",
                         reference_number=cheque.voucher_number,
+                        amount=locked_alloc.allocated_amount,
                         status="posted"
-                    ).order_by("-id")[:1].update(status="reversed")
+                    ).first()
+                    if target_payment:
+                        target_payment.status = "reversed"
+                        target_payment.save(update_fields=["status"])
+                    else:
+                        SalePayment.objects.filter(
+                            sale=sale,
+                            source_type="CHEQUE",
+                            reference_number=cheque.voucher_number,
+                            status="posted"
+                        ).order_by("-id")[:1].update(status="reversed")
 
             # 4. عكس قيد اليومية المرتبط بالتسوية إن وُجد
             if locked_alloc.journal_entry:
                 try:
                     from financial.services.ledger_core_service import LedgerCoreService
+                    rev_doc_no = sale.number if sale else (cheque.voucher_number)
                     LedgerCoreService.reverse_entry(
                         entry_id=locked_alloc.journal_entry_id,
                         user=user,
-                        reversal_reason=f"عكس قيد تسوية الدفعة المقدمة على الفاتورة {sale.number}: {reason}"
+                        reversal_reason=f"عكس قيد تسوية الدفعة المقدمة على المستند {rev_doc_no}: {reason}"
                     )
                 except Exception as je_err:
                     logger.error(f"Error reversing allocation journal entry: {je_err}")
                     raise ValidationError(_(f"فشل عكس قيد اليومية لتسوية الدفعة المقدمة: {je_err}"))
 
             # 5. تحديث حالة الفاتورة
-            sale.update_payment_status()
+            if sale:
+                sale.update_payment_status()
 
             # 6. استعادة أرصدة وحالات الأستاذ المساعد للعميل بالقيمة الدفترية لكل طرف
             if orig_audit and orig_audit.invoice_transaction:
@@ -561,8 +610,9 @@ class ChequeAllocationService:
             if locked_alloc.installment_item:
                 cls.recalculate_installment_paper_coverage(locked_alloc.installment_item)
 
+            target_desc = f"الفاتورة {sale.number}" if sale else f"القسط #{locked_alloc.installment_item_id}"
             logger.info(
-                f"↩️ تم عكس تخصيص الشيك {cheque.voucher_number} على الفاتورة {sale.number} "
+                f"↩️ تم عكس تخصيص الشيك {cheque.voucher_number} على {target_desc} "
                 f"بمبلغ {locked_alloc.allocated_amount} (السبب: {reason})"
             )
 

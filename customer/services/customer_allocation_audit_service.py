@@ -287,7 +287,7 @@ class CustomerAllocationAuditService:
             sale_curr_id = sale.currency_id or (locked_customer.default_currency_id if locked_customer else None)
             payments_qs = CustomerPayment.objects.select_for_update().filter(
                 customer_id=locked_customer.id
-            ).exclude(status="cancelled")
+            ).exclude(status="cancelled").exclude(source_type="REAL_ESTATE")
 
             if sale_curr_id:
                 payments_qs = payments_qs.filter(Q(currency_id=sale_curr_id) | Q(currency__isnull=True))

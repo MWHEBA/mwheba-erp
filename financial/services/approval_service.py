@@ -97,6 +97,18 @@ class ApprovalService:
             # Advance current step
             pending_step = req.steps.filter(status="PENDING").order_by("sequence").first()
             if pending_step:
+                if pending_step.approver_role:
+                    has_role = (
+                        user.is_superuser or 
+                        (getattr(user, 'role_id', None) is not None and getattr(user.role, 'name', None) == pending_step.approver_role) or 
+                        (hasattr(user, 'secondary_roles') and user.secondary_roles.filter(name=pending_step.approver_role, is_active=True).exists()) or 
+                        (hasattr(user, 'groups') and user.groups.filter(name=pending_step.approver_role).exists())
+                    )
+                    if not has_role:
+                        raise FinancialCoreError(
+                            f"صلاحية غير كافية: المستخدم {user.username} لا يحمل الدور المطلوب '{pending_step.approver_role}' لاعتماد هذه الخطوة."
+                        )
+
                 pending_step.status = "APPROVED"
                 pending_step.action_by = user
                 pending_step.action_at = timezone.now()

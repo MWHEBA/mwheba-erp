@@ -56,6 +56,7 @@ urlpatterns = [
     path("purchases/", include("purchase.urls")),
     path("financial/", include("financial.urls")),
     path("cheques/", include("cheques.urls")),
+    path("real-estate/", include("real_estate.urls")),
     path("hr/", include("hr.urls")),
     path("governance/", include("governance.urls")),
     path("utils/", include("utils.urls")),

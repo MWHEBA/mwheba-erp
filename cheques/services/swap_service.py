@@ -78,8 +78,14 @@ class ChequeSwapService:
             raise ValidationError(_("لا يمكن استبدال الشيك بنفسه."))
 
         sale = installment_item.plan.sale
-        if new_cheque.customer_id and new_cheque.customer_id != sale.customer_id:
-            raise ValidationError(_("العميل في الشيك البديل لا يتطابق مع عميل الفاتورة."))
+        expected_customer_id = (
+            sale.customer_id
+            if sale
+            else getattr(getattr(installment_item.plan, 'property_contract', None), 'customer_id', None)
+            or getattr(installment_item.plan, 'customer_id', None)
+        )
+        if new_cheque.customer_id and expected_customer_id and new_cheque.customer_id != expected_customer_id:
+            raise ValidationError(_("العميل في الشيك البديل لا يتطابق مع عميل الفاتورة أو العقد."))
 
         with transaction.atomic():
             locked_old = Cheque.objects.select_for_update().get(pk=old_cheque.pk)
@@ -92,7 +98,7 @@ class ChequeSwapService:
                 allocation_status=AllocationStatus.APPLIED
             ).first()
 
-            if not old_alloc:
+            if not old_alloc and sale:
                 # محاولة البحث عن تخصيص على الفاتورة التابعة للقسط
                 old_alloc = locked_old.invoice_allocations.filter(
                     sale=sale,

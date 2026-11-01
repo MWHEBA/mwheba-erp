@@ -94,7 +94,10 @@ class IdempotencyError(GovernanceError):
     Indicates duplicate operation attempts.
     """
     def __init__(self, operation_type: str, idempotency_key: str, context: dict = None):
+        reason = (context or {}).get('reason')
         message = f"Operation '{operation_type}' with key '{idempotency_key}' already exists"
+        if reason:
+            message += f": {reason}"
         super().__init__(
             message=message,
             error_code="IDEMPOTENCY_ERROR",

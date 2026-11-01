@@ -126,7 +126,7 @@ class PartnerAdvanceService:
             currencies.add(func_curr)
 
         if partner_type == "customer" and hasattr(partner, "payments"):
-            for c_id in partner.payments.exclude(status="cancelled").values_list("currency_id", flat=True).distinct():
+            for c_id in partner.payments.exclude(status="cancelled").exclude(source_type="REAL_ESTATE").values_list("currency_id", flat=True).distinct():
                 if c_id:
                     c_obj = Currency.objects.filter(pk=c_id).first()
                     if c_obj:
@@ -168,11 +168,11 @@ class PartnerAdvanceService:
             if hasattr(partner, "payments"):
                 if is_func or not currency:
                     if currency:
-                        payments = partner.payments.exclude(status="cancelled").filter(Q(currency=currency) | Q(currency__isnull=True))
+                        payments = partner.payments.exclude(status="cancelled").exclude(source_type="REAL_ESTATE").filter(Q(currency=currency) | Q(currency__isnull=True))
                     else:
-                        payments = partner.payments.exclude(status="cancelled").all()
+                        payments = partner.payments.exclude(status="cancelled").exclude(source_type="REAL_ESTATE").all()
                 else:
-                    payments = partner.payments.exclude(status="cancelled").filter(currency=currency)
+                    payments = partner.payments.exclude(status="cancelled").exclude(source_type="REAL_ESTATE").filter(currency=currency)
             else:
                 payments = []
             total_paid = sum((p.transaction_amount or p.amount) for p in payments)

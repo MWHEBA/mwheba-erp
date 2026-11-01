@@ -424,6 +424,19 @@ class CustomerPayment(MonetaryTransactionMixin, models.Model):
         related_name="down_payments",
     )
 
+    # تصنيف مصدر الدفعة لعزل الذمم المالية (Dual-Activity Isolation)
+    source_type = models.CharField(
+        _("نوع / مصدر الدفعة"),
+        max_length=30,
+        default="COMMERCIAL",
+        db_index=True,
+        choices=[
+            ("COMMERCIAL", _("تجاري")),
+            ("REAL_ESTATE", _("عقاري")),
+            ("WORK_ORDER", _("أمر شغل")),
+        ],
+    )
+
     # مركز التكلفة ومسؤول المبيعات
     cost_center = models.ForeignKey(
         "financial.CostCenter",

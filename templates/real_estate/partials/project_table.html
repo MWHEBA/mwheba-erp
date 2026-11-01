@@ -1,0 +1,100 @@
+{% load i18n humanize %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="projects-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3" style="width: 120px;">{% trans "كود المشروع" %}</th>
+        <th>{% trans "اسم المشروع" %}</th>
+        <th>{% trans "النوع" %}</th>
+        <th>{% trans "المدينة / الحي" %}</th>
+        <th class="text-center">{% trans "إجمالي الوحدات" %}</th>
+        <th class="text-center">{% trans "الوحدات المتاحة" %}</th>
+        <th class="text-center">{% trans "الوحدات المتعاقدة" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center pe-3" style="width: 140px;">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for project in projects %}
+      <tr class="clickable-row" data-href="{% url 'real_estate:project_detail' pk=project.id %}" style="cursor: pointer;">
+        <td class="ps-3 fw-bold font-monospace text-primary">{{ project.code }}</td>
+        <td>
+          <div class="fw-semibold text-dark">{{ project.name }}</div>
+          {% if project.currency %}
+          <small class="text-muted"><i class="fas fa-coins me-1"></i>{{ project.currency.code }}</small>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge bg-light text-dark border">
+            {{ project.get_project_type_display }}
+          </span>
+        </td>
+        <td>
+          <div class="text-dark">{{ project.city|default:"-" }}</div>
+          {% if project.district %}<small class="text-muted">{{ project.district }}</small>{% endif %}
+        </td>
+        <td class="text-center">
+          <span class="badge bg-secondary-subtle text-secondary border">
+            {{ project.units_count|default:"0" }}
+          </span>
+        </td>
+        <td class="text-center">
+          <span class="badge bg-success-subtle text-success border">
+            {{ project.available_units_count|default:"0" }}
+          </span>
+        </td>
+        <td class="text-center">
+          <span class="badge bg-info-subtle text-info border">
+            {{ project.contracted_units_count|default:"0" }}
+          </span>
+        </td>
+        <td class="text-center">
+          {% if project.status == 'UNDER_CONSTRUCTION' %}
+          <span class="badge bg-warning-subtle text-warning border">{% trans "تحت الإنشاء" %}</span>
+          {% elif project.status == 'COMPLETED' %}
+          <span class="badge bg-success-subtle text-success border">{% trans "مكتمل" %}</span>
+          {% elif project.status == 'HANDOVER' %}
+          <span class="badge bg-primary-subtle text-primary border">{% trans "تسليم" %}</span>
+          {% else %}
+          <span class="badge bg-secondary-subtle text-secondary border">{{ project.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-center pe-3" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'real_estate:project_detail' pk=project.id %}" class="btn btn-outline-secondary" title="{% trans 'التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'real_estate:project_matrix' project_id=project.id %}" class="btn btn-outline-primary" title="{% trans 'المصفوفة التفاعلية' %}">
+              <i class="fas fa-th"></i>
+            </a>
+            <a href="{% url 'real_estate:project_pricing' project_id=project.id %}" class="btn btn-outline-info" title="{% trans 'مصفوفة التسعير' %}">
+              <i class="fas fa-tags"></i>
+            </a>
+            {% if perms.real_estate.change_realestateproject or user.is_superuser %}
+            <a href="{% url 'real_estate:project_update' pk=project.id %}" class="btn btn-outline-warning" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="text-center py-5 text-muted">
+          <div class="py-4">
+            <i class="fas fa-city fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
+            <p class="h6 mb-2">{% trans "لم يتم العثور على أي مشروعات عقارية" %}</p>
+            <p class="small text-muted mb-3">{% trans "يمكنك إضافة مشروع جديد أو تغيير معايير البحث." %}</p>
+            {% if perms.real_estate.add_realestateproject or user.is_superuser %}
+            <a href="{% url 'real_estate:project_create' %}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة مشروع جديد" %}
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

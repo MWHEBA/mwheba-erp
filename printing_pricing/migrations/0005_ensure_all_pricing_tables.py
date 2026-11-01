@@ -30,6 +30,8 @@ def ensure_pricing_tables_exist(apps, schema_editor):
         for model_name in model_names:
             try:
                 model = apps.get_model('printing_pricing', model_name)
+                if getattr(model._meta, 'proxy', False):
+                    continue
                 table_name = model._meta.db_table
                 cursor.execute("""
                     SELECT COUNT(*) 

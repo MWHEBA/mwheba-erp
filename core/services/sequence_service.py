@@ -58,6 +58,16 @@ class SequenceService:
         DocumentType.CHEQUE_RECEIVABLE: "CHQR",
         DocumentType.CHEQUE_PAYABLE: "CHQP",
         DocumentType.CHEQUE_DEPOSIT_BATCH: "CHQB",
+        DocumentType.PROPERTY_CONTRACT: "CTR",
+        DocumentType.UNIT_BOOKING: "BK",
+        DocumentType.UNIT_HANDOVER: "HDR",
+        DocumentType.VARIATION_ORDER: "VO",
+        DocumentType.CONTRACT_ASSIGNMENT: "TRF",
+        DocumentType.UNIT_SWAP: "SWP",
+        DocumentType.LEGAL_NOTICE: "NOT",
+        DocumentType.INFRASTRUCTURE_APPORTIONMENT: "INF",
+        DocumentType.SURVEY_ADJUSTMENT: "SRV",
+        DocumentType.RESALE_REFUND: "RRF",
     }
 
     # خريطة الموديلات والحقول لتحديد الـ Seed الأولي للبيانات القديمة
@@ -89,6 +99,14 @@ class SequenceService:
         DocumentType.CHEQUE_RECEIVABLE: [("cheques.Cheque", "voucher_number")],
         DocumentType.CHEQUE_PAYABLE: [("cheques.Cheque", "voucher_number")],
         DocumentType.CHEQUE_DEPOSIT_BATCH: [("cheques.ChequeBatchDeposit", "batch_number")],
+        DocumentType.PROPERTY_CONTRACT: [("real_estate.PropertyContract", "contract_number")],
+        DocumentType.UNIT_BOOKING: [("real_estate.UnitBooking", "booking_number")],
+        DocumentType.CONTRACT_ASSIGNMENT: [("real_estate.ContractAssignmentEndorsement", "assignment_number")],
+        DocumentType.UNIT_SWAP: [("real_estate.UnitSwapRecord", "swap_number")],
+        DocumentType.LEGAL_NOTICE: [("real_estate.LegalNotice", "notice_number")],
+        DocumentType.INFRASTRUCTURE_APPORTIONMENT: [("real_estate.SharedInfrastructureApportionment", "apportionment_number")],
+        DocumentType.SURVEY_ADJUSTMENT: [("real_estate.AsBuiltSurveyAdjustment", "adjustment_number")],
+        DocumentType.RESALE_REFUND: [("real_estate.ResaleContingentRefund", "refund_number")],
     }
 
     @classmethod

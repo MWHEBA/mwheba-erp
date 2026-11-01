@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "لوحة المؤشرات والقيادة التنفيذية للقطاع العقاري" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid (Financial & Operational KPIs) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي القيمة التعاقدية" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_portfolio_value|floatformat:2|intcomma }}</div>
+            <small class="text-muted">{% trans "المحفظة الاستثمارية" %}</small>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-coins"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المقدمات المحصلة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_down_payments|floatformat:2|intcomma }}</div>
+            <small class="text-muted">{% trans "سيولة عقود مباشرة" %}</small>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-hand-holding-usd"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "أمانات الحجوزات النشطة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_holding_deposits|floatformat:2|intcomma }}</div>
+            <small class="text-muted">{{ total_active_bookings }} {% trans "استمارة حجز سارية" %}</small>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-hourglass-half"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الوحدات والمخزون" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_units }}</div>
+            <small class="text-muted">{{ available_units }} {% trans "متاحة" %} | {{ contracted_units }} {% trans "مباعة" %}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-th-large"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Operational Shortcuts & Real Estate Projects -->
+  <div class="row g-4 mb-4">
+    <!-- Projects Overview Section -->
+    <div class="col-12 col-lg-8">
+      <div class="section-container">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-city text-primary me-2"></i>{% trans "المشروعات العقارية الإنشائية النشطة" %}
+            </h5>
+            <a href="{% url 'real_estate:project_list' %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-list me-1"></i>{% trans "عرض كافة المشروعات" %}
+            </a>
+          </div>
+          <div class="card-body p-3">
+            <div class="row g-3">
+              {% for p in projects %}
+              <div class="col-12 col-md-6">
+                <div class="card border h-100 p-3 shadow-none hover-shadow">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-bold text-dark fs-6">{{ p.name }}</span>
+                    <span class="badge bg-light text-primary border font-monospace">{{ p.code }}</span>
+                  </div>
+                  <div class="small text-muted mb-2">
+                    <i class="fas fa-map-marker-alt me-1 text-secondary"></i>{{ p.city|default:"-" }} / {{ p.district|default:"-" }}
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
+                    <span>{% trans "الحالة" %}: <strong class="text-dark">{{ p.get_status_display }}</strong></span>
+                    <span>{% trans "الوحدات" %}: <strong class="text-dark">{{ p.units.count }}</strong></span>
+                  </div>
+                  <div class="d-flex gap-2 mt-auto">
+                    <a href="{% url 'real_estate:project_detail' pk=p.id %}" class="btn btn-sm btn-outline-secondary flex-grow-1">
+                      <i class="fas fa-eye me-1"></i>{% trans "التفاصيل" %}
+                    </a>
+                    <a href="{% url 'real_estate:project_matrix' project_id=p.id %}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                      <i class="fas fa-th me-1"></i>{% trans "المصفوفة" %}
+                    </a>
+                  </div>
+                </div>
+              </div>
+              {% empty %}
+              <div class="col-12 text-center py-5 text-muted">
+                <i class="fas fa-city fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
+                <p>{% trans "لا توجد مشروعات عقارية نشطة حالياً." %}</p>
+                <a href="{% url 'real_estate:project_create' %}" class="btn btn-sm btn-primary">
+                  <i class="fas fa-plus me-1"></i>{% trans "إضافة مشروع جديد" %}
+                </a>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Navigation Hub -->
+    <div class="col-12 col-lg-4">
+      <div class="section-container">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-compass text-primary me-2"></i>{% trans "روابط الوصول المباشر" %}
+            </h5>
+          </div>
+          <div class="card-body p-3">
+            <div class="d-grid gap-2">
+              <a href="{% url 'real_estate:unit_list' %}" class="btn btn-outline-secondary text-start py-2">
+                <i class="fas fa-door-open text-primary me-2"></i>{% trans "إدارة ومخزون الوحدات العقارية" %}
+              </a>
+              <a href="{% url 'real_estate:booking_list' %}" class="btn btn-outline-secondary text-start py-2">
+                <i class="fas fa-bookmark text-warning me-2"></i>{% trans "استمارات الحجز وجدية التعاقد" %}
+              </a>
+              <a href="{% url 'real_estate:contract_list' %}" class="btn btn-outline-secondary text-start py-2">
+                <i class="fas fa-file-contract text-success me-2"></i>{% trans "سجل عقود البيع الرسمية والمخالصات" %}
+              </a>
+              <a href="{% url 'core:module_management' %}" class="btn btn-outline-secondary text-start py-2">
+                <i class="fas fa-cubes text-secondary me-2"></i>{% trans "إدارة التطبيقات والوحدات بالنظام" %}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Contracts & Bookings Row -->
+  <div class="row g-4">
+    <div class="col-12 col-lg-6">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-file-signature text-primary me-2"></i>{% trans "أحدث عقود البيع المبرمة" %}
+            </h5>
+            <a href="{% url 'real_estate:contract_list' %}" class="btn btn-sm btn-outline-secondary">{% trans "المزيد" %}</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "رقم العقد" %}</th>
+                    <th>{% trans "العميل" %}</th>
+                    <th>{% trans "الوحدة" %}</th>
+                    <th class="text-end pe-3">{% trans "القيمة" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for c in recent_contracts %}
+                  <tr>
+                    <td class="ps-3 fw-bold font-monospace text-primary">
+                      <a href="{% url 'real_estate:contract_detail' pk=c.id %}" class="text-decoration-none">{{ c.contract_number }}</a>
+                    </td>
+                    <td>{{ c.customer.name }}</td>
+                    <td class="font-monospace">{{ c.unit.unit_code }}</td>
+                    <td class="text-end pe-3 fw-bold text-dark">{{ c.final_contract_price|floatformat:2|intcomma }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="4" class="text-center py-4 text-muted">{% trans "لا توجد عقود مسجلة مؤخراً" %}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-hourglass-start text-warning me-2"></i>{% trans "أحدث استمارات الحجز السارية" %}
+            </h5>
+            <a href="{% url 'real_estate:booking_list' %}" class="btn btn-sm btn-outline-secondary">{% trans "المزيد" %}</a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "رقم الحجز" %}</th>
+                    <th>{% trans "العميل" %}</th>
+                    <th>{% trans "الوحدة" %}</th>
+                    <th class="text-end pe-3">{% trans "الجدية" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for b in recent_bookings %}
+                  <tr>
+                    <td class="ps-3 fw-bold font-monospace text-warning">
+                      <a href="{% url 'real_estate:booking_detail' pk=b.id %}" class="text-decoration-none">{{ b.booking_number }}</a>
+                    </td>
+                    <td>{{ b.customer.name }}</td>
+                    <td class="font-monospace">{{ b.unit.unit_code }}</td>
+                    <td class="text-end pe-3 fw-bold text-success">{{ b.holding_deposit|floatformat:2|intcomma }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="4" class="text-center py-4 text-muted">{% trans "لا توجد استمارات حجز سارية حالياً" %}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

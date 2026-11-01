@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تذاكر الضمان وخدمات الصيانة بعد التسليم" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي بلاغات الضمان" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_tickets|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تذاكر قيد المعالجة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ open_tickets|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-wrench"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تذاكر مغلقة بنجاح" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ closed_tickets|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-check-double"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#ticketFilterCollapse" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث تذاكر الضمان" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="ticketFilterCollapse">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
+              <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                     placeholder="{% trans 'رقم التذكرة، العميل، الوحدة، الموضوع...' %}">
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "الأولوية" %}</label>
+              <select name="priority" class="form-select form-select-sm">
+                <option value="">{% trans "جميع الأولويات" %}</option>
+                {% for val, label in priority_choices %}
+                <option value="{{ val }}" {% if selected_priority == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2">
+              <label class="form-label small fw-bold">{% trans "الحالة" %}</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+              </button>
+              <a href="{% url 'real_estate:warranty_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-redo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "رقم التذكرة" %}</th>
+                <th>{% trans "الوحدة / العميل" %}</th>
+                <th>{% trans "موضوع البلاغ" %}</th>
+                <th>{% trans "الأولوية" %}</th>
+                <th>{% trans "المقاول المسؤول" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in tickets %}
+              <tr>
+                <td class="ps-3 fw-bold text-primary">{{ t.ticket_number }}</td>
+                <td>{{ t.unit.unit_code }} - {{ t.customer.name }}</td>
+                <td class="fw-semibold">{{ t.title }}</td>
+                <td><span class="badge bg-light text-dark border">{{ t.get_priority_display }}</span></td>
+                <td>{{ t.responsible_contractor.name|default:"-" }}</td>
+                <td class="text-center">
+                  <span class="badge bg-secondary">{{ t.get_status_display }}</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد بلاغات ضمان مسجلة." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-3">
+    {% include "partials/pagination.html" %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

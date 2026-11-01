@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from decimal import Decimal
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.conf import settings
@@ -27,6 +28,8 @@ class InstallmentPlan(models.Model):
     sale = models.OneToOneField(
         'sale.Sale',
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='installment_plan',
         verbose_name=_('فاتورة المبيعات')
     )
@@ -209,9 +212,35 @@ class InstallmentPlan(models.Model):
         verbose_name = _('خطة تقسيط مبيعات')
         verbose_name_plural = _('خطط تقسيط المبيعات')
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(total_amount__gt=0) & models.Q(number_of_installments__gt=0),
+                name='chk_installment_plan_financial_validity'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        has_sale = self.sale_id is not None
+        has_contract = hasattr(self, 'property_contract') and self.property_contract is not None
+        
+        # Guard 1: Mutual exclusivity
+        if has_sale and has_contract:
+            raise ValidationError(_("لا يمكن ربط خطة الأقساط بفاتورة بيع وعقد عقاري في آن واحد."))
+        
+        # Guard 2: Prohibit orphan plan activation
+        if self.status == self.PlanStatus.ACTIVE and not (has_sale or has_contract):
+            raise ValidationError(_("لا يمكن تفعيل خطة أقساط يتيمة بدون مصدر معتمد (فاتورة بيع أو عقد عقاري)."))
 
     def __str__(self):
-        return f"{self.sale.number} - {self.customer.name} ({self.get_status_display()})"
+        if self.sale:
+            ref = self.sale.number
+        elif hasattr(self, 'property_contract') and self.property_contract is not None:
+            ref = self.property_contract.contract_number
+        else:
+            ref = f"PLAN-{self.pk or 'NEW'}"
+        cust_name = self.customer.name if self.customer else ""
+        return f"{ref} - {cust_name} ({self.get_status_display()})"
 
 
 class InstallmentItem(models.Model):
@@ -525,7 +554,13 @@ class InstallmentItem(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.plan.sale.number} - قسط #{self.installment_number} ({self.total_amount})"
+        if self.plan and self.plan.sale:
+            ref = self.plan.sale.number
+        elif self.plan and hasattr(self.plan, 'property_contract') and self.plan.property_contract is not None:
+            ref = self.plan.property_contract.contract_number
+        else:
+            ref = f"PLAN-{self.plan_id or 'UNKNOWN'}"
+        return f"{ref} - قسط #{self.installment_number} ({self.total_amount})"
 
 
 class InstallmentRescheduleLog(models.Model):
@@ -798,6 +833,143 @@ class CollectionRadarSnapshot(models.Model):
     def __str__(self):
         cc_str = f" - {self.cost_center.name}" if self.cost_center else " (الإجمالي العام)"
         return f"لقطة رادار {self.snapshot_date}{cc_str}"
+
+
+class InstallmentCollectionRequest(models.Model):
+    """
+    سجل طلب تحصيل الأقساط لحفظ هوية ومبلغ طلب التحصيل الأصلي كاملاً
+    وربط توزيعات الأقساط به (Multi-Installment Collection & Idempotency Governance)
+    """
+    plan = models.ForeignKey(
+        InstallmentPlan,
+        on_delete=models.CASCADE,
+        related_name='collection_requests',
+        verbose_name=_('خطة التقسيط')
+    )
+    reference_number = models.CharField(
+        max_length=100,
+        db_index=True,
+        verbose_name=_('مرجع طلب التحصيل')
+    )
+    requested_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        verbose_name=_('مبلغ الطلب الإجمالي')
+    )
+    target_installment = models.ForeignKey(
+        InstallmentItem,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='primary_collection_requests',
+        verbose_name=_('القسط المستهدف الأصلي')
+    )
+    currency = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('عملة الطلب')
+    )
+    payment_date = models.DateField(
+        default=timezone.now,
+        verbose_name=_('تاريخ السداد')
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        default='cash',
+        verbose_name=_('طريقة السداد')
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('ملاحظات')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاريخ الإنشاء')
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_('أنشئ بواسطة')
+    )
+
+    class Meta:
+        verbose_name = _('طلب تحصيل أقساط')
+        verbose_name_plural = _('طلبات تحصيل الأقساط')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['plan', 'reference_number']),
+        ]
+
+    def __str__(self):
+        return f"{self.reference_number} ({self.requested_amount})"
+
+
+class InstallmentCollectionDistribution(models.Model):
+    """
+    توزيع مبالغ طلب التحصيل على أقساط خطة السداد
+    """
+    collection_request = models.ForeignKey(
+        InstallmentCollectionRequest,
+        on_delete=models.CASCADE,
+        related_name='distributions',
+        verbose_name=_('طلب التحصيل')
+    )
+    installment_item = models.ForeignKey(
+        InstallmentItem,
+        on_delete=models.CASCADE,
+        related_name='collection_distributions',
+        verbose_name=_('القسط الموزع عليه')
+    )
+    amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        verbose_name=_('المبلغ الموزع')
+    )
+    principal_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('أصل القسط المسدد')
+    )
+    interest_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('فوائد القسط المسددة')
+    )
+    customer_payment = models.ForeignKey(
+        'customer.CustomerPayment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='collection_distributions',
+        verbose_name=_('إيصال دفعة العميل')
+    )
+    sale_payment = models.ForeignKey(
+        'sale.SalePayment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='collection_distributions',
+        verbose_name=_('دفعة الفاتورة')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاريخ التوزيع')
+    )
+
+    class Meta:
+        verbose_name = _('توزيع تحصيل القسط')
+        verbose_name_plural = _('توزيعات تحصيل الأقساط')
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Req #{self.collection_request_id} -> Item #{self.installment_item_id} ({self.amount})"
 
 
 # Module-level convenience aliases

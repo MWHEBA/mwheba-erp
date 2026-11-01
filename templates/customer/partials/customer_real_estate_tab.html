@@ -1,0 +1,179 @@
+{% load i18n humanize %}
+
+<!-- عقود البيع العقارية للعميل -->
+<div class="card border mb-4 shadow-sm">
+  <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+    <span class="fw-bold text-dark">
+      <i class="fas fa-file-contract text-primary me-2"></i>{% trans "عقود البيع والاستثمار العقاري" %}
+    </span>
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+      {{ customer.property_contracts.count|default:"0" }} {% trans "عقد" %}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">{% trans "رقم العقد" %}</th>
+            <th>{% trans "المشروع" %}</th>
+            <th>{% trans "الوحدة" %}</th>
+            <th>{% trans "تاريخ التعاقد" %}</th>
+            <th>{% trans "القيمة التعاقدية" %}</th>
+            <th>{% trans "المقدم" %}</th>
+            <th>{% trans "حالة العقد" %}</th>
+            <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contract in customer.property_contracts.all %}
+          <tr>
+            <td class="ps-3 fw-bold">
+              <a href="{% url 'real_estate:contract_detail' contract.id %}" class="text-primary text-decoration-none">
+                {{ contract.contract_number }}
+              </a>
+            </td>
+            <td>
+              {% if contract.project %}
+              <span class="fw-semibold text-dark">{{ contract.project.name }}</span>
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ contract.unit.unit_code }}</span>
+            </td>
+            <td class="text-muted small">{{ contract.contract_date|date:"Y-m-d" }}</td>
+            <td class="fw-bold text-dark">
+              {{ contract.final_contract_price|smart_float }}
+              <small class="text-muted">{{ contract.currency.symbol|default:"ج.م" }}</small>
+            </td>
+            <td class="text-success fw-semibold">
+              {{ contract.down_payment|smart_float }}
+              <small class="text-muted">{{ contract.currency.symbol|default:"ج.م" }}</small>
+            </td>
+            <td>
+              {% if contract.status == 'ACTIVE' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                <i class="fas fa-check-circle me-1"></i>{{ contract.get_status_display }}
+              </span>
+              {% elif contract.status == 'COMPLETED' %}
+              <span class="badge bg-info-subtle text-info border border-info-subtle">
+                <i class="fas fa-flag-checkered me-1"></i>{{ contract.get_status_display }}
+              </span>
+              {% elif contract.status == 'RESCINDED' %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                <i class="fas fa-times-circle me-1"></i>{{ contract.get_status_display }}
+              </span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                {{ contract.get_status_display }}
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'real_estate:contract_detail' contract.id %}" class="btn btn-sm btn-outline-primary"
+                title="{% trans 'عرض تفاصيل العقد' %}">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center py-4 text-muted">
+              <i class="fas fa-file-contract fa-2x mb-2 text-secondary d-block"></i>
+              {% trans "لا توجد عقود عقارية مسجلة لهذا العميل حتى الآن." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- استمارات حجز الوحدات للعميل -->
+<div class="card border mb-3 shadow-sm">
+  <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+    <span class="fw-bold text-dark">
+      <i class="fas fa-bookmark text-warning me-2"></i>{% trans "استمارات الحجز وأمانات الجدية" %}
+    </span>
+    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+      {{ customer.unit_bookings.count|default:"0" }} {% trans "استمارة" %}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">{% trans "رقم الحجز" %}</th>
+            <th>{% trans "الوحدة" %}</th>
+            <th>{% trans "تاريخ الحجز" %}</th>
+            <th>{% trans "تاريخ الانتهاء" %}</th>
+            <th>{% trans "جدية الحجز" %}</th>
+            <th>{% trans "حالة الحجز" %}</th>
+            <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for booking in customer.unit_bookings.all %}
+          <tr>
+            <td class="ps-3 fw-bold">
+              <a href="{% url 'real_estate:booking_detail' booking.id %}" class="text-primary text-decoration-none">
+                {{ booking.booking_number }}
+              </a>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ booking.unit.unit_code }}</span>
+            </td>
+            <td class="text-muted small">{{ booking.booking_date|date:"Y-m-d" }}</td>
+            <td class="text-muted small">
+              {{ booking.expiry_date|date:"Y-m-d" }}
+              {% if booking.is_expired and booking.status == 'ACTIVE' %}
+              <span class="badge bg-danger-subtle text-danger ms-1">{% trans "منتهي" %}</span>
+              {% endif %}
+            </td>
+            <td class="fw-bold text-dark">
+              {{ booking.holding_deposit|smart_float }}
+              <small class="text-muted">{{ booking.currency.symbol|default:"ج.م" }}</small>
+            </td>
+            <td>
+              {% if booking.status == 'ACTIVE' %}
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                <i class="fas fa-clock me-1"></i>{{ booking.get_status_display }}
+              </span>
+              {% elif booking.status == 'CONVERTED_TO_CONTRACT' %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle">
+                <i class="fas fa-check-circle me-1"></i>{{ booking.get_status_display }}
+              </span>
+              {% elif booking.status == 'CANCELLED_PENDING_REFUND' %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                <i class="fas fa-hourglass-half me-1"></i>{{ booking.get_status_display }}
+              </span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+                {{ booking.get_status_display }}
+              </span>
+              {% endif %}
+            </td>
+            <td class="text-center pe-3">
+              <a href="{% url 'real_estate:booking_detail' booking.id %}" class="btn btn-sm btn-outline-secondary"
+                title="{% trans 'عرض تفاصيل الحجز' %}">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+              <i class="fas fa-bookmark fa-2x mb-2 text-secondary d-block"></i>
+              {% trans "لا توجد استمارات حجز مسجلة لهذا العميل." %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

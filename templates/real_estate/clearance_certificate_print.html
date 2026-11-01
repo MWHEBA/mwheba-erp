@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  {% load i18n humanize %}
+  <meta charset="UTF-8">
+  <title>{% trans "شهادة المخالصة المالية وبراءة الذمة التعاقدية" %} - {{ contract.contract_number }}</title>
+  <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+    body {
+      font-family: 'Tajawal', sans-serif;
+      background-color: #ffffff;
+      color: #1a1a1a;
+      padding: 20px;
+    }
+    .clearance-certificate {
+      border: 2px solid #2b4c7e;
+      padding: 30px;
+      position: relative;
+    }
+    .watermark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 5rem;
+      color: rgba(43, 76, 126, 0.04);
+      font-weight: bold;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0; }
+      .clearance-certificate { border: 2px solid #000; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print mb-4 text-start">
+  <button onclick="window.print()" class="btn btn-primary px-4 fw-bold">
+    <i class="fas fa-print me-1"></i>{% trans "طباعة الشهادة الرسمية" %}
+  </button>
+  <button onclick="window.close()" class="btn btn-outline-secondary px-3 ms-2">
+    {% trans "إغلاق" %}
+  </button>
+</div>
+
+<div class="clearance-certificate shadow-sm">
+  <div class="watermark">MWHEBA ERP CLEARANCE</div>
+
+  <!-- Header -->
+  <div class="row align-items-center border-bottom pb-4 mb-4">
+    <div class="col-8">
+      <h3 class="fw-bold text-dark mb-1">شركة موهبة للاستثمار والتطوير العقاري</h3>
+      <div class="text-muted small">قطاع الشؤون المالية والإدارة القانونية</div>
+      <div class="text-muted small">شهادة براءة ذمة مالية ومخالصة تعاقدية نهائية</div>
+    </div>
+    <div class="col-4 text-end">
+      <div class="border p-2 text-center rounded bg-light">
+        <small class="d-block text-muted">كود التوثيق الرقمي</small>
+        <span class="font-monospace fw-bold text-primary">{{ cert.verification_code|default:"CLR-VERIFIED" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="text-center my-4">
+    <h4 class="fw-bold text-decoration-underline mb-2">شهادة مخالصة مالية نهائية وبراءة ذمة</h4>
+    <p class="text-muted small">صادرة بتاريخ: {{ today|date:"Y-m-d" }}</p>
+  </div>
+
+  <!-- Declaration Body -->
+  <div class="p-3 bg-light rounded border mb-4">
+    <p class="lead mb-3" style="font-size: 1.05rem; line-height: 1.8;">
+      تشهد <strong>شركة موهبة للاستثمار والتطوير العقاري</strong> بأن العميل الموقر / 
+      <strong class="text-primary">{{ contract.customer.name }}</strong> (كود العميل: <code>{{ contract.customer.code }}</code>)، 
+      قد قام بسداد كامل الالتزامات المالية والتعاقدية المستحقة عليه للوحدة العقارية كود: 
+      <strong class="text-primary font-monospace">{{ contract.unit.unit_code }}</strong> 
+      الكائنة بمشروع <strong>{{ contract.project.name }}</strong> بموجب عقد البيع رقم: 
+      <strong class="font-monospace text-dark">{{ contract.contract_number }}</strong>.
+    </p>
+    <p class="mb-0 text-muted" style="line-height: 1.7;">
+      وبناءً عليه، تفيد الشركة بأن ذمة العميل المذكور أصبحت بريئة براءة تامة ونهائية من أي مستحقات أو أقساط أو فوائد تأخير تتعلق بالوحدة المشار إليها حتى تاريخ صدور هذه الشهادة.
+    </p>
+  </div>
+
+  <!-- Financial Summary Table -->
+  <table class="table table-bordered mb-4">
+    <thead class="table-light">
+      <tr>
+        <th>{% trans "بيان القيمة" %}</th>
+        <th class="text-end">{% trans "المبلغ التعاقدي" %}</th>
+        <th class="text-end">{% trans "المسدد بالكامل" %}</th>
+        <th class="text-end">{% trans "المتبقي المستحق" %}</th>
+        <th class="text-center">{% trans "حالة المخالصة" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="fw-semibold">{% trans "إجمالي قيمة العقد والأقساط" %}</td>
+        <td class="text-end fw-bold">{{ contract.final_contract_price|floatformat:2 }}</td>
+        <td class="text-end text-success fw-bold">{{ contract.final_contract_price|floatformat:2 }}</td>
+        <td class="text-end font-monospace">0.00</td>
+        <td class="text-center text-success fw-bold">{% trans "براءة ذمة تامة" %}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Signatures Section -->
+  <div class="row pt-5 mt-4 border-top text-center">
+    <div class="col-4">
+      <div class="fw-bold mb-4">الحسابات والرقابة المالية</div>
+      <div class="text-muted small">................................</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold mb-4">الإدارة القانونية والتعاقدات</div>
+      <div class="text-muted small">................................</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold mb-4">المدير العام والتنفيذي</div>
+      <div class="text-muted small">................................</div>
+    </div>
+  </div>
+
+  <div class="text-center pt-4 text-muted small border-top mt-4">
+    <small>{% trans "هذه الوثيقة موثقة رسمياً ومعتمدة رقمياً عبر نظام MWHEBA ERP المالي. أي كشط أو تعديل يلغيها تماماً." %}</small>
+  </div>
+</div>
+
+</body>
+</html>

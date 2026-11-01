@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "الوحدات والمخزون العقاري" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الوحدات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_units|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-th-large"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المتاحة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ available_count|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-door-open"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المحجوزة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ reserved_count|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-bookmark"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المتعاقدة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ contracted_count|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-file-contract"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#unitFilterCollapse" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث الوحدات والمخزون العقاري" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="unitFilterCollapse">
+        <div class="card-body p-3">
+          <form id="unit-filter-form" method="get">
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label small text-muted">{% trans "بحث عام (كود الوحدة، المشروع، المبنى)" %}</label>
+                <div class="input-group">
+                  <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" name="q" id="search-query" class="form-control" placeholder="{% trans 'اكتب للبحث...' %}" value="{{ request.GET.q }}">
+                </div>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small text-muted">{% trans "المشروع" %}</label>
+                <select name="project" id="filter-project" class="form-select select2-filter" dir="rtl">
+                  <option value="">{% trans "جميع المشروعات" %}</option>
+                  {% for p in projects %}
+                  <option value="{{ p.id }}" {% if request.GET.project == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-2">
+                <label class="form-label small text-muted">{% trans "الحالة" %}</label>
+                <select name="status" id="filter-status" class="form-select select2-filter" dir="rtl">
+                  <option value="">{% trans "جميع الحالات" %}</option>
+                  {% for val, label in status_choices %}
+                  <option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-2">
+                <label class="form-label small text-muted">{% trans "نوع الوحدة" %}</label>
+                <select name="unit_type" id="filter-type" class="form-select select2-filter" dir="rtl">
+                  <option value="">{% trans "جميع الأنواع" %}</option>
+                  {% for val, label in type_choices %}
+                  <option value="{{ val }}" {% if request.GET.unit_type == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-1 d-flex align-items-end">
+                <button type="button" id="reset-filters" class="btn btn-outline-secondary w-100" title="{% trans 'إعادة ضبط' %}">
+                  <i class="fas fa-undo"></i>
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Units Table Section -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-th text-primary me-2"></i>{% trans "قائمة الوحدات العقارية" %}
+        </h5>
+      </div>
+      <div class="card-body p-0" id="units-table-container">
+        {% include "real_estate/partials/unit_table.html" %}
+      </div>
+      <div class="card-footer bg-light border-top p-3" id="pagination-wrapper">
+        {% include "partials/pagination.html" %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Quick View Include -->
+{% include "real_estate/modals/unit_quick_view_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modalEl = document.getElementById('unitQuickViewModal');
+  const quickModal = new bootstrap.Modal(modalEl);
+  const modalBody = document.getElementById('unitQuickViewBody');
+  const modalFooter = document.getElementById('unitQuickViewFooter');
+
+  function initTableEvents() {
+    document.querySelectorAll('#units-table-container .clickable-row').forEach(function(row) {
+      row.addEventListener('click', function(e) {
+        if (!e.target.closest('a, button, .btn-group')) {
+          const href = this.getAttribute('data-href');
+          if (href) window.location.href = href;
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-quick-view').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const unitId = this.getAttribute('data-unit-id');
+        modalBody.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted small">{% trans "جاري تحميل تفاصيل الوحدة..." %}</div></div>';
+        quickModal.show();
+
+        fetch(`/real-estate/api/units/${unitId}/detail/`, {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const u = data.unit;
+            let badgeClass = 'bg-secondary';
+            if (u.status === 'AVAILABLE') badgeClass = 'bg-success';
+            else if (u.status === 'RESERVED') badgeClass = 'bg-warning text-dark';
+            else if (u.status === 'CONTRACTED') badgeClass = 'bg-info text-dark';
+
+            modalBody.innerHTML = `
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  <span class="text-muted d-block small mb-1">{% trans "كود الوحدة" %}</span>
+                  <span class="fs-4 fw-bold font-monospace text-primary">${u.unit_code}</span>
+                </div>
+                <div class="col-12 col-md-6 text-md-end">
+                  <span class="text-muted d-block small mb-1">{% trans "حالة الوحدة" %}</span>
+                  <span class="badge ${badgeClass} fs-6 px-3 py-1">${u.status_display}</span>
+                </div>
+                <div class="col-12"><hr class="my-1 opacity-25"></div>
+                <div class="col-6 col-md-3">
+                  <span class="text-muted d-block small">{% trans "المشروع" %}</span>
+                  <strong class="text-dark">${u.project_name}</strong>
+                </div>
+                <div class="col-6 col-md-3">
+                  <span class="text-muted d-block small">{% trans "البلوك / الطابق" %}</span>
+                  <strong class="text-dark">${u.block_name || '-'} / ${u.floor_name || u.floor_number}</strong>
+                </div>
+                <div class="col-6 col-md-3">
+                  <span class="text-muted d-block small">{% trans "المساحة الإجمالية" %}</span>
+                  <strong class="text-dark">${u.gross_area} م²</strong>
+                </div>
+                <div class="col-6 col-md-3">
+                  <span class="text-muted d-block small">{% trans "الغرف / الحمامات" %}</span>
+                  <strong class="text-dark">${u.rooms_count || 0} / ${u.bathrooms_count || 0}</strong>
+                </div>
+                <div class="col-12"><hr class="my-1 opacity-25"></div>
+                <div class="col-6 col-md-6">
+                  <span class="text-muted d-block small">{% trans "سعر المتر" %}</span>
+                  <span class="fs-5 fw-bold text-secondary">${Number(u.meter_price).toLocaleString()} ${u.currency}</span>
+                </div>
+                <div class="col-6 col-md-6 text-md-end">
+                  <span class="text-muted d-block small">{% trans "السعر الإجمالي" %}</span>
+                  <span class="fs-4 fw-bold text-success">${Number(u.total_price).toLocaleString()} ${u.currency}</span>
+                </div>
+              </div>
+            `;
+
+            modalFooter.innerHTML = `
+              <a href="/real-estate/units/${u.id}/" class="btn btn-outline-secondary px-3">
+                <i class="fas fa-external-link-alt me-1"></i>{% trans "فتح الصفحة الكاملة" %}
+              </a>
+              <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+            `;
+          } else {
+            modalBody.innerHTML = `<div class="alert alert-danger mb-0">${data.error || '{% trans "تعذر جلب تفاصيل الوحدة." %}'}</div>`;
+          }
+        })
+        .catch(err => {
+          modalBody.innerHTML = '<div class="alert alert-danger mb-0">{% trans "حدث خطأ أثناء الاتصال بالخادم." %}</div>';
+        });
+      });
+    });
+  }
+  initTableEvents();
+
+  let searchTimeout = null;
+  function triggerSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() {
+      const form = document.getElementById('unit-filter-form');
+      const formData = new FormData(form);
+      const params = new URLSearchParams(formData);
+      params.set('ajax', '1');
+
+      fetch(`${window.location.pathname}?${params.toString()}`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          document.getElementById('units-table-container').innerHTML = data.table_html;
+          document.getElementById('pagination-wrapper').innerHTML = data.pagination_html;
+          initTableEvents();
+          params.delete('ajax');
+          window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+        }
+      })
+      .catch(error => console.error('Error fetching units:', error));
+    }, 300);
+  }
+
+  document.getElementById('search-query').addEventListener('input', triggerSearch);
+  document.getElementById('filter-project').addEventListener('change', triggerSearch);
+  document.getElementById('filter-status').addEventListener('change', triggerSearch);
+  document.getElementById('filter-type').addEventListener('change', triggerSearch);
+
+  document.getElementById('reset-filters').addEventListener('click', function() {
+    document.getElementById('search-query').value = '';
+    document.getElementById('filter-project').value = '';
+    document.getElementById('filter-status').value = '';
+    document.getElementById('filter-type').value = '';
+    triggerSearch();
+  });
+});
+</script>
+{% endblock %}

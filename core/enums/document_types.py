@@ -47,6 +47,18 @@ class DocumentType(models.TextChoices):
     CUSTODY_ASSET_TRANSFER = "CUSTODY_ASSET_TRANSFER", _("محضر مناقلة عهدة عينية")
     CUSTODY_ROUTE_SETTLEMENT = "CUSTODY_ROUTE_SETTLEMENT", _("سند تقفيل خط سير مندوب")
 
+    # Real Estate & Property Development Documents
+    PROPERTY_CONTRACT = "PROPERTY_CONTRACT", _("عقد بيع وتطوير عقاري")
+    UNIT_BOOKING = "UNIT_BOOKING", _("استمارة حجز وحدة عقارية")
+    UNIT_HANDOVER = "UNIT_HANDOVER", _("محضر استلام وتسليم وحدة")
+    VARIATION_ORDER = "VARIATION_ORDER", _("أمر تعديل وتشطيبات")
+    CONTRACT_ASSIGNMENT = "CONTRACT_ASSIGNMENT", _("محضر تنازل ونقل ملكية")
+    UNIT_SWAP = "UNIT_SWAP", _("محضر استبدال وترقية وحدة")
+    LEGAL_NOTICE = "LEGAL_NOTICE", _("إخطار وإنذار قانوني عقاري")
+    INFRASTRUCTURE_APPORTIONMENT = "INFRASTRUCTURE_APPORTIONMENT", _("محضر توزيع تكاليف بنية تحتية")
+    SURVEY_ADJUSTMENT = "SURVEY_ADJUSTMENT", _("ملحق تسوية رفع مساحي فعلي")
+    RESALE_REFUND = "RESALE_REFUND", _("سند تسوية مستحقات إعادة الطرح")
+
 
 # Aliases for convenience
 DocumentType.CHEQUE_RECEIPT = DocumentType.CHEQUE_RECEIVABLE

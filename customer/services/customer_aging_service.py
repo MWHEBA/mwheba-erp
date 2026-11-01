@@ -97,7 +97,7 @@ class CustomerAgingService:
             payments = CustomerPayment.objects.filter(
                 customer=customer,
                 payment_date__lte=ref_date
-            ).exclude(status="cancelled").annotate(
+            ).exclude(status="cancelled").exclude(source_type="REAL_ESTATE").annotate(
                 used=Coalesce(
                     Subquery(used_subq, output_field=DecimalField()),
                     Value(Decimal('0.00'), output_field=DecimalField()),

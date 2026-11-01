@@ -162,6 +162,23 @@ class AccountingGateway:
         'sale.InstallmentItem',
         'sale.InstallmentPlan',
         'sale.InstallmentSettlement',
+        'real_estate.PropertyContract',
+        'real_estate.UnitBooking',
+        'real_estate.PropertyUnit',
+        'real_estate.RealEstateProject',
+        'real_estate.InstallmentPaymentTransaction',
+        'real_estate.BrokerCommission',
+        'real_estate.RealEstateBroker',
+        'real_estate.ContractorProgressCertificate',
+        'real_estate.PropertyHandoverReceipt',
+        'real_estate.BuildingFacilitySubledger',
+        'real_estate.MaintenanceFundOperation',
+        'real_estate.WarrantyTicket',
+        'real_estate.UnitSwapRecord',
+        'real_estate.ContractAssignmentEndorsement',
+        'real_estate.SharedInfrastructureApportionment',
+        'real_estate.AsBuiltSurveyAdjustment',
+        'real_estate.ResaleContingentRefund',
     }
     
     # High-priority workflows that require strict validation
@@ -288,6 +305,61 @@ class AccountingGateway:
         
         return True
     
+    @staticmethod
+    def compute_payload_fingerprint(lines: List[JournalEntryLineData]) -> str:
+        """
+        Compute a deterministic financial payload fingerprint from JournalEntryLineData list.
+        Covers all financial dimensions:
+        account_code, debit, credit, foreign_debit, foreign_credit, currency,
+        exchange_rate, project, cost_center, and cost_allocations.
+        """
+        import hashlib
+        import json
+
+        def serialize_cost_allocations(allocations):
+            if not allocations:
+                return []
+            return sorted([
+                {
+                    'cost_center_id': str(a.get('cost_center_id') or a.get('cost_center') or ''),
+                    'amount': str(Decimal(str(a.get('amount', 0))).quantize(Decimal('0.01'))),
+                    'percentage': str(Decimal(str(a.get('percentage', 0))).quantize(Decimal('0.0001'))),
+                }
+                for a in allocations
+            ], key=lambda x: (x['cost_center_id'], x['amount']))
+
+        canonical_lines = []
+        for line in lines:
+            canonical_line = {
+                'account_code': str(line.account_code).strip(),
+                'debit': str(Decimal(str(line.debit)).quantize(Decimal('0.01'))),
+                'credit': str(Decimal(str(line.credit)).quantize(Decimal('0.01'))),
+                'foreign_debit': str(Decimal(str(getattr(line, 'foreign_debit', 0) or 0)).quantize(Decimal('0.01'))),
+                'foreign_credit': str(Decimal(str(getattr(line, 'foreign_credit', 0) or 0)).quantize(Decimal('0.01'))),
+                'currency': str(getattr(line, 'currency', 'EGP') or 'EGP').upper().strip(),
+                'exchange_rate': str(Decimal(str(getattr(line, 'exchange_rate', '1.000000') or '1.000000')).quantize(Decimal('0.000001'))),
+                'project': str(getattr(line, 'project', '') or '').strip(),
+                'cost_center': str(getattr(line, 'cost_center', '') or '').strip(),
+                'cost_allocations': serialize_cost_allocations(getattr(line, 'cost_allocations', None)),
+            }
+            canonical_lines.append(canonical_line)
+
+        canonical_lines.sort(key=lambda l: (
+            l['account_code'],
+            l['debit'],
+            l['credit'],
+            l['foreign_debit'],
+            l['foreign_credit'],
+            l['currency'],
+            l['exchange_rate'],
+            l['project'],
+            l['cost_center'],
+            json.dumps(l['cost_allocations'], sort_keys=True)
+        ))
+
+        payload_bytes = json.dumps(canonical_lines, sort_keys=True).encode('utf-8')
+        return hashlib.sha256(payload_bytes).hexdigest()
+
     def create_journal_entry(
         self,
         source_module: str,
@@ -367,6 +439,9 @@ class AccountingGateway:
                 # Validate financial subcategory
                 self._validate_financial_subcategory(financial_category, financial_subcategory)
                 
+                # Compute deterministic request fingerprint across lines
+                current_fingerprint = self.compute_payload_fingerprint(lines)
+
                 # Check idempotency
                 is_duplicate, existing_record, existing_data = self.idempotency_service.check_and_record_operation(
                     operation_type='journal_entry',
@@ -378,6 +453,17 @@ class AccountingGateway:
                 
                 if is_duplicate:
                     logger.info(f"Duplicate journal entry creation detected: {idempotency_key}")
+                    stored_fingerprint = existing_data.get('request_fingerprint')
+                    if stored_fingerprint and stored_fingerprint != current_fingerprint:
+                        raise IdempotencyError(
+                            operation_type='journal_entry',
+                            idempotency_key=idempotency_key,
+                            context={
+                                'reason': 'Payload divergence detected: financial parameters differ from existing entry.',
+                                'stored_fingerprint': stored_fingerprint,
+                                'incoming_fingerprint': current_fingerprint
+                            }
+                        )
                     # Return existing journal entry
                     entry_id = existing_data.get('journal_entry_id')
                     if entry_id:
@@ -452,7 +538,8 @@ class AccountingGateway:
                     'journal_entry_id': journal_entry.id,
                     'journal_entry_number': journal_entry.number,
                     'total_amount': str(journal_entry.total_amount),
-                    'created_at': journal_entry.created_at.isoformat()
+                    'created_at': journal_entry.created_at.isoformat(),
+                    'request_fingerprint': current_fingerprint
                 }
                 existing_record.save()
                 

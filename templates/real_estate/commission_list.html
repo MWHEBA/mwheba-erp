@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "بيان عمولات البيع والتسويق العقاري" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي قيود العمولات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_records|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-percent"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي قيمة العمولات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_amount|floatformat:2|intcomma }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-calculator"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "العمولات المصروفة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ released_amount|floatformat:2|intcomma }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#commissionFilterCollapse" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث العمولات" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="commissionFilterCollapse">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
+              <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                     placeholder="{% trans 'الوسيط، رقم العقد، اسم العميل...' %}">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold">{% trans "الحالة" %}</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+              </button>
+              <a href="{% url 'real_estate:commission_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-redo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "الوسيط العقاري" %}</th>
+                <th>{% trans "رقم العقد" %}</th>
+                <th>{% trans "العميل" %}</th>
+                <th class="text-end">{% trans "إجمالي العمولة" %}</th>
+                <th class="text-end">{% trans "الدفعة المصروفة" %}</th>
+                <th class="text-end">{% trans "المتبقي" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in commissions %}
+              <tr>
+                <td class="ps-3 fw-bold text-primary">{{ c.broker.name }}</td>
+                <td>{{ c.contract.contract_number }}</td>
+                <td>{{ c.contract.customer.name }}</td>
+                <td class="text-end fw-bold">{{ c.total_commission_amount|floatformat:2|intcomma }}</td>
+                <td class="text-end text-success">{{ c.released_commission_amount|floatformat:2|intcomma }}</td>
+                <td class="text-end text-warning">{{ c.remaining_commission|floatformat:2|intcomma }}</td>
+                <td class="text-center">
+                  <span class="badge bg-secondary">{{ c.get_status_display }}</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد سجلات عمولات مطابقة للبحث." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-3">
+    {% include "partials/pagination.html" %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

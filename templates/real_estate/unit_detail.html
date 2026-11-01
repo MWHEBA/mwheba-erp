@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{{ unit.unit_code }} - {% trans "تفاصيل الوحدة العقارية" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المساحة الإجمالية" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ unit.gross_area }} <small class="fs-6">م²</small></div>
+            <small class="text-muted">صافي: {{ unit.net_area }} م²</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-vector-square"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-secondary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "سعر المتر البيعي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ unit.meter_price|floatformat:2|intcomma }}</div>
+            <small class="text-muted">{{ unit.project.currency.code|default:"" }}</small>
+          </div>
+          <div class="stats-card-icon text-secondary fs-2">
+            <i class="fas fa-tags"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي السعر البيعي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ unit.total_price|floatformat:2|intcomma }}</div>
+            <small class="text-muted">{{ unit.project.currency.code|default:"" }}</small>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if unit.status == 'AVAILABLE' %}stats-card-success{% elif unit.status == 'RESERVED' %}stats-card-warning{% elif unit.status == 'CONTRACTED' %}stats-card-info{% else %}stats-card-secondary{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الحالة الحالية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ unit.get_status_display }}</div>
+            <small class="text-muted font-monospace">v{{ unit.status_version }}</small>
+          </div>
+          <div class="stats-card-icon fs-2">
+            {% if unit.status == 'AVAILABLE' %}<i class="fas fa-door-open text-success"></i>
+            {% elif unit.status == 'RESERVED' %}<i class="fas fa-bookmark text-warning"></i>
+            {% elif unit.status == 'CONTRACTED' %}<i class="fas fa-file-contract text-info"></i>
+            {% else %}<i class="fas fa-lock text-secondary"></i>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Unit Technical Details -->
+    <div class="col-12 col-lg-8">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-home text-primary me-2"></i>{% trans "المواصفات الفنية والمعمارية" %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "المشروع الإنشائي" %}</span>
+                <span class="fw-semibold text-dark">{{ unit.project.name }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "المبنى / العمارة" %}</span>
+                <span class="fw-semibold text-dark">{{ unit.block.name|default:"-" }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "الطابق المعماري" %}</span>
+                <span class="fw-semibold text-dark">{{ unit.floor.name|default:unit.floor.floor_number }}</span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "نوع الوحدة" %}</span>
+                <span class="badge bg-light text-dark border">{{ unit.get_unit_type_display }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "الاتجاه والواجهة" %}</span>
+                <span class="text-dark">{{ unit.get_orientation_display }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "نوع الإطلالة" %}</span>
+                <span class="text-dark">{{ unit.get_view_type_display }}</span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "نسبة التحميل" %}</span>
+                <span class="text-dark">{{ unit.loading_ratio }}%</span>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "مساحة التراس" %}</span>
+                <span class="text-dark">{{ unit.terrace_area }} م²</span>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "مساحة الحديقة" %}</span>
+                <span class="text-dark">{{ unit.garden_area }} م²</span>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "وحدة ناصية (Corner)" %}</span>
+                <span class="badge {% if unit.is_corner %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-light text-muted border{% endif %}">
+                  {% if unit.is_corner %}{% trans "نعم" %}{% else %}{% trans "لا" %}{% endif %}
+                </span>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "نوع التشطيب" %}</span>
+                <span class="badge bg-light text-dark border">{{ unit.get_finishing_type_display }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "قيمة الحديقة" %}</span>
+                <span class="text-dark">{{ unit.garden_price|floatformat:2|intcomma }}</span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "قيمة الجراج" %}</span>
+                <span class="text-dark">{{ unit.parking_price|floatformat:2|intcomma }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Contract & Booking Status -->
+    <div class="col-12 col-lg-4">
+      <div class="section-container mb-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-file-contract text-primary me-2"></i>{% trans "الارتباط التعاقدي الحالي" %}
+            </h5>
+          </div>
+          <div class="card-body p-3">
+            {% if active_contract %}
+            <div class="p-3 bg-light rounded border">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold font-monospace text-primary">{{ active_contract.contract_number }}</span>
+                <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "عقد نشط" %}</span>
+              </div>
+              <div class="small text-dark mb-1">
+                <strong>{% trans "العميل" %}:</strong> {{ active_contract.customer.name }}
+              </div>
+              <div class="small text-muted mb-2">
+                <strong>{% trans "القيمة التعاقدية" %}:</strong> {{ active_contract.contract_value|floatformat:2|intcomma }}
+              </div>
+              <a href="{% url 'real_estate:contract_detail' pk=active_contract.id %}" class="btn btn-sm btn-outline-primary w-100">
+                <i class="fas fa-external-link-alt me-1"></i>{% trans "فتح ملف العقد" %}
+              </a>
+            </div>
+            {% elif unit.current_booking %}
+            <div class="p-3 bg-light rounded border">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold font-monospace text-warning">{{ unit.current_booking.booking_number }}</span>
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "حجز سارٍ" %}</span>
+              </div>
+              <div class="small text-dark mb-1">
+                <strong>{% trans "العميل" %}:</strong> {{ unit.current_booking.customer.name }}
+              </div>
+              <div class="small text-muted mb-2">
+                <strong>{% trans "مبلغ الجدية" %}:</strong> {{ unit.current_booking.holding_deposit|floatformat:2|intcomma }}
+              </div>
+              <a href="{% url 'real_estate:booking_detail' pk=unit.current_booking.id %}" class="btn btn-sm btn-outline-warning w-100">
+                <i class="fas fa-external-link-alt me-1"></i>{% trans "فتح ملف الحجز" %}
+              </a>
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+              <i class="fas fa-check-circle fa-2x mb-2 text-success opacity-75"></i>
+              <div class="small fw-semibold">{% trans "الوحدة شاغرة ومتاحة للبيع حالياً" %}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking History Section -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-history text-primary me-2"></i>{% trans "سجل الحجوزات السابقة للوحدة" %}
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "رقم الحجز" %}</th>
+                <th>{% trans "العميل" %}</th>
+                <th>{% trans "تاريخ الحجز" %}</th>
+                <th>{% trans "تاريخ الانتهاء" %}</th>
+                <th>{% trans "جدية الحجز" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراء" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in bookings %}
+              <tr>
+                <td class="ps-3 fw-bold font-monospace text-primary">{{ b.booking_number }}</td>
+                <td>{{ b.customer.name }}</td>
+                <td>{{ b.booking_date|date:"Y-m-d" }}</td>
+                <td>{{ b.expiry_date|date:"Y-m-d" }}</td>
+                <td>{{ b.holding_deposit|floatformat:2|intcomma }}</td>
+                <td class="text-center">
+                  <span class="badge bg-light text-dark border">{{ b.get_status_display }}</span>
+                </td>
+                <td class="text-center pe-3">
+                  <a href="{% url 'real_estate:booking_detail' pk=b.id %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                  {% trans "لا توجد حجوزات سابقة مسجلة لهذه الوحدة." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

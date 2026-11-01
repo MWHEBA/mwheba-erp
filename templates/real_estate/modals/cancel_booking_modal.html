@@ -1,0 +1,46 @@
+{% load i18n %}
+
+<div class="modal fade" id="cancelBookingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-times-circle text-danger me-2"></i>{% trans "إلغاء استمارة الحجز وتحرير الوحدة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="cancel-booking-form" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            {% trans "سيتم تحرير الوحدة العقارية فوراً وإعادتها لحالة متاح (AVAILABLE). يرجى تحديد مصير أمانة الحجز." %}
+          </div>
+
+          <div class="mb-3">
+            <label for="cancel_reason" class="form-label fw-semibold text-dark">
+              {% trans "سبب الإلغاء" %} <span class="text-danger">*</span>
+            </label>
+            <textarea name="reason" id="cancel_reason" class="form-control" rows="3" required placeholder="{% trans 'اكتب سبب طلب إلغاء الحجز...' %}"></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="cancel_disposition" class="form-label fw-semibold text-dark">
+              {% trans "المعالجة المالية للأمانة" %} <span class="text-danger">*</span>
+            </label>
+            <select name="disposition" id="cancel_disposition" class="form-select" required>
+              <option value="REFUND">{% trans "استرداد الأمانة للعميل (CANCELLED_PENDING_REFUND)" %}</option>
+              <option value="FORFEIT">{% trans "مصادرة الأمانة كإيراد تعويض للشركة (FORFEITED)" %}</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-ban me-1"></i>{% trans "تأكيد إلغاء الحجز" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -17,6 +17,7 @@ class EnterpriseApprovalRule(models.Model):
         ("CREDIT", _("حدود الائتمان")),
         ("PAYMENT", _("المدفوعات")),
         ("EXPENSE", _("المصروفات")),
+        ("REAL_ESTATE", _("التطوير والاستثمار العقاري")),
     )
 
     module = models.CharField(_("الموديول"), max_length=20, choices=MODULE_CHOICES, default="SALES")

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "إبرام عقد بيع رسمي جديد" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-file-signature text-primary me-2"></i>{% trans "بيانات العقد العقاري الرسمي" %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <form method="post" id="contract-form">
+              {% csrf_token %}
+
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                  <label for="id_customer" class="form-label fw-semibold text-dark">
+                    {% trans "العميل المشتري" %} <span class="text-danger">*</span>
+                  </label>
+                  <select name="customer" id="id_customer" class="form-select select2-filter" dir="rtl" required>
+                    <option value="">{% trans "اختر العميل..." %}</option>
+                    {% for cust in customers %}
+                    <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.code }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label for="id_unit" class="form-label fw-semibold text-dark">
+                    {% trans "الوحدة العقارية المتاحة" %} <span class="text-danger">*</span>
+                  </label>
+                  <select name="unit" id="id_unit" class="form-select select2-filter" dir="rtl" required>
+                    <option value="">{% trans "اختر الوحدة المتاحة..." %}</option>
+                    {% for u in available_units %}
+                    <option value="{{ u.id }}" data-price="{{ u.total_price }}" data-project="{{ u.project.name }}">
+                      {{ u.unit_code }} - {{ u.project.name }} ({{ u.total_price }} {{ u.project.currency.code|default:"" }})
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-coins text-primary me-2"></i>{% trans "القيم المالية ومقدم التعاقد" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_final_contract_price" class="form-label fw-semibold text-dark">
+                    {% trans "القيمة التعاقدية النهائية" %} <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" step="0.01" name="final_contract_price" id="id_final_contract_price" class="form-control fw-bold" required>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_down_payment" class="form-label fw-semibold text-dark">
+                    {% trans "المقدم المسدد عند التعاقد" %}
+                  </label>
+                  <input type="number" step="0.01" name="down_payment" id="id_down_payment" class="form-control" value="0.00">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label for="id_currency" class="form-label text-dark">{% trans "عملة العقد" %}</label>
+                  <select name="currency" id="id_currency" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "العملة الافتراضية" %}</option>
+                    {% for curr in currencies %}
+                    <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "التواريخ الرسمية" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_contract_date" class="form-label text-dark">{% trans "تاريخ إبرام العقد" %}</label>
+                  <input type="date" name="contract_date" id="id_contract_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_delivery_date" class="form-label text-dark">{% trans "تاريخ التسليم المتوقع بالعقد" %}</label>
+                  <input type="date" name="delivery_date" id="id_delivery_date" class="form-control">
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                <a href="{% url 'real_estate:contract_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-file-signature me-1"></i>{% trans "إبرام وحفظ العقد" %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const unitSelect = document.getElementById('id_unit');
+  const priceInput = document.getElementById('final_contract_price');
+
+  unitSelect.addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const price = selectedOption.getAttribute('data-price');
+    if (price && priceInput) {
+      priceInput.value = price;
+    }
+  });
+});
+</script>
+{% endblock %}

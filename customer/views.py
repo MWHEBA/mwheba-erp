@@ -542,7 +542,7 @@ def customer_detail(request, pk):
     from customer.models import CustomerPayment
 
     sale_payments = list(SalePayment.objects.filter(sale__customer=customer).select_related("sale", "currency", "sale__currency", "created_by").order_by("-payment_date"))
-    advance_payments = list(CustomerPayment.objects.filter(customer=customer).select_related("currency", "created_by").order_by("-payment_date"))
+    advance_payments = list(CustomerPayment.objects.filter(customer=customer).exclude(source_type="REAL_ESTATE").select_related("currency", "created_by").order_by("-payment_date"))
 
     # توحيد قائمة المدفوعات لعرضها في التاب والتصدير
     payments = []

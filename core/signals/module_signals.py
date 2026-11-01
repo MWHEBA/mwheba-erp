@@ -20,6 +20,7 @@ def clear_module_cache_on_save(sender, instance, **kwargs):
         cache.delete('enabled_modules_dict')
         cache.delete('enabled_modules_dict_v2')
         cache.delete('enabled_modules_set')
+        cache.delete('module_namespace_map')
         SystemSetting.invalidate_all_system_caches()
         
         # مسح كاش التطبيق المحدد
@@ -56,6 +57,7 @@ def clear_module_cache_on_delete(sender, instance, **kwargs):
         cache.delete('enabled_modules_dict')
         cache.delete('enabled_modules_dict_v2')
         cache.delete('enabled_modules_set')
+        cache.delete('module_namespace_map')
         SystemSetting.invalidate_all_system_caches()
         
         cache.delete(f'module_enabled_{instance.code}')
