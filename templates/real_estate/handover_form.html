@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}
+  {% if is_edit %}{% trans "تعديل محضر تسليم" %} {{ receipt.receipt_number }}{% else %}{% trans "تحرير محضر تسليم وحدة جديد" %}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <form method="post" id="handoverForm" novalidate>
+    {% csrf_token %}
+
+    <div class="row g-4">
+      <!-- Section 1: بيانات العقد ونوع التسليم -->
+      <div class="col-12 col-lg-8">
+        <div class="card border shadow-sm mb-4">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-file-contract text-primary me-2"></i>{% trans "بيانات العقد ونوع وطبيعة التسليم" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "العقد العقاري والوحدة المراد تسليمها" %} <span class="text-danger">*</span></label>
+                {% if is_edit %}
+                <input type="text" class="form-control" value="{{ receipt.contract.contract_number }} — الوحدة: {{ receipt.unit.unit_code }} ({{ receipt.unit.project.name }}) — العميل: {{ receipt.contract.customer.name }}" disabled>
+                <input type="hidden" name="contract" value="{{ receipt.contract_id }}">
+                {% else %}
+                <select name="contract" id="id_contract" class="form-select select2-filter" required>
+                  <option value="">{% trans "اختر العقد العقاري الساري..." %}</option>
+                  {% for c in contracts %}
+                  <option value="{{ c.id }}" {% if form_data.contract == c.id|stringformat:"s" %}selected{% endif %}>
+                    {{ c.contract_number }} — الوحدة: {{ c.unit.unit_code }} ({{ c.unit.project.name }}) — العميل: {{ c.customer.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                {% endif %}
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "نوع التسليم" %} <span class="text-danger">*</span></label>
+                <select name="handover_type" id="id_handover_type" class="form-select" required onchange="toggleHandoverType()">
+                  {% for val, label in handover_types %}
+                  <option value="{{ val }}" {% if is_edit and receipt.handover_type == val or form_data.handover_type == val %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "تاريخ الاستلام والتسليم" %} <span class="text-danger">*</span></label>
+                <input type="date" name="handover_date" id="id_handover_date" class="form-control"
+                       value="{% if is_edit %}{{ receipt.handover_date|date:'Y-m-d' }}{% else %}{{ form_data.handover_date|default:'' }}{% endif %}" required>
+              </div>
+
+              <div class="col-12 col-md-6" id="legalNoticeContainer" style="display: none;">
+                <label class="form-label small fw-bold text-danger">{% trans "الإخطار القانوني المعلن (مطلوب للتسليم الحُكمي)" %} <span class="text-danger">*</span></label>
+                <select name="legal_notice" id="id_legal_notice" class="form-select">
+                  <option value="">{% trans "اختر الإخطار القانوني الرسمي..." %}</option>
+                  {% for n in legal_notices %}
+                  <option value="{{ n.id }}" {% if is_edit and receipt.legal_notice_id == n.id or form_data.legal_notice == n.id|stringformat:"s" %}selected{% endif %}>
+                    {{ n.notice_number }} — العميل: {{ n.customer.name }} — مهلة: {{ n.cure_deadline_date|date:'Y-m-d' }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "مهندس الموقع المشرف على التسليم" %}</label>
+                <select name="site_engineer" class="form-select">
+                  <option value="">{% trans "اختر المهندس المختص..." %}</option>
+                  {% for eng in site_engineers %}
+                  <option value="{{ eng.id }}" {% if is_edit and receipt.site_engineer_id == eng.id or form_data.site_engineer == eng.id|stringformat:"s" %}selected{% endif %}>
+                    {{ eng.get_full_name|default:eng.username }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: بيانات المستلم والمفوضين -->
+        <div class="card border shadow-sm mb-4" id="signatoryCard">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-user-check text-primary me-2"></i>{% trans "بيانات المستلم الحاضر والوكالة الرسمية" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "اسم المستلم / الوكيل الحاضر" %} <span class="text-danger" id="signatoryRequiredStar">*</span></label>
+                <input type="text" name="client_signatory_name" id="id_signatory_name" class="form-control"
+                       placeholder="{% trans 'الاسم الرباعي للمستلم' %}"
+                       value="{% if is_edit %}{{ receipt.client_signatory_name }}{% else %}{{ form_data.client_signatory_name|default:'' }}{% endif %}">
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "الرقم القومي للمستلم" %}</label>
+                <input type="text" name="client_signatory_national_id" class="form-control"
+                       placeholder="{% trans '14 رقماً' %}"
+                       value="{% if is_edit %}{{ receipt.client_signatory_national_id }}{% else %}{{ form_data.client_signatory_national_id|default:'' }}{% endif %}">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "رقم وتاريخ التوكيل الرسمي الخاص بالاستلام (إن وُجد)" %}</label>
+                <input type="text" name="power_of_attorney_number" class="form-control"
+                       placeholder="{% trans 'مثال: توكيل خاص رقم 1452 لسنة 2026 توثيق مدينة نصر' %}"
+                       value="{% if is_edit %}{{ receipt.power_of_attorney_number }}{% else %}{{ form_data.power_of_attorney_number|default:'' }}{% endif %}">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: الملاحظات والإقرارات -->
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-sticky-note text-primary me-2"></i>{% trans "ملاحظات وإقرارات محضر التسليم" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <textarea name="notes" rows="4" class="form-control"
+                      placeholder="{% trans 'أي إقرارات خاصة أو بنود ملحقة بتسليم الوحدة...' %}">{% if is_edit %}{{ receipt.notes }}{% else %}{{ form_data.notes|default:'' }}{% endif %}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: قراءات العدادات والمفاتيح المسلمة -->
+      <div class="col-12 col-lg-4">
+        <div class="card border shadow-sm mb-4">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "قراءات عدادات المرافق" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">
+                <i class="fas fa-bolt text-warning me-1"></i>{% trans "قراءة عداد الكهرباء" %}
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.01" min="0" name="electric_meter_reading" class="form-control text-end"
+                       value="{% if is_edit %}{{ receipt.electric_meter_reading|floatformat:2 }}{% else %}{{ form_data.electric_meter_reading|default:'0.00' }}{% endif %}">
+                <span class="input-group-text">{% trans "ك.و/س" %}</span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">
+                <i class="fas fa-tint text-info me-1"></i>{% trans "قراءة عداد المياه" %}
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.01" min="0" name="water_meter_reading" class="form-control text-end"
+                       value="{% if is_edit %}{{ receipt.water_meter_reading|floatformat:2 }}{% else %}{{ form_data.water_meter_reading|default:'0.00' }}{% endif %}">
+                <span class="input-group-text">{% trans "م³" %}</span>
+              </div>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label small fw-bold">
+                <i class="fas fa-fire text-danger me-1"></i>{% trans "قراءة عداد الغاز الطبيعي" %}
+              </label>
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.01" min="0" name="gas_meter_reading" class="form-control text-end"
+                       value="{% if is_edit %}{{ receipt.gas_meter_reading|floatformat:2 }}{% else %}{{ form_data.gas_meter_reading|default:'0.00' }}{% endif %}">
+                <span class="input-group-text">{% trans "م³" %}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border shadow-sm mb-4">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-key text-primary me-2"></i>{% trans "المفاتيح وكروت الدخول الذكية" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label small fw-bold">{% trans "عدد المفاتيح المسلمة" %}</label>
+              <input type="number" min="0" name="keys_handed_over_count" class="form-control"
+                     value="{% if is_edit %}{{ receipt.keys_handed_over_count }}{% else %}{{ form_data.keys_handed_over_count|default:'3' }}{% endif %}">
+              <div class="form-text small text-muted">{% trans "يشمل مفاتيح الأبواب وغرف الخدمات." %}</div>
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label small fw-bold">{% trans "عدد كروت الدخول الذكية المسلمة" %}</label>
+              <input type="number" min="0" name="access_cards_count" class="form-control"
+                     value="{% if is_edit %}{{ receipt.access_cards_count }}{% else %}{{ form_data.access_cards_count|default:'2' }}{% endif %}">
+              <div class="form-text small text-muted">{% trans "كروت البوابات الإلكترونية والمصاعد." %}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card border shadow-sm">
+          <div class="card-body p-4">
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg fw-bold">
+                <i class="fas fa-save me-1"></i>
+                {% if is_edit %}{% trans "حفظ تعديلات المحضر" %}{% else %}{% trans "إنشاء وقيد محضر التسليم" %}{% endif %}
+              </button>
+              <a href="{% url 'real_estate:handover_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>{% trans "إلغاء والعودة" %}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+function toggleHandoverType() {
+  const hType = document.getElementById('id_handover_type').value;
+  const noticeContainer = document.getElementById('legalNoticeContainer');
+  const signatoryCard = document.getElementById('signatoryCard');
+  const signatoryRequiredStar = document.getElementById('signatoryRequiredStar');
+  const signatoryName = document.getElementById('id_signatory_name');
+
+  if (hType === 'DEEMED') {
+    noticeContainer.style.display = 'block';
+    signatoryRequiredStar.style.display = 'none';
+    signatoryName.removeAttribute('required');
+  } else {
+    noticeContainer.style.display = 'none';
+    signatoryRequiredStar.style.display = 'inline';
+    signatoryName.setAttribute('required', 'required');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  toggleHandoverType();
+  if (!document.getElementById('id_handover_date').value) {
+    document.getElementById('id_handover_date').valueAsDate = new Date();
+  }
+});
+</script>
+{% endblock %}

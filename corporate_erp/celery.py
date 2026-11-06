@@ -83,6 +83,16 @@ app.conf.update(
             'schedule': 604800.0,  # Weekly - حذف السجلات القديمة أسبوعياً
             'kwargs': {'months': 6}
         },
+
+        # Real Estate Automation Tasks (Wave 6 - Phase 6.3)
+        'real-estate-nightly-booking-sweeper': {
+            'task': 'real_estate.tasks.sweep_expired_unit_bookings_task',
+            'schedule': 86400.0,  # Daily - كنس الحجوزات العقارية المنتهية يومياً
+        },
+        'real-estate-installment-escalation-radar': {
+            'task': 'real_estate.tasks.dispatch_installment_escalation_radar_task',
+            'schedule': 86400.0,  # Daily - رادار تنبيهات الأقساط وغرامات التأخير يومياً
+        },
     },
 )
 

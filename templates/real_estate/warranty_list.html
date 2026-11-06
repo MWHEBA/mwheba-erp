@@ -10,7 +10,7 @@
   {% include "shared/page_header.html" %}
 
   <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-4">
+    <div class="col-12 col-sm-6 col-lg-3">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
@@ -23,7 +23,7 @@
         </div>
       </div>
     </div>
-    <div class="col-12 col-sm-4">
+    <div class="col-12 col-sm-6 col-lg-3">
       <div class="stats-card stats-card-warning h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
@@ -31,20 +31,34 @@
             <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ open_tickets|default:"0" }}</div>
           </div>
           <div class="stats-card-icon text-warning fs-2">
-            <i class="fas fa-wrench"></i>
+            <i class="fas fa-tools"></i>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-12 col-sm-4">
+    <div class="col-12 col-sm-6 col-lg-3">
       <div class="stats-card stats-card-success h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
-            <div class="stats-card-title text-muted small mb-1">{% trans "تذاكر مغلقة بنجاح" %}</div>
-            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ closed_tickets|default:"0" }}</div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تم الإصلاح من المقاول" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ resolved_tickets|default:"0" }}</div>
           </div>
           <div class="stats-card-icon text-success fs-2">
             <i class="fas fa-check-double"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "مخصومة من تأمين المقاول" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ total_debited_amount|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+            <small class="text-muted">{{ debited_tickets|default:"0" }} {% trans "تذكرة مقاول متقاعس" %}</small>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-file-invoice-dollar"></i>
           </div>
         </div>
       </div>
@@ -63,17 +77,35 @@
       <div class="collapse show" id="ticketFilterCollapse">
         <div class="card-body p-3">
           <form method="get" class="row g-3">
-            <div class="col-12 col-md-5">
+            <div class="col-12 col-md-3">
               <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
               <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                     placeholder="{% trans 'رقم التذكرة، العميل، الوحدة، الموضوع...' %}">
+                     placeholder="{% trans 'رقم التذكرة، العميل، كود الوحدة، العنوان...' %}">
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
+              <label class="form-label small fw-bold">{% trans "المشروع" %}</label>
+              <select name="project" class="form-select form-select-sm">
+                <option value="">{% trans "جميع المشاريع" %}</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2">
               <label class="form-label small fw-bold">{% trans "الأولوية" %}</label>
               <select name="priority" class="form-select form-select-sm">
                 <option value="">{% trans "جميع الأولويات" %}</option>
                 {% for val, label in priority_choices %}
                 <option value="{{ val }}" {% if selected_priority == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2">
+              <label class="form-label small fw-bold">{% trans "تصنيف العيب" %}</label>
+              <select name="category" class="form-select form-select-sm">
+                <option value="">{% trans "جميع التصنيفات" %}</option>
+                {% for val, label in category_choices %}
+                <option value="{{ val }}" {% if selected_category == val %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -86,9 +118,9 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+            <div class="col-12 col-md-1 d-flex align-items-end gap-1">
               <button type="submit" class="btn btn-primary btn-sm w-100">
-                <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+                <i class="fas fa-search"></i>
               </button>
               <a href="{% url 'real_estate:warranty_list' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-redo"></i>
@@ -110,28 +142,58 @@
                 <th class="ps-3">{% trans "رقم التذكرة" %}</th>
                 <th>{% trans "الوحدة / العميل" %}</th>
                 <th>{% trans "موضوع البلاغ" %}</th>
+                <th>{% trans "التصنيف والضمان" %}</th>
                 <th>{% trans "الأولوية" %}</th>
-                <th>{% trans "المقاول المسؤول" %}</th>
+                <th>{% trans "المقاول المنفذ" %}</th>
                 <th class="text-center">{% trans "الحالة" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for t in tickets %}
-              <tr>
-                <td class="ps-3 fw-bold text-primary">{{ t.ticket_number }}</td>
-                <td>{{ t.unit.unit_code }} - {{ t.customer.name }}</td>
-                <td class="fw-semibold">{{ t.title }}</td>
-                <td><span class="badge bg-light text-dark border">{{ t.get_priority_display }}</span></td>
-                <td>{{ t.responsible_contractor.name|default:"-" }}</td>
+              <tr class="clickable-row" role="button" onclick="window.location.href='{% url 'real_estate:warranty_detail' pk=t.pk %}'">
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ t.ticket_number }}</td>
+                <td>
+                  <span class="fw-bold">{{ t.unit.unit_code }}</span>
+                  <div class="small text-muted">{{ t.customer.name }}</div>
+                </td>
+                <td class="fw-semibold text-dark">{{ t.title }}</td>
+                <td>
+                  <div><span class="badge bg-light text-dark border">{{ t.get_category_display }}</span></div>
+                  <small class="text-muted">{{ t.get_warranty_type_display }}</small>
+                </td>
+                <td>
+                  {% if t.priority == 'EMERGENCY' %}
+                  <span class="badge bg-danger"><i class="fas fa-bolt me-1"></i>{% trans "طارئة" %}</span>
+                  {% elif t.priority == 'HIGH' %}
+                  <span class="badge bg-warning text-dark">{% trans "عالية" %}</span>
+                  {% elif t.priority == 'MEDIUM' %}
+                  <span class="badge bg-light text-dark border">{% trans "متوسطة" %}</span>
+                  {% else %}
+                  <span class="badge bg-light text-dark border">{% trans "منخفضة" %}</span>
+                  {% endif %}
+                </td>
+                <td class="small">{{ t.responsible_contractor.name|default:"-" }}</td>
                 <td class="text-center">
-                  <span class="badge bg-secondary">{{ t.get_status_display }}</span>
+                  {% if t.status == 'RESOLVED_BY_CONTRACTOR' %}
+                  <span class="badge bg-success">{% trans "تم الإصلاح" %}</span>
+                  {% elif t.status == 'CLOSED_DEBITED' %}
+                  <span class="badge bg-danger">{% trans "مخصومة من التأمين" %}</span>
+                  {% elif t.status == 'CONTRACTOR_NOTIFIED' %}
+                  <span class="badge bg-info text-dark">{% trans "تم إخطار المقاول" %}</span>
+                  {% elif t.status == 'INSPECTED' %}
+                  <span class="badge bg-warning text-dark">{% trans "تمت المعاينة" %}</span>
+                  {% elif t.status == 'REJECTED' %}
+                  <span class="badge bg-secondary">{% trans "مرفوضة" %}</span>
+                  {% else %}
+                  <span class="badge bg-secondary">{% trans "بلاغ وارد" %}</span>
+                  {% endif %}
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
-                  <p class="mb-0">{% trans "لا توجد بلاغات ضمان مسجلة." %}</p>
+                <td colspan="7" class="text-center py-5 text-muted">
+                  <i class="fas fa-shield-alt fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد بلاغات ضمان مسجلة مطابقة للبحث." %}</p>
                 </td>
               </tr>
               {% endfor %}

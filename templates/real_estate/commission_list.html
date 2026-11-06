@@ -100,29 +100,66 @@
               <tr>
                 <th class="ps-3">{% trans "الوسيط العقاري" %}</th>
                 <th>{% trans "رقم العقد" %}</th>
-                <th>{% trans "العميل" %}</th>
+                <th>{% trans "العميل والوحدة" %}</th>
                 <th class="text-end">{% trans "إجمالي العمولة" %}</th>
                 <th class="text-end">{% trans "الدفعة المصروفة" %}</th>
                 <th class="text-end">{% trans "المتبقي" %}</th>
                 <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for c in commissions %}
               <tr>
-                <td class="ps-3 fw-bold text-primary">{{ c.broker.name }}</td>
-                <td>{{ c.contract.contract_number }}</td>
-                <td>{{ c.contract.customer.name }}</td>
-                <td class="text-end fw-bold">{{ c.total_commission_amount|floatformat:2|intcomma }}</td>
-                <td class="text-end text-success">{{ c.released_commission_amount|floatformat:2|intcomma }}</td>
-                <td class="text-end text-warning">{{ c.remaining_commission|floatformat:2|intcomma }}</td>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'real_estate:broker_detail' c.broker.id %}" class="text-primary text-decoration-none">
+                    {{ c.broker.name }}
+                  </a>
+                  <div class="small text-muted">{{ c.broker.code }}</div>
+                </td>
+                <td class="fw-semibold">
+                  <a href="{% url 'real_estate:contract_detail' c.contract.id %}" class="text-dark text-decoration-none">
+                    {{ c.contract.contract_number }}
+                  </a>
+                </td>
+                <td>
+                  <div class="fw-semibold">{{ c.contract.customer.name }}</div>
+                  <div class="small text-muted">{{ c.contract.unit.project.name }} ({{ c.contract.unit.unit_code }})</div>
+                </td>
+                <td class="text-end fw-bold">{{ c.total_commission_amount|floatformat:2|intcomma }} ج.م</td>
+                <td class="text-end text-success fw-bold">{{ c.released_commission_amount|floatformat:2|intcomma }} ج.م</td>
+                <td class="text-end text-warning fw-bold">{{ c.remaining_commission|floatformat:2|intcomma }} ج.م</td>
                 <td class="text-center">
-                  <span class="badge bg-secondary">{{ c.get_status_display }}</span>
+                  <span class="badge {% if c.overall_status == 'مصروفة بالكامل' %}bg-success{% elif c.overall_status == 'مستحقة الصرف' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                    {{ c.overall_status }}
+                  </span>
+                </td>
+                <td class="text-center pe-3">
+                  <div class="btn-group btn-group-sm">
+                    <form method="post" action="{% url 'real_estate:commission_evaluate' c.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-outline-secondary" title="{% trans 'إعادة تقييم الاستحقاق' %}">
+                        <i class="fas fa-sync-alt"></i>
+                      </button>
+                    </form>
+                    {% if c.tranche_1_status == 'ELIGIBLE' %}
+                    <button type="button" class="btn btn-outline-success" title="{% trans 'صرف شريحة 1' %}"
+                            onclick="openPayoutModal('{{ c.id }}', 1, '{{ c.staged_tranche_1_amount }}')">
+                      <i class="fas fa-money-bill-wave"></i> 1
+                    </button>
+                    {% endif %}
+                    {% if c.tranche_2_status == 'ELIGIBLE' %}
+                    <button type="button" class="btn btn-outline-success" title="{% trans 'صرف شريحة 2' %}"
+                            onclick="openPayoutModal('{{ c.id }}', 2, '{{ c.staged_tranche_2_amount }}')">
+                      <i class="fas fa-money-bill-wave"></i> 2
+                    </button>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="8" class="text-center py-5 text-muted">
                   <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
                   <p class="mb-0">{% trans "لا توجد سجلات عمولات مطابقة للبحث." %}</p>
                 </td>
@@ -141,4 +178,59 @@
   </div>
   {% endif %}
 </div>
+
+<!-- Modal Payout Commission Tranche -->
+<div class="modal fade" id="payoutCommissionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-hand-holding-usd text-success me-2"></i>{% trans "صرف شريحة عمولة وترحيل القيد" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" id="payoutForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <input type="hidden" name="tranche" id="modalTrancheNumber">
+          <div class="alert alert-info small mb-3">
+            {% trans "سيتم ترحيل قيد صرف العمولة للدفاتر العامة آلياً (Dr: Broker Commission Expense 52510 / Cr: Payment Account)." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "المبلغ المستحق للصرف" %}</label>
+            <input type="text" id="modalTrancheAmount" class="form-control fw-bold text-success" readonly>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "حساب الخزينة / البنك للصرف" %} <span class="text-danger">*</span></label>
+            <select name="payment_account" class="form-select select2-filter" required>
+              <option value="">{% trans "اختر الخزينة أو الحساب البنكي..." %}</option>
+              {% for acc in payment_accounts %}
+              <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد الصرف وترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openPayoutModal(commissionId, trancheNumber, amount) {
+  const form = document.getElementById('payoutForm');
+  form.action = `/real-estate/commissions/${commissionId}/payout/`;
+  document.getElementById('modalTrancheNumber').value = trancheNumber;
+  document.getElementById('modalTrancheAmount').value = Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' ج.م';
+  const modal = new bootstrap.Modal(document.getElementById('payoutCommissionModal'));
+  modal.show();
+}
+</script>
 {% endblock %}

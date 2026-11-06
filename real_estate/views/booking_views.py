@@ -111,11 +111,55 @@ class BookingDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
             {'title': booking.booking_number, 'active': True}
         ]
 
+        header_buttons = [
+            {
+                'url': reverse('real_estate:booking_print', kwargs={'pk': booking.pk}),
+                'icon': 'fa-print',
+                'text': _('طباعة استمارة الحجز'),
+                'class': 'btn-outline-primary',
+                'target': '_blank',
+            }
+        ]
+
         context = {
             'booking': booking,
             'payment_accounts': payment_accounts,
             'breadcrumb_items': breadcrumb_items,
+            'header_buttons': header_buttons,
             'active_menu': 'real_estate',
             'active_submenu': 'bookings',
         }
         return render(request, 'real_estate/booking_detail.html', context)
+
+
+class BookingOfficialPrintView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    طباعة استمارة حجز الوحدة وإيصال أمانة جدية الحجز (مع ختم التوثيق الرقمي SHA-256)
+    """
+    permission_required = 'real_estate.view_unitbooking'
+
+    def get(self, request, pk):
+        import hashlib
+        from django.utils import timezone
+
+        booking = get_object_or_404(
+            UnitBooking.objects.select_related(
+                'customer', 'unit__project', 'unit__floor__block', 'journal_entry', 'created_by'
+            ),
+            pk=pk
+        )
+
+        raw_seed = (
+            f"BKG:{booking.booking_number}:{booking.customer_id}:{booking.unit_id}:"
+            f"{booking.holding_deposit}:{booking.booking_date}:{booking.status}"
+        )
+        verification_hash = hashlib.sha256(raw_seed.encode('utf-8')).hexdigest()
+
+        context = {
+            'booking': booking,
+            'verification_hash': verification_hash,
+            'verification_token': verification_hash[:16].upper(),
+            'today': timezone.localdate(),
+        }
+        return render(request, 'real_estate/booking_print.html', context)
+

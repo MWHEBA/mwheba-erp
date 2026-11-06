@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "أمر تعديل معماري" %} {{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي تكلفة أمر التعديل" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ order.total_cost|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تكلفة التكسير وإعادة البناء" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ order.demolition_rework_cost|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-hammer"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تكلفة المواد والمستلزمات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ order.material_cost|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-cubes"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المصنعيات والإشراف الهندسي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">
+              {{ order.labor_cost|add:order.supervision_fee|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-user-hard-hat"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Main Info & Specs -->
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-clipboard-check text-primary me-2"></i>{% trans "بيانات أمر التعديل والمواصفات الهندسية" %}
+          </h6>
+          <div>
+            {% if order.status == 'APPROVED' %}
+            <span class="badge bg-success px-3 py-2">{% trans "معتمد هندسياً ومالياً" %}</span>
+            {% elif order.status == 'ENGINEERING_REVIEW' %}
+            <span class="badge bg-info text-dark px-3 py-2">{% trans "قيد المراجعة الهندسية" %}</span>
+            {% elif order.status == 'IN_PROGRESS' %}
+            <span class="badge bg-warning text-dark px-3 py-2">{% trans "قيد التنفيذ الميداني" %}</span>
+            {% elif order.status == 'COMPLETED' %}
+            <span class="badge bg-primary px-3 py-2">{% trans "مكتمل التنفيذ" %}</span>
+            {% elif order.status == 'REJECTED' %}
+            <span class="badge bg-danger px-3 py-2">{% trans "مرفوض هندسياً" %}</span>
+            {% else %}
+            <span class="badge bg-secondary px-3 py-2">{% trans "مسودة" %}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "رقم أمر التعديل" %}</label>
+              <div class="fw-bold text-primary fs-5">{{ order.order_number }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "تاريخ الإنشاء" %}</label>
+              <div class="fw-semibold text-dark">{{ order.created_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "نوع التعديل" %}</label>
+              <div><span class="badge bg-light text-dark border px-2 py-1">{{ order.get_variation_type_display }}</span></div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "مرحلة البناء عند الطلب" %}</label>
+              <div><span class="badge bg-light text-dark border px-2 py-1">{{ order.get_stage_at_request_display }}</span></div>
+            </div>
+            <div class="col-12">
+              <label class="text-muted small">{% trans "عنوان التعديل" %}</label>
+              <div class="fw-bold text-dark fs-6">{{ order.title }}</div>
+            </div>
+            <div class="col-12">
+              <label class="text-muted small">{% trans "التوصيف الهندسي التفصيلي" %}</label>
+              <div class="p-3 bg-light rounded border small text-dark" style="white-space: pre-wrap;">{{ order.description }}</div>
+            </div>
+          </div>
+
+          {% if order.status == 'REJECTED' %}
+          <div class="alert alert-danger border-0 d-flex align-items-center mb-0" role="alert">
+            <i class="fas fa-times-circle fa-2x me-3"></i>
+            <div>
+              <h6 class="alert-heading fw-bold mb-1">{% trans "سبب الرفض الهندسي:" %}</h6>
+              <p class="mb-0 small">{{ order.rejection_reason }}</p>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Breakdown Table -->
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-list-ol text-primary me-2"></i>{% trans "تفصيل بنود المقايسة الهندسية" %}
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-4">{% trans "البند التقديري" %}</th>
+                  <th class="text-center">{% trans "التصنيف الهندسي" %}</th>
+                  <th class="text-end pe-4">{% trans "القيمة التقديرية" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ps-4 fw-semibold">{% trans "تكلفة التكسير وإعادة البناء (Demolition & Rework)" %}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">{% trans "أعمال مدنية وتكسير" %}</span></td>
+                  <td class="text-end pe-4 fw-bold text-dark">{{ order.demolition_rework_cost|floatformat:2|intcomma }} ج.م</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold">{% trans "تكلفة المواد والمستلزمات (Direct Materials)" %}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">{% trans "توريدات خامات" %}</span></td>
+                  <td class="text-end pe-4 fw-bold text-dark">{{ order.material_cost|floatformat:2|intcomma }} ج.م</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold">{% trans "تكلفة المصنعيات والعمالة (Direct Labor)" %}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">{% trans "مصنعيات مقاولات" %}</span></td>
+                  <td class="text-end pe-4 fw-bold text-dark">{{ order.labor_cost|floatformat:2|intcomma }} ج.م</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold">{% trans "أتعاب الإشراف والتنسيق الهندسي (Supervision Fee)" %}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">{% trans "إشراف هندسي" %}</span></td>
+                  <td class="text-end pe-4 fw-bold text-dark">{{ order.supervision_fee|floatformat:2|intcomma }} ج.م</td>
+                </tr>
+              </tbody>
+              <tfoot class="table-light">
+                <tr>
+                  <th class="ps-4 fw-bold">{% trans "إجمالي المقايسة المستحقة" %}</th>
+                  <th></th>
+                  <th class="text-end pe-4 fw-bold fs-5 text-primary">{{ order.total_cost|floatformat:2|intcomma }} ج.م</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Info & Actions -->
+    <div class="col-12 col-lg-4">
+      <!-- Contract & Unit Details -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-home text-primary me-2"></i>{% trans "بيانات العقد والوحدة" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "رقم العقد" %}</label>
+            <div class="fw-bold">
+              <a href="{% url 'real_estate:contract_detail' pk=order.contract.pk %}" class="text-decoration-none">
+                {{ order.contract.contract_number }} <i class="fas fa-external-link-alt small ms-1"></i>
+              </a>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "الوحدة العقارية" %}</label>
+            <div class="fw-semibold text-dark">{{ order.contract.unit.unit_code }} ({{ order.contract.unit.project.name }})</div>
+          </div>
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "العميل المشتري" %}</label>
+            <div class="fw-semibold text-dark">{{ order.contract.customer.name }}</div>
+          </div>
+          <div class="mb-0">
+            <label class="text-muted small">{% trans "تاريخ استلام العقد المستهدف" %}</label>
+            <div class="fw-semibold text-dark">{{ order.contract.delivery_date|default:"-" }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Schedule & Supplemental Installment -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-money-check-alt text-primary me-2"></i>{% trans "الأثر المالي وقسط الملحق" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          {% if order.supplemental_installment_item %}
+          <div class="alert alert-success border-0 mb-3 p-3">
+            <div class="d-flex align-items-center mb-2">
+              <i class="fas fa-check-double fa-lg me-2 text-success"></i>
+              <span class="fw-bold">{% trans "تم الجدولة بنجاح في خطة الأقساط" %}</span>
+            </div>
+            <div class="small">{% trans "رقم القسط الملحق:" %} <strong>#{{ order.supplemental_installment_item.installment_number }}</strong></div>
+            <div class="small">{% trans "تاريخ الاستحقاق:" %} <strong>{{ order.supplemental_installment_item.due_date }}</strong></div>
+            <div class="small">{% trans "المبلغ المطلوب:" %} <strong>{{ order.supplemental_installment_item.total_amount|floatformat:2|intcomma }} ج.م</strong></div>
+            <div class="small mt-1">
+              {% trans "حالة السداد:" %}
+              <span class="badge bg-secondary">{{ order.supplemental_installment_item.get_cash_status_display }}</span>
+            </div>
+          </div>
+          {% else %}
+          <div class="p-3 bg-light rounded border text-muted small text-center mb-3">
+            <i class="fas fa-info-circle fa-2x mb-2 text-secondary"></i>
+            <div>{% trans "لم يتم جدولة أمر التعديل بعد. بمجرد الاعتماد النهائي، سيتم تلقائياً إدراج قسط ملحق إضافي في خطة أقساط العقد." %}</div>
+          </div>
+          {% endif %}
+
+          {% if order.approved_by %}
+          <div class="small text-muted border-top pt-2">
+            <div>{% trans "اعتمد بواسطة:" %} <strong>{{ order.approved_by.get_full_name|default:order.approved_by.username }}</strong></div>
+            <div>{% trans "تاريخ الاعتماد:" %} {{ order.updated_at|date:"Y-m-d H:i" }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-cogs text-primary me-2"></i>{% trans "إجراءات أمر التعديل" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-grid gap-2">
+            {% if order.status == 'DRAFT' or order.status == 'ENGINEERING_REVIEW' %}
+            <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#approveOrderModal">
+              <i class="fas fa-check-circle me-1"></i>{% trans "اعتماد وجدولة القسط الملحق" %}
+            </button>
+            <a href="{% url 'real_estate:variation_update' pk=order.pk %}" class="btn btn-outline-primary">
+              <i class="fas fa-edit me-1"></i>{% trans "تعديل أمر التعديل" %}
+            </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectOrderModal">
+              <i class="fas fa-times-circle me-1"></i>{% trans "رفض أمر التعديل" %}
+            </button>
+            {% else %}
+            <div class="text-center text-muted small py-2">
+              <i class="fas fa-lock me-1"></i>{% trans "لا توجد إجراءات متاحة في الحالة الحالية." %}
+            </div>
+            {% endif %}
+            <a href="{% url 'real_estate:variation_list' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للقائمة" %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: الاعتماد وجدولة القسط -->
+<div class="modal fade" id="approveOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:variation_approve' pk=order.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-check-circle text-success me-2"></i>{% trans "اعتماد أمر التعديل وتوليد القسط الملحق" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            {% trans "سيتم اعتماد أمر التعديل هندسياً وإضافة قسط ملحق إضافي بقيمة إجمالي المقايسة:" %}
+            <strong class="text-dark">{{ order.total_cost|floatformat:2|intcomma }} ج.م</strong>
+            {% trans "إلى جدول خطة أقساط العقد." %}
+          </p>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "تاريخ استحقاق قسط التعديل" %}</label>
+            <input type="date" name="due_date" class="form-control" value="{{ order.contract.delivery_date|date:'Y-m-d' }}">
+            <div class="form-text small text-muted">{% trans "افتراضياً يحدد بتاريخ استلام وتسليم الوحدة." %}</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "تأكيد الاعتماد والجدولة" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: الرفض الهندسي -->
+<div class="modal fade" id="rejectOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:variation_reject' pk=order.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-times-circle text-danger me-2"></i>{% trans "رفض أمر التعديل المعماري" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "سبب الرفض الهندسي" %} <span class="text-danger">*</span></label>
+            <textarea name="rejection_reason" rows="3" class="form-control" placeholder="{% trans 'اذكر مبررات الرفض الفنية أو اللائحية بالتفصيل...' %}" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-ban me-1"></i>{% trans "تأكيد الرفض" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

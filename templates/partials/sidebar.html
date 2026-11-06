@@ -436,6 +436,52 @@
                 </li>
                 {% endif %}
 
+                <!-- 6. التقارير والتحليلات العقارية -->
+                {% if perms.real_estate.view_propertycontract or perms.real_estate.view_realestateproject or perms.real_estate.view_brokercommission or user.is_superuser %}
+                <li class="sidebar-item">
+                    <a href="#reReportsMenu"
+                        class="sidebar-link collapsed {% if active_menu == 're_reports' %}active{% endif %}"
+                        data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-chart-pie sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "التقارير العقارية" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 're_reports' %}show{% endif %}"
+                        id="reReportsMenu">
+                        {% if perms.real_estate.view_propertycontract or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:report_dual_subledger' %}"
+                                class="submenu-link {% if active_submenu == 'report_dual_subledger' %}active{% endif %}">
+                                <i class="fas fa-balance-scale me-2"></i>{% trans "كشف الحساب المزدوج" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'real_estate:report_cash_flow' %}"
+                                class="submenu-link {% if active_submenu == 'report_cash_flow' %}active{% endif %}">
+                                <i class="fas fa-water me-2"></i>{% trans "رادار التدفقات والسيولة" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_realestateproject or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:report_wip_revenue' %}"
+                                class="submenu-link {% if active_submenu == 'report_wip_revenue' %}active{% endif %}">
+                                <i class="fas fa-hard-hat me-2"></i>{% trans "تكاليف WIP وإيرادات IFRS 15" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.real_estate.view_brokercommission or user.is_superuser %}
+                        <li>
+                            <a href="{% url 'real_estate:report_broker_commissions' %}"
+                                class="submenu-link {% if active_submenu == 'report_broker_commissions' %}active{% endif %}">
+                                <i class="fas fa-user-tie me-2"></i>{% trans "تقرير عمولات الوسطاء" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
                 {% endif %}
                 {% endif %}
 

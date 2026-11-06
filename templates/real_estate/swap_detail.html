@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تفاصيل محضر استبدال الوحدة" %} - {{ swap.swap_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Row for Swap Overview -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "حالة المحضر" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              {% if swap.status == 'EXECUTED' %}
+                <span class="text-success"><i class="fas fa-check-circle me-1"></i>{% trans "منفذ ومعتمد" %}</span>
+              {% elif swap.status == 'UNDER_APPROVAL' %}
+                <span class="text-warning"><i class="fas fa-clock me-1"></i>{% trans "قيد الاعتماد" %}</span>
+              {% elif swap.status == 'CANCELLED' %}
+                <span class="text-danger"><i class="fas fa-ban me-1"></i>{% trans "ملغي" %}</span>
+              {% else %}
+                <span class="text-secondary"><i class="fas fa-file-alt me-1"></i>{% trans "مسودة" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-exchange-alt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "فارق السعر" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold {% if swap.price_difference > 0 %}text-danger{% elif swap.price_difference < 0 %}text-success{% else %}text-muted{% endif %}">
+              {% if swap.price_difference > 0 %}+{% endif %}{{ swap.price_difference|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-balance-scale"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المصاريف الإدارية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-warning">{{ swap.administrative_fee|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small></div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-receipt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "طريقة التسوية" %}</div>
+            <div class="stats-card-value h6 mb-0 fw-bold text-dark">{{ swap.get_settlement_method_display }}</div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-sliders-h"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Units Comparison Cards -->
+  <div class="row g-4 mb-4">
+    <!-- Old Unit Card -->
+    <div class="col-12 col-md-6">
+      <div class="section-container h-100">
+        <div class="card border border-warning shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-history text-warning me-2"></i>{% trans "الوحدة الحالية / السابقة" %}
+            </h6>
+            <span class="badge bg-secondary font-monospace">{{ swap.old_unit.unit_code }}</span>
+          </div>
+          <div class="card-body p-4">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "المشروع العقاري:" %}</span>
+                <span class="fw-semibold">{{ swap.old_unit.project.name }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "المساحة الإجمالية:" %}</span>
+                <span class="fw-bold">{{ swap.old_unit.gross_area }} م²</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "الدور والنموذج:" %}</span>
+                <span>{{ swap.old_unit.floor|default:"-" }} / {{ swap.old_unit.unit_type|default:"-" }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "سعر التعاقد القديم:" %}</span>
+                <span class="fw-bold font-monospace text-primary fs-6">{{ swap.old_unit_price|floatformat:2|intcomma }} ج.م</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "حالة الوحدة حالياً:" %}</span>
+                <span class="badge bg-light text-dark border">{{ swap.old_unit.get_status_display }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New Unit Card -->
+    <div class="col-12 col-md-6">
+      <div class="section-container h-100">
+        <div class="card border border-success shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-door-open text-success me-2"></i>{% trans "الوحدة البديلة الجديدة (المستهدفة)" %}
+            </h6>
+            <span class="badge bg-success font-monospace">{{ swap.new_unit.unit_code }}</span>
+          </div>
+          <div class="card-body p-4">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "المشروع العقاري:" %}</span>
+                <span class="fw-semibold">{{ swap.new_unit.project.name }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "المساحة الإجمالية:" %}</span>
+                <span class="fw-bold text-success">{{ swap.new_unit.gross_area }} م²</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "الدور والنموذج:" %}</span>
+                <span>{{ swap.new_unit.floor|default:"-" }} / {{ swap.new_unit.unit_type|default:"-" }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "سعر الوحدة الجديدة:" %}</span>
+                <span class="fw-bold font-monospace text-success fs-6">{{ swap.new_unit_price|floatformat:2|intcomma }} ج.م</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "حالة الوحدة حالياً:" %}</span>
+                <span class="badge bg-light text-dark border">{{ swap.new_unit.get_status_display }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contract & Execution Details Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-file-invoice text-primary me-2"></i>{% trans "بيانات العقد والتسوية والتنفيذ" %}
+        </h5>
+        {% if swap.status != 'EXECUTED' and swap.status != 'CANCELLED' %}
+        <button type="button" class="btn btn-success fw-bold px-3" data-bs-toggle="modal" data-bs-target="#executeSwapModal">
+          <i class="fas fa-check-double me-1"></i>{% trans "تنفيذ واعتماد محضر الاستبدال" %}
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-4">
+          <div class="col-12 col-md-6">
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="fas fa-user text-info me-2"></i>{% trans "بيانات العميل والعقد" %}
+            </h6>
+            <div class="mb-2">
+              <span class="text-muted small d-block">{% trans "اسم العميل" %}</span>
+              <span class="fw-bold text-dark fs-6">{{ swap.contract.customer.name }}</span>
+            </div>
+            <div class="mb-2">
+              <span class="text-muted small d-block">{% trans "رقم العقد" %}</span>
+              <a href="{% url 'real_estate:contract_detail' pk=swap.contract.pk %}" class="fw-bold font-monospace text-primary">
+                {{ swap.contract.contract_number }} <i class="fas fa-external-link-alt small ms-1"></i>
+              </a>
+            </div>
+            <div class="mb-2">
+              <span class="text-muted small d-block">{% trans "تاريخ إنشاء طلب التبديل" %}</span>
+              <span class="small text-muted">{{ swap.created_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div>
+              <span class="text-muted small d-block">{% trans "المسؤول عن التسجيل" %}</span>
+              <span class="small">{{ swap.created_by.get_full_name|default:swap.created_by.username|default:"-" }}</span>
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="fas fa-calculator text-success me-2"></i>{% trans "التسوية المالية وإعادة الجدولة" %}
+            </h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered align-middle mb-0">
+                <tbody>
+                  <tr>
+                    <td class="text-muted bg-light" style="width: 50%;">{% trans "سعر الوحدة القديمة" %}</td>
+                    <td class="text-end font-monospace">{{ swap.old_unit_price|floatformat:2|intcomma }} ج.م</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted bg-light">{% trans "سعر الوحدة الجديدة" %}</td>
+                    <td class="text-end font-monospace fw-bold text-success">{{ swap.new_unit_price|floatformat:2|intcomma }} ج.م</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted bg-light">{% trans "صافي فارق السعر" %}</td>
+                    <td class="text-end font-monospace fw-bold {% if swap.price_difference > 0 %}text-danger{% elif swap.price_difference < 0 %}text-success{% else %}text-muted{% endif %}">
+                      {% if swap.price_difference > 0 %}+{% endif %}{{ swap.price_difference|floatformat:2|intcomma }} ج.م
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted bg-light">{% trans "المصاريف الإدارية المقررة" %}</td>
+                    <td class="text-end font-monospace text-muted">{{ swap.administrative_fee|floatformat:2|intcomma }} ج.م</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {% if swap.notes %}
+            <div class="mt-3">
+              <span class="text-muted small d-block mb-1">{% trans "ملاحظات ومبررات التبديل" %}</span>
+              <div class="p-2 bg-light rounded border small text-muted">
+                {{ swap.notes|linebreaksbr }}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Execute Unit Swap -->
+{% if swap.status != 'EXECUTED' and swap.status != 'CANCELLED' %}
+<div class="modal fade" id="executeSwapModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "تأكيد تنفيذ محضر استبدال الوحدة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'real_estate:swap_execute' pk=swap.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="mb-3 text-dark">
+            {% trans "هل أنت متأكد من رغبتك في تنفيذ محضر الاستبدال" %}
+            <strong class="font-monospace text-primary">{{ swap.swap_number }}</strong>؟
+          </p>
+          <div class="alert alert-warning small mb-0">
+            <h6 class="fw-bold mb-2"><i class="fas fa-sync-alt me-1"></i>{% trans "الإجراءات التلقائية التي ستنفذ ذرياً:" %}</h6>
+            <ul class="mb-0 ps-3">
+              <li>{% trans "إلغاء حجز الوحدة القديمة" %} <strong>{{ swap.old_unit.unit_code }}</strong> {% trans "وتحويلها لحالة متاحة للبيع." %}</li>
+              <li>{% trans "حجز والتعاقد على الوحدة الجديدة" %} <strong>{{ swap.new_unit.unit_code }}</strong> {% trans "لصالح العميل." %}</li>
+              <li>{% trans "تحديث العقد بالوحدة الجديدة وتعديل القيمة الإجمالية للعقد." %}</li>
+              <li>{% trans "إعادة توزيع فارق السعر بالتساوي على جميع الأقساط المتبقية غير المسددة." %}</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد وتنفيذ الاستبدال الآن" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

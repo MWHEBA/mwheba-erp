@@ -410,6 +410,97 @@ class LegalEscalationPipeline:
         return notice
 
     @classmethod
+    def run_daily_escalation_sweep(
+        cls,
+        as_of_date: Optional[date] = None,
+        user: Any = None,
+        stages_filter: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        فحص يومي مجدول لكافة الأقساط العقارية المستحقة أو المتأخرة المرتبطة بعقود سارية:
+        - يمنع التكرار (Idempotent): لا يصدر إشعاراً لنفس القسط ونفس مرحلة التصعيد مرتين.
+        - يحدث غرامات التأخير التعاقدية اليومية تلقائياً للأقساط المتعثرة.
+        - يرسل تذكيرات (T-7 / T-3) وإنذارات التأخير (T+1..15, T+16..45, T>45).
+        """
+        target_date = as_of_date or timezone.localdate()
+
+        eligible_items = InstallmentItem.objects.filter(
+            plan__property_contract__isnull=False,
+            plan__property_contract__status=PropertyContract.ContractStatus.ACTIVE,
+        ).exclude(
+            cash_status__in=[
+                InstallmentItem.CashStatus.COLLECTED,
+                InstallmentItem.CashStatus.COLLECTED_CONTRA,
+                InstallmentItem.CashStatus.WAIVED,
+            ]
+        ).select_related(
+            'plan__property_contract__customer',
+            'plan__property_contract__unit',
+            'plan__property_contract__project',
+            'plan__property_contract__currency',
+        ).order_by('due_date', 'id')
+
+        processed_count = 0
+        skipped_duplicate_count = 0
+        penalties_updated_count = 0
+        stage_counts: Dict[str, int] = {
+            LegalNotice.EscalationStage.STAGE_1_PRE_DUE: 0,
+            LegalNotice.EscalationStage.STAGE_2_GRACE_EXPIRED: 0,
+            LegalNotice.EscalationStage.STAGE_3_FORMAL_DEMAND: 0,
+            LegalNotice.EscalationStage.STAGE_4_RESCISSION_NOTICE: 0,
+        }
+        issued_notices: List[int] = []
+
+        for item in eligible_items:
+            if item.remaining_balance <= Decimal('0.00'):
+                continue
+
+            stage, overdue_days = cls.determine_escalation_stage(item, as_of_date=target_date)
+            if not stage:
+                continue
+
+            if stages_filter and stage not in stages_filter:
+                continue
+
+            # تحديث غرامة التأخير التعاقدية اليومية حتى لو تم إرسال إشعار المرحلة مسبقاً
+            if overdue_days > 0:
+                new_penalty = cls.calculate_contractual_penalty(item, overdue_days)
+                if item.penalty_amount != new_penalty:
+                    item.penalty_amount = new_penalty
+                    item.save(update_fields=['penalty_amount'])
+                    penalties_updated_count += 1
+
+            # حارس عدم التكرار (Idempotency Guard): التحقق من عدم إصدار إشعار سابق لنفس القسط ونفس المرحلة
+            already_issued = LegalNotice.objects.filter(
+                installment_item=item,
+                stage=stage
+            ).exists()
+
+            if already_issued:
+                skipped_duplicate_count += 1
+                continue
+
+            notice = cls.execute_escalation_for_installment(
+                installment=item,
+                as_of_date=target_date,
+                user=user,
+                force_stage=stage
+            )
+            processed_count += 1
+            stage_counts[stage] = stage_counts.get(stage, 0) + 1
+            issued_notices.append(notice.id)
+
+        return {
+            'as_of_date': target_date.isoformat(),
+            'processed_count': processed_count,
+            'skipped_duplicate_count': skipped_duplicate_count,
+            'penalties_updated_count': penalties_updated_count,
+            'stage_counts': stage_counts,
+            'issued_notice_ids': issued_notices,
+        }
+
+
+    @classmethod
     def get_certified_demand_letter_context(cls, notice: LegalNotice) -> Dict[str, Any]:
         """
         تجهيز سياق البيانات الكامل لطباعة الإنذار الرسمي أو تصديره إلى PDF

@@ -104,21 +104,42 @@
                 <th>{% trans "الهاتف" %}</th>
                 <th>{% trans "الشخص المسؤول" %}</th>
                 <th class="text-center">{% trans "نسبة العمولة الافتراضية" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for b in brokers %}
               <tr>
-                <td class="ps-3 fw-bold text-primary">{{ b.code }}</td>
-                <td class="fw-semibold">{{ b.name }}</td>
+                <td class="ps-3 fw-bold">
+                  <a href="{% url 'real_estate:broker_detail' b.id %}" class="text-primary text-decoration-none">
+                    {{ b.code }}
+                  </a>
+                </td>
+                <td class="fw-semibold">
+                  <a href="{% url 'real_estate:broker_detail' b.id %}" class="text-dark text-decoration-none">
+                    {{ b.name }}
+                  </a>
+                </td>
                 <td><span class="badge bg-light text-dark border">{{ b.get_broker_type_display }}</span></td>
                 <td>{{ b.phone|default:"-" }}</td>
                 <td>{{ b.contact_person|default:"-" }}</td>
                 <td class="text-center fw-bold">{{ b.default_commission_rate }}%</td>
+                <td class="text-center pe-3">
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'real_estate:broker_detail' b.id %}" class="btn btn-outline-secondary" title="{% trans 'الملف والتفاصيل' %}">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    {% if perms.real_estate.change_realestatebroker or user.is_superuser %}
+                    <a href="{% url 'real_estate:broker_update' b.id %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    {% endif %}
+                  </div>
+                </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
+                <td colspan="7" class="text-center py-5 text-muted">
                   <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
                   <p class="mb-0">{% trans "لا يوجد وسطاء مسجلين مطابقين للبحث." %}</p>
                 </td>

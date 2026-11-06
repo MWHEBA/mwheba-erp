@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تفاصيل اتفاقية الشراكة" %} - {{ partnership.partnership_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Row for Partnership -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المشروع العقاري" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ partnership.project.name }}</div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-building"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "التقييم المالي للأرض" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-success">{{ partnership.agreed_land_valuation|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small></div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "نسبة العائد / المشاركة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-warning">{{ partnership.revenue_share_percentage }}%</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-percentage"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المخصصة عيناً" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ allocations.count }} <small class="text-muted fs-6">{% trans "وحدة" %}</small></div>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-door-open"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Partnership Specifications -->
+    <div class="col-12 col-lg-7">
+      <div class="section-container h-100">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-file-contract text-primary me-2"></i>{% trans "بيانات عقد واتفاقية الشراكة" %}
+            </h6>
+            <span class="badge {% if partnership.status == 'ACTIVE' %}bg-success{% elif partnership.status == 'COMPLETED' %}bg-primary{% else %}bg-secondary{% endif %} px-3 py-2">
+              {{ partnership.get_status_display }}
+            </span>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">{% trans "رقم الاتفاقية" %}</span>
+                <span class="fw-bold font-monospace text-primary fs-6">{{ partnership.partnership_number }}</span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">{% trans "تاريخ تحرير العقد" %}</span>
+                <span class="fw-semibold">{{ partnership.contract_date|date:"d/m/Y" }}</span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">{% trans "نوع الشراكة" %}</span>
+                <span class="badge bg-light text-dark border">{{ partnership.get_partnership_type_display }}</span>
+              </div>
+              <div class="col-sm-6">
+                <span class="text-muted small d-block">{% trans "مساحة قطعة الأرض" %}</span>
+                <span class="fw-bold font-monospace">{{ partnership.land_area_sqm|floatformat:2|intcomma }} م²</span>
+              </div>
+              <div class="col-12">
+                <span class="text-muted small d-block mb-1">{% trans "الشروط الخاصة والبنود الإضافية" %}</span>
+                <div class="p-3 bg-light rounded border text-muted small" style="min-height: 80px;">
+                  {{ partnership.terms_notes|default:_("لا توجد بنود إضافية مدونة.")|linebreaksbr }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Partner Details Card -->
+    <div class="col-12 col-lg-5">
+      <div class="section-container h-100">
+        <div class="card border shadow-sm h-100">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-user-tie text-info me-2"></i>{% trans "بيانات مالك الأرض / الشريك" %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "الاسم بالكامل:" %}</span>
+                <span class="fw-bold text-dark">{{ partnership.partner_name }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "الرقم القومي / السجل:" %}</span>
+                <span class="font-monospace fw-semibold">{{ partnership.partner_national_id|default:"-" }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "رقم الهاتف:" %}</span>
+                <span class="fw-semibold">{{ partnership.partner_phone|default:"-" }}</span>
+              </li>
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <span class="text-muted">{% trans "تاريخ التسجيل بالمنظومة:" %}</span>
+                <span class="small text-muted">{{ partnership.created_at|date:"d/m/Y H:i" }}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Allocated Units Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-door-closed text-primary me-2"></i>{% trans "الوحدات المخصصة عيناً لمالك الأرض" %}
+        </h5>
+        {% if partnership.status == 'ACTIVE' %}
+        <button type="button" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#allocateUnitModal">
+          <i class="fas fa-plus me-1"></i>{% trans "تخصيص وحدة عينية جديدة" %}
+        </button>
+        {% endif %}
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "كود الوحدة" %}</th>
+                <th>{% trans "المبنى / البلوك" %}</th>
+                <th class="text-center">{% trans "الدور" %}</th>
+                <th class="text-center">{% trans "المساحة الإجمالية" %}</th>
+                <th class="text-end">{% trans "سعر القائمة" %}</th>
+                <th class="text-center">{% trans "تاريخ التخصيص" %}</th>
+                <th>{% trans "ملاحظات التخصيص" %}</th>
+                <th class="text-center pe-3">{% trans "القائم بالتخصيص" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for alloc in allocations %}
+              <tr>
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ alloc.unit.unit_code }}</td>
+                <td>{{ alloc.unit.block.name|default:"-" }}</td>
+                <td class="text-center">{{ alloc.unit.floor|default:"-" }}</td>
+                <td class="text-center fw-semibold">{{ alloc.unit.gross_area }} م²</td>
+                <td class="text-end font-monospace">{{ alloc.unit.total_price|floatformat:2|intcomma }} ج.م</td>
+                <td class="text-center small text-muted">{{ alloc.allocated_at|date:"d/m/Y H:i" }}</td>
+                <td class="small">{{ alloc.notes|default:"-" }}</td>
+                <td class="text-center pe-3 small text-muted">{{ alloc.allocated_by.get_full_name|default:alloc.allocated_by.username|default:"-" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <i class="fas fa-building fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لم يتم تخصيص أي وحدات عينية لمالك الأرض حتى الآن." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Allocate Unit in Kind -->
+<div class="modal fade" id="allocateUnitModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-key text-primary me-2"></i>{% trans "تخصيص وحدة عينية لمالك الأرض" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'real_estate:partnership_allocate_unit' pk=partnership.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-info py-2 small mb-3">
+            <i class="fas fa-info-circle me-1"></i>{% trans "سيتم تغيير حالة الوحدة فوراً إلى (مخصصة لمالك أرض) وحظر التعاقد عليها للعملاء." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "الوحدة المتاحة بالمشروع" %} <span class="text-danger">*</span></label>
+            <select name="unit" class="form-select select2-modal" required>
+              <option value="">{% trans "-- اختر الوحدة المراد تخصيصها --" %}</option>
+              {% for u in available_units %}
+              <option value="{{ u.id }}">
+                {{ u.unit_code }} - {{ u.gross_area }} م² ({{ u.total_price|floatformat:2|intcomma }} ج.م)
+              </option>
+              {% empty %}
+              <option value="" disabled>{% trans "لا توجد وحدات متاحة للبيع في هذا المشروع حالياً" %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "ملاحظات التخصيص أو الملحق العقاري" %}</label>
+            <textarea name="notes" rows="3" class="form-control" placeholder="{% trans 'اكتب رقم ملحق التخصيص أو تفاصيل التشطيب المتفق عليها...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد التخصيص العيني" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  $('#allocateUnitModal').on('shown.bs.modal', function () {
+    $(this).find('.select2-modal').select2({
+      dropdownParent: $('#allocateUnitModal'),
+      width: '100%',
+      dir: 'rtl'
+    });
+  });
+});
+</script>
+{% endblock %}

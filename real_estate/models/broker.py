@@ -251,6 +251,31 @@ class BrokerCommission(models.Model):
     def __str__(self):
         return f"عمولة {self.broker.name} - عقد {self.contract.contract_number} ({self.total_commission_amount} ج.م)"
 
+    @property
+    def released_commission_amount(self) -> Decimal:
+        amt = Decimal('0.00')
+        if self.tranche_1_status == self.TrancheStatus.PAID:
+            amt += self.staged_tranche_1_amount
+        if self.tranche_2_status == self.TrancheStatus.PAID:
+            amt += self.staged_tranche_2_amount
+        return (amt - self.clawback_amount).quantize(Decimal('0.01'))
+
+    @property
+    def remaining_commission(self) -> Decimal:
+        return max(Decimal('0.00'), (self.total_commission_amount - self.released_commission_amount).quantize(Decimal('0.01')))
+
+    @property
+    def overall_status(self) -> str:
+        if self.clawback_status == self.ClawbackStatus.CLAWED_BACK:
+            return str(_('مستردة بالكامل'))
+        if self.tranche_1_status == self.TrancheStatus.PAID and self.tranche_2_status == self.TrancheStatus.PAID:
+            return str(_('مصروفة بالكامل'))
+        if self.tranche_1_status == self.TrancheStatus.PAID or self.tranche_2_status == self.TrancheStatus.PAID:
+            return str(_('مصروفة جزئياً'))
+        if self.tranche_1_status == self.TrancheStatus.ELIGIBLE or self.tranche_2_status == self.TrancheStatus.ELIGIBLE:
+            return str(_('مستحقة الصرف'))
+        return str(_('قيد الانتظار'))
+
 
 class BrokerAttributionAudit(models.Model):
     """

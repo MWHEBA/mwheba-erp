@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+  {% if is_edit %}{% trans "تعديل بيانات الوسيط" %} {{ broker.name }}{% else %}{% trans "تسجيل وسيط / شركة تسويق عقاري جديدة" %}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-user-tie text-primary me-2"></i>
+              {% if is_edit %}{% trans "تعديل بيانات الوسيط العقاري" %}{% else %}{% trans "بيانات وسيط / شركة التسويق العقاري" %}{% endif %}
+            </h6>
+          </div>
+          <div class="card-body p-4">
+            <form method="post" class="needs-validation" novalidate>
+              {% csrf_token %}
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "كود الوسيط" %} <span class="text-danger">*</span></label>
+                  <input type="text" name="code" class="form-control"
+                         value="{{ broker.code|default:'' }}"
+                         placeholder="{% trans 'مثال: BRK-001' %}" required
+                         {% if is_edit %}readonly{% endif %}>
+                  <div class="invalid-feedback">{% trans "يرجى إدخال كود الوسيط." %}</div>
+                </div>
+
+                <div class="col-12 col-md-5">
+                  <label class="form-label small fw-bold">{% trans "اسم الوسيط / الشركة" %} <span class="text-danger">*</span></label>
+                  <input type="text" name="name" class="form-control"
+                         value="{{ broker.name|default:'' }}"
+                         placeholder="{% trans 'الاسم الرسمي للشركة أو المسوق...' %}" required>
+                  <div class="invalid-feedback">{% trans "يرجى إدخال اسم الوسيط." %}</div>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label small fw-bold">{% trans "نوع الوسيط" %} <span class="text-danger">*</span></label>
+                  <select name="broker_type" class="form-select" required>
+                    {% for val, label in broker_types %}
+                    <option value="{{ val }}" {% if broker.broker_type == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "رقم الهاتف" %}</label>
+                  <input type="tel" name="phone" class="form-control"
+                         value="{{ broker.phone|default:'' }}"
+                         placeholder="01xxxxxxxxx">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "البريد الإلكتروني" %}</label>
+                  <input type="email" name="email" class="form-control"
+                         value="{{ broker.email|default:'' }}"
+                         placeholder="info@example.com">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "الشخص المسؤول للتنسيق" %}</label>
+                  <input type="text" name="contact_person" class="form-control"
+                         value="{{ broker.contact_person|default:'' }}"
+                         placeholder="{% trans 'اسم مسؤول الاتصال...' %}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "نسبة العمولة الافتراضية (%)" %} <span class="text-danger">*</span></label>
+                  <div class="input-group">
+                    <input type="number" step="0.01" min="0" max="100" name="default_commission_rate" class="form-control"
+                           value="{{ broker.default_commission_rate|default:'2.50' }}" required>
+                    <span class="input-group-text">%</span>
+                  </div>
+                  <div class="form-text small text-muted">{% trans "تطبق تلقائياً عند ربط الوسيط بعقد بيع" %}</div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "رقم السجل التجاري" %}</label>
+                  <input type="text" name="commercial_registration" class="form-control"
+                         value="{{ broker.commercial_registration|default:'' }}"
+                         placeholder="{% trans 'لشركات الوساطة الرسمية...' %}">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-bold">{% trans "رقم البطاقة الضريبية" %}</label>
+                  <input type="text" name="tax_id" class="form-control"
+                         value="{{ broker.tax_id|default:'' }}"
+                         placeholder="{% trans 'الرقم الضريبي...' %}">
+                </div>
+
+                <div class="col-12 col-md-8">
+                  <label class="form-label small fw-bold">{% trans "حساب الأستاذ المساعد للوسيط (Broker Payable)" %}</label>
+                  <select name="financial_account" class="form-select select2-filter">
+                    <option value="">{% trans "اختيار حساب محاسبي مخصص (أو استخدام الحساب الافتراضي للمنظومة)..." %}</option>
+                    {% for acc in accounts %}
+                    <option value="{{ acc.id }}" {% if broker.financial_account_id == acc.id %}selected{% endif %}>
+                      {{ acc.code }} - {{ acc.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                  <div class="form-text small text-muted">{% trans "الحساب الفرعي الذي يُسجل عليه استحقاق وسداد عمولات هذا الوسيط" %}</div>
+                </div>
+
+                {% if is_edit %}
+                <div class="col-12 col-md-4 d-flex align-items-center mt-4">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="id_is_active"
+                           {% if broker.is_active %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="id_is_active">{% trans "وسيط نشط ومعتمد للتعامل" %}</label>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-12">
+                  <label class="form-label small fw-bold">{% trans "ملاحظات وسجل التعامل" %}</label>
+                  <textarea name="notes" class="form-control" rows="3"
+                            placeholder="{% trans 'أي تفاصيل تعاقدية إضافية أو شروط خاصة...' %}">{{ broker.notes|default:'' }}</textarea>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                <a href="{% url 'real_estate:broker_list' %}" class="btn btn-outline-secondary px-4">
+                  {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-save me-2"></i>{% trans "حفظ بيانات الوسيط" %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

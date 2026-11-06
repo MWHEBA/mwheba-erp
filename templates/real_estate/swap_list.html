@@ -3,14 +3,15 @@
 {% load i18n %}
 {% load humanize %}
 
-{% block title %}{% trans "سجل تبديل الوحدات والتنازلات" %}{% endblock %}
+{% block title %}{% trans "سجل تبديل وترقية الوحدات العقارية" %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   {% include "shared/page_header.html" %}
 
+  <!-- KPI Stats Row -->
   <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-xl-3">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
@@ -23,14 +24,56 @@
         </div>
       </div>
     </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "عمليات التبديل المنفذة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-success">{{ executed_count|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-check-double"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "طلبات قيد المراجعة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-warning">{{ total_swaps|default:0|add:"-1"|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-clock"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إعادة الجدولة" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              <i class="fas fa-sync-alt text-primary me-1"></i>{% trans "ذري وتلقائي" %}
+            </div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-calculator"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Collapsible Filter Section -->
   <div class="section-container mb-4">
     <div class="card border shadow-sm">
       <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
            role="button" data-bs-toggle="collapse" data-bs-target="#swapFilterCollapse" aria-expanded="true">
         <h6 class="mb-0 fw-bold text-dark">
-          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث التبديلات" %}
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث محاضر التبديل" %}
         </h6>
         <i class="fas fa-chevron-down text-muted"></i>
       </div>
@@ -40,7 +83,7 @@
             <div class="col-12 col-md-6">
               <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
               <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                     placeholder="{% trans 'رقم التبديل، اسم العميل، الوحدة...' %}">
+                     placeholder="{% trans 'رقم التبديل، اسم العميل، كود الوحدة القديمة أو الجديدة...' %}">
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label small fw-bold">{% trans "الحالة" %}</label>
@@ -55,7 +98,7 @@
               <button type="submit" class="btn btn-primary btn-sm w-100">
                 <i class="fas fa-search me-1"></i>{% trans "بحث" %}
               </button>
-              <a href="{% url 'real_estate:swap_list' %}" class="btn btn-outline-secondary btn-sm">
+              <a href="{% url 'real_estate:swap_list' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة تعيين' %}">
                 <i class="fas fa-redo"></i>
               </a>
             </div>
@@ -65,6 +108,7 @@
     </div>
   </div>
 
+  <!-- Data Table Section -->
   <div class="section-container">
     <div class="card border shadow-sm">
       <div class="card-body p-0">
@@ -72,31 +116,55 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th class="ps-3">{% trans "رقم التبديل" %}</th>
+                <th class="ps-3">{% trans "رقم المحضر" %}</th>
                 <th>{% trans "العميل" %}</th>
-                <th>{% trans "الوحدة الأصلية" %}</th>
-                <th>{% trans "الوحدة البديلة" %}</th>
-                <th>{% trans "تاريخ التبديل" %}</th>
+                <th>{% trans "الوحدة الحالية" %}</th>
+                <th>{% trans "الوحدة البديلة (الجديدة)" %}</th>
+                <th class="text-end">{% trans "فارق السعر" %}</th>
+                <th class="text-end">{% trans "المصاريف الإدارية" %}</th>
+                <th class="text-center">{% trans "تاريخ التبديل" %}</th>
                 <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for s in swaps %}
-              <tr>
-                <td class="ps-3 fw-bold text-primary">{{ s.swap_number }}</td>
-                <td class="fw-semibold">{{ s.source_contract.customer.name }}</td>
-                <td>{{ s.source_unit.unit_code }}</td>
-                <td class="fw-bold text-success">{{ s.target_unit.unit_code }}</td>
-                <td class="small text-muted">{{ s.swap_date|date:"d/m/Y" }}</td>
+              <tr class="clickable-row" data-href="{% url 'real_estate:swap_detail' pk=s.pk %}" style="cursor: pointer;">
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ s.swap_number }}</td>
+                <td class="fw-semibold">{{ s.contract.customer.name }}</td>
+                <td>
+                  <span class="badge bg-light text-dark border font-monospace">{{ s.old_unit.unit_code }}</span>
+                </td>
+                <td>
+                  <span class="badge bg-light text-success border font-monospace fw-bold">{{ s.new_unit.unit_code }}</span>
+                </td>
+                <td class="text-end font-monospace fw-bold {% if s.price_difference > 0 %}text-danger{% elif s.price_difference < 0 %}text-success{% else %}text-muted{% endif %}">
+                  {% if s.price_difference > 0 %}+{% endif %}{{ s.price_difference|floatformat:2|intcomma }} ج.م
+                </td>
+                <td class="text-end font-monospace text-muted">{{ s.administrative_fee|floatformat:2|intcomma }} ج.م</td>
+                <td class="text-center small text-muted">{{ s.swap_date|date:"d/m/Y" }}</td>
                 <td class="text-center">
-                  <span class="badge bg-secondary">{{ s.get_status_display }}</span>
+                  {% if s.status == 'EXECUTED' %}
+                    <span class="badge bg-success">{% trans "منفذ ومعتمد" %}</span>
+                  {% elif s.status == 'UNDER_APPROVAL' %}
+                    <span class="badge bg-warning text-dark">{% trans "تحت الاعتماد" %}</span>
+                  {% elif s.status == 'CANCELLED' %}
+                    <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-3">
+                  <a href="{% url 'real_estate:swap_detail' pk=s.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض ومتابعة التنفيذ' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
-                  <p class="mb-0">{% trans "لا توجد حركات تبديل مسجلة." %}</p>
+                <td colspan="9" class="text-center py-5 text-muted">
+                  <i class="fas fa-exchange-alt fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد محاضر تبديل مسجلة." %}</p>
                 </td>
               </tr>
               {% endfor %}
@@ -113,4 +181,19 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (!e.target.closest('a, button, .btn')) {
+        var href = this.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

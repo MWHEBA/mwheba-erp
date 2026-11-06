@@ -182,20 +182,6 @@ class ClientVariationOrder(models.Model):
 
         self.total_cost = self.calculate_total_cost()
 
-    def mark_resolved(self, engineer=None, resolution_notes: str = ""):
-        """
-        تعليم الملاحظة كتم الإصلاح والاعتماد الهندسي
-        """
-        self.resolved_at = timezone.now()
-        if resolution_notes:
-            self.resolution_notes = resolution_notes
-        if engineer:
-            self.verified_at = timezone.now()
-            self.status = self.SnagStatus.VERIFIED_BY_ENGINEER
-        else:
-            self.status = self.SnagStatus.RESOLVED
-        self.save(update_fields=['status', 'resolved_at', 'verified_at', 'resolution_notes', 'updated_at'])
-
     def save(self, *args, **kwargs):
         self.clean()
         if not self.order_number:

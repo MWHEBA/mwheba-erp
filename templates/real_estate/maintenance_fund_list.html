@@ -10,7 +10,7 @@
   {% include "shared/page_header.html" %}
 
   <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-lg-3">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
@@ -18,20 +18,46 @@
             <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_operations|default:"0" }}</div>
           </div>
           <div class="stats-card-icon text-info fs-2">
-            <i class="fas fa-coins"></i>
+            <i class="fas fa-list-ol"></i>
           </div>
         </div>
       </div>
     </div>
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-lg-3">
       <div class="stats-card stats-card-success h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
-            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي مبالغ العمليات" %}</div>
-            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_amount|floatformat:2|intcomma }}</div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الودائع المحصلة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_deposits|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
           </div>
           <div class="stats-card-icon text-success fs-2">
-            <i class="fas fa-wallet"></i>
+            <i class="fas fa-piggy-bank"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "عوائد الاستثمار البنكي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_yield|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "مصروفات الصيانة المنصرفة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_expenses|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-tools"></i>
           </div>
         </div>
       </div>
@@ -50,12 +76,21 @@
       <div class="collapse show" id="fundFilterCollapse">
         <div class="card-body p-3">
           <form method="get" class="row g-3">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-4">
               <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
               <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                     placeholder="{% trans 'المستند، البيان، المشروع...' %}">
+                     placeholder="{% trans 'رقم الحركة، البيان، المشروع، العقد، كود الوحدة...' %}">
             </div>
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "المشروع" %}</label>
+              <select name="project" class="form-select form-select-sm">
+                <option value="">{% trans "جميع المشاريع" %}</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
               <label class="form-label small fw-bold">{% trans "نوع الحركة" %}</label>
               <select name="type" class="form-select form-select-sm">
                 <option value="">{% trans "جميع الأنواع" %}</option>
@@ -78,6 +113,19 @@
     </div>
   </div>
 
+  <!-- Action Buttons Row -->
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <button type="button" class="btn btn-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#depositModal">
+      <i class="fas fa-plus-circle me-1"></i>{% trans "تحصيل وديعة صيانة من عميل" %}
+    </button>
+    <button type="button" class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#yieldModal">
+      <i class="fas fa-chart-line me-1"></i>{% trans "توزيع عائد بنكي استثماري" %}
+    </button>
+    <button type="button" class="btn btn-danger btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#expenseModal">
+      <i class="fas fa-receipt me-1"></i>{% trans "صرف مصروفات صيانة مرافق" %}
+    </button>
+  </div>
+
   <div class="section-container">
     <div class="card border shadow-sm">
       <div class="card-body p-0">
@@ -85,29 +133,60 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th class="ps-3">{% trans "المشروع / المبنى" %}</th>
+                <th class="ps-3">{% trans "رقم الحركة" %}</th>
+                <th>{% trans "المشروع" %}</th>
                 <th>{% trans "نوع الحركة" %}</th>
-                <th>{% trans "المستند المرجعي" %}</th>
+                <th>{% trans "الوحدة / العقد" %}</th>
                 <th>{% trans "البيان والتفاصيل" %}</th>
                 <th>{% trans "تاريخ الحركة" %}</th>
                 <th class="text-end">{% trans "المبلغ" %}</th>
+                <th class="text-center">{% trans "القيد المحاسبي" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for op in operations %}
               <tr>
-                <td class="ps-3 fw-bold text-primary">{{ op.subledger.block.project.name }} ({{ op.subledger.block.name }})</td>
-                <td><span class="badge bg-light text-dark border">{{ op.get_operation_type_display }}</span></td>
-                <td>{{ op.reference_document|default:"-" }}</td>
-                <td>{{ op.description|default:"-" }}</td>
-                <td class="small text-muted">{{ op.transaction_date|date:"d/m/Y" }}</td>
-                <td class="text-end fw-bold text-success">{{ op.amount|floatformat:2|intcomma }}</td>
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ op.operation_number }}</td>
+                <td>{{ op.subledger.project.name }}</td>
+                <td>
+                  {% if op.operation_type == 'ESCROW_COLLECTION' %}
+                  <span class="badge bg-success">{% trans "تحصيل وديعة" %}</span>
+                  {% elif op.operation_type == 'YIELD_DISTRIBUTION' %}
+                  <span class="badge bg-primary">{% trans "عائد بنكي" %}</span>
+                  {% elif op.operation_type == 'FACILITY_EXPENSE' %}
+                  <span class="badge bg-danger">{% trans "مصروف صيانة" %}</span>
+                  {% else %}
+                  <span class="badge bg-warning text-dark">{% trans "إصلاح طارئ" %}</span>
+                  {% endif %}
+                </td>
+                <td class="small">
+                  {% if op.unit %}
+                  <strong>{{ op.unit.unit_code }}</strong> ({{ op.contract.customer.name }})
+                  {% else %}
+                  -
+                  {% endif %}
+                </td>
+                <td class="small text-dark" style="max-width: 250px;">
+                  <div class="text-truncate" title="{{ op.description }}">{{ op.description }}</div>
+                  {% if op.bank_certificate_number %}
+                  <div class="small text-muted font-monospace">شهادة: {{ op.bank_certificate_number }}</div>
+                  {% endif %}
+                </td>
+                <td class="small">{{ op.operation_date|date:"Y-m-d" }}</td>
+                <td class="text-end fw-bold text-dark">{{ op.amount|floatformat:2|intcomma }} <small class="text-muted">ج.م</small></td>
+                <td class="text-center">
+                  {% if op.journal_entry %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ op.journal_entry.number }}</span>
+                  {% else %}
+                  <span class="text-muted small">-</span>
+                  {% endif %}
+                </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                  <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
-                  <p class="mb-0">{% trans "لا توجد حركات مسجلة في صندوق الصيانة." %}</p>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <i class="fas fa-coins fa-3x mb-3 text-secondary"></i>
+                  <p class="mb-0">{% trans "لا توجد حركات مسجلة بصندوق الصيانة." %}</p>
                 </td>
               </tr>
               {% endfor %}
@@ -123,5 +202,176 @@
     {% include "partials/pagination.html" %}
   </div>
   {% endif %}
+</div>
+
+<!-- Modal 1: تحصيل وإيداع وديعة صيانة -->
+<div class="modal fade" id="depositModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:facility_deposit_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-plus-circle text-success me-2"></i>{% trans "تحصيل وإيداع وديعة صيانة" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "العقد العقاري والوحدة" %} <span class="text-danger">*</span></label>
+            <select name="contract" class="form-select select2-filter" required>
+              <option value="">{% trans "اختر العقد والوحدة..." %}</option>
+              {% for c in contracts %}
+              <option value="{{ c.id }}">{{ c.contract_number }} — الوحدة: {{ c.unit.unit_code }} ({{ c.unit.project.name }}) — {{ c.customer.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "مبلغ الوديعة المحصل" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" step="0.01" min="0.01" name="amount" class="form-control" required>
+              <span class="input-group-text">{% trans "ج.م" %}</span>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "تاريخ التحصيل" %}</label>
+            <input type="date" name="operation_date" class="form-control" value="{% now 'Y-m-d' %}">
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "البيان / ملاحظات التحصيل" %}</label>
+            <textarea name="description" rows="2" class="form-control" placeholder="{% trans 'تحصيل وديعة صيانة المرافق بموجب إيصال استلام...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-save me-1"></i>{% trans "تأكيد الإيداع" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: توزيع عائد استثمار بنكي -->
+<div class="modal fade" id="yieldModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:facility_yield_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-chart-line text-primary me-2"></i>{% trans "إثبات عائد استثمار وديعة الصيانة البنكي" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "المشروع المعني" %} <span class="text-danger">*</span></label>
+            <select name="project" class="form-select" required>
+              <option value="">{% trans "اختر المشروع..." %}</option>
+              {% for p in projects %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% trans "مبلغ العائد المحقق" %} <span class="text-danger">*</span></label>
+              <div class="input-group input-group-sm">
+                <input type="number" step="0.01" min="0.01" name="yield_amount" class="form-control" required>
+                <span class="input-group-text">{% trans "ج.م" %}</span>
+              </div>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% trans "معدل العائد السنوي %" %}</label>
+              <input type="number" step="0.01" min="0" name="yield_rate" class="form-control form-control-sm" value="18.50">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "رقم شهادة الاستثمار / الوديعة البنكية" %}</label>
+            <input type="text" name="certificate_number" class="form-control form-control-sm" placeholder="{% trans 'مثال: CD-NBE-2026-9901' %}">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% trans "بداية الفترة" %}</label>
+              <input type="date" name="period_start" class="form-control form-control-sm">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold">{% trans "نهاية الفترة" %}</label>
+              <input type="date" name="period_end" class="form-control form-control-sm">
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "البيان والتفاصيل" %}</label>
+            <textarea name="description" rows="2" class="form-control" placeholder="{% trans 'توزيع عوائد استثمار وديعة الصيانة ربع السنوية...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "إثبات العائد وترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: صرف مصاريف مرافق -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:facility_expense_create' %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-tools text-danger me-2"></i>{% trans "صرف مصروفات صيانة وتشغيل مرافق" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "المشروع المعني" %} <span class="text-danger">*</span></label>
+            <select name="project" class="form-select" required>
+              <option value="">{% trans "اختر المشروع..." %}</option>
+              {% for p in projects %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "بند المصروف" %} <span class="text-danger">*</span></label>
+            <select name="expense_category" class="form-select" required>
+              {% for val, label in expense_categories %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "مبلغ المصروف" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" step="0.01" min="0.01" name="expense_amount" class="form-control" required>
+              <span class="input-group-text">{% trans "ج.م" %}</span>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "تاريخ الصرف" %}</label>
+            <input type="date" name="operation_date" class="form-control" value="{% now 'Y-m-d' %}">
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "البيان وتوصيف أعمال الصيانة" %} <span class="text-danger">*</span></label>
+            <textarea name="description" rows="2" class="form-control" placeholder="{% trans 'أعمال صيانة دورية للمصاعد وإنارة المداخل...' %}" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "تأكيد الصرف وترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

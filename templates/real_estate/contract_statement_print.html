@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  {% load i18n humanize %}
+  <meta charset="UTF-8">
+  <title>{% trans "كشف حساب الوحدة والعميل" %} - {{ contract.contract_number }}</title>
+  <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+    body {
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+      padding: 20px;
+    }
+    .print-document {
+      border: 2px solid var(--bs-border-color);
+      padding: 30px;
+      background-color: var(--bs-body-bg);
+    }
+    .section-box {
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.375rem;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0; }
+      .print-document { border: 1px solid var(--bs-dark); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print mb-4 text-start">
+  <button onclick="window.print()" class="btn btn-primary px-4 fw-bold">
+    <i class="fas fa-print me-1"></i>{% trans "طباعة كشف الحساب" %}
+  </button>
+  <button onclick="window.close()" class="btn btn-outline-secondary px-3 ms-2">
+    {% trans "إغلاق" %}
+  </button>
+</div>
+
+<div class="print-document shadow-sm">
+  <!-- Header -->
+  <div class="row align-items-center border-bottom pb-3 mb-4">
+    <div class="col-8">
+      <h3 class="fw-bold text-dark mb-1">شركة موهبة للاستثمار والتطوير العقاري</h3>
+      <div class="text-muted small">القطاع المالي وحسابات العملاء والمشروعات</div>
+      <div class="text-muted small">كشف حساب تفصيلي مزدوج للوحدة والعميل (Statement of Account)</div>
+    </div>
+    <div class="col-4 text-end">
+      <div class="border p-2 text-center rounded bg-light">
+        <small class="d-block text-muted">كود التحقق المالي</small>
+        <span class="font-monospace fw-bold text-primary">{{ verification_token }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Title & Customer/Unit Info -->
+  <div class="section-box bg-light">
+    <div class="row g-3 small">
+      <div class="col-md-6">
+        <div><strong>اسم العميل:</strong> {{ contract.customer.name }} (<code>{{ contract.customer.code }}</code>)</div>
+        <div class="mt-1"><strong>رقم العقد:</strong> <span class="font-monospace fw-bold">{{ contract.contract_number }}</span></div>
+        <div class="mt-1"><strong>تاريخ التعاقد:</strong> <span class="font-monospace">{{ contract.contract_date|date:"Y-m-d" }}</span></div>
+      </div>
+      <div class="col-md-6">
+        <div><strong>المشروع العقاري:</strong> {{ contract.unit.project.name }}</div>
+        <div class="mt-1"><strong>كود الوحدة:</strong> <span class="font-monospace fw-bold text-primary">{{ contract.unit.unit_code }}</span></div>
+        <div class="mt-1"><strong>تاريخ استخراج الكشف:</strong> <span class="font-monospace">{{ today|date:"Y-m-d" }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financial Position Summary -->
+  <div class="section-box">
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">أولاً: ملخص الموقف المالي والتعاقدي للوحدة</h6>
+    <table class="table table-bordered table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="text-center">إجمالي قيمة العقد</th>
+          <th class="text-center">المقدم المحصل فعلياً</th>
+          <th class="text-center">الأقساط المسددة</th>
+          <th class="text-center">إجمالي المسدد المعتمد</th>
+          <th class="text-center">الرصيد المتبقي المستحق</th>
+          <th class="text-center">حالة الذمة المالية</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="text-center font-monospace fw-bold">
+          <td>{{ contract.final_contract_price|floatformat:2|intcomma }}</td>
+          <td class="text-success">{{ verified_down_payment|floatformat:2|intcomma }}</td>
+          <td class="text-success">{{ paid_installments_total|floatformat:2|intcomma }}</td>
+          <td class="text-primary">{{ total_paid|floatformat:2|intcomma }}</td>
+          <td class="text-danger">{{ remaining_balance|floatformat:2|intcomma }}</td>
+          <td>
+            {% if is_cleared %}
+              <span class="badge bg-success">خالص الذمة</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">قيد السداد</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Installment Schedule & Payments -->
+  <div class="section-box">
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثانياً: بيان الأقساط التعاقدية وحركة السداد</h6>
+    {% if installment_items %}
+    <table class="table table-bordered table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="text-center">رقم القسط</th>
+          <th>تاريخ الاستحقاق</th>
+          <th class="text-end">قيمة القسط</th>
+          <th class="text-end">المبلغ المسدد</th>
+          <th class="text-end">المتبقي بالقسط</th>
+          <th class="text-center">حالة التحصيل</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in installment_items %}
+        <tr>
+          <td class="text-center font-monospace">{{ item.installment_number }}</td>
+          <td class="font-monospace">{{ item.due_date|date:"Y-m-d" }}</td>
+          <td class="text-end font-monospace">{{ item.total_amount|floatformat:2|intcomma }}</td>
+          <td class="text-end font-monospace text-success fw-bold">{{ item.paid_amount|floatformat:2|intcomma }}</td>
+          <td class="text-end font-monospace text-danger">{{ item.remaining_amount|floatformat:2|intcomma }}</td>
+          <td class="text-center small">{{ item.get_cash_status_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-muted small text-center py-2">لا توجد أقساط مجدولة على هذا العقد.</div>
+    {% endif %}
+  </div>
+
+  <!-- Post-Dated Cheques Portfolio -->
+  <div class="section-box">
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثالثاً: بيان الشيكات الآجلة المرتبطة بأقساط الوحدة</h6>
+    {% if cheque_allocations %}
+    <table class="table table-bordered table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>رقم الشيك</th>
+          <th>البنك المسحوب عليه</th>
+          <th>تاريخ الاستحقاق</th>
+          <th class="text-center">القسط المربوط</th>
+          <th class="text-end">المبلغ المخصص</th>
+          <th class="text-center">حالة الشيك بالحافظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alloc in cheque_allocations %}
+        <tr>
+          <td class="font-monospace fw-bold">{{ alloc.cheque.cheque_number }}</td>
+          <td>{{ alloc.cheque.bank_name|default:"-" }}</td>
+          <td class="font-monospace">{{ alloc.cheque.due_date|date:"Y-m-d" }}</td>
+          <td class="text-center font-monospace">#{{ alloc.installment_item.installment_number }}</td>
+          <td class="text-end font-monospace fw-bold">{{ alloc.allocated_amount|floatformat:2|intcomma }}</td>
+          <td class="text-center small">{{ alloc.cheque.get_status_display }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="text-muted small text-center py-2">لا توجد شيكات مخصصة مسجلة حالياً على أقساط هذا العقد.</div>
+    {% endif %}
+  </div>
+
+  <!-- Digital Verification Seal -->
+  <div class="border rounded p-2 bg-light text-center font-monospace small mb-4">
+    <div class="text-muted">بصمة التوثيق الرقمي لكشف الحساب المالي (SHA-256 Statement Seal)</div>
+    <strong class="text-dark">{{ verification_hash }}</strong>
+  </div>
+
+  <!-- Signatures -->
+  <div class="row pt-4 mt-3 border-top text-center">
+    <div class="col-4">
+      <div class="fw-bold mb-4">محاسب العملاء والمشروعات</div>
+      <div class="text-muted small">................................</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold mb-4">المراجعة والرقابة المالية</div>
+      <div class="text-muted small">................................</div>
+    </div>
+    <div class="col-4">
+      <div class="fw-bold mb-4">توقيع العميل بالمطابقة</div>
+      <div class="text-muted small">................................</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

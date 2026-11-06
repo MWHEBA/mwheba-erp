@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تقرير تكاليف المشروعات تحت التنفيذ (WIP) وإيرادات IFRS 15" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Stats Row (Independent, never inside .section-container) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي المبيعات التعاقدية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              {{ grand_contracted_sales|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-city"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الإيرادات المحققة بالتسليم (41101)" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-success">
+              {{ grand_recognized_revenue|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-check-double"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "التزامات العقود المؤجلة (21102)" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-warning">
+              {{ grand_deferred_revenue|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-hourglass-half"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي تكاليف الإنشاءات (WIP 12101)" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-danger">
+              {{ grand_wip_cost|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-hard-hat"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية المشروعات العقارية" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="filterSection">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold">{% trans "المشروع العقاري" %}</label>
+              <select name="project" class="form-select form-select-sm select2-filter">
+                <option value="">{% trans "جميع المشروعات" %}</option>
+                {% for prj in projects %}
+                <option value="{{ prj.id }}" {% if selected_project == prj.id|stringformat:"s" %}selected{% endif %}>{{ prj.name }} ({{ prj.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold">{% trans "حالة المشروع" %}</label>
+              <select name="status" class="form-select form-select-sm">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search me-1"></i>{% trans "تصفية" %}
+              </button>
+              <a href="{% url 'real_estate:report_wip_revenue' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة تعيين' %}">
+                <i class="fas fa-redo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WIP Costing & IFRS 15 Revenue Table -->
+  <div class="section-container">
+    <h5 class="section-title">
+      <i class="fas fa-layer-group me-2"></i>{% trans "بيان تكاليف المشروعات تحت التنفيذ (WIP) والاعتراف بالإيراد وفق معيار IFRS 15" %}
+    </h5>
+    <div class="card border shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "المشروع العقاري" %}</th>
+                <th class="text-center">{% trans "الوحدات (مباع / مسلم)" %}</th>
+                <th class="text-end">{% trans "المبيعات التعاقدية" %}</th>
+                <th class="text-end">{% trans "إيراد مؤجل (21102)" %}</th>
+                <th class="text-end">{% trans "إيراد محقق (41101)" %}</th>
+                <th class="text-end">{% trans "إجمالي تكاليف WIP" %}</th>
+                <th class="text-end">{% trans "تكلفة المبيعات (COGS)" %}</th>
+                <th class="text-end">{% trans "رصيد WIP المتبقي" %}</th>
+                <th class="text-end pe-3">{% trans "تكلفة المتر البنائي" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in project_rows %}
+              <tr class="clickable-row" data-href="{% url 'real_estate:project_detail' pk=row.project.pk %}" style="cursor: pointer;">
+                <td class="ps-3">
+                  <div class="fw-bold text-primary">{{ row.project.name }}</div>
+                  <small class="text-muted font-monospace">{{ row.project.code }} — {{ row.project.get_status_display }}</small>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-light text-dark border font-monospace">
+                    {{ row.sold_units }} / {{ row.total_units }} {% trans "مباع" %} ({{ row.absorption_rate }}%)
+                  </span>
+                  <div class="small text-success fw-semibold mt-1">
+                    <i class="fas fa-key me-1"></i>{{ row.delivered_units_count }} {% trans "وحدة مسلمة" %}
+                  </div>
+                </td>
+                <td class="text-end fw-bold font-monospace">{{ row.contracted_sales|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace text-warning fw-semibold">{{ row.deferred_revenue|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace text-success fw-bold">{{ row.recognized_revenue|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace text-danger fw-semibold">
+                  {{ row.total_wip_cost|floatformat:2|intcomma }}
+                  {% if row.infra_wip > 0 %}
+                  <div class="small text-muted">{% trans "منها مرافق:" %} {{ row.infra_wip|floatformat:0|intcomma }}</div>
+                  {% endif %}
+                </td>
+                <td class="text-end font-monospace">{{ row.interim_cogs|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace fw-bold text-info">{{ row.remaining_wip_inventory|floatformat:2|intcomma }}</td>
+                <td class="text-end pe-3 font-monospace text-muted">{{ row.cost_per_sqm|floatformat:2|intcomma }} <small>{% trans "ج.م/م²" %}</small></td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center py-5 text-muted">
+                  <i class="fas fa-hard-hat fa-3x mb-3 text-secondary d-block"></i>
+                  <p class="mb-0">{% trans "لا توجد مشروعات مسجلة." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (!e.target.closest('a, button, .btn')) {
+        var href = this.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

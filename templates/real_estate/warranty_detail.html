@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تذكرة ضمان" %} {{ ticket.ticket_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدة العقارية" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ ticket.unit.unit_code }}</div>
+            <small class="text-muted">{{ ticket.unit.project.name }}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-home"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "درجة الأولوية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ ticket.get_priority_display }}</div>
+            <small class="text-muted">{{ ticket.get_category_display }}</small>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-exclamation-circle"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card {% if ticket.status == 'RESOLVED_BY_CONTRACTOR' or ticket.status == 'CLOSED_DEBITED' %}stats-card-success{% else %}stats-card-warning{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "حالة تذكرة الضمان" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ ticket.get_status_display }}</div>
+            <small class="text-muted">{{ ticket.get_warranty_type_display }}</small>
+          </div>
+          <div class="stats-card-icon {% if ticket.status == 'RESOLVED_BY_CONTRACTOR' or ticket.status == 'CLOSED_DEBITED' %}text-success{% else %}text-warning{% endif %} fs-2">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تأمين أعمال المقاول المتاح" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ contractor_retention_balance|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+            <small class="text-muted">{{ ticket.responsible_contractor.name|default:"لم يُسند لمقاول" }}</small>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-piggy-bank"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Main Info -->
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-clipboard-list text-primary me-2"></i>{% trans "بيانات بلاغ الضمان والعيب الفني" %}
+          </h6>
+          <div>
+            {% if ticket.status == 'RESOLVED_BY_CONTRACTOR' %}
+            <span class="badge bg-success px-3 py-2"><i class="fas fa-check-double me-1"></i>{% trans "تم الإصلاح من المقاول" %}</span>
+            {% elif ticket.status == 'CLOSED_DEBITED' %}
+            <span class="badge bg-danger px-3 py-2"><i class="fas fa-file-invoice-dollar me-1"></i>{% trans "مخصومة من تأمين المقاول" %}</span>
+            {% elif ticket.status == 'CONTRACTOR_NOTIFIED' %}
+            <span class="badge bg-info text-dark px-3 py-2"><i class="fas fa-paper-plane me-1"></i>{% trans "تم إخطار المقاول" %}</span>
+            {% elif ticket.status == 'INSPECTED' %}
+            <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-search me-1"></i>{% trans "تمت المعاينة" %}</span>
+            {% else %}
+            <span class="badge bg-secondary px-3 py-2">{% trans "بلاغ وارد" %}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "رقم التذكرة" %}</label>
+              <div class="fw-bold text-primary fs-5 font-monospace">{{ ticket.ticket_number }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "تاريخ تسجيل البلاغ" %}</label>
+              <div class="fw-semibold text-dark">{{ ticket.created_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "العميل الشاغل" %}</label>
+              <div class="fw-bold text-dark">{{ ticket.customer.name }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "العقد العقاري" %}</label>
+              <div class="fw-semibold">
+                <a href="{% url 'real_estate:contract_detail' pk=ticket.contract.pk %}" class="text-decoration-none">
+                  {{ ticket.contract.contract_number }} <i class="fas fa-external-link-alt small ms-1"></i>
+                </a>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="text-muted small">{% trans "عنوان البلاغ" %}</label>
+              <div class="fw-bold text-dark fs-6">{{ ticket.title }}</div>
+            </div>
+            <div class="col-12">
+              <label class="text-muted small">{% trans "التوصيف الفني للعيب وموقع الظهور" %}</label>
+              <div class="p-3 bg-light rounded border small text-dark" style="white-space: pre-wrap;">{{ ticket.description }}</div>
+            </div>
+            {% if ticket.engineer_notes %}
+            <div class="col-12">
+              <label class="text-muted small">{% trans "تقرير مهندس المعاينة الفنية" %}</label>
+              <div class="p-3 bg-light rounded border small text-primary" style="white-space: pre-wrap;">{{ ticket.engineer_notes }}</div>
+            </div>
+            {% endif %}
+            {% if ticket.closure_notes %}
+            <div class="col-12">
+              <label class="text-muted small">{% trans "ملاحظات وتأكيد الإغلاق والتسوية" %}</label>
+              <div class="p-3 bg-light rounded border small text-success" style="white-space: pre-wrap;">{{ ticket.closure_notes }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Financial Retention Debit Card (If closed debited) -->
+      {% if ticket.status == 'CLOSED_DEBITED' %}
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-file-invoice-dollar text-danger me-2"></i>{% trans "تفاصيل الخصم من تأمين المقاول (Zero P&L Impact)" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="alert alert-success border-0 small mb-3">
+            <i class="fas fa-shield-alt me-1"></i>
+            {% trans "تم تمويل تكلفة الإصلاح بالكامل خصماً من حساب تأمين أعمال المقاول المحتجز (21310) دون أي مساس أو أثر بقائمة أرباح وخسائر المطور." %}
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="text-muted small">{% trans "تكلفة الإصلاح الفعلي المنفذة" %}</label>
+              <div class="fw-bold text-danger fs-5">{{ ticket.actual_repair_cost|floatformat:2|intcomma }} ج.م</div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="text-muted small">{% trans "رقم القيد المحاسبي" %}</label>
+              <div><span class="badge bg-light text-dark border font-monospace fs-6">{{ ticket.retention_journal_entry.number|default:"-" }}</span></div>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="text-muted small">{% trans "حساب السداد المنصرف منه" %}</label>
+              <div class="fw-semibold text-dark">{{ ticket.settlement_account.name|default:"-" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Sidebar Info & Actions -->
+    <div class="col-12 col-lg-4">
+      <!-- Warranty Period & Handover Guard -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-calendar-check text-primary me-2"></i>{% trans "موقف وسريان فترة الضمان" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "تاريخ استلام الوحدة الفعلي" %}</label>
+            <div class="fw-bold text-dark">{{ last_handover.handover_date|date:"Y-m-d"|default:"-" }}</div>
+          </div>
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "المدة المنقضية منذ التسليم" %}</label>
+            <div class="fw-semibold text-dark">
+              {% if days_since_handover is not None %}
+              {{ days_since_handover }} {% trans "يوماً" %}
+              {% else %}
+              -
+              {% endif %}
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="text-muted small">{% trans "نوع الضمان وحدوده القانونية" %}</label>
+            <div>
+              {% if ticket.warranty_type == 'FINISHING_ONE_YEAR' %}
+              <span class="badge bg-light text-dark border">{% trans "ضمان تشطيبات ومرافق (حد أقصى سنة / 365 يوماً)" %}</span>
+              {% else %}
+              <span class="badge bg-light text-dark border">{% trans "ضمان عشري للهيكل الإنشائي (10 سنوات)" %}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Responsible Contractor & SLA -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-user-hard-hat text-primary me-2"></i>{% trans "المقاول المنفذ ومهلة الإصلاح (SLA)" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "المقاول المنفذ المسؤول" %}</label>
+            <div class="fw-bold text-dark">{{ ticket.responsible_contractor.name|default:"غير محدد حالياً" }}</div>
+          </div>
+          {% if ticket.contractor_notification_date %}
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "تاريخ إخطار المقاول" %}</label>
+            <div class="fw-semibold text-dark">{{ ticket.contractor_notification_date|date:"Y-m-d" }}</div>
+          </div>
+          {% endif %}
+          {% if ticket.contractor_sla_deadline %}
+          <div class="mb-0">
+            <label class="text-muted small">{% trans "المهلة المحددة للإصلاح (SLA)" %}</label>
+            <div class="d-flex align-items-center gap-2">
+              <span class="fw-bold">{{ ticket.contractor_sla_deadline|date:"Y-m-d" }}</span>
+              {% if sla_days_remaining is not None %}
+                {% if sla_days_remaining < 0 %}
+                <span class="badge bg-danger">{% trans "متأخر بـ" %} {{ sla_days_remaining|stringformat:"+d"|slice:"1:" }} {% trans "يوم (متقاعس)" %}</span>
+                {% else %}
+                <span class="badge bg-warning text-dark">{% trans "متبقي" %} {{ sla_days_remaining }} {% trans "يوم" %}</span>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-cogs text-primary me-2"></i>{% trans "إجراءات التذكرة والتسوية" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-grid gap-2">
+            {% if ticket.status != 'RESOLVED_BY_CONTRACTOR' and ticket.status != 'CLOSED_DEBITED' %}
+            <button type="button" class="btn btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#assignContractorModal">
+              <i class="fas fa-user-plus me-1"></i>{% trans "معاينة وإسناد للمقاول (SLA)" %}
+            </button>
+
+            {% if ticket.responsible_contractor %}
+            <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#resolveContractorModal">
+              <i class="fas fa-check-circle me-1"></i>{% trans "إثبات إصلاح المقاول (مجاناً)" %}
+            </button>
+
+            <button type="button" class="btn btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#debitRetentionModal">
+              <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "إثبات تقاعس وخصم من التأمين" %}
+            </button>
+            {% endif %}
+            {% else %}
+            <div class="text-center text-muted small py-2">
+              <i class="fas fa-lock me-1"></i>{% trans "تم إغلاق التذكرة نهائياً." %}
+            </div>
+            {% endif %}
+
+            <a href="{% url 'real_estate:warranty_list' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للقائمة" %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 1: إسناد المقاول وتحديد الـ SLA -->
+<div class="modal fade" id="assignContractorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:warranty_assign' pk=ticket.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-user-hard-hat text-primary me-2"></i>{% trans "معاينة العيب وإسناد المسؤولية للمقاول" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "المقاول المنفذ المسؤول عن البند" %} <span class="text-danger">*</span></label>
+            <select name="responsible_contractor" class="form-select" required>
+              <option value="">{% trans "اختر المقاول..." %}</option>
+              {% for c in contractors %}
+              <option value="{{ c.id }}" {% if ticket.responsible_contractor_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "مهلة الإصلاح المحددة للمقاول (SLA بالأيام)" %} <span class="text-danger">*</span></label>
+            <input type="number" min="1" max="60" name="sla_days" class="form-control" value="7" required>
+            <div class="form-text small text-muted">{% trans "المهلة القانونية الممنوحة للمقاول قبل مباشرة الإصلاح والخصم من تأمينه." %}</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "درجة الأولوية" %}</label>
+            <select name="priority" class="form-select">
+              {% for val, label in priority_choices %}
+              <option value="{{ val }}" {% if ticket.priority == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "تقرير وملاحظات مهندس المعاينة" %}</label>
+            <textarea name="engineer_notes" rows="3" class="form-control" placeholder="{% trans 'توصيف الفحص الفني وأسباب العيب...' %}">{{ ticket.engineer_notes }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-paper-plane me-1"></i>{% trans "تأكيد الإسناد والإخطار" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 2: إثبات إصلاح المقاول -->
+<div class="modal fade" id="resolveContractorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:warranty_resolve' pk=ticket.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-check-circle text-success me-2"></i>{% trans "إثبات قيام المقاول بالإصلاح وإغلاق التذكرة" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            {% trans "سيتم تسجيل إتمام المقاول للإصلاح على نفقته الخاصة وإغلاق التذكرة رسمياً دون إجراء أي قيود محاسبية أو تكاليف إضافية (Zero Cost)." %}
+          </p>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "ملاحظات إتمام الإصلاح والمعاينة" %}</label>
+            <textarea name="resolution_notes" rows="3" class="form-control" placeholder="{% trans 'تمت المعاينة والتحقق من إصلاح العيب بالكامل واستلام العميل...' %}" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check-double me-1"></i>{% trans "تأكيد الإغلاق" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: إثبات تقاعس وخصم من التأمين -->
+<div class="modal fade" id="debitRetentionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:warranty_debit_retention' pk=ticket.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-file-invoice-dollar text-danger me-2"></i>{% trans "تنفيذ الإصلاح المباشر وخصم التكلفة من تأمين المقاول" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-light border mb-3 small">
+            <div>{% trans "المقاول المسؤول:" %} <strong class="text-dark">{{ ticket.responsible_contractor.name }}</strong></div>
+            <div>{% trans "رصيد تأمين الأعمال المتاح بالمشروع:" %} <strong class="text-danger font-monospace">{{ contractor_retention_balance|floatformat:2|intcomma }} ج.م</strong></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "تكلفة الإصلاح الفعلي المنفذة" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" step="0.01" min="0.01" name="repair_cost" class="form-control" required>
+              <span class="input-group-text">{% trans "ج.م" %}</span>
+            </div>
+            <div class="form-text small text-muted">{% trans "يجب ألا تتجاوز التكلفة رصيد تأمين المقاول المتاح أعلاه." %}</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "حساب السداد المنصرف منه (خزينة / بنك)" %} <span class="text-danger">*</span></label>
+            <select name="settlement_account" class="form-select select2-filter" required>
+              <option value="">{% trans "اختر حساب السداد..." %}</option>
+              {% for acc in settlement_accounts %}
+              <option value="{{ acc.id }}">{{ acc.code }} — {{ acc.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label small fw-bold">{% trans "ملاحظات إثبات التقاعس والإغلاق" %}</label>
+            <textarea name="closure_notes" rows="2" class="form-control" placeholder="{% trans 'ملاحظات تسوية الإصلاح والخصم من التأمين...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "تأكيد الخصم وترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

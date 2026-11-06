@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "إصدار إنذار قانوني رسمي" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-gavel text-primary me-2"></i>{% trans "بيانات الإنذار والمطالبة القانونية" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <form method="post" id="legalNoticeForm" novalidate>
+            {% csrf_token %}
+
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "العقد العقاري والعميل" %} <span class="text-danger">*</span></label>
+                <select name="contract" class="form-select select2-filter" required>
+                  <option value="">{% trans "اختر العقد العقاري الساري..." %}</option>
+                  {% for c in contracts %}
+                  <option value="{{ c.id }}">
+                    {{ c.contract_number }} — الوحدة: {{ c.unit.unit_code }} ({{ c.unit.project.name }}) — العميل: {{ c.customer.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "مرحلة التصعيد القانوني" %} <span class="text-danger">*</span></label>
+                <select name="stage" class="form-select" required>
+                  {% for val, label in stage_choices %}
+                  <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "قناة الإعلان والإرسال" %} <span class="text-danger">*</span></label>
+                <select name="channel" class="form-select" required>
+                  {% for val, label in channel_choices %}
+                  <option value="{{ val }}" {% if val == 'COURT_BAILIFF' %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label small fw-bold">{% trans "مبلغ القسط/الأقساط المتأخرة" %} <span class="text-danger">*</span></label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.01" min="0" name="overdue_amount" class="form-control text-end" required>
+                  <span class="input-group-text">{% trans "ج.م" %}</span>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label small fw-bold">{% trans "غرامات التأخير الاتفاقية" %}</label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.01" min="0" name="penalty_amount" class="form-control text-end" value="0.00">
+                  <span class="input-group-text">{% trans "ج.م" %}</span>
+                </div>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label small fw-bold">{% trans "مهلة السداد وتدارك التعثر (أيام)" %} <span class="text-danger">*</span></label>
+                <input type="number" min="1" max="90" name="cure_deadline_days" class="form-control form-control-sm text-center" value="15" required>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "نص وتفاصيل الإنذار الرسمي" %} <span class="text-danger">*</span></label>
+                <textarea name="legal_letter_text" rows="5" class="form-control" placeholder="{% trans 'بناءً على عقد البيع المؤرخ... وحيث أنكم قد تأخرتم عن سداد الأقساط المستحقة... ننذركم بضرورة السداد خلال المهلة القانونية...' %}" required></textarea>
+              </div>
+
+              <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                <a href="{% url 'real_estate:legal_list' %}" class="btn btn-secondary px-3">
+                  <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-paper-plane me-1"></i>{% trans "إصدار الإنذار الرسمي" %}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

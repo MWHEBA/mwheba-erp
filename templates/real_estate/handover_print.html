@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>محضر تسليم وحدة عقارية — {{ receipt.receipt_number }}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 15mm;
+    }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #1a1a1a;
+      background: #ffffff;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .print-container {
+      max-width: 800px;
+      margin: 0 auto;
+      border: 1px solid #ccc;
+      padding: 30px;
+    }
+    .header {
+      border-bottom: 2px solid #2c3e50;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h2 {
+      margin: 0 0 5px 0;
+      color: #2c3e50;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border: 1px solid #999;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #f8f9fa;
+      padding: 8px 10px;
+      text-align: right;
+      font-size: 13px;
+    }
+    td {
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #2c3e50;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+    .acknowledgement {
+      background: #fafafa;
+      border: 1px dashed #bbb;
+      padding: 12px;
+      font-size: 12px;
+      margin-bottom: 25px;
+      text-align: justify;
+    }
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      padding-top: 20px;
+    }
+    .signature-box {
+      width: 45%;
+      text-align: center;
+      border-top: 1px solid #333;
+      padding-top: 10px;
+    }
+    .sha-seal {
+      margin-top: 25px;
+      padding: 8px;
+      background: #fdfdfd;
+      border: 1px solid #e0e0e0;
+      font-family: monospace;
+      font-size: 11px;
+      text-align: center;
+      word-break: break-all;
+    }
+    @media print {
+      body { padding: 0; }
+      .print-container { border: none; padding: 0; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print" style="text-align: center; margin-bottom: 20px;">
+    <button onclick="window.print()" style="padding: 10px 25px; font-weight: bold; background: #2c3e50; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+      طباعة محضر التسليم (Print)
+    </button>
+  </div>
+
+  <div class="print-container">
+    <div class="header">
+      <div>
+        <h2>محضر استلام وتسليم وحدة عقارية نهائي</h2>
+        <div style="font-size: 13px; color: #666;">
+          مشروع: <strong>{{ receipt.unit.project.name }}</strong> | كود الوحدة: <strong>{{ receipt.unit.unit_code }}</strong>
+        </div>
+      </div>
+      <div style="text-align: left;">
+        <div class="badge">{{ receipt.get_handover_type_display }}</div>
+        <div style="font-size: 12px; color: #666; margin-top: 5px;">رقم المحضر: <strong>{{ receipt.receipt_number }}</strong></div>
+        <div style="font-size: 12px; color: #666;">تاريخ التسليم: {{ receipt.handover_date|date:"Y-m-d" }}</div>
+      </div>
+    </div>
+
+    <div class="section-title">أولاً: بيانات التعاقد والطرفين</div>
+    <table>
+      <tr>
+        <th style="width: 25%;">الطرف الأول (المطور):</th>
+        <td style="width: 25%;">مجموعة موهبة للتطوير العقاري</td>
+        <th style="width: 25%;">مهندس الموقع المشرف:</th>
+        <td style="width: 25%;">{% if receipt.site_engineer %}{{ receipt.site_engineer.get_full_name|default:receipt.site_engineer.username }}{% else %}-{% endif %}</td>
+      </tr>
+      <tr>
+        <th>الطرف الثاني (العميل):</th>
+        <td>{{ receipt.contract.customer.name }}</td>
+        <th>رقم العقد العقاري:</th>
+        <td>{{ receipt.contract.contract_number }}</td>
+      </tr>
+      <tr>
+        <th>المستلم / الوكيل الحاضر:</th>
+        <td>{{ receipt.client_signatory_name|default:receipt.contract.customer.name }}</td>
+        <th>الرقم القومي للمستلم:</th>
+        <td>{{ receipt.client_signatory_national_id|default:"-" }}</td>
+      </tr>
+      {% if receipt.power_of_attorney_number %}
+      <tr>
+        <th>سند التوكيل الرسمي:</th>
+        <td colspan="3">{{ receipt.power_of_attorney_number }}</td>
+      </tr>
+      {% endif %}
+    </table>
+
+    <div class="section-title">ثانياً: مواصفات الوحدة وقراءات العدادات والعهد المسلمة</div>
+    <table>
+      <thead>
+        <tr>
+          <th>المرفق / العهدة المسلمة</th>
+          <th style="text-align: center;">القراءة / العدد</th>
+          <th style="text-align: center;">وحدة القياس</th>
+          <th>الملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>عداد الكهرباء</td>
+          <td style="text-align: center; font-weight: bold;">{{ receipt.electric_meter_reading|floatformat:2 }}</td>
+          <td style="text-align: center;">ك.و / ساعة</td>
+          <td>قراءة العداد عند نقل الحيازة</td>
+        </tr>
+        <tr>
+          <td>عداد المياه</td>
+          <td style="text-align: center; font-weight: bold;">{{ receipt.water_meter_reading|floatformat:2 }}</td>
+          <td style="text-align: center;">متر مكعب (م³)</td>
+          <td>شامل خط التغذية المباشر</td>
+        </tr>
+        <tr>
+          <td>عداد الغاز الطبيعي</td>
+          <td style="text-align: center; font-weight: bold;">{{ receipt.gas_meter_reading|floatformat:2 }}</td>
+          <td style="text-align: center;">متر مكعب (م³)</td>
+          <td>خط الغاز الرئيسي</td>
+        </tr>
+        <tr>
+          <td>مفاتيح الأبواب وغرف الخدمات</td>
+          <td style="text-align: center; font-weight: bold;">{{ receipt.keys_handed_over_count }}</td>
+          <td style="text-align: center;">مفتاح</td>
+          <td>تم تسليمها كاملة وصالحة للاستخدام</td>
+        </tr>
+        <tr>
+          <td>كروت الدخول الذكية</td>
+          <td style="text-align: center; font-weight: bold;">{{ receipt.access_cards_count }}</td>
+          <td style="text-align: center;">كارت ذكي</td>
+          <td>كروت البوابات والمصاعد المبرمجة</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">ثالثاً: الإقرارات القانونية والمعاينة الفنية</div>
+    <div class="acknowledgement">
+      أقر أنا الطرف الثاني (أو وكيلي الحاضر بموجب التوكيل الرسمي الموضح بعاليه) بأنني قد عاينت الوحدة العقارية موضوع هذا المحضر معاينة تامة نافية للجهالة شرعاً وقانوناً، ووجدت تشطيباتها ومرافقها ومكوناتها مطابقة تماماً للمواصفات المتفق عليها بالعقد وملاحقه الهندسية، واستلمت مفاتيحها وكروت الدخول بعد مطابقة قراءات العدادات، وبذلك أصبحت الوحدة في حيازتي وسيطرتي الفعلية والمسؤولية الكاملة عنها اعتباراً من تاريخ توقيع هذا المحضر، مع احتفاظي بحقوق الضمان المقررة قانوناً (سنة للأعمال التشطيبية والمرافق و10 سنوات للسلامة الإنشائية).
+    </div>
+
+    {% if receipt.verification_hash %}
+    <div class="sha-seal">
+      رمز التوثيق الرقمي المشفر (SHA-256 Verification Seal):<br>
+      <strong>{{ receipt.verification_hash }}</strong>
+    </div>
+    {% endif %}
+
+    <div class="signatures">
+      <div class="signature-box">
+        <strong>الطرف الأول (عن شركة التطوير العقاري)</strong><br><br>
+        الاسم: ........................................<br>
+        التوقيع: ......................................
+      </div>
+      <div class="signature-box">
+        <strong>الطرف الثاني (المستلم / الوكيل الحاضر)</strong><br><br>
+        الاسم: {{ receipt.client_signatory_name|default:receipt.contract.customer.name }}<br>
+        التوقيع: ......................................
+      </div>
+    </div>
+  </div>
+</body>
+</html>

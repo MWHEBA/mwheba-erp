@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تقرير كشف الحساب المزدوج للعقود والعملاء" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Stats Row (Independent, never inside .section-container) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي القيمة التعاقدية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              {{ total_contractual_value|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-file-contract"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي المحصل المالي الفعلي" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-success">
+              {{ total_verified_collected|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-hand-holding-usd"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "شيكات بالحافظة / تحت التحصيل" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-warning">
+              {{ total_cheques_in_vault|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-money-check-alt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المديونية التعاقدية المتبقية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-danger">
+              {{ total_remaining_contractual|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-balance-scale"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية كشف الحساب المزدوج" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="filterSection">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "بحث سريع" %}</label>
+              <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+                     placeholder="{% trans 'رقم العقد، اسم العميل، كود الوحدة...' %}">
+            </div>
+
+            <div class="col-12 col-md-2">
+              <label class="form-label small fw-bold">{% trans "المشروع العقاري" %}</label>
+              <select name="project" class="form-select form-select-sm select2-filter">
+                <option value="">{% trans "جميع المشروعات" %}</option>
+                {% for prj in projects %}
+                <option value="{{ prj.id }}" {% if selected_project == prj.id|stringformat:"s" %}selected{% endif %}>{{ prj.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "العميل" %}</label>
+              <select name="customer" class="form-select form-select-sm select2-filter">
+                <option value="">{% trans "جميع العملاء" %}</option>
+                {% for cust in customers %}
+                <option value="{{ cust.id }}" {% if selected_customer == cust.id|stringformat:"s" %}selected{% endif %}>{{ cust.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-2">
+              <label class="form-label small fw-bold">{% trans "موقف الذمة والشيكات" %}</label>
+              <select name="clearance" class="form-select form-select-sm">
+                <option value="">{% trans "الكل" %}</option>
+                <option value="OPEN_BALANCE" {% if selected_clearance == 'OPEN_BALANCE' %}selected{% endif %}>{% trans "مديونية قائمة" %}</option>
+                <option value="CLEARED" {% if selected_clearance == 'CLEARED' %}selected{% endif %}>{% trans "خالص الذمة تماماً" %}</option>
+                <option value="BOUNCED" {% if selected_clearance == 'BOUNCED' %}selected{% endif %}>{% trans "به شيكات مرتدة" %}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search me-1"></i>{% trans "عرض التقرير" %}
+              </button>
+              <a href="{% url 'real_estate:report_dual_subledger' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة تعيين' %}">
+                <i class="fas fa-redo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dual-Perspective Data Table -->
+  <div class="section-container">
+    <h5 class="section-title">
+      <i class="fas fa-columns me-2"></i>{% trans "مصفوفة المطابقة بين المنظور التعاقدي والمنظور المالي (IFRS 15)" %}
+    </h5>
+    <div class="card border shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "رقم العقد" %}</th>
+                <th>{% trans "العميل / الوحدة" %}</th>
+                <th class="text-end">{% trans "القيمة التعاقدية" %}</th>
+                <th class="text-end">{% trans "المقدم المحصل" %}</th>
+                <th class="text-end">{% trans "الأقساط المحصلة" %}</th>
+                <th class="text-end">{% trans "المتبقي التعاقدي" %}</th>
+                <th class="text-end">{% trans "شيكات بالحافظة" %}</th>
+                <th class="text-center">{% trans "متأخرات / مرتد" %}</th>
+                <th class="text-center">{% trans "معالجة الإيراد (IFRS 15)" %}</th>
+                <th class="text-center pe-3">{% trans "موقف المخالصة" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in contract_rows %}
+              <tr class="clickable-row" data-href="{% url 'real_estate:contract_detail' pk=row.contract.pk %}" style="cursor: pointer;">
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ row.contract.contract_number }}</td>
+                <td>
+                  <div class="fw-bold text-dark">{{ row.contract.customer.name }}</div>
+                  <small class="text-muted">
+                    <span class="badge bg-light text-dark border font-monospace">{{ row.contract.unit.unit_code }}</span>
+                    {{ row.contract.project.name }}
+                  </small>
+                </td>
+                <td class="text-end fw-bold font-monospace">{{ row.final_contract_price|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace text-success">{{ row.verified_down_payment|floatformat:2|intcomma }}</td>
+                <td class="text-end font-monospace text-success">{{ row.paid_installments_amount|floatformat:2|intcomma }}</td>
+                <td class="text-end fw-bold font-monospace {% if row.remaining_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                  {{ row.remaining_balance|floatformat:2|intcomma }}
+                  <div class="small text-muted">{{ row.collection_rate }}% {% trans "محصل" %}</div>
+                </td>
+                <td class="text-end font-monospace text-warning fw-semibold">
+                  {{ row.cheques_in_vault|floatformat:2|intcomma }}
+                </td>
+                <td class="text-center">
+                  {% if row.bounced_count > 0 %}
+                    <span class="badge bg-danger d-block mb-1">{{ row.bounced_count }} {% trans "شيك مرتد" %}</span>
+                  {% endif %}
+                  {% if row.overdue_installments_count > 0 %}
+                    <span class="badge bg-warning text-dark">{{ row.overdue_installments_count }} {% trans "قسط متأخر" %}</span>
+                  {% endif %}
+                  {% if row.bounced_count == 0 and row.overdue_installments_count == 0 %}
+                    <span class="text-muted small">{% trans "منتظم" %}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if row.revenue_status == 'RECOGNIZED' %}
+                    <span class="badge bg-success">{% trans "إيراد محقق (41101)" %}</span>
+                  {% else %}
+                    <span class="badge bg-info text-dark">{% trans "التزام عقد مؤجل (21102)" %}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-3">
+                  {% if row.is_cleared %}
+                    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "خالص الذمة" %}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{% trans "قيد السداد" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="10" class="text-center py-5 text-muted">
+                  <i class="fas fa-balance-scale fa-3x mb-3 text-secondary d-block"></i>
+                  <p class="mb-0">{% trans "لا توجد عقود مطابقة لمعايير التصفية المحددة." %}</p>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="mt-3" id="pagination-wrapper">
+    {% include "partials/pagination.html" %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (!e.target.closest('a, button, .btn')) {
+        var href = this.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

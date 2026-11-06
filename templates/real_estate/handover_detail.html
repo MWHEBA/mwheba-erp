@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "محضر تسليم وحدة" %} {{ receipt.receipt_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدة العقارية" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ receipt.unit.unit_code }}</div>
+            <small class="text-muted">{{ receipt.unit.project.name }}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-building"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "نوع التسليم" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ receipt.get_handover_type_display }}</div>
+            <small class="text-muted">{% trans "تاريخ:" %} {{ receipt.handover_date|date:"Y-m-d" }}</small>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            {% if receipt.handover_type == 'PHYSICAL' %}
+            <i class="fas fa-handshake"></i>
+            {% else %}
+            <i class="fas fa-balance-scale"></i>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card {% if receipt.status == 'EXECUTED' %}stats-card-success{% else %}stats-card-warning{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "حالة محضر التسليم" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ receipt.get_status_display }}</div>
+            <small class="text-muted">{% trans "حالة الوحدة:" %} {{ receipt.unit.get_status_display }}</small>
+          </div>
+          <div class="stats-card-icon {% if receipt.status == 'EXECUTED' %}text-success{% else %}text-warning{% endif %} fs-2">
+            {% if receipt.status == 'EXECUTED' %}
+            <i class="fas fa-check-circle"></i>
+            {% else %}
+            <i class="fas fa-hourglass-half"></i>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إيراد IFRS 15 المحقق" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ receipt.recognized_revenue_amount|floatformat:2|intcomma }} <small class="fs-6 text-muted">ج.م</small></div>
+            <small class="text-muted">{% trans "تكلفة المبيعات:" %} {{ receipt.interim_cogs_amount|floatformat:2|intcomma }} ج.م</small>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Snagging Inspection Blocker Guard Banner -->
+  <div class="row mb-4">
+    <div class="col-12">
+      {% if readiness.is_ready_for_handover %}
+      <div class="alert alert-success border-0 d-flex align-items-center p-3 mb-0" role="alert">
+        <i class="fas fa-shield-check fa-2x me-3 text-success"></i>
+        <div>
+          <h6 class="alert-heading fw-bold mb-1">{% trans "جاهزية الوحدة للتسليم النهائي (Snagging Inspection Passed)" %}</h6>
+          <p class="mb-0 small">{% trans "تم فحص كافة بنود الموقع الميدانية للوحدة والتأكد من خلوها تماماً من أي ملاحظات أو عيوب فنية حرجة مانعة للتسليم." %}</p>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-danger border-0 d-flex align-items-center p-3 mb-0" role="alert">
+        <i class="fas fa-exclamation-triangle fa-2x me-3 text-danger"></i>
+        <div>
+          <h6 class="alert-heading fw-bold mb-1">{% trans "حظر تسليم الوحدة — يوجد ملاحظات حرجة مانعة للتسليم (Handover Blockers)" %}</h6>
+          <p class="mb-0 small">
+            {% trans "يوجد عدد" %} <strong>{{ readiness.blockers_count }}</strong> {% trans "ملاحظة فنية حرجة (CRITICAL_BLOCKER) قيد المعالجة للوحدة." %}
+            {% trans "يُحظر قانونياً وهندسياً اعتماد وتسليم الوحدة للعميل حتى إتمام إصلاح هذه الملاحظات بالكامل عبر قائمة فحص الموقع." %}
+          </p>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <!-- Main Dossier -->
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-file-alt text-primary me-2"></i>{% trans "بيانات محضر الاستلام والتعاقد" %}
+          </h6>
+          <div>
+            {% if receipt.status == 'EXECUTED' %}
+            <span class="badge bg-success px-3 py-2"><i class="fas fa-check-double me-1"></i>{% trans "معتمد ومنفذ رسمياً" %}</span>
+            {% elif receipt.status == 'PENDING_INSPECTION' %}
+            <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-search me-1"></i>{% trans "قيد الفحص" %}</span>
+            {% else %}
+            <span class="badge bg-secondary px-3 py-2">{% trans "مسودة محضر" %}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "رقم محضر التسليم" %}</label>
+              <div class="fw-bold text-primary fs-5 font-monospace">{{ receipt.receipt_number|default:"-" }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "تاريخ التسليم الرسمي" %}</label>
+              <div class="fw-semibold text-dark">{{ receipt.handover_date|date:"Y-m-d" }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "رقم العقد العقاري" %}</label>
+              <div class="fw-bold">
+                <a href="{% url 'real_estate:contract_detail' pk=receipt.contract.pk %}" class="text-decoration-none">
+                  {{ receipt.contract.contract_number }} <i class="fas fa-external-link-alt small ms-1"></i>
+                </a>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "العميل المشتري" %}</label>
+              <div class="fw-bold text-dark">{{ receipt.contract.customer.name }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "الوحدة والمشروع" %}</label>
+              <div class="fw-semibold text-dark">{{ receipt.unit.unit_code }} — {{ receipt.unit.project.name }}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "المساحة الإجمالية" %}</label>
+              <div class="fw-semibold text-dark">{{ receipt.unit.gross_area|floatformat:2 }} م²</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "مهندس الموقع المشرف" %}</label>
+              <div class="fw-semibold text-dark">{% if receipt.site_engineer %}{{ receipt.site_engineer.get_full_name|default:receipt.site_engineer.username }}{% else %}-{% endif %}</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "اسم المستلم / الوكيل الحاضر" %}</label>
+              <div class="fw-bold text-dark">{{ receipt.client_signatory_name|default:"-" }}</div>
+            </div>
+            {% if receipt.client_signatory_national_id %}
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "الرقم القومي للمستلم" %}</label>
+              <div class="fw-semibold text-dark">{{ receipt.client_signatory_national_id }}</div>
+            </div>
+            {% endif %}
+            {% if receipt.power_of_attorney_number %}
+            <div class="col-12 col-md-6">
+              <label class="text-muted small">{% trans "سند التوكيل الرسمي" %}</label>
+              <div class="fw-semibold text-dark">{{ receipt.power_of_attorney_number }}</div>
+            </div>
+            {% endif %}
+            {% if receipt.notes %}
+            <div class="col-12">
+              <label class="text-muted small">{% trans "ملاحظات وإقرارات المحضر" %}</label>
+              <div class="p-3 bg-light rounded border small text-dark" style="white-space: pre-wrap;">{{ receipt.notes }}</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Meter Readings & Handed Items Table -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "قراءات عدادات المرافق والعهد المسلمة" %}
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-4">{% trans "البند / المرفق" %}</th>
+                  <th class="text-center">{% trans "القراءة / العدد المسلم" %}</th>
+                  <th class="text-center">{% trans "وحدة القياس" %}</th>
+                  <th class="text-end pe-4">{% trans "الملاحظات" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="ps-4 fw-semibold"><i class="fas fa-bolt text-warning me-2"></i>{% trans "عداد الكهرباء" %}</td>
+                  <td class="text-center fw-bold fs-6">{{ receipt.electric_meter_reading|floatformat:2 }}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">ك.و / ساعة</span></td>
+                  <td class="text-end pe-4 small text-muted">{% trans "قراءة صفرية / رصيد تجارب" %}</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold"><i class="fas fa-tint text-info me-2"></i>{% trans "عداد المياه" %}</td>
+                  <td class="text-center fw-bold fs-6">{{ receipt.water_meter_reading|floatformat:2 }}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">متر مكعب (م³)</span></td>
+                  <td class="text-end pe-4 small text-muted">{% trans "شامل ضغط الشبكة" %}</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold"><i class="fas fa-fire text-danger me-2"></i>{% trans "عداد الغاز الطبيعي" %}</td>
+                  <td class="text-center fw-bold fs-6">{{ receipt.gas_meter_reading|floatformat:2 }}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">متر مكعب (م³)</span></td>
+                  <td class="text-end pe-4 small text-muted">{% trans "قراءة خط التغذية" %}</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold"><i class="fas fa-key text-primary me-2"></i>{% trans "مفاتيح الأبواب والخدمات" %}</td>
+                  <td class="text-center fw-bold fs-6">{{ receipt.keys_handed_over_count }}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">مفتاح</span></td>
+                  <td class="text-end pe-4 small text-muted">{% trans "أبواب وشبابيك وغرف خدمات" %}</td>
+                </tr>
+                <tr>
+                  <td class="ps-4 fw-semibold"><i class="fas fa-id-card text-success me-2"></i>{% trans "كروت الدخول الذكية" %}</td>
+                  <td class="text-center fw-bold fs-6">{{ receipt.access_cards_count }}</td>
+                  <td class="text-center"><span class="badge bg-light text-dark border">كارت ذكي</span></td>
+                  <td class="text-end pe-4 small text-muted">{% trans "بوابات الكترونية ومصاعد" %}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Info, Verification Seal & Actions -->
+    <div class="col-12 col-lg-4">
+      <!-- Cryptographic SHA-256 Verification Seal -->
+      {% if receipt.status == 'EXECUTED' %}
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-fingerprint text-success me-2"></i>{% trans "بصمة التحقق الرقمية (SHA-256 Seal)" %}
+          </h6>
+        </div>
+        <div class="card-body p-4 text-center">
+          <div class="mb-3">
+            <i class="fas fa-shield-alt fa-3x text-success"></i>
+          </div>
+          <div class="small fw-bold text-dark mb-1">{% trans "محضر تسليم موثق ومحمي ضد التزوير" %}</div>
+          <div class="p-2 bg-light rounded border text-muted small font-monospace text-break mb-3">
+            {{ receipt.verification_hash }}
+          </div>
+          <div class="small text-muted">
+            <div>{% trans "نفذ واعتمد بواسطة:" %} <strong>{{ receipt.executed_by.get_full_name|default:receipt.executed_by.username }}</strong></div>
+            <div>{% trans "تاريخ التوثيق:" %} {{ receipt.executed_at|date:"Y-m-d H:i" }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Accounting & IFRS 15 Link -->
+      <div class="card border shadow-sm mb-4">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-balance-scale text-primary me-2"></i>{% trans "الأثر المحاسبي ومعيار IFRS 15" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "الإيراد المحقق المنقول للسيطرة" %}</label>
+            <div class="fw-bold text-dark fs-5">{{ receipt.recognized_revenue_amount|floatformat:2|intcomma }} ج.م</div>
+          </div>
+          <div class="mb-3">
+            <label class="text-muted small">{% trans "تكلفة مبيعات الوحدة التقديرية" %}</label>
+            <div class="fw-semibold text-dark">{{ receipt.interim_cogs_amount|floatformat:2|intcomma }} ج.م</div>
+          </div>
+          {% if receipt.revenue_journal_entry %}
+          <div class="mb-2">
+            <label class="text-muted small">{% trans "قيد إثبات الإيراد المحقق:" %}</label>
+            <div><span class="badge bg-light text-dark border font-monospace">{{ receipt.revenue_journal_entry.number }}</span></div>
+          </div>
+          {% endif %}
+          {% if receipt.cogs_journal_entry %}
+          <div class="mb-0">
+            <label class="text-muted small">{% trans "قيد تكلفة المبيعات (COGS):" %}</label>
+            <div><span class="badge bg-light text-dark border font-monospace">{{ receipt.cogs_journal_entry.number }}</span></div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-cogs text-primary me-2"></i>{% trans "إجراءات محضر التسليم" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <div class="d-grid gap-2">
+            {% if receipt.status != 'EXECUTED' %}
+            <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#executeHandoverModal"
+                    {% if not readiness.is_ready_for_handover %}disabled title="{% trans 'محظور لوجود ملاحظات حرجة' %}"{% endif %}>
+              <i class="fas fa-key me-1"></i>
+              {% if receipt.handover_type == 'PHYSICAL' %}{% trans "اعتماد وتنفيذ التسليم الفعلي" %}{% else %}{% trans "اعتماد التسليم الحُكمي" %}{% endif %}
+            </button>
+            <a href="{% url 'real_estate:handover_update' pk=receipt.pk %}" class="btn btn-outline-primary">
+              <i class="fas fa-edit me-1"></i>{% trans "تعديل بيانات المحضر" %}
+            </a>
+            {% endif %}
+
+            <a href="{% url 'real_estate:handover_print' pk=receipt.pk %}" target="_blank" class="btn btn-outline-dark">
+              <i class="fas fa-print me-1"></i>{% trans "طباعة محضر التسليم الرسمي" %}
+            </a>
+
+            <a href="{% url 'real_estate:handover_list' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للقائمة" %}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: اعتماد وتنفيذ التسليم -->
+<div class="modal fade" id="executeHandoverModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" action="{% url 'real_estate:handover_execute' pk=receipt.pk %}">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            {% if receipt.handover_type == 'PHYSICAL' %}{% trans "تأكيد اعتماد التسليم الفعلي" %}{% else %}{% trans "تأكيد اعتماد التسليم الحُكمي" %}{% endif %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="small text-muted mb-3">
+            {% trans "سيتم اعتماد محضر التسليم للوحدة" %} <strong>{{ receipt.unit.unit_code }}</strong>
+            {% trans "وتحويل حالة الوحدة رسمياً إلى" %}
+            <strong class="text-success">{% if receipt.handover_type == 'PHYSICAL' %}{% trans "مسلّمة (DELIVERED)" %}{% else %}{% trans "مسلّمة حُكمياً (DELIVERED_DEEMED)" %}{% endif %}</strong>،
+            {% trans "مع ترحيل قيود الاعتراف بالإيراد وفق معيار IFRS 15 وتوليد البصمة المشفرة SHA-256." %}
+          </p>
+          <div class="alert alert-warning border-0 small mb-0">
+            <i class="fas fa-lock me-1"></i>{% trans "هذا الإجراء نهائي ولا يمكن الرجوع فيه بعد التنفيذ." %}
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check-double me-1"></i>{% trans "تأكيد وتنفيذ التسليم" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

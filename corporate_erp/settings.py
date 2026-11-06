@@ -939,6 +939,14 @@ CELERY_BEAT_SCHEDULE.update({
         'options': {'queue': 'maintenance'},
         'kwargs': {'months': 6}
     },
+    'real-estate-nightly-booking-sweeper': {
+        'task': 'real_estate.tasks.sweep_expired_unit_bookings_task',
+        'schedule': 86400.0,  # Daily
+    },
+    'real-estate-installment-escalation-radar': {
+        'task': 'real_estate.tasks.dispatch_installment_escalation_radar_task',
+        'schedule': 86400.0,  # Daily
+    },
 })
 
 # Monitoring and logging

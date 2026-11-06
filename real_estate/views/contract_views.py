@@ -13,7 +13,9 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from users.mixins import SmartPermissionRequiredMixin
-from real_estate.models import PropertyContract, PropertyUnit, RealEstateProject, ContractCoOwner
+from real_estate.models import (
+    PropertyContract, PropertyUnit, RealEstateProject, ContractCoOwner, RealEstateBroker
+)
 from real_estate.services.clearance_service import ContractDebtClearanceService
 from customer.models import Customer
 from financial.models.currency import Currency
@@ -117,6 +119,8 @@ class ContractDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
         )
         co_owners = contract.co_owners.select_related('co_owner')
         installment_items = contract.installment_plan.items.all().order_by('installment_number') if contract.installment_plan else []
+        commissions = contract.broker_commissions.select_related('broker')
+        available_brokers = RealEstateBroker.objects.filter(is_active=True)
 
         breadcrumb_items = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
@@ -126,6 +130,20 @@ class ContractDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
         ]
 
         header_buttons = [
+            {
+                'url': reverse('real_estate:contract_print', kwargs={'pk': contract.pk}),
+                'label': _('طباعة العقد الرسمي'),
+                'icon': 'fa-print',
+                'class': 'btn-primary',
+                'target': '_blank'
+            },
+            {
+                'url': reverse('real_estate:contract_statement_print', kwargs={'pk': contract.pk}),
+                'label': _('طباعة كشف الحساب'),
+                'icon': 'fa-file-invoice-dollar',
+                'class': 'btn-outline-primary',
+                'target': '_blank'
+            },
             {
                 'url': reverse('real_estate:contract_clearance_print', kwargs={'pk': contract.pk}),
                 'label': _('شهادة المخالصة المالية'),
@@ -139,6 +157,8 @@ class ContractDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             'contract': contract,
             'co_owners': co_owners,
             'installment_items': installment_items,
+            'commissions': commissions,
+            'available_brokers': available_brokers,
             'breadcrumb_items': breadcrumb_items,
             'header_buttons': header_buttons,
             'active_menu': 'real_estate',
@@ -240,3 +260,96 @@ class ContractDebtClearancePrintView(LoginRequiredMixin, SmartPermissionRequired
         except Exception as e:
             messages.error(request, str(e))
             return redirect('real_estate:contract_detail', pk=contract.pk)
+
+
+class ContractOfficialPrintView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    طباعة العقد العقاري النهائي المعتمد (مع جدول الأقساط والشركاء وختم التوثيق الرقمي SHA-256)
+    """
+    permission_required = 'real_estate.view_propertycontract'
+
+    def get(self, request, pk):
+        import hashlib
+        contract = get_object_or_404(
+            PropertyContract.objects.select_related(
+                'customer', 'unit__project', 'unit__floor__block', 'installment_plan', 'currency', 'created_by'
+            ),
+            pk=pk
+        )
+        co_owners = contract.co_owners.select_related('co_owner')
+        installment_items = (
+            contract.installment_plan.items.all().order_by('installment_number')
+            if contract.installment_plan else []
+        )
+
+        raw_seed = (
+            f"{contract.contract_number}:{contract.customer_id}:{contract.unit_id}:"
+            f"{contract.final_contract_price}:{contract.down_payment}:{contract.contract_date}"
+        )
+        verification_hash = hashlib.sha256(raw_seed.encode('utf-8')).hexdigest()
+
+        context = {
+            'contract': contract,
+            'co_owners': co_owners,
+            'installment_items': installment_items,
+            'verification_hash': verification_hash,
+            'verification_token': verification_hash[:16].upper(),
+            'today': timezone.localdate(),
+        }
+        return render(request, 'real_estate/contract_print.html', context)
+
+
+class ContractStatementPrintView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    طباعة كشف حساب الوحدة والعميل التفصيلي (تعاقدي / مالي / شيكات)
+    """
+    permission_required = 'real_estate.view_propertycontract'
+
+    def get(self, request, pk):
+        import hashlib
+        from cheques.models.allocation import ChequeInvoiceAllocation
+
+        contract = get_object_or_404(
+            PropertyContract.objects.select_related(
+                'customer', 'unit__project', 'installment_plan', 'currency'
+            ),
+            pk=pk
+        )
+        verified_dp = ContractDebtClearanceService.get_verified_down_payment(contract)
+        clearance_eval = ContractDebtClearanceService.evaluate_contract_clearance(contract)
+
+        installment_items = []
+        cheque_allocations = []
+        paid_installments_total = Decimal('0.00')
+
+        if contract.installment_plan:
+            installment_items = list(contract.installment_plan.items.all().order_by('installment_number'))
+            paid_installments_total = sum((Decimal(str(i.paid_amount)) for i in installment_items), Decimal('0.00'))
+            cheque_allocations = list(
+                ChequeInvoiceAllocation.objects.filter(
+                    installment_item__plan=contract.installment_plan,
+                    allocation_status='APPLIED'
+                ).select_related('cheque', 'installment_item').order_by('cheque__due_date')
+            )
+
+        raw_seed = (
+            f"SOA:{contract.contract_number}:{contract.final_contract_price}:"
+            f"{clearance_eval['total_paid']}:{clearance_eval['remaining_balance']}:{timezone.localdate()}"
+        )
+        verification_hash = hashlib.sha256(raw_seed.encode('utf-8')).hexdigest()
+
+        context = {
+            'contract': contract,
+            'verified_down_payment': verified_dp,
+            'paid_installments_total': paid_installments_total,
+            'total_paid': clearance_eval['total_paid'],
+            'remaining_balance': clearance_eval['remaining_balance'],
+            'is_cleared': clearance_eval['is_cleared'],
+            'installment_items': installment_items,
+            'cheque_allocations': cheque_allocations,
+            'verification_hash': verification_hash,
+            'verification_token': verification_hash[:16].upper(),
+            'today': timezone.localdate(),
+        }
+        return render(request, 'real_estate/contract_statement_print.html', context)
+

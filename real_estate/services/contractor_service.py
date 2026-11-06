@@ -149,10 +149,14 @@ class ContractorProgressService:
             AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value,
             fallback_code="21310"
         )
-        payable_account = cls.get_or_resolve_account(
-            AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value,
-            fallback_code="21110"
-        )
+        payable_account = getattr(cert.contractor, 'financial_account', None)
+        if not payable_account or not payable_account.can_post_entries():
+            payable_account = cls.get_or_resolve_account(
+                AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value,
+                fallback_code="21110"
+            )
+            if not payable_account.can_post_entries() and payable_account.children.filter(is_active=True, is_leaf=True).exists():
+                payable_account = payable_account.children.filter(is_active=True, is_leaf=True).first()
         wht_account = cls.get_or_resolve_account(
             AccountRoleNames.WITHHOLDING_TAX_PAYABLE.value,
             fallback_code="21330"

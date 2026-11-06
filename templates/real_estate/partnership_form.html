@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "تسجيل اتفاقية شراكة مالك أرض" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h5 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-handshake text-primary me-2"></i>{% trans "بيانات اتفاقية الشراكة وتطوير الأرض" %}
+          </h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="post" id="partnershipForm">
+            {% csrf_token %}
+
+            <div class="row g-3 mb-4">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold">{% trans "المشروع العقاري" %} <span class="text-danger">*</span></label>
+                <select name="project" class="form-select select2-filter" required>
+                  <option value="">{% trans "-- اختر المشروع الاستثماري --" %}</option>
+                  {% for prj in projects %}
+                  <option value="{{ prj.id }}">{{ prj.name }} ({{ prj.code }})</option>
+                  {% endfor %}
+                </select>
+                <div class="form-text">{% trans "المشروع القائم أو المزمع إقامته على قطعة الأرض محل الشراكة." %}</div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold">{% trans "نوع ونموذج الشراكة" %} <span class="text-danger">*</span></label>
+                <select name="partnership_type" class="form-select" required>
+                  {% for val, label in type_choices %}
+                  <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="fas fa-user-tie text-info me-2"></i>{% trans "بيانات مالك الأرض / الشريك" %}
+            </h6>
+            <div class="row g-3 mb-4">
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-bold">{% trans "اسم المالك / الشريك بالكامل" %} <span class="text-danger">*</span></label>
+                <input type="text" name="partner_name" class="form-control" required placeholder="{% trans 'الاسم الرباعي' %}">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-bold">{% trans "الرقم القومي / السجل التجاري" %}</label>
+                <input type="text" name="partner_national_id" class="form-control" placeholder="{% trans '14 رقم قومي' %}">
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label fw-bold">{% trans "رقم الهاتف / التواصل" %}</label>
+                <input type="text" name="partner_phone" class="form-control" placeholder="01xxxxxxxxx">
+              </div>
+            </div>
+
+            <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+              <i class="fas fa-file-invoice-dollar text-success me-2"></i>{% trans "محددات الأرض والتقييم المالي والنسب" %}
+            </h6>
+            <div class="row g-3 mb-4">
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold">{% trans "مساحة الأرض الإجمالية (م²)" %} <span class="text-danger">*</span></label>
+                <input type="number" step="0.01" name="land_area_sqm" class="form-control font-monospace" required value="0.00">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold">{% trans "التقييم المالي المتفق عليه للأرض (ج.م)" %} <span class="text-danger">*</span></label>
+                <input type="number" step="0.01" name="agreed_land_valuation" class="form-control font-monospace text-success fw-bold" required value="0.00">
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold">{% trans "نسبة الشريك من الإيراد / الأرباح (%)" %} <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="number" step="0.01" min="0" max="100" name="revenue_share_percentage" class="form-control font-monospace fw-bold" required value="0.00">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label fw-bold">{% trans "تاريخ تحرير العقد" %} <span class="text-danger">*</span></label>
+                <input type="date" name="contract_date" class="form-control" required value="{{ today|default:'' }}">
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-bold">{% trans "البنود الخاصة والشروط الإضافية" %}</label>
+              <textarea name="terms_notes" rows="4" class="form-control" placeholder="{% trans 'اكتب شروط التخصيص العيني، جدول التسليم، أي بنود جزائية...' %}"></textarea>
+            </div>
+
+            <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top">
+              <a href="{% url 'real_estate:partnership_list' %}" class="btn btn-secondary px-4">
+                <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+              </a>
+              <button type="submit" class="btn btn-primary px-4 fw-bold">
+                <i class="fas fa-save me-1"></i>{% trans "حفظ اتفاقية الشراكة" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

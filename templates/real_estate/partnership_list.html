@@ -9,8 +9,9 @@
 <div class="container-fluid">
   {% include "shared/page_header.html" %}
 
+  <!-- KPI Stats Row -->
   <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-xl-3">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
@@ -23,14 +24,56 @@
         </div>
       </div>
     </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي تقييم الأراضي" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-success">{{ total_land_valuation|floatformat:2|intcomma }} <small class="text-muted fs-6">{% trans "ج.م" %}</small></div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-coins"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الشراكات النشطة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-warning">{{ partnerships.count|default:"0" }}</div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-chart-pie"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "مشاريع التطوير" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">
+              <i class="fas fa-city text-primary me-1"></i>{% trans "تطوير عقاري" %}
+            </div>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-building"></i>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Collapsible Filter Section -->
   <div class="section-container mb-4">
     <div class="card border shadow-sm">
       <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
            role="button" data-bs-toggle="collapse" data-bs-target="#partnerFilterCollapse" aria-expanded="true">
         <h6 class="mb-0 fw-bold text-dark">
-          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث الشركاء" %}
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث الشراكات" %}
         </h6>
         <i class="fas fa-chevron-down text-muted"></i>
       </div>
@@ -40,7 +83,7 @@
             <div class="col-12 col-md-6">
               <label class="form-label small fw-bold">{% trans "بحث عام" %}</label>
               <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-                     placeholder="{% trans 'المشروع، اسم الشريك...' %}">
+                     placeholder="{% trans 'رقم الاتفاقية، اسم الشريك، اسم المشروع...' %}">
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label small fw-bold">{% trans "الحالة" %}</label>
@@ -55,7 +98,7 @@
               <button type="submit" class="btn btn-primary btn-sm w-100">
                 <i class="fas fa-search me-1"></i>{% trans "بحث" %}
               </button>
-              <a href="{% url 'real_estate:partnership_list' %}" class="btn btn-outline-secondary btn-sm">
+              <a href="{% url 'real_estate:partnership_list' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة تعيين' %}">
                 <i class="fas fa-redo"></i>
               </a>
             </div>
@@ -65,6 +108,7 @@
     </div>
   </div>
 
+  <!-- Data Table Section -->
   <div class="section-container">
     <div class="card border shadow-sm">
       <div class="card-body p-0">
@@ -72,29 +116,54 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
               <tr>
-                <th class="ps-3">{% trans "المشروع العقاري" %}</th>
-                <th>{% trans "اسم الشريك / مالك الأرض" %}</th>
-                <th>{% trans "نموذج الشراكة" %}</th>
-                <th class="text-center">{% trans "نسبة الشراكة" %}</th>
+                <th class="ps-3">{% trans "رقم الاتفاقية" %}</th>
+                <th>{% trans "المشروع العقاري" %}</th>
+                <th>{% trans "اسم مالك الأرض / الشريك" %}</th>
+                <th>{% trans "نوع الشراكة" %}</th>
+                <th class="text-center">{% trans "نسبة العائد" %}</th>
+                <th class="text-end">{% trans "تقييم الأرض (ج.م)" %}</th>
+                <th class="text-center">{% trans "تاريخ العقد" %}</th>
                 <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
               </tr>
             </thead>
             <tbody>
               {% for p in partnerships %}
-              <tr>
-                <td class="ps-3 fw-bold text-primary">{{ p.project.name }}</td>
-                <td class="fw-semibold">{{ p.partner.name }}</td>
-                <td><span class="badge bg-light text-dark border">{{ p.get_partnership_model_display }}</span></td>
-                <td class="text-center fw-bold">{{ p.share_percentage }}%</td>
+              <tr class="clickable-row" data-href="{% url 'real_estate:partnership_detail' pk=p.pk %}" style="cursor: pointer;">
+                <td class="ps-3 fw-bold text-primary font-monospace">{{ p.partnership_number }}</td>
+                <td class="fw-semibold">{{ p.project.name }}</td>
+                <td>
+                  <div class="fw-bold text-dark">{{ p.partner_name }}</div>
+                  {% if p.partner_phone %}<small class="text-muted"><i class="fas fa-phone-alt me-1"></i>{{ p.partner_phone }}</small>{% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ p.get_partnership_type_display }}</span>
+                </td>
+                <td class="text-center fw-bold text-info">{{ p.revenue_share_percentage }}%</td>
+                <td class="text-end fw-bold text-success">{{ p.agreed_land_valuation|floatformat:2|intcomma }}</td>
+                <td class="text-center small text-muted">{{ p.contract_date|date:"d/m/Y" }}</td>
                 <td class="text-center">
-                  <span class="badge bg-secondary">{{ p.get_status_display }}</span>
+                  {% if p.status == 'ACTIVE' %}
+                    <span class="badge bg-success">{% trans "نشطة" %}</span>
+                  {% elif p.status == 'COMPLETED' %}
+                    <span class="badge bg-primary">{% trans "مكتملة وموزعة" %}</span>
+                  {% elif p.status == 'CANCELLED' %}
+                    <span class="badge bg-danger">{% trans "ملغاة" %}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ p.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-3">
+                  <a href="{% url 'real_estate:partnership_detail' pk=p.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل والتخصيص' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
                 </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="5" class="text-center py-5 text-muted">
+                <td colspan="9" class="text-center py-5 text-muted">
                   <i class="fas fa-inbox fa-3x mb-3 text-secondary"></i>
-                  <p class="mb-0">{% trans "لا توجد شراكات مسجلة." %}</p>
+                  <p class="mb-0">{% trans "لا توجد اتفاقيات شراكة مسجلة." %}</p>
                 </td>
               </tr>
               {% endfor %}
@@ -111,4 +180,19 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.clickable-row').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (!e.target.closest('a, button, .btn')) {
+        var href = this.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

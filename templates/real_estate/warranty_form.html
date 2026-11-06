@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تسجيل بلاغ ضمان وصيانة جديد" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "بيانات بلاغ الضمان وخدمة ما بعد التسليم" %}
+          </h6>
+        </div>
+        <div class="card-body p-4">
+          <form method="post" id="warrantyForm" novalidate>
+            {% csrf_token %}
+
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "الوحدة العقارية المسلّمة" %} <span class="text-danger">*</span></label>
+                <select name="unit" class="form-select select2-filter" required>
+                  <option value="">{% trans "اختر الوحدة المسلّمة..." %}</option>
+                  {% for u in units %}
+                  <option value="{{ u.id }}" {% if form_data.unit == u.id|stringformat:"s" %}selected{% endif %}>
+                    {{ u.unit_code }} — مشروع: {{ u.project.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <div class="form-text small text-muted">{% trans "يتاح فقط اختيار الوحدات التي تم تسليمها للعملاء رسمياً." %}</div>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "تصنيف العيب الفني" %} <span class="text-danger">*</span></label>
+                <select name="category" class="form-select" required>
+                  {% for val, label in category_choices %}
+                  <option value="{{ val }}" {% if form_data.category == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "نوع فترة الضمان القانوني" %} <span class="text-danger">*</span></label>
+                <select name="warranty_type" class="form-select" required>
+                  {% for val, label in warranty_type_choices %}
+                  <option value="{{ val }}" {% if form_data.warranty_type == val %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "درجة الأولوية" %} <span class="text-danger">*</span></label>
+                <select name="priority" class="form-select" required>
+                  {% for val, label in priority_choices %}
+                  <option value="{{ val }}" {% if form_data.priority == val %}selected{% elif not form_data.priority and val == 'MEDIUM' %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-bold">{% trans "المقاول المنفذ المسؤول (اختياري)" %}</label>
+                <select name="responsible_contractor" class="form-select">
+                  <option value="">{% trans "غير محدد حالياً" %}</option>
+                  {% for c in contractors %}
+                  <option value="{{ c.id }}" {% if form_data.responsible_contractor == c.id|stringformat:"s" %}selected{% endif %}>
+                    {{ c.name }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "عنوان البلاغ / وصف مختصر" %} <span class="text-danger">*</span></label>
+                <input type="text" name="title" class="form-control" placeholder="{% trans 'مثال: تسريب مياه أسفل حوض الحمام الرئيسي' %}"
+                       value="{{ form_data.title|default:'' }}" required>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold">{% trans "التفاصيل الدقيقة وموقع الظهور بالوحدة" %} <span class="text-danger">*</span></label>
+                <textarea name="description" rows="4" class="form-control"
+                          placeholder="{% trans 'توصيف مكان الشكوى، تاريخ ملاحظتها، وملاحظات الشاغل...' %}" required>{{ form_data.description|default:'' }}</textarea>
+              </div>
+
+              <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                <a href="{% url 'real_estate:warranty_list' %}" class="btn btn-secondary px-3">
+                  <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-4 fw-bold">
+                  <i class="fas fa-save me-1"></i>{% trans "تسجيل بلاغ الضمان" %}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
