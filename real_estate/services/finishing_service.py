@@ -50,11 +50,25 @@ class FinishingPricingService:
         """
         حساب تسعير أمر التشطيب وتحديث الموديل بناءً على بنود المقايسة التفصيلية.
         """
+        if cls.is_price_frozen_and_valid(order):
+            logger.info(f"Order {order.order_number} pricing is frozen and currently valid until {order.offer_expires_at}. Preserving approved prices.")
+            return {
+                'material_total': order.material_cost_total or Decimal('0.00'),
+                'labor_total': order.labor_cost_total or Decimal('0.00'),
+                'demolition_total': order.demolition_cost_total or Decimal('0.00'),
+                'supervision_fee': order.supervision_fee_total or Decimal('0.00'),
+                'credit_total': order.core_shell_credit_total or Decimal('0.00'),
+                'gross_amount': order.gross_finishing_amount or Decimal('0.00'),
+                'net_price': order.net_finishing_price or Decimal('0.00'),
+                'advance_required': order.advance_deposit_required or Decimal('0.00'),
+            }
+
         items = order.items.select_related('spec', 'spec__credit_schedule').all()
 
         material_total = Decimal('0.00')
         labor_total = Decimal('0.00')
         demolition_total = Decimal('0.00')
+        specialty_total = Decimal('0.00')
         credit_total = Decimal('0.00')
         items_selling_total = Decimal('0.00')
 
@@ -72,14 +86,23 @@ class FinishingPricingService:
             item.total_selling_price = item_total
             items_selling_total += item_total
 
-            # 3. فصل التكاليف (مواد / مصنعية / تكسير)
-            if item.is_demolition_rework:
+            # 3. فصل التكاليف (مواد / مصنعية / تكسير / تخصصي / خامات العميل)
+            if item.supply_source == 'OWNER_SUPPLIED':
+                # خامات العميل الموردة: لا تكلفة مواد على الشركة
+                if item.spec:
+                    item_lab = (gross_qty * (item.spec.standard_labor_cost or Decimal('0.00'))).quantize(Decimal('0.01'))
+                    labor_total += item_lab
+            elif item.is_demolition_rework:
                 demolition_total += item_total
+            elif item.is_custom_specialty:
+                specialty_total += item_total
             elif item.spec:
                 item_mat = (gross_qty * (item.spec.standard_material_cost or Decimal('0.00'))).quantize(Decimal('0.01'))
                 item_lab = (gross_qty * (item.spec.standard_labor_cost or Decimal('0.00'))).quantize(Decimal('0.01'))
                 material_total += item_mat
                 labor_total += item_lab
+            else:
+                specialty_total += item_total
 
             # 4. احتساب رصيد نصف التشطيب المسترد (Core & Shell Credit)
             if item.spec and item.spec.credit_schedule and not item.is_demolition_rework:
@@ -93,7 +116,7 @@ class FinishingPricingService:
             item.save(update_fields=['gross_quantity', 'unit_selling_price', 'total_selling_price', 'core_shell_credit'])
 
         # 5. نسبة الإشراف الهندسي (تطبق على تكاليف التنفيذ)
-        supervision_base = material_total + labor_total + demolition_total
+        supervision_base = material_total + labor_total + demolition_total + specialty_total
         supervision_rate = Decimal('10.00')  # 10% standard supervision
         supervision_fee = (supervision_base * (supervision_rate / Decimal('100.00'))).quantize(Decimal('0.01'))
 
@@ -148,7 +171,19 @@ class FinishingPricingService:
     def freeze_pricing(cls, order: UnitFinishingOrder, validity_days: int = 15) -> UnitFinishingOrder:
         """
         تجميد أسعار المقايسة لمهلة محددة (افتراضياً 15 يوماً).
+        يحظر تعديل الأساس المالي أو تباعد الأقساط إذا تم إنشاء قيد استحقاق مالي مرحل للطلب.
         """
+        if order.accrual_journal_entry_id or cls.is_price_frozen_and_valid(order):
+            logger.info(f"Order {order.order_number} has an existing accrual or active freeze. Preserving approved prices.")
+            now = timezone.now()
+            order.price_freeze_date = order.price_freeze_date or now
+            order.offer_validity_days = validity_days
+            order.offer_expires_at = now.date() + timedelta(days=validity_days)
+            order.save(update_fields=['price_freeze_date', 'offer_validity_days', 'offer_expires_at'])
+            return order
+
+        order.price_freeze_date = None
+        order.offer_expires_at = None
         cls.calculate_order_pricing(order)
         now = timezone.now()
         order.price_freeze_date = now
@@ -222,6 +257,10 @@ class FinishingWorkflowEngine:
         if target_stage not in cls.STAGE_HIERARCHY:
             return False, _(f"مرحلة الهدف {target_stage} غير معتمدة بالنظام.")
 
+        # حظر إعادة فتح أو استئناف الطلبات الملغاة أو المكتملة عبر الانتقال العادي
+        if current_stage in ['CANCELLED', 'COMPLETED']:
+            return False, _(f"لا يمكن الانتقال من المرحلة النهائية '{current_stage}'. يتطلب ذلك إجراء إعادة فتح معتمد ومستقل.")
+
         if target_stage == 'CANCELLED':
             return True, None
 
@@ -240,8 +279,12 @@ class FinishingWorkflowEngine:
             if not FinishingPricingService.is_price_frozen_and_valid(order):
                 return False, _("مهلة تجميد أسعار المقايسة منتهية أو لم يتم تجميدها بعد. يلزم إعادة التسعير والتجميد أولاً.")
 
-        # 3. صمام تعدد الملاك وتوقيع الشركاء على الشيوع
+        # 3. صمام تعدد الملاك وتوقيع الشركاء على الشيوع واعتماد الإدارة المالية
         if target_stage == 'CLIENT_APPROVAL':
+            # التحقق من اعتماد المدير المالي إذا كان هناك طلب اعتماد معلق
+            if order.approval_request and order.approval_request.status != 'APPROVED':
+                return False, _("طلب الاعتماد المالي لا يزال قيد المراجعة أو غير معتمد من المدير المالي (CFO).")
+
             if order.contract and order.contract.co_owners.exists():
                 if not order.all_co_owners_signed and not bool(order.co_owners_power_of_attorney_file):
                     return False, _("يلزم توقيع كافة الملاك الشركاء على الشيوع أو إرفاق توكيل رسمي مسجل ومعتمد للمالك الحاضر.")
@@ -261,7 +304,11 @@ class FinishingWorkflowEngine:
         if order.workflow_speed == 'FAST_TRACK':
             if not cls.is_fast_track_eligible(order):
                 return False, _("الطلب لا يستوفي شروط المسار السريع (تجاوز المبلغ 25 ألف ج.م أو وجود تكسير). يلزم تحويله للمسار السداسي.")
-            # المسار السريع يسمح بالانتقال المباشر للعميل
+            # لا يسمح بالقفز المباشر إلى المكتمل دون المرور بالعميل والتنفيذ
+            if target_stage == 'COMPLETED' and current_stage not in ['IN_EXECUTION']:
+                return False, _("لا يمكن إنهاء وتسليم الطلب في المسار السريع إلا بعد موافقة العميل والتنفيذ الميداني.")
+            if target_stage == 'IN_EXECUTION' and current_stage not in ['CLIENT_APPROVAL']:
+                return False, _("لا يمكن بدء التنفيذ الميداني في المسار السريع إلا بعد موافقة العميل.")
             return True, None
 
         # في المسار السداسي، نلزم بالتتابع
@@ -293,7 +340,7 @@ class FinishingWorkflowEngine:
 
         # إذا كانت المرحلة FINANCE_CFO ننشئ طلب اعتماد مركزي
         if target_stage == 'FINANCE_CFO':
-            rule, _ = EnterpriseApprovalRule.objects.get_or_create(
+            rule, _created = EnterpriseApprovalRule.objects.get_or_create(
                 module='REAL_ESTATE',
                 approver_role='CFO',
                 defaults={
@@ -315,15 +362,16 @@ class FinishingWorkflowEngine:
             )
             order.approval_request = approval_req
 
-        # ترحيل تاريخ التسليم التعاقدي عند توقيع العميل
+        # ترحيل تاريخ التسليم التعاقدي عند توقيع العميل (مرة واحدة فقط لضمان الـ Idempotence)
         if target_stage == 'CLIENT_APPROVAL':
             if order.contract and order.contract.delivery_date:
-                order.original_contract_delivery_date = order.contract.delivery_date
-                duration = order.execution_duration_days or 90
-                amended_date = order.contract.delivery_date + timedelta(days=duration)
-                order.amended_contract_delivery_date = amended_date
-                order.contract.delivery_date = amended_date
-                order.contract.save(update_fields=['delivery_date'])
+                if order.original_contract_delivery_date is None:
+                    order.original_contract_delivery_date = order.contract.delivery_date
+                    duration = order.execution_duration_days or 90
+                    amended_date = order.contract.delivery_date + timedelta(days=duration)
+                    order.amended_contract_delivery_date = amended_date
+                    order.contract.delivery_date = amended_date
+                    order.contract.save(update_fields=['delivery_date'])
 
         order.save(update_fields=[
             'current_stage',

@@ -20,9 +20,10 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from ..models import StockMovement, Stock, Product
+from governance.models import GovernanceContext
 from governance.services import (
     MovementService, AccountingGateway, IdempotencyService, 
-    AuditService, governance_switchboard, GovernanceContext
+    AuditService, governance_switchboard
 )
 from governance.exceptions import ValidationError, GovernanceError
 

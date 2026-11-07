@@ -45,27 +45,55 @@ from financial.models import (
     JournalEntry,
     JournalEntryLine,
 )
+from product.models import (
+    StockMovement,
+    StockLedgerEntry,
+    InventoryCostLayer,
+    InventoryCostConsumption,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def get_or_create_open_period(entry_date: date, user=None) -> AccountingPeriod:
     """الحصول على أو إنشاء الفترة المحاسبية المفتوحة للتاريخ المحدد"""
+    # 1. التحقق من أي فترة محاسبية معتمدة تغطي هذا التاريخ وفق سياسة الترحيل المركزية
+    existing_period = AccountingPeriod.objects.filter(
+        start_date__lte=entry_date,
+        end_date__gte=entry_date
+    ).first()
+    if existing_period and not existing_period.can_post_entries():
+        raise ValidationError(_(f"الفترة المحاسبية لهذا التاريخ ({entry_date}) مقفلة ولا يمكن الترحيل فيها (الحالة: {existing_period.status})."))
+
+    # فحص أي فترات أخرى غير مفتوحة تغطي هذا التاريخ (مثل soft_closed, closed, hard_closed)
+    if AccountingPeriod.objects.filter(start_date__lte=entry_date, end_date__gte=entry_date).exclude(status='open').exists():
+        raise ValidationError(_(f"الفترة المحاسبية لهذا التاريخ ({entry_date}) مقفلة ولا يمكن الترحيل فيها."))
+
+    # 2. البحث عن فترة مفتوحة
     period = AccountingPeriod.objects.filter(
-        status='OPEN',
+        status='open',
         start_date__lte=entry_date,
         end_date__gte=entry_date
     ).first()
     if not period:
         first_day = entry_date.replace(day=1)
-        _, last_day_num = calendar.monthrange(entry_date.year, entry_date.month)
+        _weekday, last_day_num = calendar.monthrange(entry_date.year, entry_date.month)
         last_day = entry_date.replace(day=last_day_num)
-        period, _ = AccountingPeriod.objects.get_or_create(
+
+        # التأكد من عدم وجود أي تداخل مع فترات غير مفتوحة
+        overlapping_non_open = AccountingPeriod.objects.filter(
+            start_date__lte=last_day,
+            end_date__gte=first_day
+        ).exclude(status='open').exists()
+        if overlapping_non_open:
+            raise ValidationError(_("لا يمكن إنشاء فترة محاسبية مفتوحة لوجود تداخل مع فترة مالية مقفلة."))
+
+        period, _created = AccountingPeriod.objects.get_or_create(
             name=f"فترة {entry_date.month}/{entry_date.year}",
             period_number=entry_date.month,
             start_date=first_day,
             end_date=last_day,
-            defaults={'status': 'OPEN', 'created_by': user}
+            defaults={'status': 'open', 'created_by': user}
         )
     return period
 
@@ -119,6 +147,42 @@ class FinishingFinancialService:
     TABLE_TAX_RATE = Decimal('0.05')  # ضريبة الجدول 5% كود T2
 
     @classmethod
+    def calculate_approved_debt_breakdown(cls, order: UnitFinishingOrder) -> Dict[str, Decimal]:
+        """
+        احتساب المديونية المعتمدة للعميل كمرجع موحد وحيد (Single Source of Truth):
+        - إذا كان قد تم إنشاء قيد استحقاق مالي للطلب، فإن المديونية تُشتق حصرياً من سطور القيد الدفتري المرحل.
+        - الإيراد الصافي = إجمالي المقايسة - الخصم المعتمد (أو صافي السعر المعتمد).
+        - ضريبة الجدول 5% كود T2.
+        - إجمالي المديونية = الإيراد الصافي + الضريبة.
+        """
+        if order.accrual_journal_entry:
+            debit_lines = order.accrual_journal_entry.lines.filter(debit__gt=Decimal('0.00'))
+            total_posted_debt = sum(l.debit for l in debit_lines)
+            net_revenue = order.net_finishing_price or (total_posted_debt / (Decimal('1.00') + cls.TABLE_TAX_RATE)).quantize(Decimal('0.01'))
+            tax_amount = total_posted_debt - net_revenue
+            return {
+                'net_revenue': net_revenue,
+                'tax_amount': tax_amount,
+                'total_debt': total_posted_debt,
+            }
+
+        if order.net_finishing_price and order.net_finishing_price > Decimal('0.00'):
+            net_revenue = order.net_finishing_price
+        elif order.promotional_discount and order.promotional_discount > Decimal('0.00'):
+            net_revenue = max(Decimal('0.00'), order.gross_finishing_amount - order.promotional_discount)
+        else:
+            net_revenue = order.gross_finishing_amount
+
+        table_tax_amount = (net_revenue * cls.TABLE_TAX_RATE).quantize(Decimal('0.01'))
+        total_customer_debit = (net_revenue + table_tax_amount).quantize(Decimal('0.01'))
+
+        return {
+            'net_revenue': net_revenue,
+            'tax_amount': table_tax_amount,
+            'total_debt': total_customer_debit,
+        }
+
+    @classmethod
     @transaction.atomic
     def create_accrual_journal_entry(
         cls,
@@ -131,12 +195,13 @@ class FinishingFinancialService:
         - دائن: إيرادات أعمال تشطيب وتعديلات عملاء (41200) بصافي القيمة
         - دائن: مصلحة الضرائب - ضريبة الجدول 5% كود T2 (21320)
         """
-        if order.accrual_journal_entry:
-            return order.accrual_journal_entry, round(order.gross_finishing_amount * cls.TABLE_TAX_RATE, 2)
+        breakdown = cls.calculate_approved_debt_breakdown(order)
+        net_finishing_revenue = breakdown['net_revenue']
+        table_tax_amount = breakdown['tax_amount']
+        total_customer_debit = breakdown['total_debt']
 
-        net_finishing_revenue = order.gross_finishing_amount
-        table_tax_amount = round(net_finishing_revenue * cls.TABLE_TAX_RATE, 2)
-        total_customer_debit = net_finishing_revenue + table_tax_amount
+        if order.accrual_journal_entry:
+            return order.accrual_journal_entry, table_tax_amount
 
         entry_date = timezone.now().date()
         period = get_or_create_open_period(entry_date, user)
@@ -166,7 +231,7 @@ class FinishingFinancialService:
             number=entry_number,
             date=entry_date,
             entry_type='STANDARD',
-            status='POSTED',
+            status='draft',
             description=f"قيد استحقاق إيرادات وضريبة مقايسة تشطيب الوحدة {order.unit.unit_code} للعميل {order.customer.name}",
             source_module='REAL_ESTATE',
             source_model='UnitFinishingOrder',
@@ -201,6 +266,9 @@ class FinishingFinancialService:
             credit=table_tax_amount,
             description="ضريبة الجدول المقررة 5% كود T2 لصالح مصلحة الضرائب المصرية"
         )
+
+        # ترحيل القيد عبر مسار الترحيل المحاسبي المعتمد
+        journal_entry.post(user=user or order.created_by)
 
         order.accrual_journal_entry = journal_entry
         order.save(update_fields=['accrual_journal_entry', 'updated_at'])
@@ -249,7 +317,7 @@ class FinishingFinancialService:
             number=entry_number,
             date=payment_date,
             entry_type='STANDARD',
-            status='POSTED',
+            status='draft',
             description=f"تحصيل دفعة مقدمة تشطيب للوحدة {order.unit.unit_code} بحساب الضمان",
             source_module='REAL_ESTATE',
             source_model='FinishingAdvanceDeposit',
@@ -273,6 +341,9 @@ class FinishingFinancialService:
             credit=payment_amount,
             description=f"دفعة مقدمة تشطيب محصلة من العميل {order.customer.name}"
         )
+
+        # ترحيل القيد عبر مسار الترحيل المحاسبي المعتمد
+        je.post(user=user or order.created_by)
 
         deposit_count = order.deposits.count() + 1
         deposit_record = FinishingAdvanceDeposit.objects.create(
@@ -309,7 +380,9 @@ class FinishingFinancialService:
         if order.finishing_installment_plan:
             return order.finishing_installment_plan
 
-        total_finishing = order.gross_finishing_amount
+        breakdown = cls.calculate_approved_debt_breakdown(order)
+        total_finishing = breakdown['total_debt']
+
         deposit_paid = order.total_deposit_paid or Decimal('0.00')
         scheduled_balance = total_finishing - deposit_paid
 
@@ -541,8 +614,32 @@ class FinishingStoreRequisitionService:
         user=None
     ) -> FinishingMaterialRequisition:
         """
-        صرف خامات من المخزن للوحدة مع فحص الكوتة الهندسية
+        صرف خامات من المخزن للوحدة مع فحص الكوتة الهندسية وتجميد الموقع وصمامات نقاط التوقف
         """
+        if quantity_to_issue <= Decimal('0.00'):
+            raise ValidationError(_("كمية الصرف يجب أن تكون أكبر من الصفر."))
+
+        # قفل سجل البند لمنع التجاوز المتزامن لكوتة المقايسة المعتمدة
+        order_item = UnitFinishingOrderItem.objects.select_for_update().get(pk=order_item.pk)
+
+        if getattr(order_item.order, 'is_site_work_frozen', False):
+            raise ValidationError(_("الأعمال الميدانية وصرف الخامات مجمدة لأمر التشطيب هذا."))
+
+        # فحص صمامات نقاط التوقف (Hold Points) حسب فئة البند
+        if order_item.category in ['WALL_FINISH', 'PAINTING']:
+            if order_item.workspace:
+                from real_estate.services.finishing_inspection_service import FinishingHoldPointEngine
+                can_issue, err = FinishingHoldPointEngine.can_issue_painting_materials(order_item.order, order_item.workspace)
+                if not can_issue:
+                    raise ValidationError(err)
+
+        if order_item.category in ['FLOORING', 'TILING', 'CERAMIC']:
+            if order_item.workspace:
+                from real_estate.services.finishing_inspection_service import FinishingHoldPointEngine
+                can_issue, err = FinishingHoldPointEngine.can_issue_flooring_materials(order_item.order, order_item.workspace)
+                if not can_issue:
+                    raise ValidationError(err)
+
         current_issued = order_item.issued_quantity_from_store or Decimal('0.00')
         max_allowed = order_item.gross_quantity
 
@@ -551,7 +648,87 @@ class FinishingStoreRequisitionService:
                 _(f"لا يمكن صرف الكمية المطلوبة ({quantity_to_issue}). إجمالي المنصرف ({current_issued}) سيتجاوز كوتة البند المعتمدة ({max_allowed} {order_item.measuring_unit}).")
             )
 
+        # 1. التحقق من وجود طبقات تكلفة مفتوحة ورصيد متاح فعلياً عبر نظام FIFO
+        layers = list(InventoryCostLayer.objects.filter(
+            product=product,
+            warehouse=warehouse,
+            status='OPEN',
+            remaining_qty__gt=Decimal('0.00')
+        ).order_by('receipt_date', 'id').select_for_update())
+
+        if not layers:
+            raise ValidationError(_("لا يوجد رصيد مخزني متاح أو طبقات تكلفة مفتوحة لهذا الصنف في المخزن المحدد."))
+
+        total_available = sum(l.remaining_qty for l in layers)
+        if total_available < quantity_to_issue:
+            raise ValidationError(
+                _(f"إجمالي الرصيد المتاح في طبقات التكلفة ({total_available}) غير كافٍ لصرف الكمية المطلوبة ({quantity_to_issue}).")
+            )
+
+        # استهلاك طبقات التكلفة بنظام FIFO
+        remaining_needed = quantity_to_issue
+        consumed_layers_info = []
+        for layer in layers:
+            if remaining_needed <= Decimal('0.00'):
+                break
+            consume_qty = min(layer.remaining_qty, remaining_needed)
+            layer.remaining_qty = (layer.remaining_qty - consume_qty).quantize(Decimal('0.0001'))
+            if layer.remaining_qty == Decimal('0.0000'):
+                layer.status = 'DEPLETED'
+            layer.save(update_fields=['remaining_qty', 'status'])
+            consumed_layers_info.append((layer, consume_qty, layer.unit_cost))
+            remaining_needed -= consume_qty
+
+        total_consumed_cost = sum(qty * cost for _, qty, cost in consumed_layers_info)
+        weighted_unit_cost = (total_consumed_cost / quantity_to_issue).quantize(Decimal('0.01')) if quantity_to_issue > 0 else Decimal('0.00')
+
         req_num = f"REQ-MAT-{order_item.order.order_number}-{order_item.id}-{uuid.uuid4().hex[:8]}"
+
+        # 2. تسجيل حركة مخزنية فعلية صادر بالكمية الدقيقة
+        stock_movement = StockMovement.objects.create(
+            product=product,
+            warehouse=warehouse,
+            movement_type="out",
+            quantity=quantity_to_issue,
+            unit_cost=weighted_unit_cost,
+            reference_number=req_num,
+            document_type="other",
+            document_number=order_item.order.order_number,
+            notes=f"صرف خامات تشطيب للوحدة {order_item.order.unit.unit_code}",
+            created_by=user or order_item.order.created_by
+        )
+
+        # 3. إنشاء سطور أستاذ المخزون وتتبع استهلاك الطبقات
+        primary_consumption = None
+        for layer, qty, cost in consumed_layers_info:
+            sle_num = f"SLE-{uuid.uuid4().hex[:12]}"
+            sle = StockLedgerEntry.objects.create(
+                entry_number=sle_num,
+                movement_service_ref=f"FIN-REQ-{req_num}",
+                product=product,
+                warehouse=warehouse,
+                movement_type='ISSUE',
+                quantity=-qty,
+                unit_cost=cost,
+                total_cost=round(-qty * cost, 2)
+            )
+
+            consumption = InventoryCostConsumption.objects.create(
+                consumption_number=f"CONS-{uuid.uuid4().hex[:12]}",
+                cost_layer=layer,
+                stock_ledger_entry=sle,
+                consumed_qty=qty,
+                unit_cost=cost,
+                total_cost=round(qty * cost, 2)
+            )
+            if primary_consumption is None:
+                primary_consumption = consumption
+
+        # تحديث بيانات الحركة المخزنية بعد ترحيل القيد التلقائي
+        stock_movement.refresh_from_db()
+        if not stock_movement.journal_entry_id:
+            raise ValidationError(_("فشل الترحيل المحاسبي لحركة صرف الخامات؛ تم إلغاء العملية لحماية الأرصدة والقيود الدفترية."))
+
         req = FinishingMaterialRequisition.objects.create(
             requisition_number=req_num,
             order=order_item.order,
@@ -564,7 +741,9 @@ class FinishingStoreRequisitionService:
             quantity_issued=quantity_to_issue,
             issue_date=timezone.now().date(),
             is_cost_reversed=False,
-            created_by=user
+            stock_movement=stock_movement,
+            cost_consumption=primary_consumption,
+            created_by=user or order_item.order.created_by
         )
 
         order_item.issued_quantity_from_store = current_issued + quantity_to_issue
@@ -591,8 +770,13 @@ class FinishingMaterialReturnService:
         user=None
     ) -> FinishingMaterialRequisition:
         """
-        إثبات إذن ارتجاع خامات سليمة للمخزن وعكس كوتة المنصرف
+        إثبات إذن ارتجاع خامات سليمة للمخزن وعكس كوتة المنصرف واستعادة رصيد طبقات التكلفة الأصلية
+        مع إنشاء وترحيل قيد عكس التكلفة المحاسبي المتطابق مع حسابات وتكلفة الصرف
         """
+        if quantity_to_return <= Decimal('0.00'):
+            raise ValidationError(_("كمية الارتجاع يجب أن تكون أكبر من الصفر."))
+
+        order_item = UnitFinishingOrderItem.objects.select_for_update().get(pk=order_item.pk)
         current_issued = order_item.issued_quantity_from_store or Decimal('0.00')
 
         if quantity_to_return > current_issued:
@@ -600,7 +784,144 @@ class FinishingMaterialReturnService:
                 _(f"الكمية المراد ارتجاعها ({quantity_to_return}) تتجاوز إجمالي المنصرف فعلياً للوحدة ({current_issued}).")
             )
 
+        # 1. التحقق من أن هذا الصنف تم صرفه مسبقاً لهذا البند وتتبع أصل الصرف
+        item_has_requisitions = FinishingMaterialRequisition.objects.filter(order_item=order_item).exists()
+        previous_issues = FinishingMaterialRequisition.objects.filter(
+            order_item=order_item,
+            product=product,
+            transaction_type='ISSUE'
+        ).order_by('-id')
+
+        if item_has_requisitions and not previous_issues.exists():
+            raise ValidationError(_("لا يمكن إرجاع صنف لم يتم صرفه مسبقاً لهذا البند."))
+
+        if previous_issues.exists():
+            total_prod_issued = previous_issues.aggregate(t=models.Sum('quantity_issued'))['t'] or Decimal('0.00')
+            total_prod_returned = FinishingMaterialRequisition.objects.filter(
+                order_item=order_item,
+                product=product,
+                transaction_type='RETURN'
+            ).aggregate(t=models.Sum('quantity_issued'))['t'] or Decimal('0.00')
+
+            net_prod_issued = total_prod_issued - total_prod_returned
+            if quantity_to_return > net_prod_issued:
+                raise ValidationError(
+                    _(f"الكمية المراد ارتجاعها ({quantity_to_return}) تتجاوز صافي المنصرف من هذا الصنف ({net_prod_issued}).")
+                )
+
+        # استعادة الكمية لطبقات التكلفة الأصلية التي تم الصرف منها بنظام العكس التنازلي LIFO
+        issue_req_numbers = list(previous_issues.values_list('requisition_number', flat=True))
+        req_refs = [f"FIN-REQ-{rn}" for rn in issue_req_numbers]
+        legacy_ref = f"FINISHING-{order_item.order.order_number}"
+
+        consumptions = list(InventoryCostConsumption.objects.filter(
+            models.Q(stock_ledger_entry__movement_service_ref__in=req_refs) |
+            models.Q(stock_ledger_entry__movement_service_ref=legacy_ref, stock_ledger_entry__product=product)
+        ).select_related('cost_layer').order_by('-id'))
+
+        remaining_to_return = quantity_to_return
+        returned_allocations = []  # list of (consumption, layer, restore_qty, unit_cost)
+        layers_by_id = {}
+
+        if consumptions:
+            for consumption in consumptions:
+                if remaining_to_return <= Decimal('0.00'):
+                    break
+                # حساب الكمية المرتجعة سابقاً من هذا الاستهلاك الميداني تحديداً
+                already_returned = StockLedgerEntry.objects.filter(
+                    movement_service_ref__startswith=f"FIN-RET-{consumption.id}-",
+                    movement_type='RECEIPT'
+                ).aggregate(s=models.Sum('quantity'))['s'] or Decimal('0.0000')
+
+                outstanding = consumption.consumed_qty - already_returned
+                if outstanding > Decimal('0.0000'):
+                    restore_qty = min(remaining_to_return, outstanding)
+                    layer_id = consumption.cost_layer_id
+                    if layer_id not in layers_by_id:
+                        layers_by_id[layer_id] = InventoryCostLayer.objects.select_for_update().get(id=layer_id)
+                    layer = layers_by_id[layer_id]
+                    if layer.warehouse_id == warehouse.id:
+                        layer.remaining_qty = (layer.remaining_qty + restore_qty).quantize(Decimal('0.0001'))
+                        if layer.status == 'DEPLETED' and layer.remaining_qty > Decimal('0.0000'):
+                            layer.status = 'OPEN'
+                        layer.save(update_fields=['remaining_qty', 'status'])
+                    remaining_to_return -= restore_qty
+                    returned_allocations.append((consumption, layer, restore_qty, layer.unit_cost))
+
+        if remaining_to_return > Decimal('0.00'):
+            fallback_layer = InventoryCostLayer.objects.filter(
+                product=product,
+                warehouse=warehouse
+            ).select_for_update().order_by('receipt_date', 'id').first()
+            if fallback_layer:
+                if fallback_layer.id in layers_by_id:
+                    fallback_layer = layers_by_id[fallback_layer.id]
+                else:
+                    layers_by_id[fallback_layer.id] = fallback_layer
+                fallback_layer.remaining_qty = (fallback_layer.remaining_qty + remaining_to_return).quantize(Decimal('0.0001'))
+                if fallback_layer.status == 'DEPLETED':
+                    fallback_layer.status = 'OPEN'
+                fallback_layer.save(update_fields=['remaining_qty', 'status'])
+                returned_allocations.append((None, fallback_layer, remaining_to_return, fallback_layer.unit_cost))
+            else:
+                unit_cost = getattr(product, 'cost_price', Decimal('100.00')) or Decimal('100.00')
+                returned_allocations.append((None, None, remaining_to_return, unit_cost))
+
+        total_return_cost = sum(qty * cost for _, _, qty, cost in returned_allocations)
+        weighted_unit_cost = (total_return_cost / quantity_to_return).quantize(Decimal('0.0001')) if quantity_to_return > 0 else Decimal('0.00')
+
         req_num = f"RET-MAT-{order_item.order.order_number}-{order_item.id}-{uuid.uuid4().hex[:8]}"
+        return_date = timezone.now().date()
+        period = get_or_create_open_period(return_date, user)
+
+        # 2. حركة مخزنية مرتجع وارد بتكلفة التخصيص الأصلية
+        stock_movement = StockMovement.objects.create(
+            product=product,
+            warehouse=warehouse,
+            movement_type="return_in",
+            quantity=quantity_to_return,
+            unit_cost=weighted_unit_cost,
+            reference_number=req_num,
+            document_type="other",
+            document_number=order_item.order.order_number,
+            notes=f"ارتجاع خامات تشطيب للوحدة {order_item.order.unit.unit_code}",
+            created_by=user or order_item.order.created_by
+        )
+
+        # 3. سطور أستاذ المخزون موجب للوارد لكل طبقة مربوطة برقم الاستهلاك
+        for consumption, layer, qty, cost in returned_allocations:
+            sle_num = f"SLE-RET-{uuid.uuid4().hex[:12]}"
+            ref = f"FIN-RET-{consumption.id}-{req_num}" if consumption else f"FIN-RET-{req_num}"
+            sle = StockLedgerEntry.objects.create(
+                entry_number=sle_num,
+                movement_service_ref=ref,
+                product=product,
+                warehouse=warehouse,
+                movement_type='RECEIPT',
+                quantity=qty,
+                unit_cost=cost,
+                total_cost=round(qty * cost, 2)
+            )
+            # إذا كان الارتجاع لمخزن مختلف عن مخزن الطبقة الأصلية (أو لا توجد طبقة سابقة في هذا المخزن)
+            if layer is None or layer.warehouse_id != warehouse.id:
+                InventoryCostLayer.objects.create(
+                    product=product,
+                    warehouse=warehouse,
+                    receipt_date=timezone.now(),
+                    stock_ledger_entry=sle,
+                    original_qty=qty,
+                    remaining_qty=qty,
+                    base_unit_cost=cost,
+                    landed_cost_unit=Decimal("0.0000"),
+                    unit_cost=cost,
+                    status="OPEN"
+                )
+
+        # تحديث بيانات الحركة المخزنية بعد ترحيل القيد التلقائي
+        stock_movement.refresh_from_db()
+        if not stock_movement.journal_entry_id:
+            raise ValidationError(_("فشل الترحيل المحاسبي لحركة ارتجاع الخامات؛ تم إلغاء العملية لحماية الأرصدة والقيود الدفترية."))
+
         ret = FinishingMaterialRequisition.objects.create(
             requisition_number=req_num,
             order=order_item.order,
@@ -611,10 +932,11 @@ class FinishingMaterialReturnService:
             transaction_type='RETURN',
             quantity_requested=quantity_to_return,
             quantity_issued=quantity_to_return,
-            issue_date=timezone.now().date(),
+            issue_date=return_date,
             return_reason=return_reason,
             is_cost_reversed=True,
-            created_by=user
+            stock_movement=stock_movement,
+            created_by=user or order_item.order.created_by
         )
 
         order_item.issued_quantity_from_store = current_issued - quantity_to_return

@@ -145,10 +145,12 @@ class FinishingHoldPointEngine:
             order=order,
             workspace=workspace
         )
-        if moisture_records.exists():
-            latest_record = moisture_records.latest('id')
-            if latest_record.moisture_percentage > cls.MAX_PERMISSIBLE_PLASTER_MOISTURE_PCT or not latest_record.is_passed:
-                return False, _(f"محظور صرف خامات الدهانات للفراغ '{workspace.name}' نظراً لتجاوز رطوبة المحارة النسبة المعيارية (الرطوبة المقاسة: {latest_record.moisture_percentage}% والحد الأقصى 12%).")
+        if not moisture_records.exists():
+            return False, _(f"محظور صرف خامات الدهانات للفراغ '{workspace.name}' لعدم تسجيل واعتماد محضر قياس رطوبة المحارة.")
+
+        latest_record = moisture_records.latest('id')
+        if latest_record.moisture_percentage > cls.MAX_PERMISSIBLE_PLASTER_MOISTURE_PCT or not latest_record.is_passed:
+            return False, _(f"محظور صرف خامات الدهانات للفراغ '{workspace.name}' نظراً لتجاوز رطوبة المحارة النسبة المعيارية (الرطوبة المقاسة: {latest_record.moisture_percentage}% والحد الأقصى 12%).")
 
         return True, None
 
@@ -517,8 +519,8 @@ class FinishingInspectionService:
         manometer_gauge_photo=None
     ) -> HVACNitrogenHoldingInspection:
         """تسجيل اختبار كبس شبكة التكييف بالنيتروجين والفاكيوم"""
-        # يعتبر ناجحاً إذا لم ينخفض الضغط وكان اختبار الفاكيوم أقل من 500 ميكرون
-        is_passed = (final_pressure_psi >= initial_pressure_psi) and (vacuum_micron_reading <= Decimal('500.00'))
+        # يعتبر ناجحاً إذا لم ينخفض الضغط وكان اختبار الفاكيوم أقل من 500 ميكرون وانقضت 24 ساعة كبس على الأقل
+        is_passed = (final_pressure_psi >= initial_pressure_psi) and (vacuum_micron_reading <= Decimal('500.00')) and (test_duration_hours >= 24)
         inspection = HVACNitrogenHoldingInspection.objects.create(
             order=order,
             system_type=system_type,

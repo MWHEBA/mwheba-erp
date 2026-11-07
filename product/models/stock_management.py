@@ -83,12 +83,21 @@ class Stock(models.Model):
         related_name="stocks",
         verbose_name=_("المخزن"),
     )
-    quantity = models.PositiveIntegerField(_("الكمية المتاحة"), default=0)
+    quantity = models.DecimalField(
+        _("الكمية المتاحة"),
+        max_digits=15,
+        decimal_places=4,
+        default=Decimal("0.0000"),
+        validators=[MinValueValidator(Decimal("0.0000"))]
+    )
     
     # الحقول المحسنة (من ProductStock)
-    reserved_quantity = models.PositiveIntegerField(
+    reserved_quantity = models.DecimalField(
         _("الكمية المحجوزة"), 
-        default=0,
+        max_digits=15,
+        decimal_places=4,
+        default=Decimal("0.0000"),
+        validators=[MinValueValidator(Decimal("0.0000"))],
         help_text=_("الكمية المحجوزة للطلبات المعلقة")
     )
     average_cost = models.DecimalField(
@@ -309,7 +318,12 @@ class StockMovement(models.Model):
     movement_type = models.CharField(
         _("نوع الحركة"), max_length=20, choices=MOVEMENT_TYPES
     )
-    quantity = models.PositiveIntegerField(_("الكمية"))
+    quantity = models.DecimalField(
+        _("الكمية"),
+        max_digits=15,
+        decimal_places=4,
+        default=Decimal("0.0000"),
+    )
     unit_cost = models.DecimalField(
         _("تكلفة الوحدة"),
         max_digits=10,
@@ -400,7 +414,11 @@ class StockMovement(models.Model):
     def total_cost(self):
         """حساب التكلفة الإجمالية للحركة"""
         from decimal import Decimal
-        return Decimal(str(self.quantity)) * self.unit_cost
+        if self.journal_entry:
+            debit_sum = sum(line.debit for line in self.journal_entry.lines.filter(debit__gt=0))
+            if debit_sum > 0:
+                return debit_sum
+        return (Decimal(str(self.quantity)) * self.unit_cost).quantize(Decimal('0.01'))
 
     def _create_journal_entry(self):
         """إنشاء قيد محاسبي لحركة المخزون عبر Service"""

@@ -47,6 +47,7 @@ from .service_governance import governed_service
 from .signal_governance import (
     governed_signal_handler, SignalErrorHandler, SignalPerformanceMonitor
 )
+from governance.models import GovernanceContext
 
 __all__ = [
     'AuditService',
@@ -112,5 +113,6 @@ __all__ = [
     'governed_service',
     'governed_signal_handler',
     'SignalErrorHandler',
-    'SignalPerformanceMonitor'
+    'SignalPerformanceMonitor',
+    'GovernanceContext'
 ]

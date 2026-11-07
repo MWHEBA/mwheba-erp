@@ -40,7 +40,7 @@ from real_estate.models import (
 )
 from customer.models import Customer
 from supplier.models import Supplier
-from product.models import Product, Category, Unit as ProductMeasurementUnit, Warehouse
+from product.models import Product, Category, Unit as ProductMeasurementUnit, Warehouse, InventoryCostLayer, StockLedgerEntry
 from financial.models.currency import Currency
 from financial.models import (
     ChartOfAccounts,
@@ -272,18 +272,18 @@ def test_segregated_finishing_installment_plan_creation(financial_setup):
     order.refresh_from_db()
 
     assert order.finishing_installment_plan == plan
-    assert plan.total_finishing_amount == Decimal('200000.00')
+    assert plan.total_finishing_amount == Decimal('210000.00')
     assert plan.down_payment_paid == Decimal('70000.00')
-    assert plan.scheduled_balance == Decimal('130000.00')
+    assert plan.scheduled_balance == Decimal('140000.00')
     assert plan.number_of_installments == 4
 
     items = plan.items.all().order_by('installment_number')
     assert items.count() == 4
 
-    # 130,000 / 4 = 32,500 each
+    # 140,000 / 4 = 35,000 each
     total_items_sum = sum(i.amount for i in items)
-    assert total_items_sum == Decimal('130000.00')
-    assert items[0].amount == Decimal('32500.00')
+    assert total_items_sum == Decimal('140000.00')
+    assert items[0].amount == Decimal('35000.00')
     assert items[0].due_date == date(2025, 7, 1)
     assert items[1].due_date == date(2025, 10, 1)
 
@@ -416,6 +416,18 @@ def test_store_material_requisition_quota_guard(financial_setup):
     contractor = data['supplier']
     user = data['user']
 
+    # Seed cost layer with 100 m²
+    receipt = StockLedgerEntry.objects.create(
+        entry_number='RECEIPT-P4-STORE', movement_service_ref='P4-STORE',
+        product=product, warehouse=warehouse, movement_type='RECEIPT',
+        quantity=Decimal('100.00'), unit_cost=Decimal('500.00'), total_cost=Decimal('50000.00')
+    )
+    InventoryCostLayer.objects.create(
+        product=product, warehouse=warehouse, receipt_date=timezone.now(),
+        stock_ledger_entry=receipt, original_qty=Decimal('100.00'), remaining_qty=Decimal('100.00'),
+        unit_cost=Decimal('500.00'), status='OPEN'
+    )
+
     # Approved gross quantity = 80 m²
     order_item = UnitFinishingOrderItem.objects.create(
         order=order,
@@ -478,6 +490,18 @@ def test_store_material_return_and_quota_reversal(financial_setup):
     warehouse = data['warehouse']
     contractor = data['supplier']
     user = data['user']
+
+    # Seed cost layer
+    receipt = StockLedgerEntry.objects.create(
+        entry_number='RECEIPT-P4-RET', movement_service_ref='P4-RET',
+        product=product, warehouse=warehouse, movement_type='RECEIPT',
+        quantity=Decimal('100.00'), unit_cost=Decimal('500.00'), total_cost=Decimal('50000.00')
+    )
+    InventoryCostLayer.objects.create(
+        product=product, warehouse=warehouse, receipt_date=timezone.now(),
+        stock_ledger_entry=receipt, original_qty=Decimal('100.00'), remaining_qty=Decimal('20.00'),
+        unit_cost=Decimal('500.00'), status='OPEN'
+    )
 
     # Currently issued = 80 m²
     order_item = UnitFinishingOrderItem.objects.create(

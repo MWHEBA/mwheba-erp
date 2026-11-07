@@ -7,10 +7,11 @@ import logging
 from decimal import Decimal
 from datetime import date
 
+from django import forms
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.urls import reverse, reverse_lazy
 from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
@@ -18,6 +19,8 @@ from django.template.loader import render_to_string
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+
+from customer.models import Customer
 
 from real_estate.models import (
     RealEstateProject,
@@ -242,16 +245,65 @@ class FinishingOrderDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+class FinishingOrderCreateForm(forms.ModelForm):
+    contract = forms.ModelChoiceField(queryset=PropertyContract.objects.all(), required=False)
+    customer = forms.ModelChoiceField(queryset=Customer.objects.all(), required=False)
+
+    ELIGIBLE_CONTRACT_STATUSES = ['ACTIVE', 'SIGNED', 'CONTRACTED']
+
+    class Meta:
+        model = UnitFinishingOrder
+        fields = [
+            'unit', 'contract', 'customer', 'title', 'order_type', 'pricing_mode',
+            'workflow_speed', 'package', 'execution_duration_days', 'notes'
+        ]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        unit = cleaned_data.get('unit')
+        contract = cleaned_data.get('contract')
+        customer = cleaned_data.get('customer')
+
+        if unit:
+            if not contract:
+                contract = PropertyContract.objects.filter(unit=unit, status__in=self.ELIGIBLE_CONTRACT_STATUSES).first()
+                if not contract:
+                    any_contract = PropertyContract.objects.filter(unit=unit).first()
+                    if any_contract:
+                        self.add_error('unit', _(f"عقد بيع الوحدة ليس في حالة سارية (الحالة الحالية: {any_contract.get_status_display()}). يلزم تفعيل العقد أولاً."))
+                    else:
+                        self.add_error('unit', _("الوحدة العقارية المختارة ليس لها عقد بيع مسجل."))
+                cleaned_data['contract'] = contract
+            else:
+                if contract.unit_id != unit.id:
+                    self.add_error('contract', _("العقد المحدد لا يخص الوحدة العقارية المختارة."))
+                elif contract.status not in self.ELIGIBLE_CONTRACT_STATUSES:
+                    self.add_error('contract', _(f"لا يمكن إنشاء أمر تشطيب لعقد في حالة '{contract.get_status_display()}'. يلزم أن يكون العقد سارياً ومبرماً."))
+
+            if contract:
+                if contract.status not in self.ELIGIBLE_CONTRACT_STATUSES:
+                    self.add_error('contract', _(f"لا يمكن إنشاء أمر تشطيب لعقد في حالة '{contract.get_status_display()}'. يلزم أن يكون العقد سارياً ومبرماً."))
+                if customer:
+                    if customer.pk != contract.customer_id:
+                        self.add_error('customer', _("العميل المحدد لا يتطابق مع الطرف المشتري في العقد العقاري."))
+                else:
+                    cleaned_data['customer'] = contract.customer
+
+        return cleaned_data
+
+
 class FinishingOrderCreateView(LoginRequiredMixin, CreateView):
     """
     إنشاء أمر تشطيب وتعديل جديد
     """
     model = UnitFinishingOrder
-    fields = [
-        'unit', 'contract', 'customer', 'title', 'order_type', 'pricing_mode',
-        'workflow_speed', 'package', 'execution_duration_days', 'notes'
-    ]
+    form_class = FinishingOrderCreateForm
     template_name = 'real_estate/finishing/finishing_order_form.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.has_perm('real_estate.add_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية إنشاء طلبات تشطيب جديدة."))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -266,6 +318,8 @@ class FinishingOrderCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        form.instance.contract = form.cleaned_data['contract']
+        form.instance.customer = form.cleaned_data['customer']
         form.instance.created_by = self.request.user
         form.instance.current_stage = 'CUSTOMER_SERVICE'
         # Generate order number
@@ -332,6 +386,9 @@ class ApiFinishingStageTransitionView(LoginRequiredMixin, View):
     """انتقال مرحلة أمر التشطيب محوكماً مع صمامات الأمان"""
 
     def post(self, request, pk):
+        if not request.user.has_perm('real_estate.change_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية تعديل أو نقل مراحل أوامر التشطيب."))
+
         order = get_object_or_404(UnitFinishingOrder, pk=pk)
         target_stage = request.POST.get('target_stage')
 
@@ -358,6 +415,9 @@ class ApiRecordHydrostaticTestView(LoginRequiredMixin, View):
     """تسجيل محضر اختبار كبس أو غمر العزل المائي للفراغ المبتل"""
 
     def post(self, request, pk):
+        if not request.user.has_perm('real_estate.change_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية تسجيل الفحوصات الفنية لأوامر التشطيب."))
+
         order = get_object_or_404(UnitFinishingOrder, pk=pk)
         workspace_id = request.POST.get('workspace_id')
         workspace = get_object_or_404(FinishingWorkspace, pk=workspace_id)
