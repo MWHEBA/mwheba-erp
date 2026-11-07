@@ -167,6 +167,20 @@ class UnitPricingMatrixConfig(models.Model):
         default=Decimal('8.00'),
         verbose_name=_('نسبة وديعة الصيانة القانونية (%)')
     )
+    default_finishing_package = models.ForeignKey(
+        'real_estate.FinishingPackageTemplate',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='pricing_configs',
+        verbose_name=_('باقة التشطيب الافتراضية في مصفوفة التسعير')
+    )
+    finishing_meter_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر متر التشطيب المعتمد بالمصفوفة (ج.م/م²)')
+    )
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

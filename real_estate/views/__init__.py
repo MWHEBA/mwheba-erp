@@ -13,3 +13,4 @@ from . import engineering_views
 from . import service_views
 from . import operations_views
 from . import report_views
+from . import finishing_views

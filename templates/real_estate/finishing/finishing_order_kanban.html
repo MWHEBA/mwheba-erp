@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load i18n humanize static %}
+
+{% block title %}{% trans "لوحة كانبان - مراحل التشطيب والتعديلات" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Top Action Navigation -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex gap-2">
+      <a href="{% url 'real_estate:finishing_order_list' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-list me-1"></i>{% trans "عرض القائمة الجدولية" %}
+      </a>
+      <a href="{% url 'real_estate:finishing_catalog' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-palette me-1"></i>{% trans "دليل المواصفات" %}
+      </a>
+    </div>
+    <a href="{% url 'real_estate:finishing_order_create' %}" class="btn btn-primary btn-sm px-3">
+      <i class="fas fa-plus me-1"></i>{% trans "طلب تشطيب جديد" %}
+    </a>
+  </div>
+
+  <!-- Kanban Horizontal Columns Container -->
+  <div class="row g-3 flex-nowrap overflow-auto pb-4" style="min-height: 75vh;">
+    {% for col in kanban_columns %}
+    <div class="col-12 col-md-4 col-xl-2" style="min-width: 290px;">
+      <div class="card h-100 border shadow-sm bg-light">
+        <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+          <h6 class="mb-0 fw-bold text-dark text-truncate" title="{{ col.title }}">
+            {{ col.title }}
+          </h6>
+          <span class="badge bg-secondary rounded-pill">{{ col.count }}</span>
+        </div>
+        <div class="card-body p-2 d-flex flex-column gap-2 overflow-auto" style="max-height: 70vh;">
+          {% for order in col.orders %}
+          <div class="card border shadow-sm bg-white p-3 cursor-pointer" onclick="window.location.href='{% url 'real_estate:finishing_order_detail' order.pk %}'">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-light text-primary border fw-bold">{{ order.order_number }}</span>
+              <small class="text-muted"><i class="fas fa-calendar-alt me-1"></i>{{ order.created_at|date:"Y-m-d" }}</small>
+            </div>
+            <h6 class="fw-bold text-dark mb-1 text-truncate">{{ order.unit.unit_code }}</h6>
+            <div class="small text-muted mb-2 text-truncate">{{ order.customer.name }}</div>
+
+            <div class="border-top pt-2 mt-auto d-flex justify-content-between align-items-center">
+              <span class="fw-bold text-dark">{{ order.gross_finishing_amount|default:"0.00"|intcomma }} <small>ج.م</small></span>
+              {% if order.workflow_speed == 'FAST_TRACK' %}
+              <span class="badge bg-success-subtle text-success border border-success" title="{% trans 'مسار سريع' %}">
+                <i class="fas fa-bolt"></i>
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          {% empty %}
+          <div class="text-center py-4 text-muted small">
+            <i class="fas fa-inbox fa-2x mb-2 text-secondary opacity-50"></i>
+            <p class="mb-0">{% trans "لا توجد طلبات في هذه المرحلة" %}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

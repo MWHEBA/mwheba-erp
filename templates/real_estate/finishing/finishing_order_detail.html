@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% load i18n humanize static %}
+
+{% block title %}{{ order.order_number }} - {% trans "تفاصيل أمر التشطيب والتعديلات" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Order Header Card -->
+  <div class="card border shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row align-items-center">
+        <div class="col-12 col-md-8">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <h4 class="fw-bold text-dark mb-0">{{ order.order_number }}</h4>
+            <span class="badge bg-primary">{{ order.get_order_type_display }}</span>
+            {% if order.workflow_speed == 'FAST_TRACK' %}
+            <span class="badge bg-success"><i class="fas fa-bolt me-1"></i>{% trans "مسار سريع" %}</span>
+            {% endif %}
+          </div>
+          <p class="text-muted mb-0">
+            <i class="fas fa-building me-1 text-primary"></i><strong>{{ order.unit.project.name }}</strong> |
+            <i class="fas fa-door-open me-1 text-secondary"></i>{% trans "الوحدة:" %} <strong>{{ order.unit.unit_code }}</strong> |
+            <i class="fas fa-user me-1 text-secondary"></i>{% trans "العميل:" %} <strong>{{ order.customer.name }}</strong> ({{ order.customer.phone|default:"" }})
+          </p>
+        </div>
+        <div class="col-12 col-md-4 text-md-end mt-3 mt-md-0">
+          <div class="small text-muted mb-1">{% trans "المرحلة الميدانية الحالية" %}</div>
+          <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+            <i class="fas fa-tasks me-1"></i>{{ order.get_current_stage_display }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financial Summary KPI Row -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <span class="stats-card-title">{% trans "إجمالي المقايسة" %}</span>
+          <h3 class="stats-card-value mb-0">{{ order.gross_finishing_amount|default:"0.00"|intcomma }} <small class="fs-6">ج.م</small></h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <span class="stats-card-title">{% trans "الدفعة المقدمة 35% المطلوبة" %}</span>
+          <h3 class="stats-card-value mb-0">{{ order.advance_deposit_required|default:"0.00"|intcomma }} <small class="fs-6">ج.م</small></h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <span class="stats-card-title">{% trans "المسدد بالضمان" %}</span>
+          <h3 class="stats-card-value mb-0">{{ order.total_deposit_paid|default:"0.00"|intcomma }} <small class="fs-6">ج.م</small></h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <span class="stats-card-title">{% trans "رصيد استرداد نصف التشطيب" %}</span>
+          <h3 class="stats-card-value mb-0">{{ order.core_shell_credit_total|default:"0.00"|intcomma }} <small class="fs-6">ج.م</small></h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <ul class="nav nav-tabs mb-4" id="finishingDetailTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active fw-bold" id="boq-tab" data-bs-toggle="tab" data-bs-target="#boq-pane" type="button" role="tab">
+        <i class="fas fa-list-check me-2"></i>{% trans "مقايسة الفراغات والمعمارية" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold" id="quality-tab" data-bs-toggle="tab" data-bs-target="#quality-pane" type="button" role="tab">
+        <i class="fas fa-microscope me-2"></i>{% trans "نقاط التوقف الفنية وجودة التنفيذ" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold" id="finance-tab" data-bs-toggle="tab" data-bs-target="#finance-pane" type="button" role="tab">
+        <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "المالية والأقساط المستقلة" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold" id="store-tab" data-bs-toggle="tab" data-bs-target="#store-pane" type="button" role="tab">
+        <i class="fas fa-boxes me-2"></i>{% trans "صرف الخامات وكوتة المخزن" %}
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tabs Content Panes -->
+  <div class="tab-content" id="finishingDetailTabContent">
+    <!-- Tab 1: BOQ Items by Workspace -->
+    <div class="tab-pane fade show active" id="boq-pane" role="tabpanel">
+      {% for ws_name, ws_items in workspaces_grouped_items.items %}
+      <div class="section-container mb-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-2 px-3">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-cube text-primary me-2"></i>{{ ws_name }}
+            </h6>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "التوصيف" %}</th>
+                    <th>{% trans "التصنيف" %}</th>
+                    <th>{% trans "المصدر" %}</th>
+                    <th class="text-center">{% trans "الكمية الصافية" %}</th>
+                    <th class="text-center">{% trans "الهالك (%)" %}</th>
+                    <th class="text-center">{% trans "الكمية الإجمالية" %}</th>
+                    <th class="text-end">{% trans "سعر البيع" %}</th>
+                    <th class="text-end pe-3">{% trans "الإجمالي" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in ws_items %}
+                  <tr>
+                    <td class="ps-3 fw-bold text-dark">{{ item.item_description }}</td>
+                    <td><span class="badge bg-light text-secondary border">{{ item.get_category_display }}</span></td>
+                    <td>
+                      {% if item.supply_source == 'OWNER_SUPPLIED' %}
+                      <span class="badge bg-info-subtle text-info border border-info">{% trans "خامات عميل OSM" %}</span>
+                      {% else %}
+                      <span class="badge bg-light text-dark border">{% trans "توريد وتركيب الشركة" %}</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">{{ item.quantity }} {{ item.measuring_unit }}</td>
+                    <td class="text-center">{{ item.scrap_rate }}%</td>
+                    <td class="text-center fw-bold">{{ item.gross_quantity }} {{ item.measuring_unit }}</td>
+                    <td class="text-end">{{ item.unit_selling_price|intcomma }}</td>
+                    <td class="text-end pe-3 fw-bold">{{ item.total_selling_price|intcomma }} ج.م</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="alert alert-info border-0 shadow-sm">
+        <i class="fas fa-info-circle me-2"></i>{% trans "لم يتم إضافة بنود مقايسة بعد لهذا الطلب." %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Tab 2: Quality & Hold-Points -->
+    <div class="tab-pane fade" id="quality-pane" role="tabpanel">
+      <div class="row g-4">
+        <div class="col-12 col-md-6">
+          <div class="section-container">
+            <div class="card border shadow-sm">
+              <div class="card-header bg-light border-bottom py-2 px-3">
+                <h6 class="mb-0 fw-bold text-dark">
+                  <i class="fas fa-tint text-primary me-2"></i>{% trans "محاضر اختبار العزل وضغط المياه" %}
+                </h6>
+              </div>
+              <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                  {% for test in hydrostatic_tests %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>{{ test.workspace.name }}</strong> ({{ test.get_test_type_display }})
+                      <div class="small text-muted">{{ test.duration_hours }} {% trans "ساعة" %} | {{ test.consultant_engineer_name }}</div>
+                    </div>
+                    {% if test.is_passed %}
+                    <span class="badge bg-success"><i class="fas fa-check me-1"></i>{% trans "ناجح" %}</span>
+                    {% else %}
+                    <span class="badge bg-danger"><i class="fas fa-times me-1"></i>{% trans "راسب" %}</span>
+                    {% endif %}
+                  </li>
+                  {% empty %}
+                  <li class="list-group-item text-center py-4 text-muted">{% trans "لا توجد اختبارات هيدروستاتيكية مسجلة" %}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="section-container">
+            <div class="card border shadow-sm">
+              <div class="card-header bg-light border-bottom py-2 px-3">
+                <h6 class="mb-0 fw-bold text-dark">
+                  <i class="fas fa-tachometer-alt text-primary me-2"></i>{% trans "قراءات رطوبة المحارة الميدانية" %}
+                </h6>
+              </div>
+              <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                  {% for record in moisture_records %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                      <strong>{{ record.workspace.name }}</strong>
+                      <div class="small text-muted">{{ record.tested_wall_description }}</div>
+                    </div>
+                    <span class="badge {% if record.is_passed %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ record.moisture_percentage }}%
+                    </span>
+                  </li>
+                  {% empty %}
+                  <li class="list-group-item text-center py-4 text-muted">{% trans "لا توجد قياسات رطوبة مسجلة" %}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Financials & Installments -->
+    <div class="tab-pane fade" id="finance-pane" role="tabpanel">
+      <div class="section-container mb-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-2 px-3">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-receipt text-primary me-2"></i>{% trans "الدفعات المقدمة المحصلة بحساب الضمان" %}
+            </h6>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "رقم السند" %}</th>
+                    <th>{% trans "التاريخ" %}</th>
+                    <th class="text-end">{% trans "المبلغ المحصل" %}</th>
+                    <th>{% trans "القيد المحاسبي" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for dep in deposits %}
+                  <tr>
+                    <td class="ps-3 fw-bold">{{ dep.receipt_number }}</td>
+                    <td>{{ dep.receipt_date }}</td>
+                    <td class="text-end fw-bold text-success">{{ dep.amount|intcomma }} ج.م</td>
+                    <td>{{ dep.journal_entry.number|default:"-" }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="4" class="text-center py-4 text-muted">{% trans "لا توجد دفعات محصلة بعد" %}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if installment_items %}
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-2 px-3">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "جدول أقساط التشطيب المستقل قانونياً" %}
+            </h6>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "القسط" %}</th>
+                    <th>{% trans "تاريخ الاستحقاق" %}</th>
+                    <th class="text-end">{% trans "مبلغ القسط" %}</th>
+                    <th class="text-center">{% trans "الحالة" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in installment_items %}
+                  <tr>
+                    <td class="ps-3 fw-bold">{{ item.milestone_trigger_name }}</td>
+                    <td>{{ item.due_date }}</td>
+                    <td class="text-end fw-bold">{{ item.amount|intcomma }} ج.م</td>
+                    <td class="text-center">
+                      {% if item.is_settled %}
+                      <span class="badge bg-success">{% trans "مسدد" %}</span>
+                      {% else %}
+                      <span class="badge bg-secondary">{% trans "مستحق" %}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Tab 4: Store & Materials Requisition -->
+    <div class="tab-pane fade" id="store-pane" role="tabpanel">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-2 px-3">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-boxes text-primary me-2"></i>{% trans "أذون صرف وارتجاع الخامات من المخزن" %}
+            </h6>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">{% trans "رقم الإذن" %}</th>
+                    <th>{% trans "التاريخ" %}</th>
+                    <th>{% trans "النوع" %}</th>
+                    <th>{% trans "الصنف" %}</th>
+                    <th>{% trans "المخزن" %}</th>
+                    <th class="text-center">{% trans "الكمية" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for req in material_requisitions %}
+                  <tr>
+                    <td class="ps-3 fw-bold">{{ req.requisition_number }}</td>
+                    <td>{{ req.issue_date }}</td>
+                    <td>
+                      {% if req.transaction_type == 'ISSUE' %}
+                      <span class="badge bg-primary">{% trans "صرف تشوين" %}</span>
+                      {% else %}
+                      <span class="badge bg-warning text-dark">{% trans "ارتجاع فائض" %}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ req.product.name }}</td>
+                    <td>{{ req.warehouse.name }}</td>
+                    <td class="text-center fw-bold">{{ req.quantity_issued }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="6" class="text-center py-4 text-muted">{% trans "لا توجد أذون صرف مسجلة" %}</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

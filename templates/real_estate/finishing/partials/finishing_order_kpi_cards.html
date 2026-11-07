@@ -1,0 +1,66 @@
+{% load i18n humanize %}
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-info">
+      <div class="stats-card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="stats-card-title">{% trans "إجمالي أوامر التشطيب" %}</span>
+            <h3 class="stats-card-value mb-0">{{ kpi_stats.total_orders|default:"0"|intcomma }}</h3>
+          </div>
+          <div class="stats-card-icon">
+            <i class="fas fa-paint-roller"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-warning">
+      <div class="stats-card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="stats-card-title">{% trans "قيد التنفيذ الميداني" %}</span>
+            <h3 class="stats-card-value mb-0">{{ kpi_stats.in_execution|default:"0"|intcomma }}</h3>
+          </div>
+          <div class="stats-card-icon">
+            <i class="fas fa-tools"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-success">
+      <div class="stats-card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="stats-card-title">{% trans "إجمالي حجم الأعمال (ج.م)" %}</span>
+            <h3 class="stats-card-value mb-0">{{ kpi_stats.total_volume|default:"0.00"|intcomma }}</h3>
+          </div>
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-primary">
+      <div class="stats-card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <span class="stats-card-title">{% trans "الدفعات المحصلة بالضمان (ج.م)" %}</span>
+            <h3 class="stats-card-value mb-0">{{ kpi_stats.total_deposits|default:"0.00"|intcomma }}</h3>
+          </div>
+          <div class="stats-card-icon">
+            <i class="fas fa-vault"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

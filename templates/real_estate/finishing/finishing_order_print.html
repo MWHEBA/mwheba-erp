@@ -1,0 +1,160 @@
+{% load i18n humanize static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>{{ order.order_number }} - {% trans "كراسة ومقايسة مواصفات التشطيب الرسمية" %}</title>
+  <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
+  <style>
+    @media print {
+      @page { size: A4 portrait; margin: 12mm; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+    }
+    body {
+      background-color: var(--bs-body-bg, #ffffff);
+      color: var(--bs-body-color, #212529);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .print-header {
+      border-bottom: 2px solid var(--bs-border-color, #dee2e6);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .spec-table th, .spec-table td {
+      padding: 6px 10px;
+      border: 1px solid var(--bs-border-color, #dee2e6);
+    }
+    .spec-table th {
+      background-color: var(--bs-light, #f8f9fa);
+      font-weight: bold;
+    }
+    .signature-box {
+      border: 1px dashed var(--bs-secondary, #6c757d);
+      height: 90px;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body class="p-4">
+  <div class="no-print text-end mb-4">
+    <button onclick="window.print()" class="btn btn-primary px-4">
+      <i class="fas fa-print me-1"></i>{% trans "طباعة المستند الرسمي" %}
+    </button>
+  </div>
+
+  <div class="print-header d-flex justify-content-between align-items-center">
+    <div>
+      <h3 class="fw-bold mb-1">{% trans "شركة موهبة للتطوير العقاري والاستثمار" %}</h3>
+      <div class="text-muted">{% trans "الإدارة الهندسية والمكتب الفني — قطاع التشطيبات والتعديلات المعمارية" %}</div>
+    </div>
+    <div class="text-end">
+      <div class="fw-bold fs-5 text-primary">{{ order.order_number }}</div>
+      <div class="small text-muted">{% trans "تاريخ التحرير:" %} {{ order.created_at|date:"Y-m-d" }}</div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6">
+      <div class="p-3 border rounded bg-light">
+        <strong>{% trans "بيانات الوحدة والمشروع:" %}</strong><br>
+        {% trans "المشروع:" %} {{ order.unit.project.name }}<br>
+        {% trans "الوحدة:" %} {{ order.unit.unit_code }} | {% trans "المساحة:" %} {{ order.unit.gross_area }} م²<br>
+        {% trans "العقد الأساسي:" %} {{ order.contract.contract_number }}
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="p-3 border rounded bg-light">
+        <strong>{% trans "بيانات المالك والطرف الثاني:" %}</strong><br>
+        {% trans "الاسم:" %} {{ order.customer.name }}<br>
+        {% trans "رقم الهاتف:" %} {{ order.customer.phone|default:"-" }}<br>
+        {% trans "مسار التدفق:" %} {{ order.get_workflow_speed_display }}
+      </div>
+    </div>
+  </div>
+
+  <!-- BOQ Table -->
+  <h5 class="fw-bold mb-3"><i class="fas fa-list-ol me-2"></i>{% trans "أولاً: مقايسة البنود والمواصفات المعمارية المعتمدة" %}</h5>
+  <table class="table spec-table w-100 mb-4">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>{% trans "الفراغ" %}</th>
+        <th>{% trans "توصيف البند المعتمد" %}</th>
+        <th>{% trans "المصدر" %}</th>
+        <th class="text-center">{% trans "الكمية" %}</th>
+        <th class="text-end">{% trans "الفئة (ج.م)" %}</th>
+        <th class="text-end">{% trans "الإجمالي (ج.م)" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in order.items.all %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ item.workspace.name }}</td>
+        <td>{{ item.item_description }}</td>
+        <td>{{ item.get_supply_source_display }}</td>
+        <td class="text-center">{{ item.gross_quantity }} {{ item.measuring_unit }}</td>
+        <td class="text-end">{{ item.unit_selling_price|intcomma }}</td>
+        <td class="text-end fw-bold">{{ item.total_selling_price|intcomma }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="text-center py-3 text-muted">{% trans "لا توجد بنود مسجلة" %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Financial Summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-6">
+      <div class="p-3 border rounded">
+        <h6 class="fw-bold mb-2">{% trans "إقرار العميل بتمديد التسليم وإسقاط الغرامات:" %}</h6>
+        <p class="small text-muted mb-0">
+          {% trans "يقر العميل بموافقته التامة على ترحيل موعد التسليم التعاقدي للوحدة بمقدار" %}
+          <strong>{{ order.execution_duration_days|default:"90" }} {% trans "يوماً" %}</strong>
+          {% trans "وإسقاط أي حق في المطالبة بغرامات التأخير الناتجة عن تنفيذ أعمال هذا الأمر." %}
+        </p>
+      </div>
+    </div>
+    <div class="col-6">
+      <table class="table spec-table w-100">
+        <tr>
+          <th>{% trans "إجمالي الأعمال والمصنعيات:" %}</th>
+          <td class="text-end fw-bold">{{ order.gross_finishing_amount|default:"0.00"|intcomma }} ج.م</td>
+        </tr>
+        <tr>
+          <th>{% trans "خصم استرداد نصف التشطيب المعتمد:" %}</th>
+          <td class="text-end text-danger fw-bold">-{{ order.core_shell_credit_total|default:"0.00"|intcomma }} ج.م</td>
+        </tr>
+        <tr>
+          <th>{% trans "الدفعة المقدمة 35% المقررة:" %}</th>
+          <td class="text-end text-success fw-bold">{{ order.advance_deposit_required|default:"0.00"|intcomma }} ج.م</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Signature Block -->
+  <div class="row g-3 mt-4">
+    <div class="col-4">
+      <div class="signature-box text-center">
+        <div class="fw-bold small mb-4">{% trans "مهندس المكتب الفني" %}</div>
+        <div class="text-muted small">{% trans "التوقيع والاعتماد:" %} _________________</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="signature-box text-center">
+        <div class="fw-bold small mb-4">{% trans "المدير المالي (CFO)" %}</div>
+        <div class="text-muted small">{% trans "التوقيع والاعتماد:" %} _________________</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="signature-box text-center">
+        <div class="fw-bold small mb-4">{% trans "الطرف الثاني (العميل / الشركاء)" %}</div>
+        <div class="text-muted small">{% trans "التوقيع والصفة:" %} _________________</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

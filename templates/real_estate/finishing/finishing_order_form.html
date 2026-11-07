@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "طلب تشطيب وتعديل وحدة جديد" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-4">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-file-signature text-primary me-2"></i>{% trans "بيانات طلب وأمر التشطيب الميداني" %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <form method="post" id="finishing-order-form">
+              {% csrf_token %}
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-bold">{% trans "الوحدة العقارية المتعاقد عليها" %} <span class="text-danger">*</span></label>
+                  <select name="unit" id="id_unit" class="form-select select2-filter" required dir="rtl">
+                    <option value="">{% trans "اختر الوحدة..." %}</option>
+                    {% for u in units %}
+                    <option value="{{ u.id }}">{{ u.unit_code }} - {{ u.project.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label fw-bold">{% trans "عنوان أمر التشطيب" %} <span class="text-danger">*</span></label>
+                  <input type="text" name="title" class="form-control" placeholder="{% trans 'مثال: تعديل ديكوري كامل للصالة وحمام الماستر' %}" required>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-bold">{% trans "نوع الطلب" %}</label>
+                  <select name="order_type" class="form-select">
+                    <option value="PACKAGE_UPGRADE">{% trans "ترقية باقة تشطيب" %}</option>
+                    <option value="CUSTOM_VARIATION" selected>{% trans "تعديلات ومقايسة معمارية خاصة" %}</option>
+                    <option value="UNIT_MERGER">{% trans "دمج شقق وتزريع سلالم" %}</option>
+                    <option value="CLIENT_SELF_FINISHING">{% trans "تصريح تشطيب ذاتي للعميل" %}</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-bold">{% trans "نمط التسعير" %}</label>
+                  <select name="pricing_mode" class="form-select">
+                    <option value="FIXED_PRICE_BOQ" selected>{% trans "مقايسة مسعرة بالكميات والفئات الثابتة" %}</option>
+                    <option value="PACKAGE_LUMP_SUM">{% trans "باقة معيارية مقطوعة بسعر المتر" %}</option>
+                    <option value="COST_PLUS_OPEN_BOOK">{% trans "التكلفة الفعلية + نسبة إشراف" %}</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-bold">{% trans "مسار التدفق والسرعة" %}</label>
+                  <select name="workflow_speed" class="form-select">
+                    <option value="MAJOR_GOVERNED" selected>{% trans "المسار السداسي المحوكم (تعديلات قياسية)" %}</option>
+                    <option value="FAST_TRACK">{% trans "مسار سريع (تعديلات بسيطة <= 25,000 ج.م)" %}</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label fw-bold">{% trans "مدة التنفيذ الميداني التقديرية (أيام)" %}</label>
+                  <input type="number" name="execution_duration_days" class="form-control" value="90" min="15">
+                  <small class="text-muted">{% trans "تضاف تلقائياً لتاريخ التسليم التعاقدي" %}</small>
+                </div>
+
+                <div class="col-12">
+                  <label class="form-label fw-bold">{% trans "ملاحظات واشتراطات خاصة" %}</label>
+                  <textarea name="notes" class="form-control" rows="3" placeholder="{% trans 'أي اشتراطات خاصة بالعميل أو مواعيد التكسير المسموحة...' %}"></textarea>
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                <a href="{% url 'real_estate:finishing_order_list' %}" class="btn btn-secondary px-4">
+                  {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-primary px-5 fw-bold">
+                  <i class="fas fa-check me-1"></i>{% trans "حفظ وبدء إعداد المقايسة" %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

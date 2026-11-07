@@ -15,6 +15,7 @@ from real_estate.views import (
     service_views,
     operations_views,
     report_views,
+    finishing_views,
 )
 
 app_name = 'real_estate'
@@ -149,4 +150,14 @@ urlpatterns = [
     path('reports/cash-flow/', report_views.CashFlowLiquidityReportView.as_view(), name='report_cash_flow'),
     path('reports/wip-revenue/', report_views.ProjectWIPRevenueReportView.as_view(), name='report_wip_revenue'),
     path('reports/broker-commissions/', report_views.BrokerCommissionReportView.as_view(), name='report_broker_commissions'),
+
+    # Finishing & Variations (Track 2: Finishing Packages & Specs Directory)
+    path('finishing/orders/', finishing_views.FinishingOrderListView.as_view(), name='finishing_order_list'),
+    path('finishing/orders/create/', finishing_views.FinishingOrderCreateView.as_view(), name='finishing_order_create'),
+    path('finishing/orders/kanban/', finishing_views.FinishingOrderKanbanView.as_view(), name='finishing_kanban'),
+    path('finishing/orders/<int:pk>/', finishing_views.FinishingOrderDetailView.as_view(), name='finishing_order_detail'),
+    path('finishing/orders/<int:pk>/print/', finishing_views.FinishingOrderPrintView.as_view(), name='finishing_order_print'),
+    path('finishing/catalog/', finishing_views.FinishingCatalogView.as_view(), name='finishing_catalog'),
+    path('api/finishing/orders/<int:pk>/transition/', finishing_views.ApiFinishingStageTransitionView.as_view(), name='api_finishing_stage_transition'),
+    path('api/finishing/orders/<int:pk>/hydrostatic-test/', finishing_views.ApiRecordHydrostaticTestView.as_view(), name='api_finishing_hydrostatic_test'),
 ]
