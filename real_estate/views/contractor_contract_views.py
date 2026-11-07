@@ -262,11 +262,16 @@ class ContractorContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMi
 
     def post(self, request):
         form = ContractorContractForm(request.POST)
-        formset = ContractorContractItemFormSet(request.POST)
+        contract_instance = None
+        if form.is_valid():
+            contract_instance = form.save(commit=False)
+            formset = ContractorContractItemFormSet(request.POST, instance=contract_instance)
+        else:
+            formset = ContractorContractItemFormSet(request.POST)
 
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
-                contract = form.save(commit=False)
+                contract = contract_instance
                 contract.created_by = request.user
                 contract.save()
 

@@ -1642,6 +1642,7 @@ def test_phased_retention_release_substantial_and_final(master_test_setup):
     user = master_test_setup["user_admin"]
 
     contract.total_retention_retained = Decimal("200000.00")
+    contract.actual_completion_date = date(2020, 1, 1)
     contract.save()
 
     # 1. إفراج استلام ابتدائي 50% (100,000 ج.م)

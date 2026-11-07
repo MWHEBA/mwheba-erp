@@ -94,11 +94,16 @@ class ContractorContractService:
             "tolerance_exceeded": False,
         }
 
+        if master_boq_item and project:
+            master_boq_proj_id = master_boq_item.project_id if hasattr(master_boq_item, 'project_id') else getattr(master_boq_item.project, 'id', None)
+            project_id = project.id if hasattr(project, 'id') else project
+            if master_boq_proj_id and project_id and master_boq_proj_id != project_id:
+                raise ValidationError(_("بند المقايسة التقديرية المختار ينتمي لمشروع آخر مختلف عن مشروع العقد."))
+
         if not master_boq_item:
             master_boq_item = ProjectMasterBOQItem.objects.filter(
                 project=project,
-                item_code=item_code,
-                is_active=True
+                item_code=item_code
             ).first()
 
         if master_boq_item:
@@ -146,6 +151,11 @@ class ContractorContractService:
         contracted_quantity = Decimal(str(item_data.get("contracted_quantity", "0.000")))
         unit_rate = Decimal(str(item_data.get("unit_rate", "0.00")))
         master_boq = item_data.get("master_boq_item")
+        if not master_boq:
+            master_boq = ProjectMasterBOQItem.objects.filter(
+                project=contract.project,
+                item_code=item_code
+            ).first()
 
         # التحقق من المقايسة الحاكمة
         validation = cls.validate_master_boq_and_budget(

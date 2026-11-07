@@ -574,13 +574,15 @@ class ContractorCertificateRetentionReleaseView(LoginRequiredMixin, SmartPermiss
             rel_type = form.cleaned_data['release_type']
             amount = form.cleaned_data['amount']
             defect_deductions = form.cleaned_data['defect_deductions'] or Decimal('0.00')
+            operation_id = form.cleaned_data.get('operation_id') or None
             try:
                 entry = ContractorProgressService.release_retention_guarantee(
                     contract=contract,
                     release_type=rel_type,
                     amount=amount,
                     defect_deductions=defect_deductions,
-                    user=request.user
+                    user=request.user,
+                    operation_id=operation_id
                 )
                 msg = _('تم الإفراج عن مبلغ %(amt)s من تأمين حسن التنفيذ وتوليد القيد رقم %(entry)s بنجاح.') % {
                     'amt': f"{amount:,.2f}",

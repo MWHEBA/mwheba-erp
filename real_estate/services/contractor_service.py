@@ -92,6 +92,20 @@ class ContractorProgressService:
 
         # 1. التحقق من الترتيب التسلسلي الصارم ومنع فتح مستخلصين في آن واحد لذات العقد
         if cert.contract_id:
+            same_seq_certs = ContractorProgressCertificate.objects.filter(
+                contract=cert.contract,
+                sequence_order=cert.sequence_order
+            ).exclude(id=cert.id).exclude(
+                status=ContractorProgressCertificate.CertificateStatus.CANCELLED
+            )
+            if same_seq_certs.exists():
+                raise ValidationError(
+                    _("لا يمكن تقديم المستخلص رقم %(num)s للاعتماد: يوجد مستخلص آخر بنفس الرقم التسلسلي (%(seq)s) لهذا العقد.") % {
+                        'num': cert.certificate_number,
+                        'seq': cert.sequence_order
+                    }
+                )
+
             prior_open_certs = ContractorProgressCertificate.objects.filter(
                 contract=cert.contract,
                 sequence_order__lt=cert.sequence_order,
@@ -110,7 +124,7 @@ class ContractorProgressService:
 
         # 2. فحص متطلبات المستخلص الختامي ومخالصة الضمان (Final Settlement Guard)
         if cert.certificate_type == ContractorProgressCertificate.CertificateType.FINAL_SETTLEMENT:
-            contract = cert.contract
+            contract = ContractorContract.objects.select_for_update().get(id=cert.contract_id)
             decennial_pol = cert.decennial_liability_insurance_policy or (contract.decennial_liability_insurance_policy if contract else '')
             occupancy_num = cert.certificate_of_occupancy_number or (contract.certificate_of_occupancy_number if contract else '')
             syndicate_clear = cert.syndicate_supervision_clearance or (contract.syndicate_supervision_clearance if contract else False)
@@ -123,10 +137,8 @@ class ContractorProgressService:
         # 3. عزل وحجر البنود المتنازع عليها (Disputed Line Items Quarantine)
         if cert.contract_id:
             disputed_items = cert.items.filter(is_disputed_holdback=True)
-            cert.disputed_items_holdback_total = sum(
-                (item.total_cumulative_amount - (item.contract_item.total_budget_amount if False else Decimal("0.00")))
-                for item in disputed_items
-            ) if disputed_items.exists() else Decimal("0.00")
+            if disputed_items.exists():
+                cert.disputed_items_holdback_total = sum(item.current_work_value for item in disputed_items)
 
         # 4. إعادة حساب المبالغ بدقة
         cert.compute_amounts()
@@ -165,7 +177,11 @@ class ContractorProgressService:
         التحقق من اكتمال الاعتماد والقفل التشفيري، ثم إصدار قيد استحقاق المستخلص عبر AccountingGateway:
         دعم منظومة الاستقطاعات الـ 14 كاملة مع تمييز ضرائب الجدول (5%) والقيمة المضافة (14%) والحجز القضائي والتنازل البنكي
         """
-        cert = ContractorProgressCertificate.objects.get(id=certificate.id)
+        cert = ContractorProgressCertificate.objects.select_for_update().get(id=certificate.id)
+
+        # التحقق من عدم الترحيل المزدوج (Idempotent Guard)
+        if cert.status == ContractorProgressCertificate.CertificateStatus.APPROVED and cert.journal_entry_id:
+            return cert.journal_entry
 
         # 1. الحارس المالي الصارم (Hard Payment Guard): التحقق من اكتمال الاعتماد المؤسسي
         if not cert.approval_request or cert.approval_request.status != 'APPROVED':
@@ -173,6 +189,15 @@ class ContractorProgressService:
             raise ValidationError(
                 _("لا يمكن إصدار القيد المالي أو الصرف: المستخلص لم يستوفِ دورة الاعتمادات المالية المطلوبة (الحالة الحالية: %(status)s).") % {
                     'status': curr_status
+                }
+            )
+
+        # التحقق الرقابي من تطابق مقاول المستخلص مع مقاول العقد الأصلي
+        if cert.contract_id and cert.contractor_id != cert.contract.contractor_id:
+            raise ValidationError(
+                _("لا يمكن ترحيل المستخلص: مقاول المستخلص (%(cert_c)s) غير مطابق للمقاول المسند إليه العقد (%(cnt_c)s).") % {
+                    'cert_c': cert.contractor.name if cert.contractor else cert.contractor_id,
+                    'cnt_c': cert.contract.contractor.name if cert.contract.contractor else cert.contract.contractor_id
                 }
             )
 
@@ -338,7 +363,7 @@ class ContractorProgressService:
         """
         إصدار القيد المحاسبي المتكامل للمسار الأول مع تفصيل الاستقطاعات الـ 14 والضرائب المتوافقة
         """
-        contract = cert.contract
+        contract = ContractorContract.objects.select_for_update().get(id=cert.contract_id)
 
         # الحسابات المدينة
         wip_account = cls.get_or_resolve_account(AccountRoleNames.REAL_ESTATE_WIP_CONSTRUCTION.value, fallback_code="12101")
@@ -587,6 +612,7 @@ class ContractorProgressService:
         total_operational_penalties = (
             cert.delay_penalties +
             cert.concrete_quality_penalties +
+            cert.hse_safety_penalties +
             cert.excess_material_waste_penalties +
             cert.punch_list_penalties +
             cert.penalty_deductions
@@ -603,22 +629,157 @@ class ContractorProgressService:
                 )
             )
 
-        # 4. خط صافي استحقاق المقاول القابل للصرف
-        # ضمان دقة التوازن المزدوج (Penny Balancing)
-        total_debits = sum(line.debit for line in lines)
-        total_credits = sum(line.credit for line in lines)
-        net_payable_balanced = (total_debits - total_credits).quantize(Decimal("0.01"))
+        if cert.disputed_items_holdback_total > Decimal("0.00"):
+            disputed_hold_account = cls.get_or_resolve_account("disputed_items_hold", fallback_code="21315")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=disputed_hold_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.disputed_items_holdback_total,
+                    currency=currency_str,
+                    description=f"أمانة مبالغ بنود متنازع عليها فنياً ومحجوزة مؤقتاً - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
 
+        if cert.total_backcharges > Decimal("0.00"):
+            backcharges_account = cls.get_or_resolve_account("backcharges_recovery", fallback_code="42201")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=backcharges_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.total_backcharges,
+                    currency=currency_str,
+                    description=f"استقطاع أوامر خصم ومصاريف محملة على المقاول (Backcharges) - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.defect_rectification_costs > Decimal("0.00"):
+            defect_rect_account = cls.get_or_resolve_account("defect_rectification_recovery", fallback_code="42201")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=defect_rect_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.defect_rectification_costs,
+                    currency=currency_str,
+                    description=f"استقطاع تكاليف إصلاح عيوب مصنعيات - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.nominated_subcontractor_setoff > Decimal("0.00"):
+            subcontractor_account = cls.get_or_resolve_account("nominated_subcontractor_payable", fallback_code="21110")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=subcontractor_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.nominated_subcontractor_setoff,
+                    currency=currency_str,
+                    description=f"مقاصة سداد مباشر لمقاول باطن معين - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.scaffolding_damage_deduction > Decimal("0.00"):
+            scaffolding_account = cls.get_or_resolve_account("scaffolding_damage_recovery", fallback_code="42201")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=scaffolding_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.scaffolding_damage_deduction,
+                    currency=currency_str,
+                    description=f"استقطاع تلفيات وهوالك شدات معدنية وسقالات - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.tripartite_supplier_liens_deduction > Decimal("0.00"):
+            lien_account = cls.get_or_resolve_account("tripartite_supplier_lien_payable", fallback_code="21310")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=lien_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.tripartite_supplier_liens_deduction,
+                    currency=currency_str,
+                    description=f"حجز وتجنيب مستحقات مورد خامات بموجب اتفاق ثلاثي - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.dewatering_fuel_and_stoppage_charges > Decimal("0.00"):
+            dewatering_account = cls.get_or_resolve_account("dewatering_recovery", fallback_code="42301")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=dewatering_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.dewatering_fuel_and_stoppage_charges,
+                    currency=currency_str,
+                    description=f"استقطاع تكاليف ديزل وتشغيل طلمبات النزح الجوفي - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.third_party_lab_charges > Decimal("0.00"):
+            lab_account = cls.get_or_resolve_account("third_party_lab_recovery", fallback_code="42201")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=lab_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.third_party_lab_charges,
+                    currency=currency_str,
+                    description=f"استقطاع تكاليف اختبارات معامل ضبط الجودة الخارجية - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        # 4. خط صافي استحقاق المقاول القابل للصرف المطابق تماماً لصافي المستخلص المعتمد
         lines.append(
             JournalEntryLineData(
                 account_code=payable_account.code,
                 debit=Decimal("0.00"),
-                credit=net_payable_balanced,
+                credit=cert.net_amount,
                 currency=currency_str,
                 description=payout_desc,
                 project=proj_code
             )
         )
+
+        total_debits = sum(line.debit for line in lines)
+        total_credits = sum(line.credit for line in lines)
+        rounding_diff = (total_debits - total_credits).quantize(Decimal("0.01"))
+        if rounding_diff != Decimal("0.00"):
+            if abs(rounding_diff) <= Decimal("0.05"):
+                rounding_account = cls.get_or_resolve_account("rounding_differences", fallback_code="42101")
+                if rounding_diff > Decimal("0.00"):
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=rounding_account.code,
+                            debit=Decimal("0.00"),
+                            credit=rounding_diff,
+                            currency=currency_str,
+                            description=f"فروق تقريب قيد مستخلص {cert.certificate_number}",
+                            project=proj_code
+                        )
+                    )
+                else:
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=rounding_account.code,
+                            debit=-rounding_diff,
+                            credit=Decimal("0.00"),
+                            currency=currency_str,
+                            description=f"فروق تقريب قيد مستخلص {cert.certificate_number}",
+                            project=proj_code
+                        )
+                    )
+            else:
+                raise ValidationError(
+                    _("عدم تطابق توازن القيد المحاسبي المولد للمستخلص: مدين (%(deb)s) مقابل دائن (%(cred)s).") % {
+                        'deb': total_debits,
+                        'cred': total_credits
+                    }
+                )
 
         idempotency_key = AccountingGateway.generate_idempotency_key(
             module='real_estate',
@@ -720,7 +881,7 @@ class ContractorProgressService:
 
         # رد أرقام العقد التراكمية
         if cert.contract_id:
-            contract = cert.contract
+            contract = ContractorContract.objects.select_for_update().get(id=cert.contract_id)
             contract.total_certified_work = max(Decimal("0.00"), contract.total_certified_work - cert.current_period_work)
             contract.advance_payment_recovered = max(Decimal("0.00"), contract.advance_payment_recovered - cert.advance_payment_recovery)
             contract.total_retention_retained = max(Decimal("0.00"), contract.total_retention_retained - cert.retention_amount)
@@ -746,7 +907,9 @@ class ContractorProgressService:
         release_type: str,
         amount: Decimal,
         defect_deductions: Decimal = Decimal("0.00"),
-        user=None
+        user=None,
+        operation_id: str = None,
+        idempotency_key: str = None
     ) -> JournalEntry:
         """
         الإفراج عن تأمين حسن التنفيذ (50% استلام ابتدائي و50% استلام نهائي بعد سنة الصيانة)
@@ -755,6 +918,91 @@ class ContractorProgressService:
         Cr: Contractor / Assigned Bank Payable (21110)
         """
         contract = ContractorContract.objects.select_for_update().get(id=contract.id)
+
+        SUBSTANTIAL_TYPES = {'SUBSTANTIAL', 'SUBSTANTIAL_HANDOVER'}
+        FINAL_TYPES = {'FINAL', 'FINAL_SETTLEMENT', 'FINAL_HANDOVER', 'FINAL_WARRANTY_CLEARANCE'}
+        ALL_SUPPORTED_TYPES = SUBSTANTIAL_TYPES | FINAL_TYPES
+
+        if release_type not in ALL_SUPPORTED_TYPES:
+            raise ValidationError(
+                _("نوع الإفراج عن التأمين غير صالح أو غير معتمد: %(t)s") % {'t': release_type}
+            )
+
+        amount_norm = Decimal(str(amount)).quantize(Decimal("0.01"))
+        defect_norm = Decimal(str(defect_deductions or 0)).quantize(Decimal("0.01"))
+
+        if defect_norm < Decimal("0.00") or defect_norm > amount_norm:
+            raise ValidationError(
+                _("قيمة استقطاعات إصلاح العيوب (%(ded)s) غير صالحة ولا يمكن أن تتجاوز مبلغ الإفراج (%(amt)s).") % {
+                    'ded': defect_norm,
+                    'amt': amount_norm
+                }
+            )
+
+        normalized_stage = 'SUBSTANTIAL' if release_type in SUBSTANTIAL_TYPES else 'FINAL'
+        gateway = AccountingGateway()
+
+        op_name = operation_id or f'retention_release_{normalized_stage}_{amount_norm}_{defect_norm}'
+        if not idempotency_key:
+            idemp_key = AccountingGateway.generate_idempotency_key(
+                module='real_estate',
+                model='ContractorContract',
+                object_id=contract.id,
+                operation=op_name
+            )
+        else:
+            idemp_key = idempotency_key
+
+        from financial.models import JournalEntry
+
+        # البحث عن العملية المكتملة قبل شروط الطلب الجديد، بصرف النظر عن الرصيد المتبقي (Idempotent Retry Guard)
+        existing_entry = JournalEntry.objects.filter(idempotency_key=idemp_key).first()
+        if existing_entry:
+            import json
+            saved_stage = None
+            if existing_entry.notes:
+                try:
+                    payload = json.loads(existing_entry.notes)
+                    if isinstance(payload, dict):
+                        saved_stage = payload.get('stage')
+                        if payload.get('contract_id') and payload['contract_id'] != contract.id:
+                            raise ValidationError(_("تعارض في بيانات إعادة طلب الإفراج: العقد المسجل بالقيد غير مطابق للعقد الحالي."))
+                except (ValueError, TypeError):
+                    saved_stage = None
+
+            if not saved_stage:
+                desc_text = existing_entry.description or ''
+                ref_text = existing_entry.reference or ''
+                if any(st in desc_text or st in ref_text for st in ['(FINAL', 'FINAL_', 'FINAL-']):
+                    saved_stage = 'FINAL'
+                elif any(st in desc_text or st in ref_text for st in ['(SUBSTANTIAL', 'SUBSTANTIAL_', 'SUBSTANTIAL-']):
+                    saved_stage = 'SUBSTANTIAL'
+
+            if saved_stage and saved_stage != normalized_stage:
+                raise ValidationError(
+                    _("تعارض في مرحلة الإفراج: العملية السابقة لنفس المعرف تخص مرحلة (%(prev)s) بينما الطلب الحالي يخص مرحلة (%(curr)s).") % {
+                        'prev': saved_stage,
+                        'curr': normalized_stage
+                    }
+                )
+
+            retention_account = cls.get_or_resolve_account(AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value, fallback_code="21310")
+            defect_account = cls.get_or_resolve_account("defect_rectification_recovery", fallback_code="42201")
+
+            ret_line = existing_entry.lines.filter(account=retention_account).first()
+            def_line = existing_entry.lines.filter(account=defect_account).first()
+
+            existing_debit = ret_line.debit.quantize(Decimal("0.01")) if ret_line else Decimal("0.00")
+            existing_defect = def_line.credit.quantize(Decimal("0.01")) if def_line else Decimal("0.00")
+
+            if existing_debit != amount_norm or existing_defect != defect_norm:
+                raise ValidationError(
+                    _("تعارض في بيانات إعادة طلب الإفراج: البيانات المالية للطلب الحالي غير مطابقة للقيد المسجل مسبقاً بنفس المعرف.")
+                )
+            return existing_entry
+
+        is_substantial = release_type in SUBSTANTIAL_TYPES
+        max_substantial = (contract.total_retention_retained * Decimal("0.50")).quantize(Decimal("0.01")) if is_substantial else Decimal("0.00")
 
         available_retention = contract.total_retention_retained - contract.total_retention_released
         if amount > available_retention:
@@ -765,6 +1013,40 @@ class ContractorProgressService:
                 }
             )
 
+        # 2. التحقق من سقف الإفراج المرحلي التراكمي (Cumulative Substantial Cap)
+        if is_substantial:
+            if (contract.total_retention_released + amount) > max_substantial:
+                raise ValidationError(
+                    _("إجمالي المبالغ المفرج عنها من تأمين الاستلام الابتدائي (%(tot)s) يتجاوز الحد الأقصى المسموح به 50%% من إجمالي التأمين المحتجز (%(max)s).") % {
+                        'tot': contract.total_retention_released + amount,
+                        'max': max_substantial
+                    }
+                )
+
+        # 3. التحقق من مستندات ومحاضر الاستلام للمرحلة
+        has_evidence = bool(
+            contract.actual_completion_date or
+            contract.sectional_handovers.exists() or
+            contract.certificate_of_occupancy_number or
+            contract.syndicate_supervision_clearance
+        )
+        if not has_evidence:
+            raise ValidationError(_("يلزم تقديم محضر استلام معتمد أو مستندات مرحلية رسمية للإفراج عن التأمين."))
+
+        # 4. التحقق من انقضاء فترة الضمان والصيانة للإفراج النهائي
+        if release_type in FINAL_TYPES:
+            if not contract.actual_completion_date:
+                raise ValidationError(_("لا يمكن الإفراج عن التأمين النهائي بدون إثبات تاريخ الاستلام الابتدائي والأعمال."))
+            warranty_months = contract.defect_liability_period_months or 12
+            from dateutil.relativedelta import relativedelta
+            warranty_end = contract.actual_completion_date + relativedelta(months=warranty_months)
+            if timezone.localdate() < warranty_end:
+                raise ValidationError(
+                    _("لا يمكن الإفراج عن التأمين النهائي قبل انقضاء فترة الضمان والصيانة (تاريخ انتهاء الضمان: %(end)s).") % {
+                        'end': warranty_end
+                    }
+                )
+
         retention_account = cls.get_or_resolve_account(AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value, fallback_code="21310")
         defect_account = cls.get_or_resolve_account("defect_rectification_recovery", fallback_code="42201")
 
@@ -773,11 +1055,7 @@ class ContractorProgressService:
         else:
             payable_account = getattr(contract.contractor, 'financial_account', None)
             if not payable_account or not payable_account.can_post_entries():
-                payable_account = getattr(cert.contractor, 'financial_account', None)
-        if not payable_account or not payable_account.can_post_entries():
-            payable_account = cls.get_or_resolve_account(AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value, fallback_code="21110")
-            if not payable_account.can_post_entries() and payable_account.children.filter(is_active=True, is_leaf=True).exists():
-                payable_account = payable_account.children.filter(is_active=True, is_leaf=True).first()
+                payable_account = cls.get_or_resolve_account(AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value, fallback_code="21110")
                 if not payable_account.can_post_entries() and payable_account.children.filter(is_active=True, is_leaf=True).exists():
                     payable_account = payable_account.children.filter(is_active=True, is_leaf=True).first()
 
@@ -821,14 +1099,6 @@ class ContractorProgressService:
             )
         )
 
-        gateway = AccountingGateway()
-        idemp_key = AccountingGateway.generate_idempotency_key(
-            module='real_estate',
-            model='ContractorContract',
-            object_id=contract.id,
-            operation=f'retention_release_{release_type}_{amount}'
-        )
-
         journal_entry = gateway.create_journal_entry(
             source_module='real_estate',
             source_model='ContractorContract',
@@ -838,15 +1108,35 @@ class ContractorProgressService:
             user=user,
             entry_type='general_ledger',
             description=desc,
-            reference=f"RET-REL-{contract.contract_number}",
+            reference=f"RET-REL-{normalized_stage}-{contract.contract_number}",
             date=timezone.localdate()
         )
+
+        import json
+        payload_data = {
+            'stage': normalized_stage,
+            'release_type': release_type,
+            'amount': str(amount_norm),
+            'defect_deductions': str(defect_norm),
+            'contract_id': contract.id,
+            'contract_number': contract.contract_number,
+            'contractor_id': contract.contractor_id,
+            'currency': currency_str,
+            'operation_id': operation_id or '',
+        }
+        journal_entry.notes = json.dumps(payload_data)
+        journal_entry.save(update_fields=["notes"])
 
         contract.total_retention_released += amount
         contract.save(update_fields=["total_retention_released", "updated_at"])
 
         logger.info(f"Retention released for contract {contract.contract_number}: {amount} {currency_str}. Entry ID: {journal_entry.id}")
         return journal_entry
+
+    @classmethod
+    def release_retention_guarantee(cls, *args, **kwargs):
+        """توافقية مع شاشات الإفراج عن تأمين حسن التنفيذ"""
+        return cls.release_retention(*args, **kwargs)
 
     @classmethod
     @transaction.atomic
@@ -863,10 +1153,124 @@ class ContractorProgressService:
         """
         inst = CertificatePaymentInstallmentSchedule.objects.select_for_update().get(id=installment.id)
         cert = inst.certificate
-        contract = cert.contract
+        contract = ContractorContract.objects.select_for_update().get(id=cert.contract_id) if cert.contract_id else None
+
+        if cert.status != ContractorProgressCertificate.CertificateStatus.APPROVED:
+            raise ValidationError(_("لا يمكن سداد دفعة لمستخلص غير معتمد رسمياً."))
+
+        if contract:
+            eligibility = ContractorContractService.check_contract_payout_eligibility(contract)
+            if not eligibility.get("is_eligible_for_direct_payout", True) or eligibility.get("freeze_payout", False):
+                reasons = "; ".join(eligibility.get("blocking_reasons", []))
+                raise ValidationError(_("تم تجميد صرف المستخلص: %(reasons)s") % {'reasons': reasons})
 
         if inst.is_settled:
             raise ValidationError(_("الدفعة مسددة بالفعل."))
+
+        locked_cheque = None
+        if hasattr(cheque, 'id') and cheque.id and hasattr(cheque, '_meta'):
+            from cheques.models import Cheque
+            locked_cheque = Cheque.objects.select_for_update().get(id=cheque.id)
+        else:
+            locked_cheque = cheque
+
+        # 1. التحقق من صلاحية حالة الشيك (يجب أن يكون صادر ومسلم للمستفيد)
+        cheque_status = getattr(locked_cheque, 'status', None)
+        if cheque_status:
+            from cheques.models.cheque import ChequeStatus
+            if cheque_status != ChequeStatus.ISSUED and str(cheque_status).upper() != "ISSUED":
+                raise ValidationError(
+                    _("لا يمكن سداد دفعة المستخلص إلا بشيك في حالة 'صادر ومسلم' (الحالة الحالية: %(st)s).") % {
+                        'st': cheque_status
+                    }
+                )
+
+        # فحص غرض الشيك (حظر شيكات الضمان)
+        cheque_purpose = getattr(locked_cheque, 'purpose', None)
+        if cheque_purpose:
+            from cheques.models.cheque import ChequePurpose
+            if cheque_purpose == ChequePurpose.SECURITY_GUARANTEE or str(cheque_purpose).upper() == "SECURITY_GUARANTEE":
+                raise ValidationError(_("لا يمكن سداد دفعة تشغيلية لمستخلص باستخدام شيك ضمان / تأمين حسن تنفيذ."))
+
+        # 2. التحقق من المستفيد والمورد
+        cheque_supplier_id = getattr(locked_cheque, 'supplier_id', None)
+        cheque_payee = getattr(locked_cheque, 'payee_name', '').strip()
+        contractor_name = cert.contractor.name.strip() if cert.contractor else ''
+
+        if cheque_supplier_id:
+            expected_supplier_id = cert.contractor_id
+            if contract and contract.is_assigned_to_bank and getattr(contract, 'assigned_bank_supplier_id', None):
+                expected_supplier_id = contract.assigned_bank_supplier_id or cert.contractor_id
+            if cheque_supplier_id != expected_supplier_id:
+                raise ValidationError(_("الشيك صادر لمورد آخر مختلف عن مقاول المستخلص."))
+
+        # التحقق من تطابق اسم المستفيد المسجل على الشيك في جميع الأحوال
+        is_bank_assigned_match = bool(
+            contract and contract.is_assigned_to_bank and contract.assigned_bank_name and
+            contract.assigned_bank_name in cheque_payee
+        )
+        if not cheque_payee or (contractor_name and cheque_payee != contractor_name and not is_bank_assigned_match):
+            raise ValidationError(
+                _("اسم المستفيد المسجل على الشيك (%(payee)s) غير مطابق لمقاول المستخلص (%(contractor)s).") % {
+                    'payee': cheque_payee,
+                    'contractor': contractor_name
+                }
+            )
+
+        # 3. التحقق من العملة
+        cheque_curr_id = getattr(locked_cheque, 'currency_id', None)
+        if cheque_curr_id and cert.currency_id and cheque_curr_id != cert.currency_id:
+            raise ValidationError(_("عملة الشيك غير متطابقة مع عملة المستخلص."))
+
+        # التحقق من أن إجمالي المدفوعات المسددة للمستخلص لا تتجاوز صافي الاستحقاق المعتمد
+        from django.db.models import Sum
+        already_settled_for_cert = CertificatePaymentInstallmentSchedule.objects.filter(
+            certificate=cert,
+            is_settled=True
+        ).exclude(id=inst.id).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+        remaining_cert_liability = max(Decimal('0.00'), cert.net_amount - already_settled_for_cert)
+        if inst.amount > remaining_cert_liability:
+            raise ValidationError(
+                _("مبلغ الدفعة المطلوب سدادها (%(inst_amt)s) يتجاوز صافي الاستحقاق المتبقي للمستخلص (%(rem)s).") % {
+                    'inst_amt': inst.amount,
+                    'rem': remaining_cert_liability
+                }
+            )
+
+        # 4. حساب الرصيد المتاح للتخصيص دون تصفير رصيد الصرف البنكي
+        if hasattr(locked_cheque, 'amount'):
+            cheque_total_amount = locked_cheque.amount or Decimal('0.00')
+            cheque_filter_kwargs = {'pdc_cheque': locked_cheque} if hasattr(locked_cheque, '_meta') else {'pdc_cheque_id': getattr(locked_cheque, 'id', 0)}
+            allocated_to_installments = CertificatePaymentInstallmentSchedule.objects.filter(
+                is_settled=True,
+                **cheque_filter_kwargs
+            ).exclude(id=inst.id).aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0.00')
+
+            allocated_to_invoices = Decimal('0.00')
+            if hasattr(locked_cheque, 'invoice_allocations'):
+                from cheques.models.allocation import AllocationStatus
+                allocated_to_invoices = locked_cheque.invoice_allocations.filter(
+                    allocation_status=AllocationStatus.APPLIED
+                ).aggregate(
+                    total=Sum('allocated_amount')
+                )['total'] or Decimal('0.00')
+
+            prepaid_alloc = getattr(locked_cheque, 'prepaid_allocated_amount', Decimal('0.00')) or Decimal('0.00')
+            total_allocated = allocated_to_installments + allocated_to_invoices + prepaid_alloc
+            available_for_allocation = max(Decimal('0.00'), cheque_total_amount - total_allocated)
+
+            if inst.amount > available_for_allocation:
+                raise ValidationError(
+                    _("مبلغ الدفعة المطلوب سدادها (%(inst_amt)s) يتجاوز الرصيد المتاح للتخصيص بالشيك (%(rem)s).") % {
+                        'inst_amt': inst.amount,
+                        'rem': available_for_allocation
+                    }
+                )
 
         payable_account = getattr(cert.contractor, 'financial_account', None)
         if not payable_account or not payable_account.can_post_entries():

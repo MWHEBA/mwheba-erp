@@ -274,6 +274,7 @@ def test_contractor_progress_certificate_with_14_step_cascading(contractor_setup
         block=block,
         contractor=contractor,
         currency=egp_currency,
+        tax_regime=ContractorContract.TaxRegime.EXEMPT,
         initial_contract_value=Decimal("1000000.00"),
         retention_rate=Decimal("5.00"),
         advance_recovery_rate=Decimal("10.00"),

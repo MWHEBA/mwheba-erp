@@ -494,6 +494,7 @@ def test_retention_release_substantial_and_final(service_setup):
         currency=egp_currency,
         total_retention_retained=Decimal("200000.00"),
         total_retention_released=Decimal("0.00"),
+        actual_completion_date=date(2020, 1, 1),
     )
 
     # 1. إفراج استلام ابتدائي (50%) = 100,000 ج.م مع خصم 10,000 ج.م إصلاح عيوب
@@ -645,6 +646,8 @@ def test_installment_cheque_settlement(service_setup):
         contractor=contractor,
         currency=egp_currency,
         gross_certified_work=Decimal("100000.00"),
+        net_amount=Decimal("100000.00"),
+        status=ContractorProgressCertificate.CertificateStatus.APPROVED,
         period_start=date(2026, 7, 1),
         period_end=date(2026, 7, 31),
     )
@@ -662,6 +665,16 @@ def test_installment_cheque_settlement(service_setup):
     class DummyCheque:
         id = 999
         cheque_number = "CHK-999888"
+        amount = Decimal("50000.00")
+        remaining_amount = Decimal("50000.00")
+        status = "ISSUED"
+        purpose = "INVOICE_SETTLEMENT"
+        payee_name = contractor.name
+        supplier = contractor
+        currency = egp_currency
+
+        def save(self, *args, **kwargs):
+            pass
 
     entry = ContractorProgressService.settle_installment_with_cheque(
         installment=inst,

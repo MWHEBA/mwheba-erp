@@ -1488,14 +1488,41 @@ class ContractorProgressCertificate(models.Model):
             # الحساب التوافقي القديم للمستخلصات السابقة
             self.wht_amount = (self.current_period_work * self.wht_rate / Decimal('100')).quantize(Decimal('0.01'))
 
+        # حساب ضريبة الجدول (5%) أو ضريبة القيمة المضافة (14%) المصرية إذا كان العقد خاضعاً
+        if self.contract:
+            if self.contract.tax_regime == ContractorContract.TaxRegime.TABLE_TAX_5:
+                self.vat_schedule_rate = Decimal("5.00")
+                self.vat_schedule_amount = (self.current_period_work * Decimal("0.05")).quantize(Decimal("0.01"))
+            elif self.contract.tax_regime == ContractorContract.TaxRegime.STANDARD_VAT_14:
+                self.vat_schedule_rate = Decimal("14.00")
+                self.vat_schedule_amount = (self.current_period_work * Decimal("0.14")).quantize(Decimal("0.01"))
+            else:
+                self.vat_schedule_rate = Decimal("0.00")
+                self.vat_schedule_amount = Decimal("0.00")
+
         # حساب صافي المستحق
         if self.contract_id:
+            # تجميع مبالغ البنود المتنازع عليها تلقائياً إن وجدت ولم تحدد يدوياً
+            if self.id and (not self.disputed_items_holdback_total or self.disputed_items_holdback_total == Decimal("0.00")):
+                disputed_items = self.items.filter(is_disputed_holdback=True)
+                if disputed_items.exists():
+                    self.disputed_items_holdback_total = sum(i.current_work_value for i in disputed_items)
+
             gross_period_additions = (
                 self.current_period_work +
+                self.vat_schedule_amount +
                 self.net_materials_on_site +
                 self.price_escalation_amount +
                 self.approved_suspension_standby_claims +
                 self.released_retention_amount
+            )
+            total_operational_penalties = (
+                self.delay_penalties +
+                self.concrete_quality_penalties +
+                self.hse_safety_penalties +
+                self.excess_material_waste_penalties +
+                self.punch_list_penalties +
+                self.penalty_deductions
             )
             total_deductions_sum = (
                 self.retention_amount +
@@ -1520,7 +1547,7 @@ class ContractorProgressCertificate(models.Model):
                 self.tripartite_supplier_liens_deduction +
                 self.dewatering_fuel_and_stoppage_charges +
                 self.third_party_lab_charges +
-                self.penalty_deductions -
+                total_operational_penalties -
                 self.recovered_milestone_penalties
             )
             self.net_amount = (gross_period_additions - total_deductions_sum).quantize(Decimal('0.01'))
@@ -1540,9 +1567,24 @@ class ContractorProgressCertificate(models.Model):
     def compute_financial_hash(self) -> str:
         """
         توليد البصمة الرقمية المشفرة لحماية البيانات المالية من التعديل بعد الاعتماد
-        (تتوافق مع شجرة ميركل وتدعم التوافق الرجعي 100%)
+        (تتوافق مع شجرة ميركل وتغطي البنود وكافة مدخلات القيد المالي)
         """
-        payload = f"{self.id or 0}:{self.gross_certified_work}:{self.retention_amount}:{self.advance_payment_recovery}:{self.wht_amount}:{self.materials_on_site}:{self.penalty_deductions}:{self.net_amount}:{self.version}"
+        items_payload = ""
+        if self.id:
+            items_data = list(self.items.order_by('id').values_list(
+                'id', 'item_code', 'current_quantity', 'unit_rate', 'current_period_amount', 'is_disputed_holdback'
+            ))
+            items_payload = "|".join(f"{i[0]}:{i[1]}:{i[2]}:{i[3]}:{i[4]}:{i[5]}" for i in items_data)
+
+        payload = (
+            f"{self.id or 0}:{self.contractor_id}:{self.contract_id}:{self.project_id}:"
+            f"{self.currency_id}:{self.gross_certified_work}:{self.retention_amount}:"
+            f"{self.advance_payment_recovery}:{self.wht_amount}:{self.materials_on_site}:"
+            f"{self.penalty_deductions}:{self.net_amount}:{self.vat_schedule_amount}:"
+            f"{self.disputed_items_holdback_total}:{self.total_backcharges}:"
+            f"{self.scaffolding_damage_deduction}:{self.third_party_lab_charges}:"
+            f"{self.defect_rectification_costs}:{self.version}#{items_payload}"
+        )
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
     def clean(self):
@@ -1660,14 +1702,11 @@ class ContractorCertificateItem(models.Model):
 
     def save(self, *args, **kwargs):
         if self.current_quantity is not None and self.previous_quantity is not None:
-            if not self.total_cumulative_quantity or self.total_cumulative_quantity == Decimal('0.000'):
-                self.total_cumulative_quantity = self.previous_quantity + self.current_quantity
+            self.total_cumulative_quantity = self.previous_quantity + self.current_quantity
         if self.current_quantity is not None and self.unit_rate is not None:
-            if not self.current_period_amount or self.current_period_amount == Decimal('0.00'):
-                self.current_period_amount = self.current_quantity * self.unit_rate
+            self.current_period_amount = self.current_quantity * self.unit_rate
         if self.total_cumulative_quantity is not None and self.unit_rate is not None:
-            if not self.total_cumulative_amount or self.total_cumulative_amount == Decimal('0.00'):
-                self.total_cumulative_amount = self.total_cumulative_quantity * self.unit_rate
+            self.total_cumulative_amount = self.total_cumulative_quantity * self.unit_rate
         super().save(*args, **kwargs)
 
 

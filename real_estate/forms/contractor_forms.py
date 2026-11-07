@@ -200,11 +200,16 @@ class ContractorContractItemForm(forms.ModelForm):
 
 class BaseContractorContractItemFormSet(BaseInlineFormSet):
     """
-    مجموعة بنود المقايسة مع التحقق من عدم التكرار وصحة الفئات
+    مجموعة بنود المقايسة مع التحقق من عدم التكرار وصحة الفئات وسقف المقايسة الحاكمة
     """
     def clean(self):
         super().clean()
+        from real_estate.services.contractor_contract_service import ContractorContractService
+        from django.db.models import Sum
+
         item_codes = set()
+        master_boq_totals = {}
+
         for form in self.forms:
             if not hasattr(form, 'cleaned_data') or not form.cleaned_data or form.cleaned_data.get('DELETE', False):
                 continue
@@ -213,6 +218,169 @@ class BaseContractorContractItemFormSet(BaseInlineFormSet):
                 if code in item_codes:
                     raise ValidationError(_("كود البند '%(code)s' مكرر في مقايسة العقد.") % {'code': code})
                 item_codes.add(code)
+
+            master_boq = form.cleaned_data.get('master_boq_item')
+            qty = form.cleaned_data.get('contracted_quantity')
+            rate = form.cleaned_data.get('unit_rate') or Decimal('0.00')
+
+            project = getattr(self.instance, 'project', None)
+
+            if master_boq and project:
+                master_boq_proj_id = master_boq.project_id if hasattr(master_boq, 'project_id') else getattr(master_boq.project, 'id', None)
+                if master_boq_proj_id and master_boq_proj_id != project.id:
+                    raise ValidationError(_("بند المقايسة التقديرية المختار ينتمي لمشروع آخر مختلف عن مشروع العقد."))
+
+            if not master_boq and code:
+                if project:
+                    found_boq = ProjectMasterBOQItem.objects.filter(item_code=code, project=project).first()
+                else:
+                    found_boq = ProjectMasterBOQItem.objects.filter(item_code=code).first()
+                if found_boq:
+                    master_boq = found_boq
+                    form.cleaned_data['master_boq_item'] = found_boq
+                    form.instance.master_boq_item = found_boq
+            elif master_boq:
+                form.instance.master_boq_item = master_boq
+
+            if master_boq and qty is not None:
+                if master_boq not in master_boq_totals:
+                    master_boq_totals[master_boq] = {
+                        'qty': Decimal('0.000'),
+                        'rate': rate,
+                        'project': project,
+                        'code': code
+                    }
+                master_boq_totals[master_boq]['qty'] += Decimal(str(qty))
+            elif project and qty is not None:
+                ContractorContractService.validate_master_boq_and_budget(
+                    project=project,
+                    item_code=code,
+                    contracted_quantity=qty,
+                    unit_rate=rate,
+                    master_boq_item=None
+                )
+
+        # التحقق التراكمي المجمع لكل بند مقايسة حاكمة
+        for master_boq, agg in master_boq_totals.items():
+            proj = agg['project'] or master_boq.project
+            current_contract_qty = Decimal('0.000')
+            if self.instance and self.instance.pk:
+                current_contract_qty = self.instance.items.filter(
+                    master_boq_item=master_boq
+                ).aggregate(total=Sum('contracted_quantity'))['total'] or Decimal('0.000')
+
+            delta_qty = agg['qty'] - current_contract_qty
+            ContractorContractService.validate_master_boq_and_budget(
+                project=proj,
+                item_code=agg['code'],
+                contracted_quantity=delta_qty if delta_qty > Decimal('0.000') else Decimal('0.000'),
+                unit_rate=agg['rate'],
+                master_boq_item=master_boq
+            )
+
+    def save(self, commit=True):
+        from real_estate.models import ProjectMasterBOQItem, ContractorContractItem
+        from django.db import transaction
+        from django.db.models import Sum
+
+        if not commit:
+            return super().save(commit=commit)
+
+        with transaction.atomic():
+            # 1. تتبع معرّفات بنود المقايسة السابقة والحالية لمنع بقاء حجوزات يتيمة أو تجاوز السقف
+            original_boq_ids = set()
+            for form in self.forms:
+                if form.instance and form.instance.pk:
+                    try:
+                        orig_item = ContractorContractItem.objects.get(pk=form.instance.pk)
+                        if orig_item.master_boq_item_id:
+                            original_boq_ids.add(orig_item.master_boq_item_id)
+                    except ContractorContractItem.DoesNotExist:
+                        pass
+
+            target_boq_ids = set(original_boq_ids)
+            for form in self.forms:
+                if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                    continue
+                boq = form.cleaned_data.get('master_boq_item') or getattr(form.instance, 'master_boq_item', None)
+                boq_id = getattr(boq, 'pk', boq) if boq else None
+                if boq_id:
+                    target_boq_ids.add(boq_id)
+
+            # 2. قفل بنود المقايسة المتأثرة بترتيب ثابت والتحقق من السقف المتاح قبل كتابة البنود
+            sorted_boq_ids = sorted(list(target_boq_ids))
+            locked_boqs = {}
+
+            for boq_id in sorted_boq_ids:
+                boq = ProjectMasterBOQItem.objects.select_for_update().get(id=boq_id)
+                locked_boqs[boq_id] = boq
+
+                # حساب التغير الصافي (net_delta) للبنود في هذا الفورمست لبند المقايسة هذا
+                net_delta = Decimal('0.000')
+                for form in self.forms:
+                    if not hasattr(form, 'cleaned_data') or not form.cleaned_data:
+                        continue
+                    is_delete = form.cleaned_data.get('DELETE', False)
+                    form_boq = form.cleaned_data.get('master_boq_item') or getattr(form.instance, 'master_boq_item', None)
+                    form_boq_id = getattr(form_boq, 'pk', form_boq) if form_boq else None
+
+                    # إذا كان البند موجوداً مسبقاً في قاعدة البيانات
+                    if form.instance and form.instance.pk:
+                        try:
+                            orig = ContractorContractItem.objects.get(pk=form.instance.pk)
+                            orig_was_this_boq = (orig.master_boq_item_id == boq_id)
+                            orig_qty = orig.contracted_quantity if orig_was_this_boq else Decimal('0.000')
+                        except ContractorContractItem.DoesNotExist:
+                            orig_was_this_boq = False
+                            orig_qty = Decimal('0.000')
+
+                        if is_delete:
+                            if orig_was_this_boq:
+                                net_delta -= orig_qty
+                        else:
+                            if form_boq_id == boq_id:
+                                new_qty = Decimal(str(form.cleaned_data.get('contracted_quantity') or 0))
+                                net_delta += (new_qty - orig_qty)
+                            elif orig_was_this_boq:
+                                net_delta -= orig_qty
+                    else:
+                        # بند جديد تماماً يُضاف في هذا الفورمست
+                        if not is_delete and form_boq_id == boq_id:
+                            new_qty = Decimal(str(form.cleaned_data.get('contracted_quantity') or 0))
+                            net_delta += new_qty
+
+                # الرصيد الفعلي المحجوز حالياً في قاعدة البيانات لكافة العقود والبنود
+                current_total_allocated = ContractorContractItem.objects.filter(
+                    master_boq_item_id=boq_id
+                ).aggregate(total=Sum('contracted_quantity'))['total'] or Decimal('0.000')
+
+                projected_total = current_total_allocated + net_delta
+
+                tol_rate = boq.overrun_tolerance_rate or Decimal('0.00')
+                max_allowed = (boq.master_budget_quantity * (Decimal('1.00') + tol_rate / Decimal('100.00'))).quantize(Decimal('0.001'))
+
+                if projected_total > max_allowed:
+                    raise ValidationError(
+                        _("لا يمكن حفظ البنود: الكمية المحجوزة لبند المقايسة '%(code)s' ستصبح (%(tot)s) متجاوزة السقف الأقصى المتاح (%(max)s) بسماحية %(tol)s%%.") % {
+                            'code': boq.item_code,
+                            'tot': projected_total,
+                            'max': max_allowed,
+                            'tol': tol_rate
+                        }
+                    )
+
+            # 3. حفظ بنود العقد الفعلية
+            saved_items = super().save(commit=True)
+
+            # 4. تحديث الكميات المحجوزة في بنود المقايسة المقفولة
+            for boq_id, boq in locked_boqs.items():
+                total_allocated = ContractorContractItem.objects.filter(
+                    master_boq_item_id=boq_id
+                ).aggregate(total=Sum('contracted_quantity'))['total'] or Decimal('0.000')
+                boq.allocated_quantity_to_contracts = total_allocated
+                boq.save(update_fields=['allocated_quantity_to_contracts', 'updated_at'])
+
+            return saved_items
 
 
 ContractorContractItemFormSet = inlineformset_factory(
@@ -401,6 +569,12 @@ class RetentionReleaseForm(forms.Form):
         ("SUBSTANTIAL", _("إفراج استلام ابتدائي (50%)")),
         ("FINAL", _("إفراج استلام نهائي ورد التأمين بالكامل (50%)")),
     )
+    operation_id = forms.CharField(
+        label=_("معرّف العملية"),
+        max_length=100,
+        required=False,
+        widget=forms.HiddenInput()
+    )
     release_type = forms.ChoiceField(
         choices=RELEASE_CHOICES,
         label=_("نوع الإفراج"),
@@ -430,6 +604,12 @@ class RetentionReleaseForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2})
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.initial.get('operation_id') and not (self.data and self.data.get('operation_id')):
+            import uuid
+            self.initial['operation_id'] = f"RET-OP-{uuid.uuid4().hex[:12].upper()}"
 
 
 class StornoReversalForm(forms.Form):
