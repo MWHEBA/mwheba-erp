@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "عقد مقاولة باطن" %}: {{ contract.contract_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Top Info Card -->
+  <div class="card border shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="row g-4 align-items-center">
+        <div class="col-12 col-lg-8">
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <h4 class="fw-bold mb-0 text-dark">{{ contract.title }}</h4>
+            {% if contract.status == 'ACTIVE' %}
+            <span class="badge bg-success fs-6">{% trans "ساري العمل به" %}</span>
+            {% elif contract.status == 'DRAFT' %}
+            <span class="badge bg-secondary fs-6">{% trans "مسودة" %}</span>
+            {% elif contract.status == 'COMPLETED' %}
+            <span class="badge bg-info text-dark fs-6">{% trans "مكتمل نهائياً" %}</span>
+            {% elif contract.status == 'TERMINATED' %}
+            <span class="badge bg-danger fs-6">{% trans "مفسوخ" %}</span>
+            {% else %}
+            <span class="badge bg-warning text-dark fs-6">{{ contract.get_status_display }}</span>
+            {% endif %}
+
+            {% if contract.is_nominated_subcontractor %}
+            <span class="badge bg-secondary">{% trans "مقاول مرشح" %}</span>
+            {% endif %}
+          </div>
+          <p class="text-muted mb-3">{{ contract.project.name }} &bull; {{ contract.contractor.name }}</p>
+
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <span class="small text-muted d-block">{% trans "القيمة التعاقدية المعدلة" %}</span>
+              <strong class="h5 mb-0 text-primary">{{ contract.revised_contract_value|floatformat:2|intcomma }} {{ contract.currency.symbol }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="small text-muted d-block">{% trans "الدفعة المقدمة المنصرفة" %}</span>
+              <strong class="h5 mb-0 text-info">{{ contract.advance_payment_disbursed|floatformat:2|intcomma }} {{ contract.currency.symbol }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="small text-muted d-block">{% trans "الأعمال المنفذة المعتمدة" %}</span>
+              <strong class="h5 mb-0 text-success">{{ contract.total_certified_work|floatformat:2|intcomma }} {{ contract.currency.symbol }}</strong>
+            </div>
+            <div class="col-6 col-md-3">
+              <span class="small text-muted d-block">{% trans "تأمين الأعمال المحتجز" %}</span>
+              <strong class="h5 mb-0 text-warning">{{ contract.total_retention_retained|floatformat:2|intcomma }} {{ contract.currency.symbol }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4 border-start-lg ps-lg-4">
+          <div class="d-flex flex-column gap-2">
+            {% if contract.status == 'ACTIVE' and not contract.advance_payment_disbursed %}
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#disburseAdvanceModal">
+              <i class="fas fa-hand-holding-usd me-1"></i>{% trans "صرف الدفعة المقدمة" %}
+            </button>
+            {% endif %}
+
+            {% if contract.status == 'ACTIVE' %}
+            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#variationOrderModal">
+              <i class="fas fa-file-invoice me-1"></i>{% trans "إصدار أمر تغيير (VO)" %}
+            </button>
+
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#jointTerminationModal">
+              <i class="fas fa-ban me-1"></i>{% trans "محضر إنهاء رضائي وحصر" %}
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Tab Details Navigation -->
+  <div class="card border shadow-sm">
+    <div class="card-header bg-light border-bottom p-0">
+      <ul class="nav nav-tabs card-header-tabs m-0 px-3" id="contractDetailTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active py-3 fw-bold text-dark" id="items-tab" data-bs-toggle="tab" data-bs-target="#tab-items" type="button" role="tab">
+            <i class="fas fa-th-list text-primary me-2"></i>{% trans "بنود المقايسة المسعرة" %} ({{ items.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="vo-tab" data-bs-toggle="tab" data-bs-target="#tab-vo" type="button" role="tab">
+            <i class="fas fa-file-invoice text-info me-2"></i>{% trans "أوامر التغيير" %} ({{ variation_orders.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="certs-tab" data-bs-toggle="tab" data-bs-target="#tab-certs" type="button" role="tab">
+            <i class="fas fa-hard-hat text-success me-2"></i>{% trans "المستخلصات الإنشائية" %} ({{ certificates.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="compliance-tab" data-bs-toggle="tab" data-bs-target="#tab-compliance" type="button" role="tab">
+            <i class="fas fa-shield-alt text-warning me-2"></i>{% trans "الحوكمة والضمانات البنكية" %}
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card-body p-4">
+      <div class="tab-content" id="contractDetailTabsContent">
+        <!-- Tab 1: BOQ Items -->
+        <div class="tab-pane fade show active" id="tab-items" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "كود البند" %}</th>
+                  <th>{% trans "وصف البند الهندسي" %}</th>
+                  <th>{% trans "الوحدة" %}</th>
+                  <th class="text-end">{% trans "الكمية المتعاقد عليها" %}</th>
+                  <th class="text-end">{% trans "الفئة التعاقدية" %}</th>
+                  <th class="text-end">{% trans "إجمالي القيمة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td class="ps-3 fw-bold text-primary">{{ item.item_code }}</td>
+                  <td>{{ item.description }}</td>
+                  <td><span class="badge bg-light text-dark">{{ item.unit }}</span></td>
+                  <td class="text-end fw-bold">{{ item.contracted_quantity|floatformat:3 }}</td>
+                  <td class="text-end">{{ item.unit_rate|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold text-success">{{ item.total_amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-4 text-muted">{% trans "لا توجد بنود مقايسة مسجلة." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 2: Variation Orders -->
+        <div class="tab-pane fade" id="tab-vo" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم الأمر" %}</th>
+                  <th>{% trans "السبب والمبرر الهندسي" %}</th>
+                  <th class="text-end">{% trans "التعديل المالي الصافي" %}</th>
+                  <th class="text-center">{% trans "تمديد المدة (أيام)" %}</th>
+                  <th class="text-center">{% trans "حالة الاعتماد" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for vo in variation_orders %}
+                <tr>
+                  <td class="ps-3 fw-bold text-primary">{{ vo.order_number }}</td>
+                  <td>{{ vo.reason|truncatechars:60 }}</td>
+                  <td class="text-end fw-bold {% if vo.net_amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ vo.net_amount|floatformat:2|intcomma }}
+                  </td>
+                  <td class="text-center">{{ vo.time_extension_days }}</td>
+                  <td class="text-center">
+                    <span class="badge bg-success">{{ vo.get_status_display }}</span>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">{% trans "لا توجد أوامر تغيير مسجلة لهذا العقد." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: Certificates -->
+        <div class="tab-pane fade" id="tab-certs" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم المستخلص" %}</th>
+                  <th>{% trans "الفترة" %}</th>
+                  <th class="text-end">{% trans "إجمالي الأعمال" %}</th>
+                  <th class="text-end">{% trans "استرداد المقدمة" %}</th>
+                  <th class="text-end">{% trans "تأمين حسن التنفيذ" %}</th>
+                  <th class="text-end">{% trans "الصافي للصرف" %}</th>
+                  <th class="text-center">{% trans "الحالة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cert in certificates %}
+                <tr class="clickable-row" data-href="{% url 'real_estate:contractor_detail' cert.pk %}">
+                  <td class="ps-3 fw-bold text-primary">
+                    <a href="{% url 'real_estate:contractor_detail' cert.pk %}">{{ cert.certificate_number }}</a>
+                  </td>
+                  <td class="small text-muted">{{ cert.period_start|date:"Y-m-d" }} &larr; {{ cert.period_end|date:"Y-m-d" }}</td>
+                  <td class="text-end fw-bold">{{ cert.gross_certified_work|floatformat:2|intcomma }}</td>
+                  <td class="text-end text-info">{{ cert.advance_payment_recovery|floatformat:2|intcomma }}</td>
+                  <td class="text-end text-warning">{{ cert.retention_amount|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold text-success">{{ cert.net_payable_amount|floatformat:2|intcomma }}</td>
+                  <td class="text-center">
+                    <span class="badge bg-light text-dark">{{ cert.get_status_display }}</span>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">{% trans "لا توجد مستخلصات إنشائية منشأة لهذا العقد بعد." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Compliance & Guarantees -->
+        <div class="tab-pane fade" id="tab-compliance" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-12 col-md-6">
+              <div class="card border h-100">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                  <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-university text-primary me-2"></i>{% trans "خطاب الضمان البنكي (LG)" %}</h6>
+                </div>
+                <div class="card-body p-3">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted">{% trans "رقم الخطاب" %}</dt>
+                    <dd class="col-sm-7 fw-bold">{{ contract.bank_lg_number|default:_("غير مسجل") }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "البنك المصدر" %}</dt>
+                    <dd class="col-sm-7">{{ contract.bank_lg_issuing_bank|default:"-" }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "قيمة الضمان" %}</dt>
+                    <dd class="col-sm-7 fw-bold text-success">{{ contract.bank_lg_amount|floatformat:2|intcomma }} {{ contract.currency.symbol }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "تاريخ الانتهاء" %}</dt>
+                    <dd class="col-sm-7">{{ contract.bank_lg_expiry_date|default:"-" }}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="card border h-100">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                  <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-file-contract text-info me-2"></i>{% trans "التأمين الهندسي والتنازلات البنكية" %}</h6>
+                </div>
+                <div class="card-body p-3">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted">{% trans "وثيقة CAR Insurance" %}</dt>
+                    <dd class="col-sm-7">{{ contract.car_insurance_policy_number|default:_("غير مسجلة") }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "صلاحية التأمين" %}</dt>
+                    <dd class="col-sm-7">{{ contract.car_insurance_expiry_date|default:"-" }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "التنازل البنكي" %}</dt>
+                    <dd class="col-sm-7">
+                      {% if contract.is_assigned_to_bank %}
+                      <span class="badge bg-warning text-dark">{% trans "متنازل عنه لصالح" %}: {{ contract.assigned_bank_name }}</span>
+                      {% else %}
+                      <span class="badge bg-light text-dark">{% trans "لا يوجد تنازل" %}</span>
+                      {% endif %}
+                    </dd>
+                    <dt class="col-sm-5 text-muted">{% trans "الحجز القضائي" %}</dt>
+                    <dd class="col-sm-7">
+                      {% if contract.is_garnished_by_court %}
+                      <span class="badge bg-danger">{% trans "محجوز قضائياً" %} ({{ contract.garnishment_amount|floatformat:2|intcomma }})</span>
+                      {% else %}
+                      <span class="badge bg-light text-dark">{% trans "لا يوجد حجز" %}</span>
+                      {% endif %}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 1: Disburse Advance Payment -->
+{% if contract.status == 'ACTIVE' and not contract.advance_payment_disbursed %}
+<div class="modal fade" id="disburseAdvanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-hand-holding-usd text-primary me-2"></i>{% trans "صرف الدفعة المقدمة لعقد المقاولة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'real_estate:contractor_contract_disburse_advance' contract.pk %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "مبلغ الدفعة المقدمة" %}</label>
+            {{ advance_form.amount }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "تاريخ الصرف" %}</label>
+            {{ advance_form.disbursement_date }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "طريقة الصرف" %}</label>
+            {{ advance_form.payment_method }}
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold">{% trans "ملاحظات السند" %}</label>
+            {{ advance_form.notes }}
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "تأكيد صرف القيد المالي" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal 2: Create Variation Order -->
+{% if contract.status == 'ACTIVE' %}
+<div class="modal fade" id="variationOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-file-invoice text-info me-2"></i>{% trans "إصدار أمر تغيير هندسي (Variation Order)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'real_estate:contractor_contract_variation_create' contract.pk %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "رقم أمر التغيير" %}</label>
+              {{ vo_form.order_number }}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "تمديد المدة الزمنية (أيام)" %}</label>
+              {{ vo_form.time_extension_days }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "المبرر الفني والهندسي" %}</label>
+              {{ vo_form.reason }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "ملاحظات إضافية" %}</label>
+              {{ vo_form.notes }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-info text-dark px-4 fw-bold">{% trans "حفظ أمر التغيير" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal 3: Joint Termination Survey -->
+<div class="modal fade" id="jointTerminationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-ban text-danger me-2"></i>{% trans "محضر إنهاء العقد وحصر المواد بالمخزن" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'real_estate:contractor_contract_terminate' contract.pk %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "رقم المحضر" %}</label>
+              {{ termination_form.protocol_reference }}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "تاريخ المحضر" %}</label>
+              {{ termination_form.survey_date }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "سبب إنهاء العقد" %}</label>
+              {{ termination_form.termination_reason }}
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "حالة المخزن والموقع بعد الحصر" %}</label>
+              {{ termination_form.notes }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد إنهاء العقد" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

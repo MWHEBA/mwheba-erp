@@ -1,0 +1,77 @@
+{% load i18n %}
+{% load humanize %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="contractor-certificates-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3">{% trans "رقم المستخلص" %}</th>
+        <th>{% trans "المشروع" %}</th>
+        <th>{% trans "المقاول المنفذ" %}</th>
+        <th>{% trans "فترة الإنجاز" %}</th>
+        <th class="text-end">{% trans "إجمالي الأعمال" %}</th>
+        <th class="text-end">{% trans "تأمين الأعمال" %}</th>
+        <th class="text-end">{% trans "الصافي المستحق" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cert in certificates %}
+      <tr class="clickable-row" data-href="{% url 'real_estate:contractor_detail' cert.pk %}">
+        <td class="ps-3 fw-bold text-primary">
+          <a href="{% url 'real_estate:contractor_detail' cert.pk %}" class="text-decoration-none">
+            {{ cert.certificate_number }}
+          </a>
+          {% if cert.is_reversal %}
+          <span class="badge bg-danger ms-1">{% trans "استورنو عكسي" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ cert.project.name }}</td>
+        <td>{{ cert.contractor.name }}</td>
+        <td class="small text-muted">{{ cert.period_start|date:"Y-m-d" }} &larr; {{ cert.period_end|date:"Y-m-d" }}</td>
+        <td class="text-end fw-bold">{{ cert.gross_certified_work|floatformat:2|intcomma }}</td>
+        <td class="text-end text-warning">{{ cert.retention_amount|floatformat:2|intcomma }}</td>
+        <td class="text-end fw-bold text-success">{{ cert.net_payable_amount|floatformat:2|intcomma }}</td>
+        <td class="text-center">
+          {% if cert.status == 'DRAFT' %}
+          <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+          {% elif cert.status == 'PENDING_APPROVAL' or cert.status == 'PENDING' %}
+          <span class="badge bg-warning text-dark">{% trans "قيد الاعتماد" %}</span>
+          {% elif cert.status == 'APPROVED' %}
+          <span class="badge bg-info text-dark">{% trans "معتمد مالياً" %}</span>
+          {% elif cert.status == 'PAID' %}
+          <span class="badge bg-success">{% trans "منصرف بالكامل" %}</span>
+          {% elif cert.status == 'CANCELLED' %}
+          <span class="badge bg-danger">{% trans "ملغي" %}</span>
+          {% else %}
+          <span class="badge bg-light text-dark">{{ cert.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-center pe-3 col-actions" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'real_estate:contractor_detail' cert.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'real_estate:contractor_print' cert.pk %}" class="btn btn-outline-secondary" target="_blank" title="{% trans 'طباعة هندسية' %}">
+              <i class="fas fa-print"></i>
+            </a>
+            {% if cert.status == 'DRAFT' %}
+            <a href="{% url 'real_estate:contractor_update' cert.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="text-center py-4 text-muted">
+          <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+          {% trans "لا توجد مستخلصات مقاولين مطابقة لمعايير البحث." %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

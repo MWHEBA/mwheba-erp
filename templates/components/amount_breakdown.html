@@ -1,0 +1,51 @@
+{% load i18n humanize %}
+{% comment %}
+Amount Breakdown Component
+Renders financial breakdown (Gross, Additions, Deductions, Net) with clean flat corporate styling.
+Parameters:
+- gross_amount: Base / certified work amount
+- additions: List of {label, amount} or dict of additions
+- deductions: List of {label, amount, rate} or dict of deductions
+- net_amount: Net payable amount
+- currency_code: Currency symbol / code (defaults to 'EGP')
+{% endcomment %}
+<div class="card border shadow-sm amount-breakdown-card">
+  <div class="card-header bg-light border-bottom py-2 px-3">
+    <h6 class="mb-0 fw-bold text-dark">
+      <i class="fas fa-calculator text-primary me-2"></i>{% trans "التفنيد المالي الصافي" %}
+    </h6>
+  </div>
+  <div class="card-body p-3">
+    <table class="table table-sm table-borderless align-middle mb-0">
+      <tbody>
+        {% if gross_amount %}
+        <tr class="border-bottom">
+          <td class="text-muted fw-semibold">{% trans "إجمالي الأعمال المنفذة" %}</td>
+          <td class="text-end fw-bold text-dark">{{ gross_amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endif %}
+
+        {% for item in additions %}
+        <tr>
+          <td class="text-muted ps-3"><i class="fas fa-plus text-info me-1 small"></i>{{ item.label }}</td>
+          <td class="text-end text-info fw-semibold">+{{ item.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+
+        {% for item in deductions %}
+        <tr>
+          <td class="text-muted ps-3"><i class="fas fa-minus text-danger me-1 small"></i>{{ item.label }}{% if item.rate %} ({{ item.rate }}%){% endif %}</td>
+          <td class="text-end text-danger fw-semibold">-{{ item.amount|floatformat:2|intcomma }}</td>
+        </tr>
+        {% endfor %}
+
+        {% if net_amount %}
+        <tr class="border-top border-2">
+          <td class="h6 fw-bold text-dark mb-0 pt-2">{% trans "الصافي المستحق للصرف" %}</td>
+          <td class="h6 fw-bold text-success text-end mb-0 pt-2">{{ net_amount|floatformat:2|intcomma }} {{ currency_code|default:"EGP" }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>

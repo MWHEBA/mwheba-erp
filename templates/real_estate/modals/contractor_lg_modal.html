@@ -1,0 +1,59 @@
+{% load i18n %}
+
+<div class="modal fade" id="contractorLGModal" tabindex="-1" aria-labelledby="contractorLGModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="contractorLGModalLabel">
+          <i class="fas fa-university text-primary me-2"></i>{% trans "تسجيل وتحديث خطاب الضمان البنكي (LG)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="" method="post" id="contractorLGForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "نوع خطاب الضمان" %}</label>
+            <select name="guarantee_type" class="form-select">
+              <option value="PERFORMANCE">{% trans "خطاب ضمان حسن التنفيذ (Final Guarantee)" %}</option>
+              <option value="ADVANCE_PAYMENT">{% trans "خطاب ضمان الدفعة المقدمة (Advance LG)" %}</option>
+              <option value="MAINTENANCE">{% trans "خطاب ضمان صيانة وأعمال الضمان" %}</option>
+            </select>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "رقم الخطاب" %}</label>
+              <input type="text" name="bank_lg_number" class="form-control" placeholder="LG-2026-001" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "قيمة الضمان" %}</label>
+              <input type="number" step="0.01" name="bank_lg_amount" class="form-control" placeholder="0.00" required>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "البنك المصدر" %}</label>
+              <input type="text" name="bank_lg_issuing_bank" class="form-control" placeholder="{% trans 'البنك الأهلي، CIB...' %}" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "تاريخ الانتهاء" %}</label>
+              <input type="date" name="bank_lg_expiry_date" class="form-control" required>
+            </div>
+          </div>
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="lg_pay_or_extend_triggered" id="payOrExtendCheck">
+            <label class="form-check-label text-warning small fw-bold" for="payOrExtendCheck">
+              {% trans "تفعيل إجراء التمديد أو التسييل المصرفي (Pay or Extend Triggered)" %}
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ بيانات الضمان" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

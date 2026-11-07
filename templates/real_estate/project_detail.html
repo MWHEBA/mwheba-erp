@@ -234,6 +234,51 @@
       </div>
     </div>
   </div>
+
+  <!-- Subcontractor Contracts & Progress Certificates Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-hard-hat text-primary me-2"></i>{% trans "عقود مقاولي الباطن والمستخلصات الإنشائية للمشروع" %}
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <a href="{% url 'real_estate:contractor_contract_list' %}?project={{ project.id }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-file-contract me-1"></i>{% trans "عقود المقاولين" %}
+          </a>
+          <a href="{% url 'real_estate:contractor_list' %}?project={{ project.id }}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-receipt me-1"></i>{% trans "مستخلصات التنفيذ" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3 text-center">
+          <div class="col-12 col-md-4">
+            <div class="p-3 bg-light rounded border">
+              <span class="text-muted small d-block mb-1">{% trans "إدارة العقود والمقايسات" %}</span>
+              <a href="{% url 'real_estate:contractor_contract_list' %}?project={{ project.id }}" class="fw-bold text-decoration-none">
+                {% trans "عرض ومتابعة عقود مقاولي الباطن المسجلة" %} &larr;
+              </a>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="p-3 bg-light rounded border">
+              <span class="text-muted small d-block mb-1">{% trans "حصر الأعمال والمستخلصات" %}</span>
+              <a href="{% url 'real_estate:contractor_list' %}?project={{ project.id }}" class="fw-bold text-success text-decoration-none">
+                {% trans "استعراض مستخلصات التنفيذ التراكمية" %} &larr;
+              </a>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="p-3 bg-light rounded border">
+              <span class="text-muted small d-block mb-1">{% trans "تشوينات الموقع والخرسانات" %}</span>
+              <span class="fw-bold text-dark">{% trans "حصر المواد ومخازن الموقع المعتمدة" %}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 

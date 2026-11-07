@@ -1,0 +1,57 @@
+{% load i18n %}
+{% load humanize %}
+
+<div class="row g-3 mb-4" id="contractor-contracts-summary">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-info h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي العقود" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_contracts|default:"0" }}</div>
+        </div>
+        <div class="stats-card-icon text-info fs-2">
+          <i class="fas fa-file-contract"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-primary h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي التكلفة المتعاقد عليها" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_contract_value|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-primary fs-2">
+          <i class="fas fa-coins"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-warning h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "الدفعة المقدمة المنصرفة" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_advance_disbursed|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-warning fs-2">
+          <i class="fas fa-hand-holding-usd"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-success h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "الأعمال المنفذة المعتمدة" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_certified_work|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-success fs-2">
+          <i class="fas fa-chart-line"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

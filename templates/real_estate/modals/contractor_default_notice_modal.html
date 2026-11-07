@@ -1,0 +1,47 @@
+{% load i18n %}
+
+<div class="modal fade" id="defaultNoticeModal" tabindex="-1" aria-labelledby="defaultNoticeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="defaultNoticeModalLabel">
+          <i class="fas fa-bullhorn text-danger me-2"></i>{% trans "إصدار إخطار مخالفة تعاقدية ومهلة 48 ساعة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="" method="post" id="defaultNoticeForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-warning small mb-3">
+            <i class="fas fa-clock me-1"></i>
+            {% trans "يبدأ حساب مهلة الـ 48 ساعة القانونية فور تسليم هذا الإخطار قبل توقيع أي خصم أو تكليف مقاول بديل." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "رقم الإخطار التعاقدي" %}</label>
+            <input type="text" name="notice_number" class="form-control" placeholder="DN-2026-001" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "نوع المخالفة الميدانية" %}</label>
+            <select name="violation_type" class="form-select">
+              <option value="QUALITY">{% trans "مخالفة جودة ومواصفات هندسية" %}</option>
+              <option value="SCHEDULE">{% trans "تأخر عن البرنامج الزمني" %}</option>
+              <option value="HSE">{% trans "مخالفة أمن صناعي وسلامة" %}</option>
+              <option value="CLEANLINESS">{% trans "عدم رفع الرتش والمخلفات" %}</option>
+              <option value="OTHER">{% trans "مخالفة أخرى" %}</option>
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold">{% trans "تفاصيل المخالفة والأعمال المطلوبة لتداركها" %}</label>
+            <textarea name="remedy_actions" rows="3" class="form-control" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-paper-plane me-1"></i>{% trans "إصدار وإرسال الإخطار" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

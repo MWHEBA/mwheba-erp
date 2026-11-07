@@ -1,0 +1,42 @@
+{% load i18n %}
+
+<div class="modal fade" id="importBOQModal" tabindex="-1" aria-labelledby="importBOQModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="importBOQModalLabel">
+          <i class="fas fa-file-excel text-success me-2"></i>{% trans "استيراد حصر المقايسة من ملف Excel / CSV" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% if cert %}{% url 'real_estate:contractor_excel_import' cert.pk %}{% endif %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-info small mb-3">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "يجب أن يحتوي الملف على الأعمدة التالية:" %}
+            <code class="d-block mt-1">item_code, description, unit, unit_rate, current_quantity, previous_quantity</code>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "اختر ملف الحصر الهندسي" %}</label>
+            <input type="file" name="file" class="form-control" accept=".csv, .xlsx, .xls" required>
+          </div>
+
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" name="replace_items" id="replaceItemsCheck" value="true">
+            <label class="form-check-label text-danger small fw-bold" for="replaceItemsCheck">
+              {% trans "استبدال كافة البنود الحالية بالبنود المستوردة من الملف" %}
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-upload me-1"></i>{% trans "بدء الاستيراد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

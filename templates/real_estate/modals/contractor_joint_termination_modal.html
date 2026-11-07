@@ -1,0 +1,47 @@
+{% load i18n %}
+
+<div class="modal fade" id="jointTerminationModal" tabindex="-1" aria-labelledby="jointTerminationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="jointTerminationModalLabel">
+          <i class="fas fa-ban text-danger me-2"></i>{% trans "محضر إنهاء العقد وحصر المواد المتبقية بالمخزن" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% if contract %}{% url 'real_estate:contractor_contract_terminate' contract.pk %}{% endif %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-warning small mb-3">
+            <i class="fas fa-warehouse me-1"></i>
+            {% trans "يتم حصر كافة تشوينات الموقع غير المركبة ونقل حيازتها إلى مخزن المشروع مع تسوية الفروق المالية مع المقاول." %}
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "رقم المحضر الرسمي" %}</label>
+              <input type="text" name="protocol_reference" class="form-control" value="TERM-{% if contract %}{{ contract.contract_number }}{% endif %}" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "تاريخ المحضر" %}</label>
+              <input type="date" name="survey_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "سبب إنهاء العقد ومسوغاته" %}</label>
+              <textarea name="termination_reason" rows="3" class="form-control" placeholder="{% trans 'فسخ رضائي، سحب أعمال بسبب التأخر، اتفاق تصفية...' %}" required></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "حالة مخزن المشروع وتشوينات الموقع بعد الحصر المشترك" %}</label>
+              <textarea name="notes" rows="2" class="form-control" placeholder="{% trans 'بيان المواد التي تم استلامها وإدخالها لمخزن المشروع...' %}"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-ban me-1"></i>{% trans "تأكيد إنهاء العقد وحصر المخزن" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

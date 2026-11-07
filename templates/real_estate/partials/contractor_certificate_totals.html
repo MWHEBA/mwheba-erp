@@ -1,0 +1,57 @@
+{% load i18n %}
+{% load humanize %}
+
+<div class="row g-3 mb-4" id="contractor-certificates-totals">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-info h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي المستخلصات" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_certs|default:"0" }}</div>
+        </div>
+        <div class="stats-card-icon text-info fs-2">
+          <i class="fas fa-file-invoice-dollar"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-primary h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الأعمال المنفذة" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_certified_gross|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-primary fs-2">
+          <i class="fas fa-hard-hat"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-warning h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "تأمين حسن التنفيذ المحتجز" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_retention|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-warning fs-2">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-success h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "صافي المستخلصات المعتمدة" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_net_payable|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="stats-card-icon text-success fs-2">
+          <i class="fas fa-money-check-alt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

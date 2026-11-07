@@ -1,0 +1,72 @@
+{% load i18n %}
+{% load humanize %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="contractor-contracts-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3">{% trans "رقم العقد" %}</th>
+        <th>{% trans "المشروع" %}</th>
+        <th>{% trans "مقاول الباطن" %}</th>
+        <th>{% trans "طبيعة الأعمال" %}</th>
+        <th class="text-end">{% trans "قيمة العقد" %}</th>
+        <th class="text-end">{% trans "الدفعة المقدمة" %}</th>
+        <th class="text-end">{% trans "الأعمال المعتمدة" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center pe-3">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for contract in contracts %}
+      <tr class="clickable-row" data-href="{% url 'real_estate:contractor_contract_detail' contract.pk %}">
+        <td class="ps-3 fw-bold text-primary">
+          <a href="{% url 'real_estate:contractor_contract_detail' contract.pk %}" class="text-decoration-none">
+            {{ contract.contract_number }}
+          </a>
+          {% if contract.is_nominated_subcontractor %}
+          <span class="badge bg-secondary ms-1">{% trans "مقاول مرشح" %}</span>
+          {% endif %}
+        </td>
+        <td>{{ contract.project.name }}</td>
+        <td>{{ contract.contractor.name }}</td>
+        <td class="small">{{ contract.title|truncatechars:35 }}</td>
+        <td class="text-end fw-bold">{{ contract.initial_contract_value|floatformat:2|intcomma }}</td>
+        <td class="text-end text-info">{{ contract.advance_payment_amount|floatformat:2|intcomma }}</td>
+        <td class="text-end fw-bold text-success">{{ contract.total_certified_work|floatformat:2|intcomma }}</td>
+        <td class="text-center">
+          {% if contract.status == 'ACTIVE' %}
+          <span class="badge bg-success">{% trans "ساري" %}</span>
+          {% elif contract.status == 'DRAFT' %}
+          <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+          {% elif contract.status == 'COMPLETED' %}
+          <span class="badge bg-info text-dark">{% trans "مكتمل" %}</span>
+          {% elif contract.status == 'SUSPENDED' %}
+          <span class="badge bg-warning text-dark">{% trans "معلق" %}</span>
+          {% elif contract.status == 'TERMINATED' %}
+          <span class="badge bg-danger">{% trans "مفسوخ" %}</span>
+          {% else %}
+          <span class="badge bg-light text-dark">{{ contract.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-center pe-3 col-actions" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'real_estate:contractor_contract_detail' contract.pk %}" class="btn btn-outline-secondary" title="{% trans 'تفاصيل العقد' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'real_estate:contractor_contract_update' contract.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="9" class="text-center py-4 text-muted">
+          <i class="fas fa-file-contract fa-2x mb-2 d-block"></i>
+          {% trans "لا توجد عقود مقاولي باطن مسجلة تطابق معايير البحث." %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

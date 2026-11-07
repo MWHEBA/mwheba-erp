@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}
+  {% if is_edit %}{% trans "تعديل عقد مقاولة باطن" %}: {{ contract.contract_number }}{% else %}{% trans "إنشاء عقد مقاولة باطن جديد" %}{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <form method="post" id="contractorContractForm" class="needs-validation" novalidate>
+    {% csrf_token %}
+
+    <div class="card border shadow-sm mb-4">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <h5 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-file-signature text-primary me-2"></i>{% trans "بيانات العقد الأساسية والأطراف" %}
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        {% if form.errors %}
+        <div class="alert alert-danger mb-4">
+          <ul class="mb-0">
+            {% for field in form %}
+              {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+              {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "رقم العقد" %} <span class="text-danger">*</span></label>
+            {{ form.contract_number }}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "المشروع العقاري" %} <span class="text-danger">*</span></label>
+            {{ form.project }}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "مقاول الباطن" %} <span class="text-danger">*</span></label>
+            {{ form.contractor }}
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-bold small">{% trans "مسمى العقد وطبيعة الأعمال" %} <span class="text-danger">*</span></label>
+            {{ form.title }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "نوع التعاقد" %}</label>
+            {{ form.contract_type }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "العملة" %}</label>
+            {{ form.currency }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "القيمة التعاقدية المبدئية" %}</label>
+            {{ form.initial_contract_value }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "تاريخ البدء" %}</label>
+            {{ form.start_date }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "تاريخ الإنجاز المستهدف" %}</label>
+            {{ form.completion_date }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "الحالة التعاقدية" %}</label>
+            {{ form.status }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Conditions & Deductions Card -->
+    <div class="card border shadow-sm mb-4">
+      <div class="card-header bg-light border-bottom py-3 px-4">
+        <h5 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-coins text-warning me-2"></i>{% trans "الشروط المالية ومعدلات الاستقطاعات" %}
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "نسبة الدفعة المقدمة (%)" %}</label>
+            {{ form.advance_payment_rate }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "نسبة استرداد الدفعة المقدمة (%)" %}</label>
+            {{ form.advance_recovery_rate }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "نسبة تأمين حسن التنفيذ (%)" %}</label>
+            {{ form.retention_rate }}
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label fw-bold small">{% trans "سقف تأمين حسن التنفيذ" %}</label>
+            {{ form.retention_cap_amount }}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "رقم وثيقة CAR Insurance" %}</label>
+            {{ form.car_insurance_policy_number }}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "تاريخ انتهاء وثيقة التأمين" %}</label>
+            {{ form.car_insurance_expiry_date }}
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label fw-bold small">{% trans "نسبة استقطاع التأمين الهندسي (%)" %}</label>
+            {{ form.car_insurance_deduction_rate }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items FormSet Card -->
+    <div class="card border shadow-sm mb-4">
+      <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+        <h5 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-th-list text-info me-2"></i>{% trans "بنود المقايسة التعاقدية (BOQ Items)" %}
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        {{ formset.management_form }}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="contract-items-table">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3" style="width: 15%;">{% trans "كود البند" %}</th>
+                <th style="width: 35%;">{% trans "وصف البند" %}</th>
+                <th style="width: 12%;">{% trans "الوحدة" %}</th>
+                <th style="width: 15%;" class="text-end">{% trans "الكمية" %}</th>
+                <th style="width: 15%;" class="text-end">{% trans "الفئة التعاقدية" %}</th>
+                <th style="width: 8%;" class="text-center pe-3">{% trans "حذف" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in formset %}
+              <tr class="item-form-row">
+                <td class="ps-3">
+                  {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                  {{ f.item_code }}
+                </td>
+                <td>{{ f.description }}</td>
+                <td>{{ f.unit }}</td>
+                <td class="text-end">{{ f.contracted_quantity }}</td>
+                <td class="text-end">{{ f.unit_rate }}</td>
+                <td class="text-center pe-3">
+                  {% if f.instance.pk %}
+                  <div class="form-check d-inline-block">
+                    {{ f.DELETE }}
+                  </div>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="card border shadow-sm mb-5">
+      <div class="card-body p-3 d-flex align-items-center justify-content-between">
+        <a href="{% url 'real_estate:contractor_contract_list' %}" class="btn btn-secondary px-4">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "رجوع للقائمة" %}
+        </a>
+        <button type="submit" class="btn btn-primary px-5 fw-bold">
+          <i class="fas fa-save me-1"></i>{% trans "حفظ العقد" %}
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

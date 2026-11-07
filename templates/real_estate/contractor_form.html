@@ -90,6 +90,57 @@
           </div>
         </div>
 
+        <!-- BOQ Items Formset (Optional Inline Entry) -->
+        {% if formset %}
+        <div class="section-container mb-4">
+          <div class="card border shadow-sm">
+            <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+              <h6 class="mb-0 fw-bold text-dark">
+                <i class="fas fa-th-list text-info me-2"></i>{% trans "بنود المقايسة التفصيلية للمستخلص" %}
+              </h6>
+            </div>
+            <div class="card-body p-0">
+              {{ formset.management_form }}
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" id="certificate-items-table">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3" style="width: 15%;">{% trans "كود البند" %}</th>
+                      <th style="width: 35%;">{% trans "وصف البند" %}</th>
+                      <th style="width: 10%;">{% trans "الوحدة" %}</th>
+                      <th style="width: 15%;" class="text-end">{% trans "الكمية الحالية" %}</th>
+                      <th style="width: 15%;" class="text-end">{% trans "الفئة التعاقدية" %}</th>
+                      <th style="width: 10%;" class="text-center pe-3">{% trans "حذف" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for f in formset %}
+                    <tr>
+                      <td class="ps-3">
+                        {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                        {{ f.item_code }}
+                      </td>
+                      <td>{{ f.description }}</td>
+                      <td>{{ f.unit }}</td>
+                      <td class="text-end">{{ f.current_quantity }}</td>
+                      <td class="text-end">{{ f.unit_rate }}</td>
+                      <td class="text-center pe-3">
+                        {% if f.instance.pk %}
+                        <div class="form-check d-inline-block">
+                          {{ f.DELETE }}
+                        </div>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
         <!-- Work & Deductions Breakdown Card -->
         <div class="section-container mb-4">
           <div class="card border shadow-sm">

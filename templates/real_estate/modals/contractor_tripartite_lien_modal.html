@@ -1,0 +1,47 @@
+{% load i18n %}
+
+<div class="modal fade" id="tripartiteLienModal" tabindex="-1" aria-labelledby="tripartiteLienModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="tripartiteLienModalLabel">
+          <i class="fas fa-file-signature text-warning me-2"></i>{% trans "اتفاقية التعهد الثلاثي لمورد الخامات (Tripartite Lien)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="" method="post" id="tripartiteLienForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-warning small mb-3">
+            <i class="fas fa-handshake me-1"></i>
+            {% trans "تلتزم الشركة بموجب هذا التعهد بحجز قيمة فاتورة التوريد من مستخلصات المقاول وسدادها مباشرة لمورد الخامات المعتمد." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "اسم مورد الخامات المعتمد" %}</label>
+            <input type="text" name="supplier_name" class="form-control" placeholder="{% trans 'اسم شركة توريد حديد، أسمنت، خامات...' %}" required>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "رقم فاتورة التوريد" %}</label>
+              <input type="text" name="invoice_reference" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold">{% trans "المبلغ المتعهد بحجزه" %}</label>
+              <input type="number" step="0.01" name="amount" class="form-control" placeholder="0.00" required>
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold">{% trans "بيان المواد وشروط الصرف المباشر" %}</label>
+            <textarea name="terms" rows="3" class="form-control" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">
+            <i class="fas fa-lock me-1"></i>{% trans "تثبيت التعهد الثلاثي" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

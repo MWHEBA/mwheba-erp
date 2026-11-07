@@ -14,6 +14,32 @@ from real_estate.models import (
     PropertyContract,
     ContractCoOwner,
     ContractorProgressCertificate,
+    ProjectMasterBOQItem,
+    ContractorContract,
+    SectionalHandoverRecord,
+    ContractorContractItem,
+    ContractVariationOrder,
+    ContractVariationOrderItem,
+    ContractorDefaultNotice,
+    ContractorCertificateItem,
+    EquipmentHoistingLog,
+    SiteDebrisClearanceLog,
+    ContractorMaterialOnSite,
+    ContractorMOSCustodyReceipt,
+    ContractorBackcharge,
+    ConcreteBatchDelivery,
+    ConcreteBatchReconciliation,
+    ContractorMaterialDeduction,
+    RebarConsumptionLog,
+    ContractorScaffoldingLog,
+    DewateringPumpingLog,
+    ContractorSupplierLienAssignment,
+    ThirdPartyLabTestLog,
+    ContractorSuspensionClaim,
+    JointTerminationSurveyProtocol,
+    RockExcavationSurveyLog,
+    HydrostaticTestFailureLog,
+    CertificatePaymentInstallmentSchedule,
     LegalNotice,
     RealEstateBroker,
     BrokerCommission,
@@ -87,12 +113,196 @@ class PropertyContractAdmin(admin.ModelAdmin):
     inlines = [ContractCoOwnerInline]
 
 
+# ==============================================================================
+# CONTRACTOR & CONSTRUCTION CONTRACT ADMIN
+# ==============================================================================
+
+class ContractorContractItemInline(admin.TabularInline):
+    model = ContractorContractItem
+    extra = 0
+
+
+class ContractVariationOrderInline(admin.TabularInline):
+    model = ContractVariationOrder
+    extra = 0
+
+
+@admin.register(ProjectMasterBOQItem)
+class ProjectMasterBOQItemAdmin(admin.ModelAdmin):
+    list_display = ('item_code', 'project', 'block', 'wbs_group', 'description', 'unit', 'master_budget_quantity', 'unit_rate_estimate', 'total_budget_cost')
+    list_filter = ('project', 'wbs_group')
+    search_fields = ('item_code', 'description')
+
+
+@admin.register(ContractorContract)
+class ContractorContractAdmin(admin.ModelAdmin):
+    list_display = ('contract_number', 'title', 'project', 'contractor', 'contract_type', 'initial_contract_value', 'revised_contract_value', 'status', 'start_date', 'completion_date')
+    list_filter = ('status', 'contract_type', 'project', 'is_assigned_to_bank', 'is_garnished_by_court')
+    search_fields = ('contract_number', 'title', 'contractor__name', 'project__name')
+    inlines = [ContractorContractItemInline, ContractVariationOrderInline]
+
+
+@admin.register(SectionalHandoverRecord)
+class SectionalHandoverRecordAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'section_name', 'handover_date', 'warranty_start_date', 'warranty_end_date', 'is_warranty_completed')
+    list_filter = ('is_warranty_completed', 'handover_date')
+    search_fields = ('section_name', 'contract__contract_number')
+
+
+class ContractVariationOrderItemInline(admin.TabularInline):
+    model = ContractVariationOrderItem
+    extra = 0
+
+
+@admin.register(ContractVariationOrder)
+class ContractVariationOrderAdmin(admin.ModelAdmin):
+    list_display = ('order_number', 'contract', 'variation_type', 'net_value_impact', 'approved_additional_days', 'status', 'created_at')
+    list_filter = ('status', 'variation_type', 'created_at')
+    search_fields = ('order_number', 'contract__contract_number', 'description')
+    inlines = [ContractVariationOrderItemInline]
+
+
+@admin.register(ContractorDefaultNotice)
+class ContractorDefaultNoticeAdmin(admin.ModelAdmin):
+    list_display = ('notice_number', 'contract', 'notice_date', 'cure_deadline', 'is_cured', 'is_penalty_authorized')
+    list_filter = ('is_cured', 'is_penalty_authorized', 'notice_date')
+    search_fields = ('notice_number', 'contract__contract_number')
+
+
+class ContractorCertificateItemInline(admin.TabularInline):
+    model = ContractorCertificateItem
+    extra = 0
+
+
+class CertificatePaymentInstallmentScheduleInline(admin.TabularInline):
+    model = CertificatePaymentInstallmentSchedule
+    extra = 0
+
+
 @admin.register(ContractorProgressCertificate)
 class ContractorProgressCertificateAdmin(admin.ModelAdmin):
-    list_display = ('certificate_number', 'project', 'contractor', 'status', 'gross_certified_work', 'net_amount', 'period_end')
-    list_filter = ('status', 'project', 'period_end')
+    list_display = ('certificate_number', 'project', 'contractor', 'status', 'certificate_type', 'gross_certified_work', 'net_amount', 'period_end')
+    list_filter = ('status', 'certificate_type', 'project', 'period_end')
     search_fields = ('certificate_number', 'contractor__name', 'project__name')
     readonly_fields = ('approval_snapshot_hash', 'current_period_work', 'retention_amount', 'wht_amount', 'net_amount', 'version')
+    inlines = [ContractorCertificateItemInline, CertificatePaymentInstallmentScheduleInline]
+
+
+@admin.register(EquipmentHoistingLog)
+class EquipmentHoistingLogAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'equipment_code', 'equipment_name', 'operating_date', 'operating_hours', 'hourly_rate', 'total_charge')
+    list_filter = ('operating_date',)
+    search_fields = ('equipment_code', 'equipment_name')
+
+
+@admin.register(SiteDebrisClearanceLog)
+class SiteDebrisClearanceLogAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'trip_ticket_number', 'clearance_date', 'truck_capacity_m3', 'trip_cost', 'total_clearance_charge')
+    list_filter = ('clearance_date',)
+    search_fields = ('trip_ticket_number',)
+
+
+@admin.register(ContractorMaterialOnSite)
+class ContractorMaterialOnSiteAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'item_name', 'unit', 'surveyed_quantity', 'invoice_unit_cost', 'total_material_value', 'advance_financing_rate', 'approved_advance_amount', 'is_fully_unwound')
+    list_filter = ('is_fully_unwound',)
+    search_fields = ('item_name',)
+
+
+@admin.register(ContractorMOSCustodyReceipt)
+class ContractorMOSCustodyReceiptAdmin(admin.ModelAdmin):
+    list_display = ('receipt_number', 'mos_item', 'vesting_date', 'is_vested_in_employer', 'gate_exit_locked')
+    list_filter = ('is_vested_in_employer', 'gate_exit_locked', 'vesting_date')
+    search_fields = ('receipt_number',)
+
+
+@admin.register(ContractorBackcharge)
+class ContractorBackchargeAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'beneficiary_contractor', 'reason', 'memo_reference', 'amount')
+    search_fields = ('memo_reference', 'reason')
+
+
+@admin.register(ConcreteBatchDelivery)
+class ConcreteBatchDeliveryAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'delivery_note_number', 'delivery_date', 'casting_location', 'batch_volume_m3', 'is_batch_rejected', 'is_sample_passed')
+    list_filter = ('is_batch_rejected', 'is_sample_passed', 'delivery_date')
+    search_fields = ('delivery_note_number', 'casting_location')
+
+
+@admin.register(ConcreteBatchReconciliation)
+class ConcreteBatchReconciliationAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'casting_subcontractor', 'element_description', 'surveyed_as_built_volume_m3', 'actual_batch_delivered_volume_m3', 'excess_waste_volume_m3', 'excess_waste_backcharge_amount')
+    list_filter = ('casting_subcontractor',)
+    search_fields = ('element_description',)
+
+
+@admin.register(ContractorMaterialDeduction)
+class ContractorMaterialDeductionAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'store_issue_voucher', 'issue_date', 'item_name', 'quantity', 'total_deduction', 'pricing_policy', 'material_price_variance_amount')
+    list_filter = ('pricing_policy', 'is_excess_scrap_penalty', 'issue_date')
+    search_fields = ('store_issue_voucher', 'item_name')
+
+
+@admin.register(RebarConsumptionLog)
+class RebarConsumptionLogAdmin(admin.ModelAdmin):
+    list_display = ('project', 'contract', 'element_name', 'rebar_diameter_mm', 'bbs_theoretical_weight_tons', 'actual_delivered_weight_tons', 'excess_waste_weight_tons', 'excess_waste_backcharge_amount')
+    list_filter = ('project', 'contract')
+    search_fields = ('element_name',)
+
+
+@admin.register(ContractorScaffoldingLog)
+class ContractorScaffoldingLogAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'certificate', 'equipment_type', 'delivered_quantity', 'returned_good_quantity', 'damaged_quantity', 'total_damage_deduction', 'log_date')
+    list_filter = ('log_date',)
+    search_fields = ('equipment_type',)
+
+
+@admin.register(DewateringPumpingLog)
+class DewateringPumpingLogAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'certificate', 'log_date', 'pumps_operating_count', 'daily_running_hours', 'breakdown_hours', 'total_stoppage_penalty', 'diesel_total_backcharge')
+    list_filter = ('log_date',)
+
+
+@admin.register(ContractorSupplierLienAssignment)
+class ContractorSupplierLienAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('agreement_reference', 'contract', 'contractor', 'material_supplier', 'total_lien_amount', 'remaining_balance', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('agreement_reference', 'material_supplier__name')
+
+
+@admin.register(ThirdPartyLabTestLog)
+class ThirdPartyLabTestLogAdmin(admin.ModelAdmin):
+    list_display = ('certificate', 'contract', 'lab_name', 'invoice_number', 'test_type', 'test_date', 'is_test_passed', 'total_invoice_amount', 'is_backcharged_to_contractor')
+    list_filter = ('test_type', 'is_test_passed', 'is_backcharged_to_contractor', 'test_date')
+    search_fields = ('lab_name', 'invoice_number', 'tested_element')
+
+
+@admin.register(ContractorSuspensionClaim)
+class ContractorSuspensionClaimAdmin(admin.ModelAdmin):
+    list_display = ('suspension_order_reference', 'contract', 'certificate', 'start_date', 'end_date', 'idle_days_count', 'total_approved_claim_amount', 'is_approved_by_cfo')
+    list_filter = ('is_approved_by_cfo',)
+    search_fields = ('suspension_order_reference',)
+
+
+@admin.register(JointTerminationSurveyProtocol)
+class JointTerminationSurveyProtocolAdmin(admin.ModelAdmin):
+    list_display = ('protocol_reference', 'contract', 'survey_date', 'as_built_completed_value', 'uninstalled_materials_value', 'snag_and_remedial_costs', 'site_vacated_and_handed_over')
+    list_filter = ('site_vacated_and_handed_over', 'survey_date')
+    search_fields = ('protocol_reference', 'court_expert_minutes_number')
+
+
+@admin.register(RockExcavationSurveyLog)
+class RockExcavationSurveyLogAdmin(admin.ModelAdmin):
+    list_display = ('grid_location_reference', 'contract', 'certificate', 'survey_date', 'solid_rock_volume_m3', 'breaker_operating_hours')
+    list_filter = ('survey_date',)
+    search_fields = ('grid_location_reference',)
+
+
+@admin.register(HydrostaticTestFailureLog)
+class HydrostaticTestFailureLogAdmin(admin.ModelAdmin):
+    list_display = ('network_segment', 'contract', 'certificate', 'test_date', 'tested_pressure_bar', 'pressure_drop_bar', 'total_remedial_backcharge')
+    list_filter = ('test_date',)
+    search_fields = ('network_segment', 'leak_location')
 
 
 @admin.register(LegalNotice)

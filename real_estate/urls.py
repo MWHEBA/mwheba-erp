@@ -9,6 +9,7 @@ from real_estate.views import (
     matrix_views,
     pricing_views,
     contractor_views,
+    contractor_contract_views,
     broker_views,
     engineering_views,
     service_views,
@@ -60,13 +61,29 @@ urlpatterns = [
     path('commissions/<int:pk>/payout/', broker_views.BrokerCommissionPayoutView.as_view(), name='commission_payout'),
     path('contracts/<int:contract_id>/assign-broker/', broker_views.BrokerAssignContractView.as_view(), name='contract_assign_broker'),
 
-    # Contractors (مستخلصات المقاولين الإنشائية)
+    # Contractor Subcontracts (عقود مقاولي الباطن والمقايسات)
+    path('contractors/contracts/', contractor_contract_views.ContractorContractListView.as_view(), name='contractor_contract_list'),
+    path('contractors/contracts/create/', contractor_contract_views.ContractorContractCreateView.as_view(), name='contractor_contract_create'),
+    path('contractors/contracts/<int:pk>/', contractor_contract_views.ContractorContractDetailView.as_view(), name='contractor_contract_detail'),
+    path('contractors/contracts/<int:pk>/edit/', contractor_contract_views.ContractorContractUpdateView.as_view(), name='contractor_contract_update'),
+    path('contractors/contracts/<int:pk>/advance/disburse/', contractor_contract_views.ContractorContractDisburseAdvanceView.as_view(), name='contractor_contract_disburse_advance'),
+    path('contractors/contracts/<int:pk>/variations/create/', contractor_contract_views.ContractorContractVariationOrderCreateView.as_view(), name='contractor_contract_variation_create'),
+    path('contractors/contracts/<int:pk>/terminate/', contractor_contract_views.ContractorContractTerminateView.as_view(), name='contractor_contract_terminate'),
+    path('contractors/contracts/<int:contract_id>/retention/release/', contractor_views.ContractorCertificateRetentionReleaseView.as_view(), name='contractor_retention_release'),
+    path('api/contractors/contracts/<int:contract_id>/items/', contractor_contract_views.ApiContractorContractItemsView.as_view(), name='api_contractor_contract_items'),
+
+    # Contractors Progress Certificates (مستخلصات المقاولين الإنشائية)
     path('contractors/certificates/', contractor_views.ContractorCertificateListView.as_view(), name='contractor_list'),
     path('contractors/certificates/create/', contractor_views.ContractorCertificateCreateView.as_view(), name='contractor_create'),
     path('contractors/certificates/<int:pk>/', contractor_views.ContractorCertificateDetailView.as_view(), name='contractor_detail'),
     path('contractors/certificates/<int:pk>/edit/', contractor_views.ContractorCertificateUpdateView.as_view(), name='contractor_update'),
     path('contractors/certificates/<int:pk>/submit/', contractor_views.ContractorCertificateSubmitView.as_view(), name='contractor_submit'),
     path('contractors/certificates/<int:pk>/post-gl/', contractor_views.ContractorCertificatePostGLView.as_view(), name='contractor_post_gl'),
+    path('contractors/certificates/<int:pk>/storno-reverse/', contractor_views.ContractorCertificateStornoReverseView.as_view(), name='contractor_storno_reverse'),
+    path('contractors/certificates/<int:pk>/import-excel/', contractor_views.ContractorCertificateExcelImportView.as_view(), name='contractor_import_excel'),
+    path('contractors/certificates/<int:pk>/excel-import/', contractor_views.ContractorCertificateExcelImportView.as_view(), name='contractor_excel_import'),
+    path('contractors/certificates/<int:pk>/print/', contractor_views.ContractorCertificatePrintView.as_view(), name='contractor_print'),
+    path('contractors/certificates/installments/<int:installment_id>/settle-cheque/', contractor_views.ContractorCertificateSettleInstallmentView.as_view(), name='contractor_settle_installment'),
 
     # Engineering (أوامر التعديلات وبنود الفحص)
     path('engineering/variations/', engineering_views.VariationOrderListView.as_view(), name='variation_list'),

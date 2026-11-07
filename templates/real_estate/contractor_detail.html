@@ -3,20 +3,35 @@
 {% load i18n %}
 {% load humanize %}
 
-{% block title %}{% trans "مستخلص المقاول" %} {{ cert.certificate_number }}{% endblock %}
+{% block title %}{% trans "مستخلص مقاول باطن" %}: {{ cert.certificate_number }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+  <!-- Central Page Header -->
   {% include "shared/page_header.html" %}
 
-  <!-- KPI Cards Grid -->
+  <!-- Top KPI Cards Grid -->
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
             <div class="stats-card-title text-muted small mb-1">{% trans "حالة المستخلص" %}</div>
-            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ cert.get_status_display }}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              {% if cert.status == 'DRAFT' %}
+              <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+              {% elif cert.status == 'PENDING_APPROVAL' or cert.status == 'PENDING' %}
+              <span class="badge bg-warning text-dark">{% trans "قيد الاعتماد" %}</span>
+              {% elif cert.status == 'APPROVED' %}
+              <span class="badge bg-info text-dark">{% trans "معتمد مالياً" %}</span>
+              {% elif cert.status == 'PAID' %}
+              <span class="badge bg-success">{% trans "منصرف بالكامل" %}</span>
+              {% elif cert.status == 'CANCELLED' %}
+              <span class="badge bg-danger">{% trans "ملغي (استورنو)" %}</span>
+              {% else %}
+              <span class="badge bg-light text-dark">{{ cert.get_status_display }}</span>
+              {% endif %}
+            </div>
           </div>
           <div class="stats-card-icon text-info fs-2">
             <i class="fas fa-file-contract"></i>
@@ -33,7 +48,7 @@
             <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ cert.current_period_work|floatformat:2|intcomma }}</div>
           </div>
           <div class="stats-card-icon text-primary fs-2">
-            <i class="fas fa-hammer"></i>
+            <i class="fas fa-hard-hat"></i>
           </div>
         </div>
       </div>
@@ -68,213 +83,524 @@
     </div>
   </div>
 
-  <div class="row g-4">
-    <!-- Certificate Details Column -->
-    <div class="col-12 col-lg-8">
-      <!-- General Info -->
-      <div class="section-container mb-4">
-        <div class="card border shadow-sm">
-          <div class="card-header bg-light border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fw-bold text-dark">
-              <i class="fas fa-info-circle text-primary me-2"></i>{% trans "بيانات المستخلص والمشروع" %}
-            </h6>
-            <span class="badge {% if cert.status == 'APPROVED' or cert.status == 'PAID' %}bg-success{% elif cert.status == 'PENDING_APPROVAL' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-              {{ cert.get_status_display }}
-            </span>
+  <!-- Document Lifecycle Stepper -->
+  <div class="mb-4">
+    {% include "components/document_lifecycle_timeline.html" with current_status=cert.status is_posted=cert.journal_entry %}
+  </div>
+
+  <!-- Main Panoramic Multi-Tab Card -->
+  <div class="card border shadow-sm mb-4">
+    <div class="card-header bg-light border-bottom p-0">
+      <ul class="nav nav-tabs card-header-tabs m-0 px-3" id="certificateDetailTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active py-3 fw-bold text-dark" id="tab-boq-btn" data-bs-toggle="tab" data-bs-target="#tab-boq" type="button" role="tab">
+            <i class="fas fa-th-list text-primary me-2"></i>{% trans "حصر بنود الأعمال" %} ({{ items.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-mos-btn" data-bs-toggle="tab" data-bs-target="#tab-mos" type="button" role="tab">
+            <i class="fas fa-cubes text-info me-2"></i>{% trans "تشوينات الموقع (MOS)" %} ({{ mos_list.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-concrete-btn" data-bs-toggle="tab" data-bs-target="#tab-concrete" type="button" role="tab">
+            <i class="fas fa-truck-moving text-secondary me-2"></i>{% trans "الخرسانة الجاهزة" %} ({{ concrete_deliveries.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-deductions-btn" data-bs-toggle="tab" data-bs-target="#tab-deductions" type="button" role="tab">
+            <i class="fas fa-calculator text-danger me-2"></i>{% trans "بيان وتفنيد الاستقطاعات" %}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-backcharges-btn" data-bs-toggle="tab" data-bs-target="#tab-backcharges" type="button" role="tab">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "الخصومات البينية والعيوب" %} ({{ backcharges.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-site-ops-btn" data-bs-toggle="tab" data-bs-target="#tab-site-ops" type="button" role="tab">
+            <i class="fas fa-tools text-dark me-2"></i>{% trans "عمليات الموقع والمعدات" %}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-installments-btn" data-bs-toggle="tab" data-bs-target="#tab-installments" type="button" role="tab">
+            <i class="fas fa-money-check-alt text-success me-2"></i>{% trans "الشيكات والجدولة" %} ({{ installments.count }})
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link py-3 fw-bold text-dark" id="tab-governance-btn" data-bs-toggle="tab" data-bs-target="#tab-governance" type="button" role="tab">
+            <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "الحوكمة والقيود" %}
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <div class="card-body p-4">
+      <div class="tab-content" id="certificateDetailTabsContent">
+        <!-- Tab 1: BOQ Items -->
+        <div class="tab-pane fade show active" id="tab-boq" role="tabpanel">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h6 class="fw-bold mb-0 text-dark">{% trans "حصر الأعمال الميدانية المعتمدة تفصيلياً" %}</h6>
+            {% if cert.status == 'DRAFT' %}
+            <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#importBOQModal">
+              <i class="fas fa-file-excel me-1"></i>{% trans "استيراد الحصر من Excel" %}
+            </button>
+            {% endif %}
           </div>
-          <div class="card-body p-4">
-            <div class="row g-3">
-              <div class="col-12 col-md-6">
-                <span class="text-muted small d-block mb-1">{% trans "المشروع العقاري" %}</span>
-                <a href="{% url 'real_estate:project_detail' cert.project.id %}" class="fw-bold text-primary text-decoration-none">
-                  {{ cert.project.name }} ({{ cert.project.code }})
-                </a>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "كود البند" %}</th>
+                  <th>{% trans "بيان الأعمال" %}</th>
+                  <th>{% trans "الوحدة" %}</th>
+                  <th class="text-end">{% trans "الكمية السابقة" %}</th>
+                  <th class="text-end">{% trans "الكمية الحالية" %}</th>
+                  <th class="text-end">{% trans "إجمالي الكمية" %}</th>
+                  <th class="text-end">{% trans "الفئة التعاقدية" %}</th>
+                  <th class="text-end">{% trans "أعمال الفترة" %}</th>
+                  <th class="text-end">{% trans "الإجمالي التراكمي" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td class="ps-3 fw-bold text-primary">{{ item.item_code }}</td>
+                  <td>{{ item.description }}</td>
+                  <td><span class="badge bg-light text-dark">{{ item.unit }}</span></td>
+                  <td class="text-end">{{ item.previous_quantity|floatformat:2 }}</td>
+                  <td class="text-end fw-bold">{{ item.current_quantity|floatformat:2 }}</td>
+                  <td class="text-end">{{ item.cumulative_quantity|floatformat:2 }}</td>
+                  <td class="text-end">{{ item.unit_rate|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold text-primary">{{ item.current_work_value|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold text-success">{{ item.cumulative_work_value|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="9" class="text-center py-4 text-muted">{% trans "لا توجد بنود تفصيلية مدرجة بهذا المستخلص." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 2: Materials on Site (MOS) -->
+        <div class="tab-pane fade" id="tab-mos" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "اسم المادة المشونة" %}</th>
+                  <th>{% trans "الوحدة" %}</th>
+                  <th class="text-end">{% trans "الكمية المشونة" %}</th>
+                  <th class="text-end">{% trans "سعر شراء الوحدة" %}</th>
+                  <th class="text-end">{% trans "إجمالي القيمة" %}</th>
+                  <th class="text-end">{% trans "نسبة التمويل" %}</th>
+                  <th class="text-end">{% trans "المبلغ المعتمد (75%)" %}</th>
+                  <th class="text-center">{% trans "حالة الاسترداد" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for mos in mos_list %}
+                <tr>
+                  <td class="ps-3 fw-bold">{{ mos.item_name }}</td>
+                  <td><span class="badge bg-light text-dark">{{ mos.unit }}</span></td>
+                  <td class="text-end">{{ mos.surveyed_quantity|floatformat:3 }}</td>
+                  <td class="text-end">{{ mos.invoice_unit_cost|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold">{{ mos.total_material_value|floatformat:2|intcomma }}</td>
+                  <td class="text-end">{{ mos.advance_financing_rate }}%</td>
+                  <td class="text-end fw-bold text-info">{{ mos.approved_advance_amount|floatformat:2|intcomma }}</td>
+                  <td class="text-center">
+                    {% if mos.is_fully_unwound %}
+                    <span class="badge bg-success">{% trans "تم الاسترداد بالكامل" %}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">{% trans "جاري الاسترداد" %}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="8" class="text-center py-4 text-muted">{% trans "لا توجد تشوينات مواد بالموقع مسجلة لهذا المستخلص." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: Ready Mix Concrete -->
+        <div class="tab-pane fade" id="tab-concrete" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم البون" %}</th>
+                  <th>{% trans "تاريخ التوريد" %}</th>
+                  <th>{% trans "رتبة الخرسانة" %}</th>
+                  <th class="text-end">{% trans "الكمية (م3)" %}</th>
+                  <th class="text-end">{% trans "السعر / م3" %}</th>
+                  <th class="text-end">{% trans "الإجمالي" %}</th>
+                  <th class="text-center">{% trans "نتائج كسر المكعبات 28 يوماً" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for b in concrete_deliveries %}
+                <tr>
+                  <td class="ps-3 fw-bold text-primary">{{ b.delivery_note_number }}</td>
+                  <td>{{ b.delivery_date|date:"Y-m-d" }}</td>
+                  <td><span class="badge bg-light text-dark">{{ b.mix_grade }}</span></td>
+                  <td class="text-end fw-bold">{{ b.quantity_m3|floatformat:2 }}</td>
+                  <td class="text-end">{{ b.unit_price|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-bold">{{ b.total_amount|floatformat:2|intcomma }}</td>
+                  <td class="text-center">
+                    {% if b.cube_test_status == 'PASSED' %}
+                    <span class="badge bg-success">{% trans "مطابق للمواصفات" %}</span>
+                    {% elif b.cube_test_status == 'FAILED' %}
+                    <span class="badge bg-danger">{% trans "راسب (محجوز)" %}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">{% trans "قيد الانتظار (28 يوم)" %}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center py-4 text-muted">{% trans "لا توجد بونات صب خرسانة مسجلة بهذا المستخلص." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 4: Cascading Deductions -->
+        <div class="tab-pane fade" id="tab-deductions" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-12 col-lg-8">
+              <div class="table-responsive">
+                <table class="table table-bordered align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">{% trans "بند الاستقطاع / الضريبة" %}</th>
+                      <th class="text-end">{% trans "القيمة (ج.م)" %}</th>
+                      <th>{% trans "النسبة / الحساب المقابل" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="ps-3">{% trans "تأمين حسن التنفيذ (Retention)" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.retention_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{{ cert.retention_rate }}% {% trans "حساب أمانات التأمين (21310)" %}</td>
+                    </tr>
+                    <tr>
+                      <td class="ps-3">{% trans "استرداد الدفعة المقدمة" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.advance_payment_recovery|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "إطفاء رصيد الدفعة المقدمة (12310)" %}</td>
+                    </tr>
+                    <tr>
+                      <td class="ps-3">{% trans "ضريبة الخصم والإضافة (WHT نموذج 41)" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.wht_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{{ cert.wht_rate }}% {% trans "توريد لمصلحة الضرائب المصرية" %}</td>
+                    </tr>
+                    {% if cert.syndicate_stamp_amount %}
+                    <tr>
+                      <td class="ps-3">{% trans "دمغة نقابة المهن الهندسية" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.syndicate_stamp_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">0.45% {% trans "أمانات النقابة الهندسية (21345)" %}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cert.site_utilities_deduction_amount %}
+                    <tr>
+                      <td class="ps-3">{% trans "استهلاك مياه وإنارة الإنشاءات بالموقع" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.site_utilities_deduction_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "استقطاع مصاريف موقع مباشرة" %}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cert.penalty_deductions %}
+                    <tr>
+                      <td class="ps-3">{% trans "غرامات تأخير ومخالفات الجودة" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.penalty_deductions|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "خصومات فنية معتمدة" %}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="table-success border-top border-2">
+                      <td class="ps-3 h5 fw-bold text-success mb-0 py-3">{% trans "الصافي النهائي المستحق للصرف" %}</td>
+                      <td class="text-end h5 fw-bold text-success mb-0 py-3">{{ cert.net_amount|floatformat:2|intcomma }}</td>
+                      <td class="fw-bold text-success py-3">{{ cert.currency.code }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div class="col-12 col-md-6">
-                <span class="text-muted small d-block mb-1">{% trans "المقاول المنفذ" %}</span>
-                <span class="fw-bold text-dark">{{ cert.contractor.name }}</span>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="card border bg-light p-3">
+                <h6 class="fw-bold text-dark mb-2">{% trans "تسلسل الاستقطاعات المحاسبي الصارم" %}</h6>
+                <p class="small text-muted mb-0">
+                  {% trans "يتم تطبيق خصم الدفعة المقدمة أولاً ثم احتساب ضريبة الخصم والإضافة (نموذج 41) على الوعاء الصافي لمنع الازدواج الضريبي وفقاً لأحكام القانون 91 لسنة 2005." %}
+                </p>
               </div>
-              <div class="col-12 col-md-6">
-                <span class="text-muted small d-block mb-1">{% trans "مرجع أمر الشغل / العقد" %}</span>
-                <span class="text-dark">{{ cert.contract_reference|default:"-" }}</span>
-              </div>
-              <div class="col-12 col-md-6">
-                <span class="text-muted small d-block mb-1">{% trans "فترة الإنجاز المعتمدة" %}</span>
-                <span class="text-dark fw-semibold">{{ cert.period_start|date:"d/m/Y" }} &larr; {{ cert.period_end|date:"d/m/Y" }}</span>
-              </div>
-              {% if cert.notes %}
-              <div class="col-12">
-                <span class="text-muted small d-block mb-1">{% trans "ملاحظات الاستلام الهندسي" %}</span>
-                <div class="p-3 bg-light rounded text-dark small">{{ cert.notes }}</div>
-              </div>
-              {% endif %}
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Financial Breakdown Table -->
-      <div class="section-container mb-4">
-        <div class="card border shadow-sm">
-          <div class="card-header bg-light border-bottom py-3 px-4">
-            <h6 class="mb-0 fw-bold text-dark">
-              <i class="fas fa-list-ol text-primary me-2"></i>{% trans "تفنيد بنود الأعمال والاستقطاعات" %}
-            </h6>
+        <!-- Tab 5: Backcharges & Snags -->
+        <div class="tab-pane fade" id="tab-backcharges" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم المذكرة" %}</th>
+                  <th>{% trans "سبب الخصم والمبرر الهندسي" %}</th>
+                  <th>{% trans "المقاول المستفيد" %}</th>
+                  <th class="text-end">{% trans "قيمة الخصم" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for bc in backcharges %}
+                <tr>
+                  <td class="ps-3 fw-bold text-primary">{{ bc.memo_reference }}</td>
+                  <td>{{ bc.reason }}</td>
+                  <td>{{ bc.beneficiary_contractor.name|default:_("الشركة مباشرة") }}</td>
+                  <td class="text-end fw-bold text-danger">{{ bc.amount|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-4 text-muted">{% trans "لا توجد خصومات بينية مسجلة على هذا المستخلص." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>{% trans "البند / البيان الهندسي" %}</th>
-                    <th class="text-end" style="width: 200px;">{% trans "القيمة (ج.م)" %}</th>
-                    <th>{% trans "ملاحظات / النسبة" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td class="ps-3 fw-bold">{% trans "1. إجمالي الأعمال المنفذة تراكمياً حتى تاريخه" %}</td>
-                    <td class="text-end fw-bold">{{ cert.gross_certified_work|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "إجمالي التراكمي الميداني" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3 text-muted">{% trans "2. يخصم: أعمال معتمدة في مستخلصات سابقة" %}</td>
-                    <td class="text-end text-muted">-{{ cert.previous_certified_work|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "سابق صرفه" %}</td>
-                  </tr>
-                  <tr class="table-light">
-                    <td class="ps-3 fw-bold text-primary">{% trans "3. صافي أعمال الفترة الحالية (1 - 2)" %}</td>
-                    <td class="text-end fw-bold text-primary">{{ cert.current_period_work|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "قيمة الأعمال المنفذة الحالية" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3">{% trans "4. تشوينات المواد المعتمدة بالموقع" %}</td>
-                    <td class="text-end fw-bold">{{ cert.materials_on_site|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "تشوينات قابلة للصرف" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3 text-danger">{% trans "5. استقطاع تأمين حسن التنفيذ (Retention)" %}</td>
-                    <td class="text-end text-danger fw-bold">-{{ cert.retention_amount|floatformat:2|intcomma }}</td>
-                    <td class="text-danger small">{{ cert.retention_rate }}% {% trans "من إجمالي الأعمال والتشوينات" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3 text-danger">{% trans "6. استقطاع استرداد الدفعة المقدمة" %}</td>
-                    <td class="text-end text-danger fw-bold">-{{ cert.advance_payment_recovery|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "تسوية دفعات موردين ومقاولين" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3 text-danger">{% trans "7. استقطاع ضريبة الخصم والإضافة (WHT)" %}</td>
-                    <td class="text-end text-danger fw-bold">-{{ cert.wht_amount|floatformat:2|intcomma }}</td>
-                    <td class="text-danger small">{{ cert.wht_rate }}% {% trans "توريد لمصلحة الضرائب" %}</td>
-                  </tr>
-                  <tr>
-                    <td class="ps-3 text-danger">{% trans "8. غرامات وملاحظات جودة ومخالفات موقع" %}</td>
-                    <td class="text-end text-danger fw-bold">-{{ cert.penalty_deductions|floatformat:2|intcomma }}</td>
-                    <td class="text-muted small">{% trans "خصومات فنية معتمدة" %}</td>
-                  </tr>
-                  <tr class="table-success border-top border-2">
-                    <td class="ps-3 h5 fw-bold text-success mb-0 py-3">{% trans "صافي المستحق للصرف للمقاول" %}</td>
-                    <td class="text-end h5 fw-bold text-success mb-0 py-3">{{ cert.net_amount|floatformat:2|intcomma }}</td>
-                    <td class="fw-bold text-success py-3">{{ cert.currency.code }}</td>
-                  </tr>
-                </tbody>
-              </table>
+        </div>
+
+        <!-- Tab 6: Site Operations & Timesheets -->
+        <div class="tab-pane fade" id="tab-site-ops" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-12 col-md-6">
+              <h6 class="fw-bold text-dark mb-2">{% trans "بونات رفع الرتش ومخلفات النظافة" %}</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>{% trans "التاريخ" %}</th>
+                      <th>{% trans "رقم البون" %}</th>
+                      <th class="text-end">{% trans "المبلغ" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in debris_logs %}
+                    <tr>
+                      <td>{{ d.clearance_date|date:"Y-m-d" }}</td>
+                      <td>{{ d.receipt_number }}</td>
+                      <td class="text-end text-danger">{{ d.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center py-2 text-muted">{% trans "لا توجد بونات مسجلة." %}</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <h6 class="fw-bold text-dark mb-2">{% trans "ساعات تشغيل أوناش الأبراج والمعدات المشتركة" %}</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>{% trans "التاريخ" %}</th>
+                      <th>{% trans "المعدة" %}</th>
+                      <th class="text-end">{% trans "الساعات" %}</th>
+                      <th class="text-end">{% trans "المبلغ" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for h in hoisting_logs %}
+                    <tr>
+                      <td>{{ h.operation_date|date:"Y-m-d" }}</td>
+                      <td>{{ h.equipment_name }}</td>
+                      <td class="text-end">{{ h.hours_operated }}</td>
+                      <td class="text-end text-danger">{{ h.total_charge|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center py-2 text-muted">{% trans "لا توجد ساعات تشغيل مسجلة." %}</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 7: Installments & PDCs -->
+        <div class="tab-pane fade" id="tab-installments" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم الدفعة" %}</th>
+                  <th>{% trans "تاريخ الاستحقاق" %}</th>
+                  <th class="text-end">{% trans "مبلغ الدفعة" %}</th>
+                  <th>{% trans "رقم الشيك البنكي (PDC)" %}</th>
+                  <th class="text-center">{% trans "الحالة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for inst in installments %}
+                <tr>
+                  <td class="ps-3 fw-bold">#{{ inst.installment_number }}</td>
+                  <td>{{ inst.due_date|date:"Y-m-d" }}</td>
+                  <td class="text-end fw-bold">{{ inst.amount|floatformat:2|intcomma }}</td>
+                  <td>
+                    {% if inst.pdc_cheque %}
+                    <span class="badge bg-light text-dark">{{ inst.pdc_cheque.number }}</span>
+                    {% else %}
+                    <span class="text-muted small">{% trans "لم يحرر شيك بعد" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if inst.is_settled %}
+                    <span class="badge bg-success">{% trans "تم الصرف" %}</span>
+                    {% else %}
+                    <span class="badge bg-warning text-dark">{% trans "مستحق" %}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-4 text-muted">{% trans "لا توجد جدولة دفعات مسجلة لهذا المستخلص." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 8: Governance & Cryptographic Hash -->
+        <div class="tab-pane fade" id="tab-governance" role="tabpanel">
+          <div class="row g-4">
+            <div class="col-12 col-md-6">
+              <div class="card border h-100">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                  <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-book text-primary me-2"></i>{% trans "بيانات القيد المحاسبي بالدفاتر العامة" %}</h6>
+                </div>
+                <div class="card-body p-3">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted">{% trans "رقم قيد اليومية" %}</dt>
+                    <dd class="col-sm-7 fw-bold text-primary">
+                      {% if cert.journal_entry %}
+                      {{ cert.journal_entry.number|default:cert.journal_entry.id }}
+                      {% else %}
+                      <span class="text-muted">{% trans "لم يُرحل بعد" %}</span>
+                      {% endif %}
+                    </dd>
+                    <dt class="col-sm-5 text-muted">{% trans "تاريخ الترحيل" %}</dt>
+                    <dd class="col-sm-7">{{ cert.journal_entry.date|default:"-" }}</dd>
+                    <dt class="col-sm-5 text-muted">{% trans "حالة الاعتماد" %}</dt>
+                    <dd class="col-sm-7">{{ cert.get_status_display }}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <div class="card border h-100">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                  <h6 class="mb-0 fw-bold text-dark"><i class="fas fa-lock text-success me-2"></i>{% trans "البصمة التشفيرية المشفرة (Merkle Hash)" %}</h6>
+                </div>
+                <div class="card-body p-3">
+                  <span class="text-muted small d-block mb-2">{% trans "بصمة حماية البيانات المالية من التعديل (SHA-256):" %}</span>
+                  {% if cert.approval_snapshot_hash %}
+                  <code class="p-2 bg-light rounded d-block text-break small">{{ cert.approval_snapshot_hash }}</code>
+                  <div class="mt-2 text-success small"><i class="fas fa-check-circle me-1"></i>{% trans "البيانات المالية مقفلة ومؤمنة ضد التعديل." %}</div>
+                  {% else %}
+                  <span class="text-muted small">{% trans "يتم تثبيت البصمة التشفيرية تلقائياً عند تقديم المستخلص للاعتماد." %}</span>
+                  {% endif %}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Actions & Governance Column -->
-    <div class="col-12 col-lg-4">
-      <!-- Workflow & Approval Card -->
-      <div class="card border shadow-sm mb-4">
-        <div class="card-header bg-light border-bottom py-3 px-4">
-          <h6 class="mb-0 fw-bold text-dark">
-            <i class="fas fa-tasks text-primary me-2"></i>{% trans "إجراءات المستخلص والاعتماد" %}
-          </h6>
-        </div>
-        <div class="card-body p-4">
-          {% if cert.status == 'DRAFT' %}
-          <div class="alert alert-secondary small mb-3">
-            <i class="fas fa-info-circle me-1"></i>{% trans "المستخلص في حالة مسودة، يمكنك مراجعته أو تعديله، ثم تقديمه للاعتماد المالي." %}
-          </div>
-          <form method="post" action="{% url 'real_estate:contractor_submit' cert.id %}" class="d-grid mb-2">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-warning fw-bold py-2" onclick="return confirm('{% trans "هل أنت متأكد من تقديم المستخلص للاعتماد المؤسسي وقفل البيانات المالية؟" %}');">
-              <i class="fas fa-paper-plane me-2"></i>{% trans "تقديم للاعتماد المالي" %}
-            </button>
-          </form>
-          <a href="{% url 'real_estate:contractor_update' cert.id %}" class="btn btn-outline-primary d-block w-100 py-2">
-            <i class="fas fa-edit me-2"></i>{% trans "تعديل المستخلص" %}
-          </a>
-
-          {% elif cert.status == 'PENDING_APPROVAL' %}
-          <div class="alert alert-warning small mb-3">
-            <i class="fas fa-clock me-1"></i>{% trans "المستخلص قيد المراجعة والاعتماد المؤسسي." %}
-            {% if cert.approval_request %}
-            <div class="mt-1 fw-bold">{% trans "طلب اعتماد رقم:" %} #{{ cert.approval_request.id }}</div>
-            {% endif %}
-          </div>
-          <p class="small text-muted mb-0">{% trans "سيتم تفعيل إمكانية الصرف والترحيل المالي بمجرد اعتماد المستخلص من الإدارة المالية." %}</p>
-
-          {% elif cert.status == 'APPROVED' %}
-            {% if not cert.journal_entry %}
-            <div class="alert alert-success small mb-3">
-              <i class="fas fa-check-circle me-1"></i>{% trans "تم اعتماد المستخلص نهائياً، وجاهز للترحيل المالي بالدفاتر العامة." %}
-            </div>
-            <form method="post" action="{% url 'real_estate:contractor_post_gl' cert.id %}" class="d-grid">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-success fw-bold py-2" onclick="return confirm('{% trans "هل تريد ترحيل قيد استحقاق المستخلص وإثبات تكاليف المشروع بالدفاتر العامة الآن؟" %}');">
-                <i class="fas fa-book me-2"></i>{% trans "ترحيل القيد المالي بالدفاتر" %}
-              </button>
-            </form>
-            {% else %}
-            <div class="alert alert-success small mb-0">
-              <i class="fas fa-check-double me-1"></i>{% trans "تم ترحيل قيد استحقاق المستخلص بنجاح بالدفاتر العامة." %}
-            </div>
-            {% endif %}
-
-          {% elif cert.status == 'PAID' %}
-          <div class="alert alert-success small mb-0">
-            <i class="fas fa-check-double me-1"></i>{% trans "تم صرف المستخلص بالكامل." %}
-          </div>
-          {% endif %}
-        </div>
+  <!-- Bottom Action Card -->
+  <div class="card border shadow-sm mb-5">
+    <div class="card-body p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'real_estate:contractor_list' %}" class="btn btn-secondary px-3">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "رجوع للقائمة" %}
+        </a>
+        <a href="{% url 'real_estate:contractor_print' cert.pk %}" class="btn btn-outline-secondary px-3" target="_blank">
+          <i class="fas fa-print me-1"></i>{% trans "طباعة المستخلص الهندسي" %}
+        </a>
       </div>
 
-      <!-- Financial Security & Cryptographic Hash -->
-      <div class="card border shadow-sm">
-        <div class="card-header bg-light border-bottom py-3 px-4">
-          <h6 class="mb-0 fw-bold text-dark">
-            <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "الحوكمة والقيود المحاسبية" %}
-          </h6>
-        </div>
-        <div class="card-body p-4">
-          <ul class="list-group list-group-flush small">
-            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-              <span class="text-muted">{% trans "تاريخ الإنشاء:" %}</span>
-              <span class="fw-semibold text-dark">{{ cert.created_at|date:"d/m/Y H:i" }}</span>
-            </li>
-            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-              <span class="text-muted">{% trans "أنشئ بواسطة:" %}</span>
-              <span class="fw-semibold text-dark">{{ cert.created_by.get_full_name|default:cert.created_by.username }}</span>
-            </li>
-            {% if cert.journal_entry %}
-            <li class="list-group-item px-0 py-2 d-flex justify-content-between">
-              <span class="text-muted">{% trans "رقم قيد اليومية:" %}</span>
-              <span class="fw-bold text-primary">{{ cert.journal_entry.entry_number }}</span>
-            </li>
-            {% endif %}
-            {% if cert.approval_snapshot_hash %}
-            <li class="list-group-item px-0 py-2">
-              <span class="text-muted d-block mb-1">{% trans "البصمة المشفرة لحماية البيانات (SHA-256):" %}</span>
-              <code class="small text-break p-1 bg-light rounded d-block">{{ cert.approval_snapshot_hash }}</code>
-            </li>
-            {% endif %}
-          </ul>
-        </div>
+      <div class="d-flex align-items-center gap-2">
+        {% if cert.status == 'DRAFT' %}
+        <form method="post" action="{% url 'real_estate:contractor_submit' cert.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-warning text-dark px-4 fw-bold" onclick="return confirm('{% trans "هل أنت متأكد من تقديم المستخلص للاعتماد وقفل البيانات المالية؟" %}');">
+            <i class="fas fa-paper-plane me-1"></i>{% trans "تقديم للاعتماد" %}
+          </button>
+        </form>
+        <a href="{% url 'real_estate:contractor_update' cert.pk %}" class="btn btn-primary px-3">
+          <i class="fas fa-edit me-1"></i>{% trans "تعديل المستخلص" %}
+        </a>
+        {% elif cert.status == 'APPROVED' and not cert.journal_entry %}
+        <form method="post" action="{% url 'real_estate:contractor_post_gl' cert.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success px-4 fw-bold" onclick="return confirm('{% trans "هل تريد ترحيل قيد استحقاق المستخلص بالدفاتر العامة الآن؟" %}');">
+            <i class="fas fa-book me-1"></i>{% trans "ترحيل القيد المالي بالدفاتر" %}
+          </button>
+        </form>
+        {% endif %}
+
+        {% if cert.status == 'APPROVED' or cert.status == 'PAID' %}
+        <button type="button" class="btn btn-outline-danger px-3" data-bs-toggle="modal" data-bs-target="#stornoReversalModal">
+          <i class="fas fa-undo-alt me-1"></i>{% trans "إلغاء المستخلص (استورنو)" %}
+        </button>
+        {% endif %}
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Included Modals -->
+{% include "real_estate/modals/contractor_boq_import_modal.html" %}
+
+<!-- Storno Reversal Modal -->
+<div class="modal fade" id="stornoReversalModal" tabindex="-1" aria-labelledby="stornoReversalModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="stornoReversalModalLabel">
+          <i class="fas fa-undo-alt text-danger me-2"></i>{% trans "إلغاء المستخلص وتوليد القيد العكسي (Storno Reversal)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'real_estate:contractor_storno_reverse' cert.pk %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-danger small mb-3">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            {% trans "سيؤدي هذا الإجراء إلى توليد قيد عكسي مطابق يعكس الحسابات المدينة والدائنة ورد المبالغ المطفأة للعقد فوراً." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "سبب الإلغاء والقيد العكسي" %} <span class="text-danger">*</span></label>
+            <textarea name="reversal_reason" rows="3" class="form-control" placeholder="{% trans 'اكتب سبب الإلغاء بدقة للتدقيق المالي...' %}" required></textarea>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold">{% trans "تاريخ القيد العكسي" %}</label>
+            <input type="date" name="reversal_date" class="form-control" value="{% now 'Y-m-d' %}">
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد الإلغاء العكسي" %}</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

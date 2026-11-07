@@ -1,0 +1,43 @@
+{% load i18n %}
+
+<div class="modal fade" id="variationOrderModal" tabindex="-1" aria-labelledby="variationOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="variationOrderModalLabel">
+          <i class="fas fa-file-invoice text-info me-2"></i>{% trans "إصدار أمر تغيير هندسي (Variation Order)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% if contract %}{% url 'real_estate:contractor_contract_variation_create' contract.pk %}{% endif %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "رقم أمر التغيير" %}</label>
+              <input type="text" name="order_number" class="form-control" placeholder="VO-001" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold">{% trans "تمديد المدة الزمنية (أيام)" %}</label>
+              <input type="number" name="time_extension_days" class="form-control" value="0" min="0">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "المبرر الفني والهندسي لأمر التغيير" %}</label>
+              <textarea name="reason" rows="3" class="form-control" placeholder="{% trans 'اكتب أسباب التعديل أو الأعمال المستجدة...' %}" required></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-bold">{% trans "ملاحظات إضافية" %}</label>
+              <textarea name="notes" rows="2" class="form-control"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ أمر التغيير" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

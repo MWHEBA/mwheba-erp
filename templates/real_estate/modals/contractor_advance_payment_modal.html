@@ -1,0 +1,48 @@
+{% load i18n %}
+
+<div class="modal fade" id="disburseAdvanceModal" tabindex="-1" aria-labelledby="disburseAdvanceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="disburseAdvanceModalLabel">
+          <i class="fas fa-hand-holding-usd text-primary me-2"></i>{% trans "صرف الدفعة المقدمة لعقد المقاولة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% if contract %}{% url 'real_estate:contractor_contract_disburse_advance' contract.pk %}{% endif %}" method="post">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-info small mb-3">
+            <i class="fas fa-shield-alt me-1"></i>
+            {% trans "يتم الصرف خصماً من حساب الضمان الإسكرو (Escrow Account) الخاص بالمشروع وتوليد القيد المحاسبي آلياً." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "مبلغ الدفعة المقدمة" %}</label>
+            <input type="number" step="0.01" name="amount" class="form-control" value="{% if advance_form %}{{ advance_form.amount.value }}{% endif %}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "تاريخ الصرف" %}</label>
+            <input type="date" name="disbursement_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "طريقة الصرف" %}</label>
+            <select name="payment_method" class="form-select">
+              <option value="BANK_TRANSFER">{% trans "تحويل بنكي مباشر (حساب معتمد)" %}</option>
+              <option value="CHEQUE">{% trans "شيك بنكي مسحوب على الإسكرو" %}</option>
+            </select>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-bold">{% trans "ملاحظات السند" %}</label>
+            <textarea name="notes" rows="2" class="form-control"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تأكيد صرف القيد المالي" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
