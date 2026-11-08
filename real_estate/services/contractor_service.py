@@ -13,7 +13,7 @@ Contractor Progress Service (Track 1 & Wave 2 - Phase 6)
 """
 from decimal import Decimal
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from datetime import date, timedelta
 
 from django.db import transaction
@@ -82,6 +82,77 @@ class ContractorProgressService:
         return account
 
     @classmethod
+    def calculate_engineering_scope_ceiling(
+        cls,
+        cert: ContractorProgressCertificate
+    ) -> Tuple[Decimal, Decimal, bool, int]:
+        """
+        حساب سقف الأعمال المعتمدة هندسياً وميدانياً لنطاق عقد المقاولة والمستخلص بدقة:
+        - يراعي العمارة/البلوك المخصص للعقد أو المستخلص (Subcontract Scope Isolation).
+        - يمنع تسرب أو احتساب إنجاز عمارات أخرى لا تخص نطاق العقد.
+        - يحسب نسبة الإنجاز الموزونة للأعمال المعتمدة استشارياً (PASSED_AND_VERIFIED).
+        يرجع: (max_cumulative_ceiling, verified_scope_ratio, has_assigned_trades, max_stage_pct)
+        """
+        if not cert.contractor_id or not cert.project_id:
+            return Decimal('0.00'), Decimal('1.00'), False, 0
+
+        from real_estate.models import UnitSiteProgressRecord
+        from real_estate.services.site_progress_service import ProjectProgressCalculationService
+        from django.db.models import Max
+
+        # تحديد نطاق العمارة المستهدفة بالعقد أو المستخلص (Subcontract Scope Isolation)
+        if cert.contract and cert.contract.block_id:
+            if cert.block_id and cert.block_id != cert.contract.block_id:
+                raise ValidationError(
+                    _("لا يمكن معالجة المستخلص: عمارة المستخلص (%(cert_b)s) تتعارض مع العمارة المحددة بنطاق العقد (%(cnt_b)s).") % {
+                        'cert_b': cert.block_id,
+                        'cnt_b': cert.contract.block_id
+                    }
+                )
+            target_block_id = cert.contract.block_id
+        else:
+            target_block_id = cert.block_id
+
+        assigned_trades = UnitSiteProgressRecord.objects.filter(
+            contractor_id=cert.contractor_id,
+            unit__project_id=cert.project_id,
+            is_applicable=True
+        )
+        if target_block_id:
+            assigned_trades = assigned_trades.filter(unit__block_id=target_block_id)
+
+        if not assigned_trades.exists():
+            return Decimal('0.00'), Decimal('1.00'), False, 0
+
+        verified_trades = assigned_trades.filter(
+            status=UnitSiteProgressRecord.StageStatus.PASSED_AND_VERIFIED,
+            completion_percentage__gt=0
+        )
+        max_stage_pct = int(verified_trades.aggregate(m=Max('completion_percentage'))['m'] or 0)
+
+        total_assigned_weight = Decimal('0.00')
+        verified_weighted_progress = Decimal('0.00')
+        for trade in assigned_trades:
+            w = ProjectProgressCalculationService.STAGE_WEIGHTS.get(trade.trade_stage, Decimal('1.00'))
+            total_assigned_weight += w
+            if trade.status == UnitSiteProgressRecord.StageStatus.PASSED_AND_VERIFIED and trade.completion_percentage > 0:
+                verified_weighted_progress += (Decimal(str(trade.completion_percentage)) / Decimal('100.00')) * w
+
+        if total_assigned_weight > Decimal('0.00'):
+            verified_scope_ratio = (verified_weighted_progress / total_assigned_weight)
+        else:
+            verified_scope_ratio = Decimal('0.00')
+
+        contract_val = (
+            cert.contract.revised_contract_value
+            if (cert.contract and cert.contract.revised_contract_value > 0)
+            else (cert.contract.initial_contract_value if cert.contract else cert.gross_certified_work)
+        )
+        max_cumulative_ceiling = (contract_val * verified_scope_ratio).quantize(Decimal('0.01'))
+
+        return max_cumulative_ceiling, verified_scope_ratio, True, max_stage_pct
+
+    @classmethod
     @transaction.atomic
     def submit_certificate_for_approval(cls, certificate: ContractorProgressCertificate, user) -> ContractorProgressCertificate:
         """
@@ -140,13 +211,19 @@ class ContractorProgressService:
             if disputed_items.exists():
                 cert.disputed_items_holdback_total = sum(item.current_work_value for item in disputed_items)
 
-        # 4. إعادة حساب المبالغ بدقة
+        # 4. التحقق الهندسي المسبق وسقف المطالبة قبل تقديم الاعتماد
+        max_ceiling, verified_ratio, has_assigned, max_stage_pct = cls.calculate_engineering_scope_ceiling(cert)
+        if has_assigned and cert.gross_certified_work > Decimal('0.00') and max_ceiling > Decimal('0.00'):
+            if cert.gross_certified_work > max_ceiling:
+                cert.gross_certified_work = max_ceiling
+
+        # 5. إعادة حساب المبالغ بدقة
         cert.compute_amounts()
 
-        # 5. توليد وتثبيت البصمة الرقمية المشفرة لحماية البيانات من التعديل (Cryptographic Financial Snapshot)
+        # 6. توليد وتثبيت البصمة الرقمية المشفرة لحماية البيانات من التعديل (Cryptographic Financial Snapshot)
         cert.approval_snapshot_hash = cert.compute_financial_hash()
 
-        # 6. استدعاء خدمة الاعتماد المؤسسية
+        # 7. استدعاء خدمة الاعتماد المؤسسية
         currency_code = getattr(cert.currency, 'code', 'EGP')
         approval_req = ApprovalService.check_and_create_approval_request(
             module='REAL_ESTATE',
@@ -228,16 +305,50 @@ class ContractorProgressService:
                     _("تم تجميد صرف المستخلص لتفعيل صمام المطالبة بتمديد أو تسييل خطاب الضمان البنكي (Pay or Extend).")
                 )
 
-        # 4. إعداد القيد المحاسبي المزدوج عبر AccountingGateway
+        # 4. التحقق الهندسي الميداني وسقف المطالبة المعتمدة (Site Progress & Claim Ceiling Verification):
+        # يراعي نطاق العقد والعمارة بدقة، ويمنع خلط الأعمال بين العمارات، ويحظر تعديل البيانات المالية بعد الاعتماد
+        max_ceiling, verified_ratio, has_assigned, max_stage_pct = cls.calculate_engineering_scope_ceiling(cert)
+        if has_assigned and cert.gross_certified_work > Decimal('0.00'):
+            if verified_ratio <= Decimal('0.00'):
+                raise ValidationError(
+                    _("لا يمكن ترحيل أو اعتماد المستخلص المالي للمقاول (%(contractor)s): توجد بنود تنفيذ ميدانية مسندة له بنطاق العقد ولكن لم يتم اعتماد أي بند منها استشارياً بنسبة إنجاز موجبة (PASSED_AND_VERIFIED).") % {
+                        'contractor': cert.contractor.name if cert.contractor else cert.contractor_id
+                    }
+                )
+            if cert.gross_certified_work > max_ceiling:
+                raise ValidationError(
+                    _("لا يمكن ترحيل المستخلص: إجمالي الأعمال المطالب بها (%(gross)s) يتجاوز سقف الأعمال المعتمدة هندسياً لنطاق العقد (%(ceiling)s). يرجى تعديل المستخلص وإعادة اعتماده.") % {
+                        'gross': cert.gross_certified_work,
+                        'ceiling': max_ceiling
+                    }
+                )
+
+        # 5. إعداد القيد المحاسبي المزدوج عبر AccountingGateway
         currency_str = getattr(cert.currency, 'code', 'EGP')
         proj_code = cert.project.code if cert.project else None
 
         # مسار التوافق الرجعي 100% للمستخلصات السابقة (بدون عقد جديد)
         if not cert.contract_id:
-            return cls._post_legacy_certificate(cert, user, currency_str, proj_code)
+            entry = cls._post_legacy_certificate(cert, user, currency_str, proj_code)
+        else:
+            # مسار العقود والتشييد الموسع للمسار الأول (Track 1)
+            entry = cls._post_track1_contract_certificate(cert, user, currency_str, proj_code)
 
-        # مسار العقود والتشييد الموسع للمسار الأول (Track 1)
-        return cls._post_track1_contract_certificate(cert, user, currency_str, proj_code)
+        # قفل البنود المستلمة كمفوترة (is_billed) لنطاق العقد والعمارة المحددة فقط
+        if cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSiteProgressRecord
+            target_block_id = cert.block_id or (cert.contract.block_id if cert.contract else None)
+            billed_qs = UnitSiteProgressRecord.objects.filter(
+                contractor_id=cert.contractor_id,
+                unit__project_id=cert.project_id,
+                is_applicable=True,
+                status=UnitSiteProgressRecord.StageStatus.PASSED_AND_VERIFIED
+            )
+            if target_block_id:
+                billed_qs = billed_qs.filter(unit__block_id=target_block_id)
+            billed_qs.update(is_billed=True)
+
+        return entry
 
     @classmethod
     def _post_legacy_certificate(
@@ -896,6 +1007,51 @@ class ContractorProgressService:
         cert.status = ContractorProgressCertificate.CertificateStatus.CANCELLED
         cert.save(update_fields=["reversal_entry", "status", "updated_at"])
 
+        # فك قفل الفوترة عن بنود الموقع الميدانية لنطاق العقد والعمارة المحددة إذا لم يعد هناك مستخلصات سارية معتمدة لنفس النطاق
+        if cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSiteProgressRecord
+            from django.db.models import Q
+
+            target_block_id = cert.block_id or (cert.contract.block_id if cert.contract else None)
+            other_certs_qs = ContractorProgressCertificate.objects.filter(
+                contractor_id=cert.contractor_id,
+                project_id=cert.project_id,
+                status=ContractorProgressCertificate.CertificateStatus.APPROVED
+            ).exclude(pk=cert.pk)
+
+            if target_block_id:
+                other_certs_covering_block = other_certs_qs.filter(
+                    Q(block_id=target_block_id) |
+                    Q(contract__block_id=target_block_id) |
+                    (Q(block_id__isnull=True) & Q(contract__block_id__isnull=True))
+                )
+                if not other_certs_covering_block.exists():
+                    UnitSiteProgressRecord.objects.filter(
+                        contractor_id=cert.contractor_id,
+                        unit__project_id=cert.project_id,
+                        unit__block_id=target_block_id,
+                        is_billed=True
+                    ).update(is_billed=False)
+            else:
+                active_blocks = set(
+                    other_certs_qs.exclude(block_id__isnull=True).values_list('block_id', flat=True)
+                ) | set(
+                    other_certs_qs.exclude(contract__block_id__isnull=True).values_list('contract__block_id', flat=True)
+                )
+                has_active_project_wide = other_certs_qs.filter(
+                    block_id__isnull=True, contract__block_id__isnull=True
+                ).exists()
+
+                if not has_active_project_wide:
+                    records_to_release = UnitSiteProgressRecord.objects.filter(
+                        contractor_id=cert.contractor_id,
+                        unit__project_id=cert.project_id,
+                        is_billed=True
+                    )
+                    if active_blocks:
+                        records_to_release = records_to_release.exclude(unit__block_id__in=active_blocks)
+                    records_to_release.update(is_billed=False)
+
         logger.info(f"Certificate {cert.certificate_number} reversed. Storno Entry ID: {storno_entry.id}")
         return storno_entry
 
@@ -938,6 +1094,12 @@ class ContractorProgressService:
                     'amt': amount_norm
                 }
             )
+
+        # صمام أمان الاعتماد الميداني وخلو المقاول من العيوب المفتوحة
+        from real_estate.services.site_progress_service import ProjectProgressCalculationService
+        can_release, reason, stats = ProjectProgressCalculationService.validate_subcontractor_retention_release(contract)
+        if not can_release:
+            raise ValidationError(reason)
 
         normalized_stage = 'SUBSTANTIAL' if release_type in SUBSTANTIAL_TYPES else 'FINAL'
         gateway = AccountingGateway()

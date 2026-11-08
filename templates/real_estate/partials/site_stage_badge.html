@@ -1,0 +1,27 @@
+{% load i18n %}
+{# مكون شارة البند الميداني الموحد لكل خلية في المصفوفة المعمارية #}
+{% if not record or not record.is_applicable %}
+  <span class="badge bg-light text-muted border px-2 py-1" style="font-size: 0.72rem;">
+    {% trans "غير خاضع" %}
+  </span>
+{% elif record.status == 'PASSED_AND_VERIFIED' or record.completion_percentage == 100 %}
+  <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.75rem;">
+    <i class="fas fa-check-circle me-1"></i>100%
+  </span>
+{% elif record.status == 'REJECTED_DEFECT' %}
+  <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.75rem;">
+    <i class="fas fa-times-circle me-1"></i>{% trans "مرفوض" %}
+  </span>
+{% elif record.status == 'APPROVED_WITH_COMMENTS' %}
+  <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.75rem;">
+    <i class="fas fa-exclamation-triangle me-1"></i>{{ record.completion_percentage }}%
+  </span>
+{% elif record.status == 'IN_PROGRESS' or record.completion_percentage > 0 %}
+  <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" style="font-size: 0.75rem;">
+    <i class="fas fa-spinner fa-spin me-1"></i>{{ record.completion_percentage }}%
+  </span>
+{% else %}
+  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.72rem;">
+    0%
+  </span>
+{% endif %}

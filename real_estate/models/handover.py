@@ -250,6 +250,34 @@ class PropertyHandoverReceipt(models.Model):
                     'client_signatory_name': _('يلزم تسجيل اسم المستلم أو الوكيل الحاضر للتسليم الفعلي.')
                 })
 
+        # 5. صمام أمان الجاهزية الميدانية واكتمال البنود والعيوب الحرجة (Handover Blocker)
+        if self.status == self.HandoverStatus.EXECUTED and self.unit_id:
+            # التحقق من نسبة إنجاز الوحدة الميدانية (100% إلزامية لكافة الوحدات)
+            unit_pct = getattr(self.unit, 'progress_percentage', Decimal('0.00')) or Decimal('0.00')
+            if unit_pct < Decimal('100.00'):
+                raise ValidationError({
+                    'unit': _(
+                        'لا يمكن اعتماد التسليم النهائي للوحدة العقارية نظراً لعدم اكتمال الأعمال الميدانية '
+                        '(نسبة الإنجاز الحالية: %(progress)s%% والمطلوب: 100%%).'
+                    ) % {'progress': unit_pct}
+                })
+
+            # التحقق من خلو الوحدة من الملاحظات الفنية الحرجة المانعة للتسليم (CRITICAL_BLOCKER)
+            from real_estate.models.engineering import UnitSnagItem
+            critical_open_snags = self.unit.snag_items.filter(
+                severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER
+            ).exclude(
+                status=UnitSnagItem.SnagStatus.VERIFIED_BY_ENGINEER
+            ).count()
+
+            if critical_open_snags > 0:
+                raise ValidationError({
+                    'unit': _(
+                        'يُحظر اعتماد وتسليم الوحدة لوجود عدد (%(count)s) ملاحظة فنية حرجة مانعة للتسليم '
+                        '(CRITICAL_BLOCKER) قيد المعالجة ولم يتم اعتماد تلافيها هندسياً.'
+                    ) % {'count': critical_open_snags}
+                })
+
     def generate_verification_hash(self) -> str:
         """
         توليد بصمة تحقق رقمية مشفرة SHA-256 لمنع تزوير محضر التسليم
@@ -263,6 +291,22 @@ class PropertyHandoverReceipt(models.Model):
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
     def save(self, *args, **kwargs):
+        if self.status == self.HandoverStatus.EXECUTED and self.unit_id:
+            unit_pct = getattr(self.unit, 'progress_percentage', Decimal('0.00')) or Decimal('0.00')
+            if unit_pct < Decimal('100.00'):
+                raise ValidationError({
+                    'unit': _(
+                        'لا يمكن اعتماد التسليم النهائي للوحدة العقارية نظراً لعدم اكتمال الأعمال الميدانية '
+                        '(نسبة الإنجاز الحالية: %(progress)s%% والمطلوب: 100%%).'
+                    ) % {'progress': unit_pct}
+                })
+            from real_estate.models.engineering import UnitSnagItem
+            if self.unit.snag_items.filter(
+                severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER
+            ).exclude(status=UnitSnagItem.SnagStatus.VERIFIED_BY_ENGINEER).exists():
+                raise ValidationError({
+                    'unit': _('يُحظر اعتماد وتسليم الوحدة لوجود ملاحظات فنية حرجة مانعة للتسليم (CRITICAL_BLOCKER).')
+                })
         if not self.receipt_number:
             self.receipt_number = SequenceService.get_next_number(
                 document_type=DocumentType.UNIT_HANDOVER,

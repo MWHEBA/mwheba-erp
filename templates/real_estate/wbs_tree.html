@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{{ project.name }} - {% trans "شجرة مقايسة المشروع وحزم الأعمال WBS" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid (Section 7 Rule: Independent Grid Row) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي حزم المقايسة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ validation_report.total_activities_count }}</div>
+            <small class="text-muted">{% trans "الأنشطة الجذرية" %}: {{ validation_report.root_count }}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-sitemap"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if validation_report.is_valid %}stats-card-success{% else %}stats-card-danger{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "توازن أوزان الشجرة" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ validation_report.total_root_weight }}%</div>
+            <small class="{% if validation_report.is_valid %}text-success{% else %}text-danger{% endif %}">
+              {% if validation_report.is_valid %}{% trans "الأوزان مضبوطة ومحوكمة" %}{% else %}{% trans "يوجد خلل في توزيع الأوزان" %}{% endif %}
+            </small>
+          </div>
+          <div class="stats-card-icon {% if validation_report.is_valid %}text-success{% else %}text-danger{% endif %} fs-2">
+            <i class="fas {% if validation_report.is_valid %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إنجاز المشروع الإنشائي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark" id="kpi-project-progress">{{ project.construction_progress_percentage }}%</div>
+            <small class="text-muted">{% trans "محسوب هرمياً من حزم WBS" %}</small>
+          </div>
+          <div class="stats-card-icon text-primary fs-2">
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "جسر تنفيذ الوحدات" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">
+              <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold" id="btn-sync-wbs-unit-progress">
+                <i class="fas fa-sync-alt me-1"></i>{% trans "مزامنة الموقع الآن" %}
+              </button>
+            </div>
+            <small class="text-muted">{% trans "تحديث آلي من سجلات الفحص" %}</small>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-link"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Validation Report Alerts -->
+  {% if not validation_report.is_valid %}
+  <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+    <div class="d-flex align-items-start">
+      <i class="fas fa-exclamation-circle fs-4 me-3 mt-1"></i>
+      <div>
+        <h6 class="fw-bold mb-1">{% trans "تنبيهات حوكمة أوزان شجرة WBS:" %}</h6>
+        <ul class="mb-0 ps-3">
+          {% for err in validation_report.errors %}
+          <li>{{ err }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if validation_report.warnings %}
+  <div class="alert alert-warning border-0 shadow-sm mb-4" role="alert">
+    <div class="d-flex align-items-start">
+      <i class="fas fa-info-circle fs-4 me-3 mt-1"></i>
+      <div>
+        <h6 class="fw-bold mb-1">{% trans "ملاحظات تحسين الأوزان:" %}</h6>
+        <ul class="mb-0 ps-3">
+          {% for warn in validation_report.warnings %}
+          <li>{{ warn }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- WBS Tree Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-network-wired text-primary me-2"></i>{% trans "الهيكل الهرمي لحزم مقايسة المشروع (WBS Hierarchy Tree)" %}
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <a href="{% url 'real_estate:project_evm_dashboard' project_id=project.id %}" class="btn btn-sm btn-outline-info fw-bold">
+            <i class="fas fa-bezier-curve me-1"></i>{% trans "لوحة مؤشرات EVM والمنحنى S-Curve" %}
+          </a>
+          <button type="button" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#activityModal" onclick="openCreateActivityModal();">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة حزمة عمل جديدة" %}
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0" id="wbs-tree-table">
+            <thead class="table-light border-bottom">
+              <tr>
+                <th class="ps-3" style="width: 250px;">{% trans "كود وحزمة الأعمال" %}</th>
+                <th style="width: 140px;">{% trans "نوع الحزمة" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "الوزن النسبي" %}</th>
+                <th style="width: 200px;">{% trans "نسبة الإنجاز" %}</th>
+                <th class="text-center" style="width: 120px;">{% trans "محطة رئيسية" %}</th>
+                <th class="text-center" style="width: 130px;">{% trans "خط الأساس" %}</th>
+                <th style="width: 140px;">{% trans "العمارة / البلوك" %}</th>
+                <th class="text-center pe-3" style="width: 120px;">{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for node in tree_hierarchy %}
+                {% include "real_estate/partials/wbs_tree_row.html" with item=node depth=0 %}
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <i class="fas fa-sitemap fs-1 mb-3 d-block text-secondary opacity-50"></i>
+                  <h6 class="fw-bold">{% trans "لا توجد حزم أعمال مضافة لشجرة مقايسة هذا المشروع بعد." %}</h6>
+                  <p class="small text-muted mb-3">{% trans "يمكنك البدء بإضافة الحزم الجذرية الأساسية (الأساسات، الهيكل الخرساني، التشطيبات)." %}</p>
+                  <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#activityModal" onclick="openCreateActivityModal();">
+                    <i class="fas fa-plus me-1"></i>{% trans "إضافة أول حزمة عمل" %}
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Create / Edit Activity (Corporate Unified Modal Architecture) -->
+<div class="modal fade" id="activityModal" tabindex="-1" aria-labelledby="activityModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="activityModalLabel">
+          <i class="fas fa-layer-group text-primary me-2"></i><span id="modal-title-text">{% trans "إضافة حزمة أعمال جديدة" %}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="activityForm">
+        {% csrf_token %}
+        <input type="hidden" name="activity_id" id="form_activity_id" value="">
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold text-dark">{% trans "كود النشاط (WBS Code)" %} <span class="text-danger">*</span></label>
+              {{ form.code }}
+            </div>
+            <div class="col-12 col-md-8">
+              <label class="form-label small fw-bold text-dark">{% trans "اسم النشاط / حزمة الأعمال" %} <span class="text-danger">*</span></label>
+              {{ form.name }}
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "النشاط الرئيسي (Parent)" %}</label>
+              {{ form.parent_activity }}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "العمارة / البلوك المستهدف (اختياري)" %}</label>
+              {{ form.block }}
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold text-dark">{% trans "الوزن النسبي من المشروع %" %} <span class="text-danger">*</span></label>
+              {{ form.weight_percentage }}
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold text-dark">{% trans "نسبة الإنجاز الحالية %" %}</label>
+              {{ form.progress_percentage }}
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-center pt-3">
+              <div class="form-check form-switch mt-2">
+                {{ form.is_milestone }}
+                <label class="form-check-label fw-bold small text-dark me-2" for="{{ form.is_milestone.id_for_label }}">
+                  {% trans "محطة تسليم رئيسية (Milestone)" %}
+                </label>
+              </div>
+            </div>
+
+            <div class="col-12"><hr class="my-1 text-muted opacity-25"></div>
+            <div class="col-12">
+              <h6 class="fw-bold text-primary mb-2">
+                <i class="fas fa-link me-1"></i>{% trans "جسر الربط مع تنفيذ الموقع (Unit-to-WBS Bridge):" %}
+              </h6>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "نوع النشاط ومصدر الحساب" %}</label>
+              {{ form.activity_type }}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "مجموعة الأعمال المعمارية" %}</label>
+              {{ form.trade_category }}
+            </div>
+
+            <div class="col-12 col-md-8">
+              <label class="form-label small fw-bold text-dark">{% trans "البند المعماري التفصيلي (من مصفوفة الـ 32 بند)" %}</label>
+              {{ form.trade_stage }}
+            </div>
+            <div class="col-12 col-md-4 d-flex align-items-center pt-3">
+              <div class="form-check form-switch mt-2">
+                {{ form.auto_sync_progress }}
+                <label class="form-check-label fw-bold small text-dark me-2" for="{{ form.auto_sync_progress.id_for_label }}">
+                  {% trans "مزامنة تلقائية من الموقع" %}
+                </label>
+              </div>
+            </div>
+
+            <div class="col-12"><hr class="my-1 text-muted opacity-25"></div>
+            <div class="col-12">
+              <h6 class="fw-bold text-secondary mb-2">
+                <i class="fas fa-calendar-alt me-1"></i>{% trans "الجدول الزمني وخط الأساس (Schedule & Baseline):" %}
+              </h6>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "بدء خط الأساس (Baseline Start)" %}</label>
+              {{ form.baseline_start_date }}
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-bold text-dark">{% trans "انتهاء خط الأساس (Baseline End)" %}</label>
+              {{ form.baseline_end_date }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-save-activity">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ النشاط" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateActivityModal(parentId = '') {
+  document.getElementById('form_activity_id').value = '';
+  document.getElementById('modal-title-text').innerText = '{% trans "إضافة حزمة أعمال جديدة" %}';
+  document.getElementById('activityForm').reset();
+  if (parentId) {
+    const parentSelect = document.getElementById('id_parent_activity');
+    if (parentSelect) parentSelect.value = parentId;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Sync Unit Progress Button
+  const syncBtn = document.getElementById('btn-sync-wbs-unit-progress');
+  if (syncBtn) {
+    syncBtn.addEventListener('click', function() {
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري المزامنة..." %}';
+
+      fetch("{% url 'real_estate:project_wbs_sync_unit_progress' project_id=project.id %}", {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (window.showNotification) {
+            window.showNotification(data.message, 'success', '{% trans "تمت المزامنة بنجاح" %}');
+          } else {
+            alert(data.message);
+          }
+          setTimeout(function() {
+            window.location.reload();
+          }, 3100);
+        } else {
+          if (window.showNotification) {
+            window.showNotification(data.message || '{% trans "حدث خطأ أثناء المزامنة" %}', 'error');
+          } else {
+            alert(data.message);
+          }
+          syncBtn.disabled = false;
+          syncBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>{% trans "مزامنة الموقع الآن" %}';
+        }
+      })
+      .catch(err => {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i>{% trans "مزامنة الموقع الآن" %}';
+        alert('{% trans "حدث خطأ في الاتصال بالخادم." %}');
+      });
+    });
+  }
+
+  // Save Activity Form AJAX
+  const activityForm = document.getElementById('activityForm');
+  if (activityForm) {
+    activityForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const saveBtn = document.getElementById('btn-save-activity');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحفظ..." %}';
+
+      const formData = new FormData(activityForm);
+
+      fetch("{% url 'real_estate:project_wbs_activity_save' project_id=project.id %}", {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          if (window.showNotification) {
+            window.showNotification(data.message, 'success');
+          } else {
+            alert(data.message);
+          }
+          setTimeout(function() {
+            window.location.reload();
+          }, 3100);
+        } else {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>{% trans "حفظ النشاط" %}';
+          let errMsg = data.message || '{% trans "تعذر حفظ النشاط." %}';
+          if (data.errors) {
+            const errList = [];
+            for (let k in data.errors) {
+              errList.push(data.errors[k].join(', '));
+            }
+            errMsg += '\n' + errList.join('\n');
+          }
+          alert(errMsg);
+        }
+      })
+      .catch(err => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>{% trans "حفظ النشاط" %}';
+        alert('{% trans "حدث خطأ في الاتصال بالخادم." %}');
+      });
+    });
+  }
+});
+
+function deleteActivity(actId, actCode) {
+  if (!confirm('{% trans "هل أنت متأكد من حذف النشاط:" %} ' + actCode + '؟')) {
+    return;
+  }
+  const deleteUrl = "{% url 'real_estate:project_wbs_tree' project_id=project.id %}" + actId + "/delete/";
+  fetch(deleteUrl, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (window.showNotification) {
+        window.showNotification(data.message, 'success');
+      } else {
+        alert(data.message);
+      }
+      setTimeout(function() {
+        window.location.reload();
+      }, 3100);
+    } else {
+      alert(data.message || '{% trans "تعذر حذف النشاط." %}');
+    }
+  })
+  .catch(err => {
+    alert('{% trans "حدث خطأ في الاتصال." %}');
+  });
+}
+</script>
+{% endblock %}

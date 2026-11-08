@@ -1,0 +1,636 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "متابعة التنفيذ الميداني وشبكة البنود" %} - {{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.site-matrix-container {
+  overflow-x: auto;
+  max-width: 100%;
+}
+.site-cell {
+  cursor: pointer;
+  min-width: 110px;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+.site-cell:hover {
+  background-color: var(--bs-light) !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Handover Readiness KPI Cards (Independent Row) -->
+  {% include "real_estate/partials/readiness_kpi_cards.html" %}
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية واستعراض مراحل الموقع" %}
+        </h5>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="filterSection">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold text-muted">{% trans "المبنى / البلوك" %}</label>
+              <select name="block" class="form-select select2-filter" dir="rtl">
+                <option value="">{% trans "كافة البلوكات" %}</option>
+                {% for b in blocks %}
+                <option value="{{ b.id }}" {% if selected_block == b.id|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold text-muted">{% trans "رقم طلب الفحص (RFI No.)" %}</label>
+              <input type="text" name="rfi" class="form-control font-monospace" value="{{ rfi_filter }}" placeholder="مثال: RFI-CW-01">
+            </div>
+
+            <div class="col-12 col-md-6 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary px-3">
+                <i class="fas fa-search me-1"></i>{% trans "تصفية" %}
+              </button>
+              <a href="{% url 'real_estate:site_project_report' project_id=project.id %}" class="btn btn-outline-secondary px-3">
+                {% trans "إعادة تعيين" %}
+              </a>
+              <div class="ms-auto d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkFloorSiteUpdateModal">
+                  <i class="fas fa-layer-group me-1"></i>{% trans "تحديث مجمع للدور" %}
+                </button>
+                <a href="{% url 'real_estate:site_project_report_excel' project_id=project.id %}" class="btn btn-outline-success">
+                  <i class="fas fa-file-excel me-1"></i>{% trans "تصدير إكسل" %}
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Site Progress Matrix Table -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-th-list text-primary me-2"></i>{% trans "مصفوفة متابعة الوحدات المعمارية بنداً بنداً" %}
+        </h5>
+        <div class="d-flex align-items-center">
+          <span id="networkStatusBadge" class="badge bg-success-subtle text-success border me-2">
+            <i class="fas fa-wifi me-1"></i>{% trans "متصل" %}
+          </span>
+          <button type="button" id="btnSyncOfflineQueue" class="btn btn-sm btn-outline-warning d-none me-2 fw-semibold" onclick="syncOfflineQueueNow()">
+            <i class="fas fa-cloud-upload-alt me-1"></i>{% trans "مزامنة المعاينات المعلقة" %} (<span id="offlineQueueCount">0</span>)
+          </button>
+          <a href="{% url 'real_estate:project_matrix' project_id=project.id %}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fas fa-building me-1"></i>{% trans "الانتقال لمصفوفة المبيعات" %}
+          </a>
+          <a href="{% url 'real_estate:site_daily_log_create' project_id=project.id %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-calendar-plus me-1"></i>{% trans "تسجيل يومية موقع" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive site-matrix-container">
+          <table class="table table-bordered table-hover align-middle mb-0" id="siteMatrixTable">
+            <thead class="table-light text-center small">
+              <tr>
+                <th style="min-width: 100px;">{% trans "كود الوحدة" %}</th>
+                <th style="min-width: 90px;">{% trans "البلوك" %}</th>
+                <th style="min-width: 80px;">{% trans "الدور" %}</th>
+                <th style="min-width: 90px;">{% trans "الإنجاز %" %}</th>
+                {% for trade_key, trade_lbl in trade_choices %}
+                <th style="min-width: 120px;" title="{{ trade_lbl }}">{{ trade_lbl|slice:":15" }}...</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in unit_rows %}
+              <tr>
+                <td class="ps-3 fw-bold font-monospace text-primary">
+                  <a href="{% url 'real_estate:unit_detail' pk=row.unit.id %}" class="text-decoration-none">
+                    {{ row.unit.unit_code }}
+                  </a>
+                </td>
+                <td class="text-center small">{{ row.unit.block.name|default:"-" }}</td>
+                <td class="text-center small">{{ row.unit.floor.name|default:row.unit.floor.floor_number|default:"-" }}</td>
+                <td class="text-center fw-bold" id="unit_pct_{{ row.unit.id }}">
+                  <span class="badge {% if row.unit.progress_percentage >= 100 %}bg-success-subtle text-success{% elif row.unit.progress_percentage > 0 %}bg-info-subtle text-info{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                    {{ row.unit.progress_percentage }}%
+                  </span>
+                </td>
+
+                {% for cell in row.cells %}
+                  <td class="site-cell"
+                      {% if cell.record %}
+                      onclick="openStageModal('{{ row.unit.id }}', '{{ row.unit.unit_code }}', '{{ row.unit.block.name|default:"" }} - {{ row.unit.floor.name|default:"" }}', '{{ cell.trade_label }}', '{{ cell.record.id }}', '{{ cell.record.version }}', '{{ cell.record.completion_percentage }}', '{{ cell.record.status }}', '{{ cell.record.rfi_number|default:"" }}', '{{ cell.record.contractor_id|default:"" }}', '{{ cell.record.is_billed|yesno:"true,false" }}')"
+                      {% else %}
+                      onclick="openStageModal('{{ row.unit.id }}', '{{ row.unit.unit_code }}', '{{ row.unit.block.name|default:"" }} - {{ row.unit.floor.name|default:"" }}', '{{ cell.trade_label }}', '', '', '0', 'NOT_STARTED', '', '', 'false')"
+                      {% endif %}>
+                    {% include "real_estate/partials/site_stage_badge.html" with record=cell.record %}
+                  </td>
+                {% endfor %}
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="{{ trade_choices|length|add:4 }}" class="text-center py-5 text-muted">
+                  <i class="fas fa-clipboard-check fa-3x mb-3 text-secondary opacity-50"></i>
+                  <div>{% trans "لا توجد وحدات معروضة مطابقة لشروط الفلترة المحددة." %}</div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Update Modal -->
+{% include "real_estate/modals/quick_update_site_stage_modal.html" %}
+
+<!-- Bulk Floor Modal -->
+{% include "real_estate/modals/bulk_floor_site_update_modal.html" %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openStageModal(unitId, unitCode, floorInfo, tradeTitle, recordId, version, pct, status, rfi, contractorId, isBilled) {
+  if (!recordId) {
+    if (window.showNotification) {
+      window.showNotification('{% trans "لا يوجد سجل تنفيذ مفعل لهذا البند بعد." %}', 'warning');
+    }
+    return;
+  }
+  $('#prereqWarningAlert').addClass('d-none');
+  $('#modal_unit_code').text(unitCode);
+  $('#modal_floor_info').text(floorInfo);
+  $('#modal_trade_title').text(tradeTitle);
+  $('#modal_record_id').val(recordId);
+  $('#modal_version').val(version || '1');
+  $('#modal_pct').val(pct || 0);
+  $('#modal_status').val(status || 'NOT_STARTED');
+  $('#modal_rfi').val(rfi || '');
+  $('#modal_contractor').val(contractorId || '');
+  $('#photoCompressionBadge').addClass('d-none');
+  $('#photoCompressionText').text('');
+  $('#modal_photo').val('');
+
+  // تفريغ وتحميل بطاقة المواصفات التعاقدية المعتمدة للعميل (Approved Spec Preview)
+  $('#clientSpecPreviewCard').addClass('d-none');
+  $('#previewSpecsContainer').empty();
+  $('#previewVariationNotes').addClass('d-none');
+  $('#previewPackageBadge').text('');
+
+  fetch(`/real-estate/api/site/stages/${recordId}/spec-preview/`)
+    .then(r => r.json())
+    .then(res => {
+      if (res.success && res.preview) {
+        const p = res.preview;
+        $('#previewCustomerName').text(p.customer_name || '-');
+        $('#previewFinishingType').text(p.finishing_type || '-');
+        if (p.package_name) {
+          $('#previewPackageBadge').text(p.package_name);
+        } else {
+          $('#previewPackageBadge').text('باقة معيارية');
+        }
+
+        if (p.matched_specs && p.matched_specs.length > 0) {
+          let html = '';
+          p.matched_specs.forEach(s => {
+            html += `
+              <div class="p-2 rounded bg-white border d-flex justify-content-between align-items-center">
+                <div>
+                  <strong class="text-dark">${s.spec_name}</strong>
+                  ${s.brand ? `<span class="badge bg-secondary-subtle text-secondary ms-1">${s.brand}</span>` : ''}
+                  ${s.model_code ? `<span class="badge bg-light text-dark border ms-1 font-monospace">${s.model_code}</span>` : ''}
+                  ${s.workspace ? `<small class="text-muted d-block">${s.workspace}</small>` : ''}
+                </div>
+                ${s.supply_source ? `<span class="small text-muted">${s.supply_source}</span>` : ''}
+              </div>
+            `;
+          });
+          $('#previewSpecsContainer').html(html);
+        } else {
+          $('#previewSpecsContainer').html(`
+            <div class="text-muted small py-1">
+              <i class="fas fa-info-circle me-1"></i>
+              ${p.has_contracted_specs ? '{% trans "لا توجد مواصفة تفصيلية خاصة بهذا البند المحدد ضمن الباقة." %}' : '{% trans "الوحدة تخضع للمواصفات العامة لنوع التشطيب المعتمد." %}'}
+            </div>
+          `);
+        }
+
+        if (p.variation_notes) {
+          $('#previewVariationText').text(p.variation_notes);
+          $('#previewVariationNotes').removeClass('d-none');
+        }
+
+        $('#clientSpecPreviewCard').removeClass('d-none');
+      }
+    })
+    .catch(e => console.log('Spec preview fetch skipped', e));
+
+  if (isBilled === 'true' || isBilled === true) {
+    $('#modal_pct').attr('min', pct);
+  } else {
+    $('#modal_pct').attr('min', 0);
+  }
+  $('#quickUpdateStageModal').modal('show');
+}
+
+// ضغط الصور محلياً في المتصفح بصيغة WebP
+async function compressImageToWebP(file, maxDimension = 1600, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) return resolve(file);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          blob => {
+            if (!blob || blob.size >= file.size) return resolve(file);
+            const origKB = Math.round(file.size / 1024);
+            const compKB = Math.round(blob.size / 1024);
+            const baseName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            const compressedFile = new File([blob], `${baseName}.webp`, {
+              type: 'image/webp',
+              lastModified: Date.now()
+            });
+            compressedFile._origKB = origKB;
+            compressedFile._compKB = compKB;
+            resolve(compressedFile);
+          },
+          'image/webp',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+$('#modal_photo').on('change', async function() {
+  const file = this.files[0];
+  if (!file) return;
+  const comp = await compressImageToWebP(file);
+  if (comp && comp._origKB) {
+    const dt = new DataTransfer();
+    dt.items.add(comp);
+    this.files = dt.files;
+    const savedPct = Math.round((1 - comp._compKB / comp._origKB) * 100);
+    $('#photoCompressionText').text(`تم ضغط الصورة بصيغة WebP: ${comp._compKB} KB بدلاً من ${comp._origKB} KB (وفر ${savedPct}%)`);
+    $('#photoCompressionBadge').removeClass('d-none');
+  }
+});
+
+// إدارة الحفظ دون اتصال ومزامنة المعاينات في الخلفية عبر IndexedDB
+const OFFLINE_DB_NAME = 'MWHEBA_Site_OfflineDB';
+const OFFLINE_STORE_NAME = 'offline_stages';
+
+function openOfflineDB() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) return resolve(null);
+    const req = indexedDB.open(OFFLINE_DB_NAME, 1);
+    req.onupgradeneeded = function(e) {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(OFFLINE_STORE_NAME)) {
+        db.createObjectStore(OFFLINE_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = function(e) { resolve(e.target.result); };
+    req.onerror = function() { resolve(null); };
+  });
+}
+
+async function enqueueOfflineStage(stage) {
+  const db = await openOfflineDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    const tx = db.transaction([OFFLINE_STORE_NAME], 'readwrite');
+    const store = tx.objectStore(OFFLINE_STORE_NAME);
+    stage.queued_at = new Date().toISOString();
+    store.add(stage);
+    tx.oncomplete = () => {
+      updateOfflineQueueBadge();
+      resolve(true);
+    };
+    tx.onerror = () => resolve(false);
+  });
+}
+
+async function getOfflineQueue() {
+  const db = await openOfflineDB();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    const tx = db.transaction([OFFLINE_STORE_NAME], 'readonly');
+    const store = tx.objectStore(OFFLINE_STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function clearOfflineQueue() {
+  const db = await openOfflineDB();
+  if (!db) return;
+  return new Promise((resolve) => {
+    const tx = db.transaction([OFFLINE_STORE_NAME], 'readwrite');
+    const store = tx.objectStore(OFFLINE_STORE_NAME);
+    store.clear();
+    tx.oncomplete = () => {
+      updateOfflineQueueBadge();
+      resolve(true);
+    };
+  });
+}
+
+async function deleteOfflineQueueItem(id) {
+  const db = await openOfflineDB();
+  if (!db) return false;
+  return new Promise((resolve) => {
+    const tx = db.transaction([OFFLINE_STORE_NAME], 'readwrite');
+    const store = tx.objectStore(OFFLINE_STORE_NAME);
+    store.delete(id);
+    tx.oncomplete = () => {
+      updateOfflineQueueBadge();
+      resolve(true);
+    };
+    tx.onerror = () => resolve(false);
+  });
+}
+
+async function updateOfflineQueueBadge() {
+  const items = await getOfflineQueue();
+  const count = items.length;
+  $('#offlineQueueCount').text(count);
+  if (count > 0) {
+    $('#btnSyncOfflineQueue').removeClass('d-none');
+  } else {
+    $('#btnSyncOfflineQueue').addClass('d-none');
+  }
+}
+
+function updateNetworkStatus() {
+  if (navigator.onLine) {
+    $('#networkStatusBadge')
+      .removeClass('bg-warning-subtle text-warning')
+      .addClass('bg-success-subtle text-success')
+      .html('<i class="fas fa-wifi me-1"></i>{% trans "متصل" %}');
+  } else {
+    $('#networkStatusBadge')
+      .removeClass('bg-success-subtle text-success')
+      .addClass('bg-warning-subtle text-warning')
+      .html('<i class="fas fa-plane me-1"></i>{% trans "غير متصل (أوفلاين)" %}');
+  }
+}
+
+window.addEventListener('online', function() {
+  updateNetworkStatus();
+  if (window.showNotification) {
+    window.showNotification('{% trans "تم استعادة الاتصال بالشبكة. جاري فحص ومزامنة المعاينات المعلقة..." %}', 'info');
+  }
+  syncOfflineQueueNow();
+});
+
+window.addEventListener('offline', function() {
+  updateNetworkStatus();
+  if (window.showNotification) {
+    window.showNotification('{% trans "انقطع الاتصال بالشبكة. تم تفعيل وضع العمل دون اتصال (IndexedDB)." %}', 'warning');
+  }
+});
+
+async function syncOfflineQueueNow() {
+  const queue = await getOfflineQueue();
+  if (!queue || queue.length === 0) {
+    if (window.showNotification) window.showNotification('{% trans "لا توجد معاينات معلقة للمزامنة." %}', 'info');
+    return;
+  }
+
+  $('#btnSyncOfflineQueue').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري المزامنة..." %}');
+
+  const payload = {
+    stages: queue.map(q => ({
+      record_id: parseInt(q.record_id),
+      version: parseInt(q.version),
+      status: q.status,
+      completion_percentage: parseInt(q.completion_percentage),
+      contractor_id: q.contractor_id || null,
+      rfi_number: q.rfi_number || '',
+      notes: q.notes || '',
+    }))
+  };
+
+  fetch('{% url "real_estate:api_site_stages_sync" %}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(async res => {
+    $('#btnSyncOfflineQueue').prop('disabled', false);
+    if (res.success) {
+      const conflictRecordIds = new Set((res.conflicts || []).map(c => parseInt(c.record_id)));
+      // حذف فقط العمليات التي تم التقاطها في هذه الدفعة وتأكيد نجاحها، دون مساس بالمعاينات التي سجلت أثناء الرفع
+      if (typeof deleteOfflineQueueItem === 'function') {
+        for (const item of queue) {
+          if (!conflictRecordIds.has(parseInt(item.record_id))) {
+            await deleteOfflineQueueItem(item.id);
+          }
+        }
+      } else if (!res.conflicts || res.conflicts.length === 0) {
+        await clearOfflineQueue();
+      }
+
+      updateOfflineQueueBadge();
+
+      if (res.conflicts && res.conflicts.length > 0) {
+        if (window.showNotification) {
+          const msg = `{% trans "تم مزامنة" %} (${res.synced_count || 0}) {% trans "معاينة، وتوجد" %} (${res.conflicts.length}) {% trans "معاينات بها تعارض تم الحفاظ عليها محلياً." %}`;
+          window.showNotification(msg, 'warning');
+        }
+      } else {
+        if (window.showNotification) {
+          window.showNotification(`{% trans "تمت مزامنة" %} (${res.synced_count}) {% trans "معاينة بنجاح." %}`, 'success');
+        }
+        setTimeout(() => location.reload(), 3100);
+      }
+    } else {
+      if (window.showNotification) {
+        window.showNotification(res.error || '{% trans "فشلت المزامنة." %}', 'error');
+      }
+      updateOfflineQueueBadge();
+    }
+  })
+  .catch(e => {
+    $('#btnSyncOfflineQueue').prop('disabled', false);
+    updateOfflineQueueBadge();
+    if (window.showNotification) {
+      window.showNotification('{% trans "تعذر الاتصال بالخادم لمزامنة المعاينات." %}', 'error');
+    }
+  });
+}
+
+$(document).ready(function() {
+  updateNetworkStatus();
+  updateOfflineQueueBadge();
+});
+
+// تطبيق الاعتماد والتحديث السريع مع دعم الأوفلاين ومهلة Toastr البالغة 3.1 ثانية
+$('#quickUpdateStageForm').on('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const recId = $('#modal_record_id').val();
+  const ver = $('#modal_version').val();
+  const pct = $('#modal_pct').val();
+  const st = $('#modal_status').val();
+  const rfi = $('#modal_rfi').val();
+  const contr = $('#modal_contractor').val();
+  const nts = $('#modal_notes').val();
+
+  if (!recId) {
+    $('#quickUpdateStageModal').modal('hide');
+    return;
+  }
+
+  // إذا كان الجهاز غير متصل بالشبكة، يتم الحفظ فوراً في IndexedDB
+  if (!navigator.onLine) {
+    enqueueOfflineStage({
+      record_id: recId,
+      version: ver,
+      completion_percentage: pct,
+      status: st,
+      rfi_number: rfi,
+      contractor_id: contr,
+      notes: nts
+    }).then(() => {
+      $('#quickUpdateStageModal').modal('hide');
+      if (window.showNotification) {
+        window.showNotification('{% trans "تم حفظ المعاينة في ذاكرة الجهاز المؤقتة (IndexedDB). ستتم المزامنة تلقائياً عند استعادة الاتصال." %}', 'info');
+      }
+    });
+    return;
+  }
+
+  const url = `/real-estate/api/site/stages/${recId}/quick-update/`;
+
+  $.ajax({
+    url: url,
+    type: 'POST',
+    data: formData,
+    processData: false,
+    contentType: false,
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    success: function(resp) {
+      if (resp.success) {
+        $('#quickUpdateStageModal').modal('hide');
+        if (window.showNotification) {
+          window.showNotification(resp.message, 'success');
+        }
+        setTimeout(function() {
+          location.reload();
+        }, 3100);
+      }
+    },
+    error: function(xhr) {
+      if (xhr.status === 0) {
+        // انقطاع مفاجئ بالشبكة أثناء الإرسال
+        enqueueOfflineStage({
+          record_id: recId,
+          version: ver,
+          completion_percentage: pct,
+          status: st,
+          rfi_number: rfi,
+          contractor_id: contr,
+          notes: nts
+        }).then(() => {
+          $('#quickUpdateStageModal').modal('hide');
+          if (window.showNotification) {
+            window.showNotification('{% trans "انقطع الاتصال، وتم حفظ المعاينة بذاكرة الجهاز المؤقتة بنجاح." %}', 'warning');
+          }
+        });
+        return;
+      }
+      const err = xhr.responseJSON || {};
+      if (err.prerequisite_violation) {
+        $('#prereqWarningText').text(err.message);
+        $('#prereqWarningAlert').removeClass('d-none');
+      } else if (window.showNotification) {
+        window.showNotification(err.message || '{% trans "حدث خطأ أثناء التحديث" %}', 'error');
+      }
+    }
+  });
+});
+
+// تطبيق التحديث المجمع لدور بالكامل
+$('#bulkFloorUpdateForm').on('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  $.ajax({
+    url: '{% url "real_estate:api_site_floor_bulk_update" %}',
+    type: 'POST',
+    data: formData,
+    processData: false,
+    contentType: false,
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    success: function(resp) {
+      if (resp.success) {
+        $('#bulkFloorSiteUpdateModal').modal('hide');
+        if (window.showNotification) {
+          window.showNotification(resp.message, 'success');
+        }
+        setTimeout(function() {
+          location.reload();
+        }, 3100);
+      } else {
+        if (window.showNotification) {
+          window.showNotification(resp.message || '{% trans "حدث خطأ أثناء التحديث" %}', 'error');
+        }
+      }
+    },
+    error: function(xhr) {
+      const err = xhr.responseJSON ? xhr.responseJSON.message : '{% trans "فشل تنفيذ الطلب" %}';
+      if (window.showNotification) {
+        window.showNotification(err, 'error');
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -36,6 +36,13 @@
       <small class="text-muted font-monospace" style="font-size: 0.7rem;">#{{ unit.unit_number|default:unit.unit_code }}</small>
     </div>
 
+    <!-- Progress percentage badge -->
+    <div class="mb-1">
+      <span class="badge bg-light text-primary border" style="font-size: 0.68rem;">
+        <i class="fas fa-hard-hat me-1"></i>{{ unit.progress_percentage|default:"0.00" }}%
+      </span>
+    </div>
+
     <!-- Unit Code & Typology -->
     <div class="fw-bold font-monospace text-primary text-truncate my-1" style="font-size: 0.95rem;">
       {{ unit.unit_code }}

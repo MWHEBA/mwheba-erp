@@ -23,6 +23,10 @@ class RealEstateProject(models.Model):
         DELIVERED = 'DELIVERED', _('تم التسليم بالكامل')
         ON_HOLD = 'ON_HOLD', _('معلق مؤقتاً')
 
+    class RevenueRecognitionMethod(models.TextChoices):
+        POINT_IN_TIME_HANDOVER = 'POINT_IN_TIME_HANDOVER', _('الاعتراف بالإيراد عند التسليم الفعلي/الحُكمي (Point in Time)')
+        OVER_TIME_POC = 'OVER_TIME_POC', _('الاعتراف بالإيراد على مدار فترة البناء وفق نسبة الإنجاز (IFRS 15 Over Time POC)')
+
     code = models.CharField(
         max_length=50,
         unique=True,
@@ -46,6 +50,26 @@ class RealEstateProject(models.Model):
         default=ProjectStatus.PLANNING,
         db_index=True,
         verbose_name=_('حالة المشروع')
+    )
+    revenue_recognition_method = models.CharField(
+        max_length=30,
+        choices=RevenueRecognitionMethod.choices,
+        default=RevenueRecognitionMethod.POINT_IN_TIME_HANDOVER,
+        db_index=True,
+        verbose_name=_('طريقة الاعتراف بالإيراد (IFRS 15)')
+    )
+    construction_progress_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        db_index=True,
+        verbose_name=_('نسبة الإنجاز الإنشائي الموزونة للمشروع %')
+    )
+    total_budget_cost = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('إجمالي الموازنة التقديرية المعتمدة للمشروع (BAC)')
     )
     escrow_account = models.ForeignKey(
         'financial.ChartOfAccounts',

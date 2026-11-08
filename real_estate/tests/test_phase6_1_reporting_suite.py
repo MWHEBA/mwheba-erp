@@ -107,6 +107,7 @@ def reporting_setup(db):
         meter_price=Decimal("20000.00"),
         base_price=Decimal("3000000.00"),
         total_price=Decimal("3000000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.DELIVERED
     )
     unit_active = PropertyUnit.objects.create(
@@ -197,6 +198,7 @@ def reporting_setup(db):
         handover_type=PropertyHandoverReceipt.HandoverType.PHYSICAL,
         status=PropertyHandoverReceipt.HandoverStatus.EXECUTED,
         handover_date=date(2026, 6, 1),
+        client_signatory_name="مستلم معتمد",
         interim_cogs_amount=Decimal("1800000.00"),
         recognized_revenue_amount=Decimal("3000000.00"),
         created_by=user

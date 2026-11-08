@@ -1,0 +1,65 @@
+{% load i18n humanize %}
+{# كروت مؤشرات الجاهزية للتسليم - مستقلة تماماً وخارج أي section-container التزاماً بالقسم 7 في AGENTS.md #}
+<div class="row g-3 mb-4">
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-info h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي شقق النطاق" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_units_count|default:"0" }}</div>
+          <small class="text-muted">{% trans "الوحدات المعروضة بالمصفوفة" %}</small>
+        </div>
+        <div class="stats-card-icon text-info fs-2">
+          <i class="fas fa-th"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-success h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "جاهزة للتسليم (100%)" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ ready_units_count|default:"0" }}</div>
+          <small class="text-success fw-semibold">{% trans "مكتملة ومطابقة للمواصفة" %}</small>
+        </div>
+        <div class="stats-card-icon text-success fs-2">
+          <i class="fas fa-check-double"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card stats-card-warning h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "قيد التشطيب والتنفيذ" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ in_progress_count|default:"0" }}</div>
+          <small class="text-warning fw-semibold">{% trans "أعمال ومراحل جارية" %}</small>
+        </div>
+        <div class="stats-card-icon text-warning fs-2">
+          <i class="fas fa-tools"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="stats-card {% if blocked_units_count > 0 %}stats-card-danger{% else %}stats-card-secondary{% endif %} h-100">
+      <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+        <div>
+          <div class="stats-card-title text-muted small mb-1">{% trans "معطلة بعيوب حرجة" %}</div>
+          <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ blocked_units_count|default:"0" }}</div>
+          <small class="{% if blocked_units_count > 0 %}text-danger{% else %}text-muted{% endif %} fw-semibold">
+            {% if blocked_units_count > 0 %}{% trans "تحتوي ملاحظات مانعة للتسليم" %}{% else %}{% trans "خالية من الملاحظات الحرجة" %}{% endif %}
+          </small>
+        </div>
+        <div class="stats-card-icon {% if blocked_units_count > 0 %}text-danger{% else %}text-secondary{% endif %} fs-2">
+          <i class="fas fa-shield-alt"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

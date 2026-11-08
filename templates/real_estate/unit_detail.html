@@ -58,9 +58,9 @@
       <div class="stats-card {% if unit.status == 'AVAILABLE' %}stats-card-success{% elif unit.status == 'RESERVED' %}stats-card-warning{% elif unit.status == 'CONTRACTED' %}stats-card-info{% else %}stats-card-secondary{% endif %} h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
-            <div class="stats-card-title text-muted small mb-1">{% trans "الحالة الحالية" %}</div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "الحالة والإنجاز" %}</div>
             <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ unit.get_status_display }}</div>
-            <small class="text-muted font-monospace">v{{ unit.status_version }}</small>
+            <small class="text-primary fw-semibold"><i class="fas fa-hard-hat me-1"></i>{% trans "إنجاز" %}: {{ unit.progress_percentage }}%</small>
           </div>
           <div class="stats-card-icon fs-2">
             {% if unit.status == 'AVAILABLE' %}<i class="fas fa-door-open text-success"></i>

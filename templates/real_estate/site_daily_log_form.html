@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "تسجيل يومية موقع ميدانية" %} - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+      <div class="card border shadow-sm">
+        <div class="card-header bg-light border-bottom py-3 px-4">
+          <h5 class="section-title mb-0 fw-bold text-dark">
+            <i class="fas fa-calendar-day text-primary me-2"></i>{% trans "توثيق تقرير أعمال الموقع اليومي (FIDIC Daily Log)" %}
+          </h5>
+        </div>
+        <div class="card-body p-4">
+          <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold small text-dark">{{ form.log_date.label }}</label>
+                {{ form.log_date }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold small text-dark">{{ form.weather.label }}</label>
+                {{ form.weather }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold small text-dark">{{ form.total_manpower_count.label }}</label>
+                {{ form.total_manpower_count }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold small text-dark">{{ form.stoppage_reason.label }}</label>
+                {{ form.stoppage_reason }}
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label fw-bold small text-dark">{{ form.delays_recorded_hours.label }}</label>
+                {{ form.delays_recorded_hours }}
+              </div>
+              <div class="col-12">
+                <label class="form-label fw-bold small text-dark">{{ form.notes.label }}</label>
+                {{ form.notes }}
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+              <a href="{% url 'real_estate:site_project_report' project_id=project.id %}" class="btn btn-secondary px-4">
+                {% trans "إلغاء" %}
+              </a>
+              <button type="submit" class="btn btn-primary px-4 fw-bold">
+                <i class="fas fa-save me-1"></i>{% trans "حفظ اليومية الميدانية" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

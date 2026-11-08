@@ -3,7 +3,13 @@ from real_estate.models.project import RealEstateProject
 from real_estate.models.topology import PropertyBlock, PropertyFloor
 from real_estate.models.unit import PropertyUnit
 from real_estate.models.booking import UnitBooking
-from real_estate.models.contract import PropertyContract, ContractCoOwner, ContractPaymentReceipt
+from real_estate.models.contract import (
+    PropertyContract,
+    ContractCoOwner,
+    ContractPaymentReceipt,
+    MilestoneInstallmentLink,
+    MilestoneCollectionAlert,
+)
 from real_estate.models.pricing import UnitPricingMatrixConfig
 from real_estate.models.broker import RealEstateBroker, BrokerCommission, BrokerAttributionAudit
 from real_estate.models.contractor import (
@@ -43,7 +49,11 @@ from real_estate.models.partnership import (
 )
 from real_estate.models.engineering import (
     ClientVariationOrder,
-    UnitSnagItem
+    UnitSnagItem,
+    ProjectActivity,
+    SiteDailyLog,
+    UnitSiteProgressRecord,
+    SiteProgressAuditLog,
 )
 from real_estate.models.handover import PropertyHandoverReceipt
 from real_estate.models.facility import (
@@ -132,6 +142,8 @@ __all__ = [
     'PropertyContract',
     'ContractCoOwner',
     'ContractPaymentReceipt',
+    'MilestoneInstallmentLink',
+    'MilestoneCollectionAlert',
     'UnitPricingMatrixConfig',
     'RealEstateBroker',
     'BrokerCommission',

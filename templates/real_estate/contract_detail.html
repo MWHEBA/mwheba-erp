@@ -271,6 +271,7 @@
               <tr>
                 <th class="ps-3" style="width: 80px;">#</th>
                 <th>{% trans "تاريخ الاستحقاق" %}</th>
+                <th>{% trans "محطة الإنجاز الهندسية (Milestone)" %}</th>
                 <th class="text-end">{% trans "قيمة القسط" %}</th>
                 <th class="text-end">{% trans "المسدد" %}</th>
                 <th class="text-end">{% trans "المتبقي" %}</th>
@@ -282,13 +283,30 @@
               <tr>
                 <td class="ps-3 font-monospace text-muted">{{ it.installment_number }}</td>
                 <td>{{ it.due_date|date:"Y-m-d" }}</td>
-                <td class="text-end fw-semibold text-dark">{{ it.amount|floatformat:2|intcomma }}</td>
+                <td>
+                  {% if it.milestone_link %}
+                    {% if it.milestone_link.is_triggered %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center" title="{% trans 'محطة محققة 100% - القسط مستحق' %}">
+                      <i class="fas fa-flag-checkered me-1"></i>{{ it.milestone_link.milestone_activity.name }}
+                      <span class="ms-1 badge bg-success text-white">100%</span>
+                    </span>
+                    {% else %}
+                    <span class="badge bg-light text-dark border d-inline-flex align-items-center" title="{% trans 'قيد التنفيذ بالموقع' %}">
+                      <i class="fas fa-clock text-warning me-1"></i>{{ it.milestone_link.milestone_activity.name }}
+                      <span class="ms-1 text-muted">({{ it.milestone_link.milestone_activity.progress_percentage }}%)</span>
+                    </span>
+                    {% endif %}
+                  {% else %}
+                  <span class="text-muted small">-</span>
+                  {% endif %}
+                </td>
+                <td class="text-end fw-semibold text-dark">{{ it.amount|default:it.total_amount|floatformat:2|intcomma }}</td>
                 <td class="text-end text-success fw-semibold">{{ it.paid_amount|floatformat:2|intcomma }}</td>
-                <td class="text-end text-danger fw-semibold">{{ it.remaining_amount|floatformat:2|intcomma }}</td>
+                <td class="text-end text-danger fw-semibold">{{ it.remaining_amount|default:it.remaining_balance|floatformat:2|intcomma }}</td>
                 <td class="text-center">
-                  {% if it.status == 'PAID' %}
+                  {% if it.status == 'PAID' or it.cash_status == 'COLLECTED' %}
                   <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "مسدد بالكامل" %}</span>
-                  {% elif it.status == 'PARTIALLY_PAID' %}
+                  {% elif it.status == 'PARTIALLY_PAID' or it.cash_status == 'PARTIALLY_PAID' %}
                   <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "مسدد جزئياً" %}</span>
                   {% else %}
                   <span class="badge bg-secondary-subtle text-secondary border">{% trans "مستحق" %}</span>
@@ -297,7 +315,7 @@
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center py-4 text-muted">
+                <td colspan="7" class="text-center py-4 text-muted">
                   {% trans "لا توجد خطة أقساط مربوطة بهذا العقد أو أن العقد نقدي بالكامل." %}
                 </td>
               </tr>

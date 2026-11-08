@@ -110,6 +110,7 @@ def service_setup(db):
         net_area=Decimal("170.00"),
         meter_price=Decimal("45000.00"),
         total_price=Decimal("9000000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.CONTRACTED
     )
 

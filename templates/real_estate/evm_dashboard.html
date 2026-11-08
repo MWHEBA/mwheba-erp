@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{{ project.name }} - {% trans "لوحة إدارة القيمة المكتسبة ومؤشرات الأداء EVM" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid (EVM Standard Metrics) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if project_evm.spi >= 1.0 %}stats-card-success{% elif project_evm.spi >= 0.95 %}stats-card-primary{% else %}stats-card-danger{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "مؤشر الأداء الزمني (SPI)" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ project_evm.spi }}</div>
+            <small class="{% if project_evm.spi >= 1.0 %}text-success{% elif project_evm.spi >= 0.95 %}text-primary{% else %}text-danger{% endif %} fw-bold">
+              {{ project_evm.health_label }}
+            </small>
+          </div>
+          <div class="stats-card-icon {% if project_evm.spi >= 1.0 %}text-success{% elif project_evm.spi >= 0.95 %}text-primary{% else %}text-danger{% endif %} fs-2">
+            <i class="fas fa-stopwatch"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if project_evm.cpi and project_evm.cpi >= 1.0 %}stats-card-success{% elif project_evm.cpi and project_evm.cpi >= 0.95 %}stats-card-primary{% elif project_evm.cpi %}stats-card-danger{% else %}stats-card-info{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "مؤشر أداء التكلفة (CPI)" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ project_evm.cpi|default:"-" }}</div>
+            <small class="text-muted">{% trans "انحراف التكلفة CV" %}: {{ project_evm.cv|floatformat:2|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon {% if project_evm.cpi and project_evm.cpi >= 1.0 %}text-success{% elif project_evm.cpi and project_evm.cpi >= 0.95 %}text-primary{% elif project_evm.cpi %}text-danger{% else %}text-muted{% endif %} fs-2">
+            <i class="fas fa-coins"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المخطط مقابل المكتسب" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ project_evm.actual_pct }}%</div>
+            <small class="text-muted">{% trans "المخطط PV" %}: {{ project_evm.planned_pct }}% (SV: {{ project_evm.sv|floatformat:2|intcomma }})</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "التقدير عند الاكتمال (EAC)" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">{{ project_evm.eac|floatformat:0|intcomma }}</div>
+            <small class="text-muted">{% trans "الموازنة BAC" %}: {{ project_evm.total_bac|floatformat:0|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-calculator"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S-Curve Tracking Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-bezier-curve text-primary me-2"></i>{% trans "منحنى التقدم الهندسي التراكمي المخطط مقابل الفعلي (S-Curve)" %}
+        </h5>
+        <span class="badge {{ project_evm.health_badge }} border px-3 py-2">
+          {{ project_evm.health_label }}
+        </span>
+      </div>
+      <div class="card-body p-4">
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle text-center mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="text-start ps-3">{% trans "المؤشر الهندسي" %}</th>
+                {% for pt in s_curve_data %}
+                <th class="small">{{ pt.label }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-start ps-3 fw-bold text-primary">{% trans "المخطط التراكمي (PV %)" %}</td>
+                {% for pt in s_curve_data %}
+                <td class="font-monospace small text-primary">{{ pt.planned_pct }}%</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td class="text-start ps-3 fw-bold text-success">{% trans "المكتسب الفعلي (EV %)" %}</td>
+                {% for pt in s_curve_data %}
+                <td class="font-monospace small {% if pt.actual_pct is not None %}fw-bold text-success{% else %}text-muted{% endif %}">
+                  {% if pt.actual_pct is not None %}{{ pt.actual_pct }}%{% else %}-{% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td class="text-start ps-3 fw-bold text-secondary">{% trans "التكلفة الفعلية (AC %)" %}</td>
+                {% for pt in s_curve_data %}
+                <td class="font-monospace small text-secondary">
+                  {% if pt.actual_cost_pct is not None %}{{ pt.actual_cost_pct }}%{% else %}-{% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activities EVM Breakdown Table -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-tasks text-primary me-2"></i>{% trans "بيان مؤشرات القيمة المكتسبة لحزم مقايسة المشروع (Activity EVM Breakdown)" %}
+        </h5>
+        <a href="{% url 'real_estate:project_wbs_tree' project_id=project.id %}" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-sitemap me-1"></i>{% trans "شجرة المقايسة WBS" %}
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light border-bottom">
+              <tr>
+                <th class="ps-3" style="width: 220px;">{% trans "كود وحزمة الأعمال" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "الموازنة BAC" %}</th>
+                <th class="text-center" style="width: 100px;">{% trans "المخطط PV %" %}</th>
+                <th class="text-center" style="width: 100px;">{% trans "الفعلي EV %" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "مؤشر SPI" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "مؤشر CPI" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "انحراف SV" %}</th>
+                <th class="text-center" style="width: 110px;">{% trans "انحراف CV" %}</th>
+                <th class="text-center pe-3" style="width: 120px;">{% trans "التقدير EAC" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for act in activities_evm %}
+              <tr>
+                <td class="ps-3">
+                  <span class="font-monospace fw-bold text-primary d-block">{{ act.code }}</span>
+                  <span class="fw-semibold text-dark">{{ act.name }}</span>
+                </td>
+                <td class="text-center font-monospace">{{ act.bac|floatformat:0|intcomma }}</td>
+                <td class="text-center font-monospace text-muted">{{ act.planned_pct }}%</td>
+                <td class="text-center font-monospace fw-bold text-primary">{{ act.actual_pct }}%</td>
+                <td class="text-center">
+                  <span class="badge {% if act.spi >= 1.0 %}bg-success-subtle text-success border border-success-subtle{% elif act.spi >= 0.95 %}bg-primary-subtle text-primary border border-primary-subtle{% else %}bg-danger-subtle text-danger border border-danger-subtle{% endif %}">
+                    {{ act.spi }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <span class="badge {% if act.cpi and act.cpi >= 1.0 %}bg-success-subtle text-success border border-success-subtle{% elif act.cpi and act.cpi >= 0.95 %}bg-primary-subtle text-primary border border-primary-subtle{% elif act.cpi %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-secondary-subtle text-muted border border-secondary-subtle{% endif %}">
+                    {{ act.cpi|default:"-" }}
+                  </span>
+                </td>
+                <td class="text-center font-monospace {% if act.sv >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ act.sv|floatformat:2|intcomma }}
+                </td>
+                <td class="text-center font-monospace {% if act.cv >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ act.cv|floatformat:2|intcomma }}
+                </td>
+                <td class="text-center pe-3 font-monospace fw-semibold">{{ act.eac|floatformat:0|intcomma }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center py-4 text-muted">
+                  {% trans "لا توجد أنشطة مسجلة في مقايسة المشروع بعد." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

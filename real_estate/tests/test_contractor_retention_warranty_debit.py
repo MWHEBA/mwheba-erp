@@ -102,6 +102,7 @@ def warranty_setup(db):
         net_area=Decimal("120.00"),
         meter_price=Decimal("25000.00"),
         total_price=Decimal("3500000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.AVAILABLE
     )
 

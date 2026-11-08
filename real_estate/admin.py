@@ -4,6 +4,7 @@ Real Estate Administration Dashboard Configuration
 MWHEBA ERP — Real Estate App Admin
 """
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 from real_estate.models import (
     RealEstateProject,
@@ -13,6 +14,8 @@ from real_estate.models import (
     UnitBooking,
     PropertyContract,
     ContractCoOwner,
+    MilestoneInstallmentLink,
+    MilestoneCollectionAlert,
     ContractorProgressCertificate,
     ProjectMasterBOQItem,
     ContractorContract,
@@ -49,6 +52,10 @@ from real_estate.models import (
     LandownerRevenueShareAccrual,
     ClientVariationOrder,
     UnitSnagItem,
+    ProjectActivity,
+    SiteDailyLog,
+    UnitSiteProgressRecord,
+    SiteProgressAuditLog,
     PropertyHandoverReceipt,
     BuildingFacilitySubledger,
     MaintenanceFundOperation,
@@ -584,3 +591,76 @@ class ResaleContingentRefundAdmin(admin.ModelAdmin):
     list_display = ('refund_number', 'customer', 'unit', 'total_paid_before_cancellation', 'cancellation_penalty_amount', 'net_refundable_amount', 'status')
     list_filter = ('status',)
     search_fields = ('refund_number', 'customer__name', 'unit__unit_code')
+
+
+# ==============================================================================
+# Track 3: إدارات شجرة WBS ويوميات الموقع ومصفوفة البنود وسجلات التدقيق
+# ==============================================================================
+
+@admin.register(ProjectActivity)
+class ProjectActivityAdmin(admin.ModelAdmin):
+    list_display = ('code', 'name', 'project', 'block', 'weight_percentage', 'progress_percentage', 'activity_type', 'is_milestone', 'auto_sync_progress', 'is_baseline_locked')
+    list_filter = ('project', 'activity_type', 'trade_category', 'is_milestone', 'auto_sync_progress', 'is_baseline_locked')
+    search_fields = ('code', 'name', 'project__name')
+    ordering = ('project', 'code')
+
+
+@admin.register(SiteDailyLog)
+class SiteDailyLogAdmin(admin.ModelAdmin):
+    list_display = ('project', 'log_date', 'weather', 'total_manpower_count', 'stoppage_reason', 'delays_recorded_hours', 'recorded_by')
+    list_filter = ('weather', 'stoppage_reason', 'log_date', 'project')
+    search_fields = ('project__name', 'notes')
+    date_hierarchy = 'log_date'
+
+
+@admin.register(UnitSiteProgressRecord)
+class UnitSiteProgressRecordAdmin(admin.ModelAdmin):
+    list_display = ('unit', 'trade_stage', 'status', 'completion_percentage', 'contractor', 'rfi_number', 'is_billed', 'version')
+    list_filter = ('status', 'trade_stage', 'is_billed', 'is_applicable')
+    search_fields = ('unit__unit_code', 'rfi_number', 'notes')
+
+
+@admin.register(SiteProgressAuditLog)
+class SiteProgressAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('unit_code_snapshot', 'trade_stage', 'previous_percentage', 'new_percentage', 'previous_status', 'new_status', 'changed_by', 'timestamp')
+    list_filter = ('trade_stage', 'timestamp')
+    search_fields = ('unit_code_snapshot', 'defect_notes')
+    readonly_fields = (
+        'unit',
+        'unit_code_snapshot',
+        'trade_stage',
+        'previous_percentage',
+        'new_percentage',
+        'previous_status',
+        'new_status',
+        'defect_notes',
+        'changed_by',
+        'timestamp',
+    )
+
+    def delete_queryset(self, request, queryset):
+        raise ValidationError(_('سجلات تدقيق متابعة الموقع غير قابلة للحذف نهائياً (Audit Trail Immutable).'))
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MilestoneInstallmentLink)
+class MilestoneInstallmentLinkAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'installment_item', 'milestone_activity', 'is_triggered', 'triggered_at', 'created_at')
+    list_filter = ('is_triggered', 'created_at')
+    search_fields = ('contract__contract_number', 'milestone_activity__name', 'milestone_activity__code')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(MilestoneCollectionAlert)
+class MilestoneCollectionAlertAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'customer', 'milestone_activity', 'installment_amount', 'due_date', 'status', 'notified_at')
+    list_filter = ('status', 'notified_at')
+    search_fields = ('contract__contract_number', 'customer__name', 'milestone_activity__name')
+    readonly_fields = ('notified_at', 'updated_at')
+
+

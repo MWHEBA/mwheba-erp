@@ -200,6 +200,13 @@ class PropertyUnit(models.Model):
         default=0,
         verbose_name=_('إصدار حالة الوحدة (OCC Lock Version)')
     )
+    progress_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        db_index=True,
+        verbose_name=_('نسبة الإنجاز الميداني للوحدة %')
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name=_('نشطة')

@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "إشعارات تحصيل محطات الإنجاز" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Central Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Cards Grid (Directly in row without section-container) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "بانتظار المتابعة والتحصيل" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_pending_count }}</div>
+            <small class="text-warning fw-semibold">{{ total_pending_amount|floatformat:2|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-bell"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تم التواصل مع العملاء" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_contacted_count }}</div>
+            <small class="text-info fw-semibold">{{ total_contacted_amount|floatformat:2|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-phone-volume"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "تم تحصيلها بنجاح" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_collected_count }}</div>
+            <small class="text-success fw-semibold">{{ total_collected_amount|floatformat:2|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-check-circle"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "اعتراضات العملاء" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ total_disputed_count }}</div>
+            <small class="text-danger fw-semibold">{{ total_disputed_amount|floatformat:2|intcomma }}</small>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية وبحث إشعارات التحصيل" %}
+        </h5>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="filterSection">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label small fw-bold">{% trans "المشروع العقاري" %}</label>
+              <select name="project" class="form-select select2-filter">
+                <option value="">{% trans "جميع المشروعات..." %}</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if selected_project == p.id %}selected{% endif %}>{{ p.name }} ({{ p.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "حالة المتابعة" %}</label>
+              <select name="status" class="form-select select2-filter">
+                <option value="">{% trans "جميع الحالات..." %}</option>
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small fw-bold">{% trans "بحث نصي" %}</label>
+              <input type="text" name="q" value="{{ search_query }}" class="form-control"
+                     placeholder="{% trans 'رقم العقد، اسم العميل، كود المحطة...' %}">
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+              <button type="submit" class="btn btn-primary w-100 fw-bold">
+                <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+              </button>
+              <a href="{% url 'real_estate:milestone_collection_alerts' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}">
+                <i class="fas fa-undo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts Table Section -->
+  <div class="section-container">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-list-check text-primary me-2"></i>{% trans "قائمة إشعارات تحصيل الأقساط المستحقة" %}
+        </h5>
+        <span class="badge bg-light text-dark border">
+          {{ page_obj.paginator.count|default:0 }} {% trans "إشعار" %}
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3" style="width: 140px;">{% trans "تاريخ التنبيه" %}</th>
+                <th>{% trans "رقم العقد" %}</th>
+                <th>{% trans "العميل" %}</th>
+                <th>{% trans "المشروع" %}</th>
+                <th>{% trans "محطة الإنجاز (WBS)" %}</th>
+                <th class="text-center">{% trans "القسط" %}</th>
+                <th class="text-end">{% trans "المبلغ المطالب به" %}</th>
+                <th class="text-center">{% trans "الحالة" %}</th>
+                <th class="text-center pe-3" style="width: 120px;">{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in alerts %}
+              <tr>
+                <td class="ps-3 font-monospace small text-muted">
+                  {{ a.notified_at|date:"Y-m-d H:i" }}
+                </td>
+                <td>
+                  <a href="{% url 'real_estate:contract_detail' pk=a.contract.id %}" class="fw-bold font-monospace text-primary text-decoration-none">
+                    {{ a.contract.contract_number }}
+                  </a>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark">{{ a.customer.name }}</div>
+                  <small class="text-muted">{{ a.customer.phone|default:"" }}</small>
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark border">{{ a.contract.project.name }}</span>
+                </td>
+                <td>
+                  <div class="fw-semibold text-dark">{{ a.milestone_activity.name }}</div>
+                  <small class="font-monospace text-muted">{{ a.milestone_activity.code }}</small>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-secondary-subtle text-secondary border">
+                    #{{ a.milestone_link.installment_item.installment_number }}
+                  </span>
+                  <div class="small text-muted">{{ a.due_date|date:"Y-m-d" }}</div>
+                </td>
+                <td class="text-end fw-bold text-dark">
+                  {{ a.installment_amount|floatformat:2|intcomma }}
+                </td>
+                <td class="text-center" id="alert-status-badge-{{ a.id }}">
+                  {% if a.status == 'PENDING' %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                    <i class="fas fa-clock me-1"></i>{{ a.get_status_display }}
+                  </span>
+                  {% elif a.status == 'CONTACTED' %}
+                  <span class="badge bg-info-subtle text-info border border-info-subtle">
+                    <i class="fas fa-phone me-1"></i>{{ a.get_status_display }}
+                  </span>
+                  {% elif a.status == 'COLLECTED' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">
+                    <i class="fas fa-check-circle me-1"></i>{{ a.get_status_display }}
+                  </span>
+                  {% elif a.status == 'DISPUTED' %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    <i class="fas fa-exclamation-triangle me-1"></i>{{ a.get_status_display }}
+                  </span>
+                  {% endif %}
+                </td>
+                <td class="text-center pe-3">
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          onclick="openUpdateStatusModal({{ a.id }}, '{{ a.status }}', `{{ a.contract.contract_number }}`, `{{ a.customer.name|escapejs }}`)"
+                          title="{% trans 'تحديث إجراء المتابعة' %}">
+                    <i class="fas fa-edit me-1"></i>{% trans "متابعة" %}
+                  </button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center py-5 text-muted">
+                  <i class="fas fa-clipboard-check fs-2 mb-2 d-block text-secondary"></i>
+                  {% trans "لا توجد إشعارات تحصيل مطابقة لمعايير البحث المحددة." %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if page_obj.has_other_pages %}
+      <div class="card-footer bg-light border-top px-3 py-2" id="pagination-wrapper">
+        {% include "partials/pagination.html" %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal Update Alert Status -->
+<div class="modal fade" id="updateAlertStatusModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-tasks text-primary me-2"></i>{% trans "تحديث حالة وإجراء متابعة التحصيل" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="updateAlertStatusForm" onsubmit="submitAlertStatus(event)">
+        {% csrf_token %}
+        <input type="hidden" id="modal_alert_id" name="alert_id">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-muted">{% trans "العقد والعميل" %}</label>
+            <div id="modal_contract_info" class="p-2 rounded bg-light border fw-semibold text-dark"></div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "حالة المتابعة الجديدة" %} <span class="text-danger">*</span></label>
+            <select id="modal_new_status" name="status" class="form-select" required>
+              {% for val, label in status_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold">{% trans "ملاحظات وإجراءات المتابعة الميدانية" %}</label>
+            <textarea id="modal_action_notes" name="action_notes" rows="3" class="form-control"
+                      placeholder="{% trans 'سجل تفاصيل الاتصال بالعميل أو مبررات الاعتراض أو رقم إيصال التحصيل...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ التحديث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openUpdateStatusModal(alertId, currentStatus, contractNum, customerName) {
+  document.getElementById('modal_alert_id').value = alertId;
+  document.getElementById('modal_new_status').value = currentStatus;
+  document.getElementById('modal_contract_info').textContent = contractNum + ' - ' + customerName;
+  document.getElementById('modal_action_notes').value = '';
+
+  const modal = new bootstrap.Modal(document.getElementById('updateAlertStatusModal'));
+  modal.show();
+}
+
+function submitAlertStatus(e) {
+  e.preventDefault();
+  const alertId = document.getElementById('modal_alert_id').value;
+  const newStatus = document.getElementById('modal_new_status').value;
+  const notes = document.getElementById('modal_action_notes').value;
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  const url = `/real_estate/api/milestones/alerts/${alertId}/update-status/`;
+
+  const formData = new FormData();
+  formData.append('status', newStatus);
+  formData.append('action_notes', notes);
+  formData.append('csrfmiddlewaretoken', csrfToken);
+
+  fetch(url, {
+    method: 'POST',
+    body: formData,
+  })
+  .then(resp => resp.json())
+  .then(data => {
+    if (data.success) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(data.message, 'success');
+      } else if (typeof window.showToastr === 'function') {
+        window.showToastr(data.message, 'success');
+      }
+      const modalEl = document.getElementById('updateAlertStatusModal');
+      const modalInstance = bootstrap.Modal.getInstance(modalEl);
+      if (modalInstance) modalInstance.hide();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } else {
+      alert(data.message || '{% trans "حدث خطأ أثناء تحديث الحالة." %}');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('{% trans "حدث خطأ غير متوقع أثناء الاتصال بالخادم." %}');
+  });
+}
+</script>
+{% endblock %}

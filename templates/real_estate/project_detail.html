@@ -55,12 +55,12 @@
       <div class="stats-card stats-card-primary h-100">
         <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
           <div>
-            <div class="stats-card-title text-muted small mb-1">{% trans "الوحدات المتعاقدة" %}</div>
-            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ contracted_units }}</div>
-            <small class="text-muted">{% trans "نسبة الاستيعاب" %}: {{ absorption_rate }}%</small>
+            <div class="stats-card-title text-muted small mb-1">{% trans "نسبة الإنجاز الإنشائي" %}</div>
+            <div class="stats-card-value h4 mb-0 fw-bold text-dark">{{ project.construction_progress_percentage }}%</div>
+            <small class="text-muted">{% trans "المتعاقد" %}: {{ contracted_units }} ({{ absorption_rate }}%)</small>
           </div>
           <div class="stats-card-icon text-primary fs-2">
-            <i class="fas fa-file-contract"></i>
+            <i class="fas fa-hard-hat"></i>
           </div>
         </div>
       </div>
@@ -170,6 +170,9 @@
           <i class="fas fa-th text-primary me-2"></i>{% trans "الوحدات العقارية التابعة للمشروع" %}
         </h5>
         <div>
+          <a href="{% url 'real_estate:site_project_report' project_id=project.id %}" class="btn btn-sm btn-outline-success me-2">
+            <i class="fas fa-hard-hat me-1"></i>{% trans "مصفوفة التنفيذ الميداني" %}
+          </a>
           <a href="{% url 'real_estate:project_matrix' project_id=project.id %}" class="btn btn-sm btn-outline-primary me-2">
             <i class="fas fa-th-large me-1"></i>{% trans "عرض المصفوفة المعمارية" %}
           </a>
@@ -230,6 +233,43 @@
               {% endfor %}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project WBS & Site Execution Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+        <h5 class="section-title mb-0 fw-bold text-dark">
+          <i class="fas fa-sitemap text-primary me-2"></i>{% trans "مقايسة المشروع وحزم الأعمال الإنشائية والمعمارية (WBS)" %}
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <a href="{% url 'real_estate:project_wbs_tree' project_id=project.id %}" class="btn btn-sm btn-primary fw-bold">
+            <i class="fas fa-network-wired me-1"></i>{% trans "شجرة المقايسة WBS" %}
+          </a>
+          <a href="{% url 'real_estate:site_project_report' project_id=project.id %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-th me-1"></i>{% trans "مصفوفة التنفيذ الميداني" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3 align-items-center">
+          <div class="col-12 col-md-4">
+            <div class="p-3 bg-light rounded border">
+              <span class="text-muted small d-block mb-1">{% trans "نسبة إنجاز المشروع الموزونة" %}</span>
+              <div class="h4 mb-0 fw-bold text-primary">{{ project.construction_progress_percentage }}%</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-8">
+            <p class="text-muted mb-2 small">
+              {% trans "تعتمد شجرة الـ WBS على الربط الهيكلي بين حزم الأعمال الكبرى (الخرسانات، الأساسات، الواجهات) ومصفوفة المتابعة الميدانية للوحدات بنداً بنداً، لاحتساب نسب الإنجاز التراكمية وتغذية قيود معيار IFRS 15." %}
+            </p>
+            <a href="{% url 'real_estate:project_wbs_tree' project_id=project.id %}" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-arrow-left me-1"></i>{% trans "استعراض وتعديل أنشطة المقايسة وحوكمة الأوزان" %}
+            </a>
+          </div>
         </div>
       </div>
     </div>

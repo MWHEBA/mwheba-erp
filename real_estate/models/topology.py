@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -24,6 +25,13 @@ class PropertyBlock(models.Model):
     total_floors = models.PositiveIntegerField(
         default=1,
         verbose_name=_('عدد الطوابق')
+    )
+    construction_progress_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        db_index=True,
+        verbose_name=_('نسبة الإنجاز الإنشائي للبلوك/المبنى %')
     )
     is_active = models.BooleanField(
         default=True,

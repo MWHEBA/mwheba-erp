@@ -1,0 +1,81 @@
+{% load i18n %}
+{% load humanize %}
+
+<tr class="wbs-row level-{{ item.level }}" data-id="{{ item.id }}">
+  <td class="ps-3">
+    <div class="d-flex align-items-center" style="margin-right: calc({{ depth }} * 22px);">
+      {% if item.children %}
+        <i class="fas fa-folder-open text-warning me-2 fs-5"></i>
+      {% else %}
+        <i class="fas fa-file-alt text-secondary me-2 fs-5"></i>
+      {% endif %}
+      <div>
+        <span class="font-monospace fw-bold text-primary d-block">{{ item.code }}</span>
+        <span class="fw-semibold text-dark">{{ item.name }}</span>
+      </div>
+    </div>
+  </td>
+  <td>
+    <span class="badge bg-light text-dark border small">{{ item.activity_type_display }}</span>
+    {% if item.auto_sync_progress %}
+    <span class="badge bg-info-subtle text-info border border-info-subtle small mt-1 d-inline-block" title="{% trans 'مزامنة تلقائية من سجلات الفحص الميدانية' %}">
+      <i class="fas fa-sync-alt me-1"></i>{% trans "مزامنة" %}
+    </span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    <span class="fw-bold text-dark">{{ item.weight_percentage }}%</span>
+  </td>
+  <td>
+    <div class="d-flex align-items-center">
+      <div class="progress flex-grow-1 me-2" style="height: 8px; background-color: var(--bs-gray-200, #e9ecef);">
+        <div class="progress-bar {% if item.progress_percentage == 100 %}bg-success{% elif item.progress_percentage > 50 %}bg-primary{% elif item.progress_percentage > 0 %}bg-info{% else %}bg-secondary{% endif %}"
+             role="progressbar"
+             style="width: {{ item.progress_percentage }}%;"
+             aria-valuenow="{{ item.progress_percentage }}"
+             aria-valuemin="0"
+             aria-valuemax="100"></div>
+      </div>
+      <span class="small fw-bold text-dark font-monospace" style="min-width: 45px;">{{ item.progress_percentage }}%</span>
+    </div>
+  </td>
+  <td class="text-center">
+    {% if item.is_milestone %}
+      <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="{% trans 'محطة رئيسية تستحق أقساط مبيعات' %}">
+        <i class="fas fa-flag me-1"></i>{% trans "محطة" %}
+      </span>
+    {% else %}
+      <span class="text-muted small">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if item.is_baseline_locked %}
+      <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" title="{% trans 'خط الأساس الزمني مجمد' %}">
+        <i class="fas fa-lock me-1"></i>{% trans "مجمد" %}
+      </span>
+    {% else %}
+      <span class="text-muted small">{% trans "مرن" %}</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if item.block_name %}
+      <span class="badge bg-light text-dark border">{{ item.block_name }}</span>
+    {% else %}
+      <span class="text-muted small">{% trans "كافة العمارات" %}</span>
+    {% endif %}
+  </td>
+  <td class="text-center pe-3">
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-primary" title="{% trans 'إضافة نشاط فرعي تابع' %}" onclick="openCreateActivityModal('{{ item.id }}');" data-bs-toggle="modal" data-bs-target="#activityModal">
+        <i class="fas fa-plus"></i>
+      </button>
+      <button type="button" class="btn btn-outline-danger" title="{% trans 'حذف النشاط' %}" onclick="deleteActivity('{{ item.id }}', '{{ item.code }}');">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+    </div>
+  </td>
+</tr>
+
+{% for child in item.children %}
+  {% include "real_estate/partials/wbs_tree_row.html" with item=child depth=depth|add:1 %}
+{% endfor %}

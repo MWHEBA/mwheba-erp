@@ -1,0 +1,134 @@
+{% load i18n %}
+{# مودال التحديث السريع لخلية البند المعماري #}
+<div class="modal fade" id="quickUpdateStageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-edit text-primary me-2"></i>{% trans "معاينة واعتماد بند التنفيذ الميداني" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickUpdateStageForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="record_id" id="modal_record_id">
+        <input type="hidden" name="version" id="modal_version">
+
+        <div class="modal-body p-4">
+          <!-- تفاصيل الوحدة والبند -->
+          <div class="p-3 bg-light rounded border mb-3">
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">{% trans "كود الوحدة" %}:</small>
+                <strong class="text-primary font-monospace" id="modal_unit_code">-</strong>
+              </div>
+              <div class="col-6 col-md-3">
+                <small class="text-muted d-block">{% trans "البلوك / الطابق" %}:</small>
+                <strong class="text-dark" id="modal_floor_info">-</strong>
+              </div>
+              <div class="col-12 col-md-6">
+                <small class="text-muted d-block">{% trans "بند الأعمال" %}:</small>
+                <strong class="text-dark" id="modal_trade_title">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- مواصفات التشطيب التعاقدية المعتمدة للعميل (Client Spec Preview Guard) -->
+          <div class="card border mb-3 d-none" id="clientSpecPreviewCard" style="background-color: var(--bs-primary-bg-subtle, #f0f7ff); border-color: var(--bs-primary-border-subtle, #cfe2ff) !important;">
+            <div class="card-header bg-transparent border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+              <span class="small fw-bold text-primary">
+                <i class="fas fa-shield-alt me-1"></i>{% trans "المواصفات التعاقدية المعتمدة للوحدة (Approved Spec Preview)" %}
+              </span>
+              <span class="badge bg-primary text-white" id="previewPackageBadge"></span>
+            </div>
+            <div class="card-body p-3 small">
+              <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
+                  <span class="text-muted">{% trans "العميل التعاقدي" %}:</span>
+                  <strong class="text-dark ms-1" id="previewCustomerName">-</strong>
+                </div>
+                <div class="col-12 col-md-6">
+                  <span class="text-muted">{% trans "نوع التشطيب" %}:</span>
+                  <span class="badge bg-light text-dark border ms-1" id="previewFinishingType">-</span>
+                </div>
+              </div>
+              <div id="previewSpecsContainer" class="d-flex flex-column gap-1">
+                <!-- قائمة المواصفات والخامات المعتمدة -->
+              </div>
+              <div id="previewVariationNotes" class="mt-2 text-warning-emphasis d-none p-2 rounded bg-warning-subtle border border-warning-subtle">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <span id="previewVariationText"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- شريط تنبيه الأسبقية الهندسية إن وجد -->
+          <div class="alert alert-warning border-0 d-none mb-3 py-2 px-3 small" id="prereqWarningAlert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span id="prereqWarningText"></span>
+          </div>
+
+          <!-- بيانات التحديث -->
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold text-dark small">{% trans "حالة الاعتماد والمعاينة" %}</label>
+              <select name="status" id="modal_status" class="form-select">
+                <option value="NOT_STARTED">{% trans "لم يبدأ العمل بعد (0%)" %}</option>
+                <option value="IN_PROGRESS">{% trans "جاري العمل والتنفيذ بالموقع" %}</option>
+                <option value="PENDING_INSPECTION">{% trans "منجز وبانتظار معاينة الاستشاري" %}</option>
+                <option value="APPROVED_WITH_COMMENTS">{% trans "اعتماد مشروط مع وجود ملاحظات" %}</option>
+                <option value="PASSED_AND_VERIFIED">{% trans "معتمد ومستلم رسمياً (100%)" %}</option>
+                <option value="REJECTED_DEFECT">{% trans "مرفوض لوجود عيوب بصنعة المقاول (فتح Snag)" %}</option>
+                <option value="NOT_APPLICABLE">{% trans "غير خاضع للبند تعاقدياً (نصف تشطيب)" %}</option>
+              </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold text-dark small">{% trans "نسبة إنجاز البند %" %}</label>
+              <div class="input-group">
+                <input type="number" name="completion_percentage" id="modal_pct" class="form-control" min="0" max="100" step="1">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold text-dark small">{% trans "مقاول المصنعية المسؤول" %}</label>
+              <select name="contractor_id" id="modal_contractor" class="form-select select2-modal" dir="rtl">
+                <option value="">{% trans "بدون تحديد مقاول مصنعية" %}</option>
+                {% for sub in contractors %}
+                <option value="{{ sub.id }}">{{ sub.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label fw-bold text-dark small">{% trans "رقم طلب الفحص الاستشاري (RFI No.)" %}</label>
+              <input type="text" name="rfi_number" id="modal_rfi" class="form-control font-monospace" placeholder="مثال: RFI-CW-042">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-bold text-dark small">{% trans "صورة المعاينة الحية الميدانية (WebP)" %}</label>
+              <input type="file" name="inspection_photo" id="modal_photo" class="form-control" accept="image/*">
+              <div id="photoCompressionBadge" class="mt-1 small text-success d-none">
+                <i class="fas fa-compress-arrows-alt me-1"></i><span id="photoCompressionText"></span>
+              </div>
+              <small class="text-muted">{% trans "يتم ضغط الصورة تلقائياً لتوفير مساحة التخزين وسرعة المزامنة." %}</small>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-bold text-dark small">{% trans "ملاحظات الاستشاري أو تفاصيل العيوب" %}</label>
+              <textarea name="notes" id="modal_notes" class="form-control" rows="2" placeholder="{% trans 'سجل أي توجيهات للمقاول أو وصفاً للملاحظات...' %}"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSaveQuickUpdate">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ واعتماد التحديث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

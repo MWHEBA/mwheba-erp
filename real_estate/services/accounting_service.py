@@ -790,13 +790,14 @@ class RealEstateAccountingService:
                 raise ValidationError(
                     _("لا يجوز الاعتراف بالإيراد لطريقة (Point in Time) إلا عند التسليم الفعلي أو الحكمي للوحدة بموجب محضر تسليم معتمد.")
                 )
-            op_tag = "handover"
+            op_tag = f"handover_{reference or 'final'}"
         else:
             if poc_percentage is None or poc_percentage <= Decimal("0.00") or poc_percentage > Decimal("100.00"):
                 raise ValidationError(
                     _("طريقة نسبة الإنجاز (Over Time) تتطلب تحديد نسبة إنجاز معتمدة بين 0% و 100%.")
                 )
-            op_tag = f"poc_{poc_percentage}"
+            prior_rec_tag = getattr(contract, 'recognized_revenue_amount', Decimal('0.00')) or Decimal('0.00')
+            op_tag = f"poc_{poc_percentage}_from_{prior_rec_tag}_amt_{amount_dec}"
 
         contract_liability_account = cls.get_or_resolve_account(
             AccountRoleNames.REAL_ESTATE_CONTRACT_LIABILITY.value,

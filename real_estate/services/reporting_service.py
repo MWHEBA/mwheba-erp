@@ -138,10 +138,28 @@ class RealEstateReportingService:
                 status=PropertyHandoverReceipt.HandoverStatus.EXECUTED
             ).exists()
 
-            if is_delivered:
-                revenue_status = 'RECOGNIZED'
-                recognized_rev = contract.final_contract_price
-                deferred_liab = Decimal('0.00')
+            prior_rec = contract.recognized_revenue_amount or Decimal('0.00')
+
+            if prior_rec > Decimal('0.00'):
+                recognized_rev = min(prior_rec, contract.final_contract_price)
+                if recognized_rev >= contract.final_contract_price:
+                    revenue_status = 'RECOGNIZED'
+                else:
+                    revenue_status = 'PARTIAL_DELIVERY' if is_delivered else 'POC_PARTIAL'
+                deferred_liab = max(Decimal('0.00'), total_paid - recognized_rev)
+            elif is_delivered:
+                rec_with_rev = PropertyHandoverReceipt.objects.filter(
+                    contract=contract,
+                    status=PropertyHandoverReceipt.HandoverStatus.EXECUTED
+                ).filter(Q(revenue_journal_entry__isnull=False) | Q(recognized_revenue_amount__gt=0)).first()
+                if rec_with_rev:
+                    recognized_rev = min(rec_with_rev.recognized_revenue_amount or contract.final_contract_price, contract.final_contract_price)
+                    revenue_status = 'RECOGNIZED' if recognized_rev >= contract.final_contract_price else 'PARTIAL_DELIVERY'
+                    deferred_liab = max(Decimal('0.00'), total_paid - recognized_rev)
+                else:
+                    revenue_status = 'DEFERRED'
+                    recognized_rev = Decimal('0.00')
+                    deferred_liab = total_paid
             else:
                 revenue_status = 'DEFERRED'
                 recognized_rev = Decimal('0.00')
@@ -397,10 +415,26 @@ class RealEstateReportingService:
             ).select_related('contract')
 
             delivered_units_count = executed_handovers.count()
-            recognized_revenue = sum(
-                (h.contract.final_contract_price for h in executed_handovers),
-                Decimal('0.00')
-            )
+
+            # حصر الإيراد المحقق والمثبت دفترياً (يشمل نسب الإنجاز التراكمية POC والتسليمات المعتمدة)
+            contract_recognized_map = {
+                c.id: (c.recognized_revenue_amount or Decimal('0.00'))
+                for c in active_contracts
+            }
+            # دعم محاضر التسليم المنفذة ذات قيود الإيراد أو المبالغ المعتمدة
+            for h in executed_handovers:
+                if h.contract_id in contract_recognized_map:
+                    if contract_recognized_map[h.contract_id] == Decimal('0.00'):
+                        if h.revenue_journal_entry_id or (h.recognized_revenue_amount and h.recognized_revenue_amount > Decimal('0.00')):
+                            contract_recognized_map[h.contract_id] = h.recognized_revenue_amount or h.contract.final_contract_price
+                else:
+                    rec_amt = h.contract.recognized_revenue_amount or Decimal('0.00')
+                    if rec_amt == Decimal('0.00'):
+                        if h.revenue_journal_entry_id or (h.recognized_revenue_amount and h.recognized_revenue_amount > Decimal('0.00')):
+                            rec_amt = h.recognized_revenue_amount or h.contract.final_contract_price
+                    contract_recognized_map[h.contract_id] = rec_amt
+
+            recognized_revenue = sum(contract_recognized_map.values(), Decimal('0.00'))
             interim_cogs = executed_handovers.aggregate(
                 s=Sum('interim_cogs_amount')
             )['s'] or Decimal('0.00')

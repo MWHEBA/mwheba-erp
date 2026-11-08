@@ -118,7 +118,13 @@ class ContractDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             pk=pk
         )
         co_owners = contract.co_owners.select_related('co_owner')
-        installment_items = contract.installment_plan.items.all().order_by('installment_number') if contract.installment_plan else []
+        installment_items = list(contract.installment_plan.items.all().order_by('installment_number')) if contract.installment_plan else []
+        milestone_links_map = {
+            link.installment_item_id: link
+            for link in contract.milestone_installment_links.select_related('milestone_activity').all()
+        }
+        for it in installment_items:
+            it.milestone_link = milestone_links_map.get(it.id)
         commissions = contract.broker_commissions.select_related('broker')
         available_brokers = RealEstateBroker.objects.filter(is_active=True)
 

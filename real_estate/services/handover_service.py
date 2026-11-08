@@ -118,8 +118,24 @@ class HandoverExecutionService:
         3. قيد تكلفة المبيعات التقديرية (Interim Unit COGS: Dr: 51100 / Cr: 12101)
         4. تحويل حالة الوحدة إلى DELIVERED وتوليد الهاش المشفر SHA-256
         """
+        # قفل وإعادة تحميل أحدث حالة من قاعدة البيانات داخل المعاملة الذرية لمنع تعارض الحالات المتقادمة
+        receipt.refresh_from_db()
+        PropertyHandoverReceipt.objects.select_for_update().filter(pk=receipt.pk).exists()
+        contract = PropertyContract.objects.select_for_update().get(pk=receipt.contract_id)
+        unit = PropertyUnit.objects.select_for_update().get(pk=receipt.unit_id)
+
         if receipt.status == PropertyHandoverReceipt.HandoverStatus.EXECUTED:
             raise ValidationError(_("محضر التسليم معتمد ومنفذ بالفعل."))
+
+        # التحقق الرقابي من عدم وجود محضر تسليم آخر معتمد ومنفذ لنفس العقد
+        if PropertyHandoverReceipt.objects.filter(
+            contract=contract,
+            status=PropertyHandoverReceipt.HandoverStatus.EXECUTED
+        ).exclude(pk=receipt.pk).exists():
+            raise ValidationError(_("يوجد بالفعل محضر تسليم معتمد ومنفذ لهذا العقد العقاري."))
+
+        if unit.status in [PropertyUnit.UnitStatus.DELIVERED, PropertyUnit.UnitStatus.DELIVERED_DEEMED]:
+            raise ValidationError(_("الوحدة العقارية مسلّمة بالفعل بموجب محضر استلام سابق."))
 
         if receipt.handover_type != PropertyHandoverReceipt.HandoverType.PHYSICAL:
             raise ValidationError(_("هذا المحضر مخصص للتسليم الحُكمي وليس التسليم الفعلي."))
@@ -138,18 +154,46 @@ class HandoverExecutionService:
             )
 
         contract = receipt.contract
-        revenue_amount = recognized_revenue_amount or contract.final_contract_price
+        prior_recognized = getattr(contract, 'recognized_revenue_amount', Decimal('0.00')) or Decimal('0.00')
+        remaining_balance = max(Decimal('0.00'), contract.final_contract_price - prior_recognized)
+
+        if recognized_revenue_amount is not None:
+            revenue_amount = max(Decimal('0.00'), min(recognized_revenue_amount, remaining_balance))
+        elif contract.revenue_recognition_method == PropertyContract.RevenueMethod.OVER_TIME or prior_recognized > Decimal('0.00'):
+            revenue_amount = remaining_balance
+        else:
+            revenue_amount = remaining_balance
 
         # 2. ترحيل قيد الاعتراف بالإيراد المحقق IFRS 15 عبر بوابة المحاسبة
         revenue_entry = None
         if revenue_amount > Decimal("0.00"):
-            revenue_entry = RealEstateAccountingService.post_revenue_recognition(
-                contract=contract,
-                amount=revenue_amount,
-                is_handover=True,
-                user=executed_by,
-                reference=f"REV-REC-{receipt.receipt_number}"
-            )
+            post_kwargs = {
+                'contract': contract,
+                'amount': revenue_amount,
+                'is_handover': True,
+                'user': executed_by,
+                'reference': f"REV-REC-{receipt.receipt_number}",
+            }
+            if contract.revenue_recognition_method == PropertyContract.RevenueMethod.OVER_TIME:
+                post_kwargs['poc_percentage'] = Decimal('100.00')
+            revenue_entry = RealEstateAccountingService.post_revenue_recognition(**post_kwargs)
+
+            # تحديث إجمالي الإيراد التراكمي المعترف به بالعقد بناءً على القيد الفعلي بعملة العقد
+            posted_contract_revenue = revenue_amount
+            if revenue_entry:
+                from django.db.models import Sum
+                if contract.currency and not getattr(contract.currency, 'is_functional', True):
+                    fc_total = revenue_entry.lines.filter(foreign_credit__gt=0).aggregate(total=Sum('foreign_credit'))['total']
+                    if fc_total is not None:
+                        posted_contract_revenue = fc_total
+                else:
+                    lc_total = revenue_entry.lines.filter(credit__gt=0).aggregate(total=Sum('credit'))['total']
+                    if lc_total is not None:
+                        posted_contract_revenue = lc_total
+
+            contract.recognized_revenue_amount = prior_recognized + posted_contract_revenue
+            contract.save(update_fields=['recognized_revenue_amount', 'updated_at'])
+            receipt.recognized_revenue_amount = posted_contract_revenue
 
         # 3. ترحيل قيد تكلفة المبيعات التقديرية للوحدة (Interim COGS Allocation)
         cogs_entry = None
@@ -199,8 +243,24 @@ class HandoverExecutionService:
         - لا يتطلب توقيع المشتري
         - يرحل استحقاق الإيراد وتكلفة المبيعات ويحول حالة الوحدة إلى DELIVERED_DEEMED
         """
+        # قفل وإعادة تحميل أحدث حالة من قاعدة البيانات داخل المعاملة الذرية لمنع تعارض الحالات المتقادمة
+        receipt.refresh_from_db()
+        PropertyHandoverReceipt.objects.select_for_update().filter(pk=receipt.pk).exists()
+        contract = PropertyContract.objects.select_for_update().get(pk=receipt.contract_id)
+        unit = PropertyUnit.objects.select_for_update().get(pk=receipt.unit_id)
+
         if receipt.status == PropertyHandoverReceipt.HandoverStatus.EXECUTED:
             raise ValidationError(_("محضر التسليم معتمد ومنفذ بالفعل."))
+
+        # التحقق الرقابي من عدم وجود محضر تسليم آخر معتمد ومنفذ لنفس العقد
+        if PropertyHandoverReceipt.objects.filter(
+            contract=contract,
+            status=PropertyHandoverReceipt.HandoverStatus.EXECUTED
+        ).exclude(pk=receipt.pk).exists():
+            raise ValidationError(_("يوجد بالفعل محضر تسليم معتمد ومنفذ لهذا العقد العقاري."))
+
+        if unit.status in [PropertyUnit.UnitStatus.DELIVERED, PropertyUnit.UnitStatus.DELIVERED_DEEMED]:
+            raise ValidationError(_("الوحدة العقارية مسلّمة بالفعل بموجب محضر استلام سابق."))
 
         if receipt.handover_type != PropertyHandoverReceipt.HandoverType.DEEMED:
             raise ValidationError(_("هذا المحضر مخصص للتسليم الفعلي وليس التسليم الحُكمي."))
@@ -221,18 +281,46 @@ class HandoverExecutionService:
             )
 
         contract = receipt.contract
-        revenue_amount = recognized_revenue_amount or contract.final_contract_price
+        prior_recognized = getattr(contract, 'recognized_revenue_amount', Decimal('0.00')) or Decimal('0.00')
+        remaining_balance = max(Decimal('0.00'), contract.final_contract_price - prior_recognized)
+
+        if recognized_revenue_amount is not None:
+            revenue_amount = max(Decimal('0.00'), min(recognized_revenue_amount, remaining_balance))
+        elif contract.revenue_recognition_method == PropertyContract.RevenueMethod.OVER_TIME or prior_recognized > Decimal('0.00'):
+            revenue_amount = remaining_balance
+        else:
+            revenue_amount = remaining_balance
 
         # ترحيل قيد الاعتراف بالإيراد المحقق IFRS 15
         revenue_entry = None
         if revenue_amount > Decimal("0.00"):
-            revenue_entry = RealEstateAccountingService.post_revenue_recognition(
-                contract=contract,
-                amount=revenue_amount,
-                is_handover=True,
-                user=executed_by,
-                reference=f"REV-REC-DEEMED-{receipt.receipt_number}"
-            )
+            post_kwargs = {
+                'contract': contract,
+                'amount': revenue_amount,
+                'is_handover': True,
+                'user': executed_by,
+                'reference': f"REV-REC-DEEMED-{receipt.receipt_number}",
+            }
+            if contract.revenue_recognition_method == PropertyContract.RevenueMethod.OVER_TIME:
+                post_kwargs['poc_percentage'] = Decimal('100.00')
+            revenue_entry = RealEstateAccountingService.post_revenue_recognition(**post_kwargs)
+
+            # تحديث إجمالي الإيراد التراكمي المعترف به بالعقد بناءً على القيد الفعلي بعملة العقد
+            posted_contract_revenue = revenue_amount
+            if revenue_entry:
+                from django.db.models import Sum
+                if contract.currency and not getattr(contract.currency, 'is_functional', True):
+                    fc_total = revenue_entry.lines.filter(foreign_credit__gt=0).aggregate(total=Sum('foreign_credit'))['total']
+                    if fc_total is not None:
+                        posted_contract_revenue = fc_total
+                else:
+                    lc_total = revenue_entry.lines.filter(credit__gt=0).aggregate(total=Sum('credit'))['total']
+                    if lc_total is not None:
+                        posted_contract_revenue = lc_total
+
+            contract.recognized_revenue_amount = prior_recognized + posted_contract_revenue
+            contract.save(update_fields=['recognized_revenue_amount', 'updated_at'])
+            receipt.recognized_revenue_amount = posted_contract_revenue
 
         # ترحيل قيد تكلفة المبيعات التقديرية (Interim COGS)
         cogs_entry = None

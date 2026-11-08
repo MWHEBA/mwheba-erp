@@ -97,6 +97,12 @@ class PropertyContract(models.Model):
         default=RevenueMethod.POINT_IN_TIME,
         verbose_name=_('طريقة الاعتراف بالإيراد (IFRS 15)')
     )
+    recognized_revenue_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('إجمالي الإيراد المعترف به تراكمياً')
+    )
     installments_settled = models.BooleanField(
         default=False,
         db_index=True,
@@ -136,6 +142,16 @@ class PropertyContract(models.Model):
                 name='uniq_active_contract_per_unit'
             ),
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'revenue_recognition_method' not in kwargs and not self.pk and self.project_id:
+            try:
+                from real_estate.models.project import RealEstateProject
+                if self.project.revenue_recognition_method == RealEstateProject.RevenueRecognitionMethod.OVER_TIME_POC:
+                    self.revenue_recognition_method = self.RevenueMethod.OVER_TIME
+            except Exception:
+                pass
 
     def on_installments_completed(self):
         """
@@ -326,3 +342,153 @@ class ContractPaymentReceipt(models.Model):
 
     def __str__(self):
         return f"{self.contract.contract_number} - Payment #{self.customer_payment_id}"
+
+
+class MilestoneInstallmentLink(models.Model):
+    """
+    جسر ربط أقساط عقود بيع الوحدات بمحطات الإنجاز الميدانية (Milestone Installment Link)
+    يربط قسط محدد في خطة تقسيط العقد بنشاط محطة رئيسية (Milestone) في مقايسة المشروع WBS.
+    """
+    contract = models.ForeignKey(
+        PropertyContract,
+        on_delete=models.CASCADE,
+        related_name='milestone_installment_links',
+        verbose_name=_('العقد العقاري')
+    )
+    installment_item = models.ForeignKey(
+        'sale.InstallmentItem',
+        on_delete=models.CASCADE,
+        related_name='milestone_links',
+        verbose_name=_('قسط التقسيط المربوط')
+    )
+    milestone_activity = models.ForeignKey(
+        'real_estate.ProjectActivity',
+        on_delete=models.PROTECT,
+        related_name='milestone_installment_links',
+        verbose_name=_('محطة الإنجاز الهندسية (Milestone)')
+    )
+    is_triggered = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('تم استحقاق القسط بتحقيق المحطة')
+    )
+    triggered_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('تاريخ وتوقيت تفعيل الاستحقاق')
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('ملاحظات الربط الهندسي والتعاقدي')
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاريخ الإنشاء')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاريخ التحديث')
+    )
+
+    class Meta:
+        verbose_name = _('رابط قسط بمحطة إنجاز')
+        verbose_name_plural = _('روابط أقساط محطات الإنجاز')
+        ordering = ['contract', 'installment_item__installment_number', '-id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['contract', 'installment_item', 'milestone_activity'],
+                name='uniq_milestone_installment_link'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.milestone_activity_id and not self.milestone_activity.is_milestone:
+            raise ValidationError(_("النشاط المحدد ليس محطة تسليم رئيسية (Milestone)."))
+        if self.contract_id and self.milestone_activity_id:
+            if self.milestone_activity.project_id != self.contract.project_id:
+                raise ValidationError(_("محطة الإنجاز المحددة تنتمي إلى مشروع مختلف عن مشروع العقد."))
+        if self.contract_id and self.installment_item_id:
+            if self.contract.installment_plan_id != self.installment_item.plan_id:
+                raise ValidationError(_("القسط المحدد لا ينتمي إلى خطة التقسيط المعتمدة لهذا العقد."))
+
+    def __str__(self):
+        return f"{self.contract.contract_number} - قسط #{self.installment_item.installment_number} -> {self.milestone_activity.name}"
+
+
+class MilestoneCollectionAlert(models.Model):
+    """
+    إشعار ومتابعة تحصيل قسط محطة إنجاز (Milestone Collection Alert)
+    ينشأ تلقائياً فور وصول محطة الإنجاز الهندسية إلى نسبة 100% لتنبيه فريق التحصيل والمبيعات.
+    """
+    class AlertStatus(models.TextChoices):
+        PENDING = 'PENDING', _('بانتظار المتابعة والتحصيل')
+        CONTACTED = 'CONTACTED', _('تم التواصل مع العميل')
+        COLLECTED = 'COLLECTED', _('تم التحصيل بنجاح')
+        DISPUTED = 'DISPUTED', _('اعتراض من العميل')
+
+    milestone_link = models.ForeignKey(
+        MilestoneInstallmentLink,
+        on_delete=models.CASCADE,
+        related_name='alerts',
+        verbose_name=_('رابط القسط والمحطة')
+    )
+    contract = models.ForeignKey(
+        PropertyContract,
+        on_delete=models.CASCADE,
+        related_name='milestone_alerts',
+        verbose_name=_('العقد العقاري')
+    )
+    customer = models.ForeignKey(
+        'customer.Customer',
+        on_delete=models.PROTECT,
+        related_name='milestone_collection_alerts',
+        verbose_name=_('العميل')
+    )
+    milestone_activity = models.ForeignKey(
+        'real_estate.ProjectActivity',
+        on_delete=models.PROTECT,
+        related_name='collection_alerts',
+        verbose_name=_('محطة الإنجاز المحققة')
+    )
+    installment_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        verbose_name=_('قيمة القسط المطالب بها')
+    )
+    due_date = models.DateField(
+        verbose_name=_('تاريخ الاستحقاق التعاقدي')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=AlertStatus.choices,
+        default=AlertStatus.PENDING,
+        db_index=True,
+        verbose_name=_('حالة المتابعة والتحصيل')
+    )
+    action_notes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('ملاحظات وإجراءات فريق التحصيل')
+    )
+    notified_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_('تاريخ وتوقيت إطلاق التنبيه')
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_('تاريخ آخر تحديث')
+    )
+
+    class Meta:
+        verbose_name = _('إشعار تحصيل قسط محطة إنجاز')
+        verbose_name_plural = _('إشعارات تحصيل أقساط محطات الإنجاز')
+        ordering = ['-notified_at']
+        indexes = [
+            models.Index(fields=['status', 'notified_at']),
+        ]
+
+    def __str__(self):
+        return f"تنبيه تحصيل: {self.contract.contract_number} - {self.customer.name} ({self.installment_amount})"
+

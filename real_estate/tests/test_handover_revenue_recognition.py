@@ -107,6 +107,7 @@ def handover_setup(db):
         net_area=Decimal("128.00"),
         meter_price=Decimal("20000.00"),
         total_price=Decimal("3000000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.AVAILABLE
     )
 

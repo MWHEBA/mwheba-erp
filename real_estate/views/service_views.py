@@ -603,6 +603,9 @@ class WarrantyTicketCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin,
 
         contractor_id = request.POST.get('responsible_contractor')
         contractor = Supplier.objects.filter(pk=contractor_id).first() if contractor_id else None
+        if not contractor and unit and category:
+            from real_estate.services.site_progress_service import ProjectProgressCalculationService
+            contractor = ProjectProgressCalculationService.resolve_trade_contractor(unit=unit, warranty_category=category)
 
         try:
             ticket = WarrantyDefectService.create_warranty_ticket(

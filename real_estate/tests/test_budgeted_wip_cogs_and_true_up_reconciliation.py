@@ -106,6 +106,7 @@ def true_up_setup(db):
         net_area=Decimal("85.00"),
         meter_price=Decimal("20000.00"),
         total_price=Decimal("2000000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.AVAILABLE
     )
     unit2 = PropertyUnit.objects.create(
@@ -116,6 +117,7 @@ def true_up_setup(db):
         net_area=Decimal("130.00"),
         meter_price=Decimal("20000.00"),
         total_price=Decimal("3000000.00"),
+        progress_percentage=Decimal("100.00"),
         status=PropertyUnit.UnitStatus.AVAILABLE
     )
 

@@ -94,6 +94,12 @@ class ProjectMatrixView(LoginRequiredMixin, View):
 
         header_buttons = [
             {
+                'text': _('مصفوفة التنفيذ الميداني'),
+                'url': reverse('real_estate:site_project_report', kwargs={'project_id': project.id}),
+                'icon': 'fa-hard-hat',
+                'class': 'btn-outline-primary'
+            },
+            {
                 'text': _('مصفوفة التسعير الآلي'),
                 'url': reverse('real_estate:project_pricing', kwargs={'project_id': project.id}),
                 'icon': 'fa-tags',

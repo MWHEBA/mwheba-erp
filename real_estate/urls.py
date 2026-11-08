@@ -160,4 +160,25 @@ urlpatterns = [
     path('finishing/catalog/', finishing_views.FinishingCatalogView.as_view(), name='finishing_catalog'),
     path('api/finishing/orders/<int:pk>/transition/', finishing_views.ApiFinishingStageTransitionView.as_view(), name='api_finishing_stage_transition'),
     path('api/finishing/orders/<int:pk>/hydrostatic-test/', finishing_views.ApiRecordHydrostaticTestView.as_view(), name='api_finishing_hydrostatic_test'),
+
+    # Site Execution & Architectural Matrix (Track 3: WBS & 32-Trade Site Inspection Matrix)
+    path('projects/<int:project_id>/wbs/', engineering_views.ProjectWbsTreeView.as_view(), name='project_wbs_tree'),
+    path('projects/<int:project_id>/wbs/sync-unit-progress/', engineering_views.ProjectWbsSyncUnitProgressAjaxView.as_view(), name='project_wbs_sync_unit_progress'),
+    path('projects/<int:project_id>/wbs/save/', engineering_views.ProjectWbsActivitySaveAjaxView.as_view(), name='project_wbs_activity_save'),
+    path('projects/<int:project_id>/wbs/<int:activity_id>/delete/', engineering_views.ProjectWbsActivityDeleteAjaxView.as_view(), name='project_wbs_activity_delete'),
+    path('projects/<int:project_id>/evm/', engineering_views.ProjectEvmDashboardView.as_view(), name='project_evm_dashboard'),
+    path('api/projects/<int:project_id>/evm/', engineering_views.ProjectEvmApiView.as_view(), name='api_project_evm'),
+    path('projects/<int:project_id>/site-report/', engineering_views.SiteProjectReportView.as_view(), name='site_project_report'),
+    path('projects/<int:project_id>/site-report/excel/', engineering_views.ExportSiteProgressExcelView.as_view(), name='site_project_report_excel'),
+    path('projects/<int:project_id>/site-log/create/', engineering_views.SiteDailyLogCreateView.as_view(), name='site_daily_log_create'),
+    path('floors/<int:floor_id>/site-dossier/', engineering_views.SiteFloorInspectionPrintView.as_view(), name='site_floor_inspection_dossier'),
+    path('api/site/stages/<int:record_id>/quick-update/', engineering_views.QuickUpdateStageAjaxView.as_view(), name='api_site_stage_quick_update'),
+    path('api/site/stages/<int:record_id>/spec-preview/', engineering_views.StageRecordSpecPreviewAjaxView.as_view(), name='api_site_stage_spec_preview'),
+    path('api/site/floors/bulk-update/', engineering_views.BulkUpdateFloorStageAjaxView.as_view(), name='api_site_floor_bulk_update'),
+    path('api/site/rfi/bulk-update/', engineering_views.BulkUpdateRfiAjaxView.as_view(), name='api_site_rfi_bulk_update'),
+    path('api/site/stages/sync/', engineering_views.ApiSiteProgressBatchSyncView.as_view(), name='api_site_stages_sync'),
+
+    # Milestone Collections Bridge (Track 3: Milestone Collection Alerts & Installment Triggers)
+    path('milestones/alerts/', engineering_views.MilestoneCollectionAlertsListView.as_view(), name='milestone_collection_alerts'),
+    path('api/milestones/alerts/<int:alert_id>/update-status/', engineering_views.MilestoneAlertUpdateStatusAjaxView.as_view(), name='api_milestone_alert_update_status'),
 ]

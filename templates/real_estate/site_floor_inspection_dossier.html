@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  {% load i18n humanize %}
+  <meta charset="UTF-8">
+  <title>{% trans "محضر استلام أعمال الدور المعتمد" %} - {{ floor.name|default:floor.floor_number }}</title>
+  <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+    body {
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+      font-size: 11px;
+      padding: 10px;
+    }
+    .dossier-box {
+      border: 2px solid var(--bs-border-color);
+      padding: 20px;
+      background-color: var(--bs-body-bg);
+    }
+    .table-dossier th, .table-dossier td {
+      border: 1px solid var(--bs-border-color);
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .signature-box {
+      border: 1px dashed var(--bs-secondary);
+      height: 90px;
+      padding: 8px;
+      position: relative;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0; }
+      .dossier-box { border: 1px solid var(--bs-dark); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print mb-3 text-start">
+  <button onclick="window.print()" class="btn btn-primary btn-sm px-3 fw-bold">
+    <i class="fas fa-print me-1"></i>{% trans "طباعة المحضر الاستشاري A4" %}
+  </button>
+  <button onclick="window.close()" class="btn btn-outline-secondary btn-sm px-3 ms-2">
+    {% trans "إغلاق" %}
+  </button>
+</div>
+
+<div class="dossier-box shadow-sm">
+  <!-- ترويسة المحضر الرسمي -->
+  <div class="row align-items-center border-bottom pb-3 mb-3">
+    <div class="col-8">
+      <h4 class="fw-bold text-dark mb-1">{% trans "محضر فحص واعتماد أعمال الدور الميدانية (Site Inspection Protocol)" %}</h4>
+      <div class="text-muted small">
+        {% trans "المشروع" %}: <strong class="text-dark">{{ project.name }}</strong> &bull;
+        {% trans "البلوك/المبنى" %}: <strong class="text-dark">{{ floor.block.name }}</strong> &bull;
+        {% trans "الطابق" %}: <strong class="text-dark">{{ floor.name|default:floor.floor_number }}</strong>
+      </div>
+    </div>
+    <div class="col-4 text-end">
+      <div class="border p-2 rounded bg-light d-inline-block text-center">
+        <small class="d-block text-muted">{% trans "تاريخ الفحص" %}</small>
+        <strong class="text-dark font-monospace">{{ print_date|date:"Y-m-d" }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول مصفوفة بنود شقق الدور -->
+  <div class="table-responsive mb-4">
+    <table class="table table-sm table-dossier w-100">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 80px;">{% trans "كود الشقة" %}</th>
+          <th style="width: 60px;">{% trans "الإنجاز %" %}</th>
+          {% for trade_key, trade_lbl in trade_choices %}
+          <th style="font-size: 9px;">{{ trade_lbl|slice:":18" }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in unit_rows %}
+        <tr>
+          <td class="fw-bold font-monospace text-primary text-start ps-2">{{ row.unit.unit_code }}</td>
+          <td class="fw-bold">{{ row.unit.progress_percentage }}%</td>
+          {% for cell in row.cells %}
+            <td>
+              {% if not cell.record or not cell.record.is_applicable %}
+                <span class="text-muted small">-</span>
+              {% elif cell.record.status == 'PASSED_AND_VERIFIED' and cell.record.completion_percentage >= 100 %}
+                <span class="badge bg-success text-white border" style="font-size: 8px;">100%</span>
+              {% elif cell.record.completion_percentage > 0 %}
+                <span class="badge bg-warning-subtle text-dark border" style="font-size: 8px;">{{ cell.record.completion_percentage }}%</span>
+              {% else %}
+                <span class="text-muted small" style="font-size: 8px;">0%</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="{{ trade_choices|length|add:2 }}" class="text-center py-3 text-muted">
+            {% trans "لا توجد وحدات مسجلة في هذا الدور حتى الآن." %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- مربعات التوقيعات الثلاثية الحية المعتمدة -->
+  <div class="row g-3 pt-2">
+    <div class="col-4">
+      <div class="signature-box bg-light rounded text-center">
+        <div class="fw-bold text-dark small mb-1">{% trans "مهندس الموقع (الشركة المطورة)" %}</div>
+        <div class="text-muted" style="font-size: 9px;">{% trans "الاسم والتوقيع" %}: {{ inspector.get_full_name|default:inspector.username }}</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="signature-box bg-light rounded text-center">
+        <div class="fw-bold text-dark small mb-1">{% trans "المهندس المقيم (المكتب الاستشاري المشرف)" %}</div>
+        <div class="text-muted" style="font-size: 9px;">{% trans "الاعتماد والختم الرسمي" %}: ..............................</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="signature-box bg-light rounded text-center">
+        <div class="fw-bold text-dark small mb-1">{% trans "مدير التنفيذ (مقاول الباطن المنفذ)" %}</div>
+        <div class="text-muted" style="font-size: 9px;">{% trans "الاستلام والمطابقة" %}: ..............................</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
