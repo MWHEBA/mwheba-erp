@@ -51,6 +51,22 @@ class UnitBookingService:
         currency=None,
         exchange_rate: Decimal = None,
         payment_account=None,
+        finishing_package=None,
+        finishing_meter_rate: Decimal = None,
+        total_finishing_amount: Decimal = None,
+        utilities_deposit_amount: Decimal = None,
+        parking_slot_code: str = None,
+        parking_slot_price: Decimal = None,
+        storage_locker_code: str = None,
+        storage_locker_price: Decimal = None,
+        partner=None,
+        company_share_percentage: Decimal = None,
+        partner_share_percentage: Decimal = None,
+        sales_channel: str = None,
+        marketing_lead_source: str = None,
+        call_specialist=None,
+        visit_specialist=None,
+        site_specialist=None,
     ) -> UnitBooking:
         """
         حجز وحدة عقارية بحماية تزامنية ذرية مستقلة عن نوع قاعدة البيانات
@@ -77,6 +93,13 @@ class UnitBookingService:
             raise BookingValidationError(_("تاريخ انتهاء الحجز لا يمكن أن يكون سابقاً لتاريخ الحجز."))
 
         with transaction.atomic():
+            # 0. قفل المشروع إن وُجد للحفاظ على الترتيب الهرمي للأقفال
+            if unit_id:
+                target_unit_peek = PropertyUnit.objects.filter(pk=unit_id).values_list('project_id', flat=True).first()
+                if target_unit_peek:
+                    from real_estate.models.project import RealEstateProject
+                    RealEstateProject.objects.select_for_update().filter(pk=target_unit_peek).first()
+
             # 1. قفل صف الوحدة لمنع التعديل المتزامن
             try:
                 locked_unit = PropertyUnit.objects.select_for_update().get(pk=unit_id)
@@ -90,6 +113,43 @@ class UnitBookingService:
                         'status': locked_unit.get_status_display()
                     }
                 )
+
+            # فحص تصادم بايكات الجراج والمخازن السريعة داخل نطاق المشروع
+            if parking_slot_code and locked_unit.project_id:
+                clean_slot = str(parking_slot_code).strip()
+                if clean_slot:
+                    slot_in_booking = UnitBooking.objects.filter(
+                        unit__project_id=locked_unit.project_id,
+                        parking_slot_code=clean_slot,
+                        status=UnitBooking.BookingStatus.ACTIVE
+                    ).exists()
+                    slot_in_contract = PropertyContract.objects.filter(
+                        project_id=locked_unit.project_id,
+                        parking_slot_code=clean_slot,
+                        status=PropertyContract.ContractStatus.ACTIVE
+                    ).exists()
+                    if slot_in_booking or slot_in_contract:
+                        raise BookingValidationError(
+                            _("بايكة الجراج '%(slot)s' محجوزة أو متعاقد عليها بالفعل في هذا المشروع.") % {'slot': clean_slot}
+                        )
+
+            if storage_locker_code and locked_unit.project_id:
+                clean_locker = str(storage_locker_code).strip()
+                if clean_locker:
+                    locker_in_booking = UnitBooking.objects.filter(
+                        unit__project_id=locked_unit.project_id,
+                        storage_locker_code=clean_locker,
+                        status=UnitBooking.BookingStatus.ACTIVE
+                    ).exists()
+                    locker_in_contract = PropertyContract.objects.filter(
+                        project_id=locked_unit.project_id,
+                        storage_locker_code=clean_locker,
+                        status=PropertyContract.ContractStatus.ACTIVE
+                    ).exists()
+                    if locker_in_booking or locker_in_contract:
+                        raise BookingValidationError(
+                            _("المخزن السريع '%(locker)s' محجوز أو متعاقد عليه بالفعل في هذا المشروع.") % {'locker': clean_locker}
+                        )
 
             # 2. القفل الشرطي الذري (Database-Agnostic Atomic State Machine Lock)
             # يعمل بسلامة 100% عبر PostgreSQL, MySQL, MariaDB, SQLite
@@ -132,6 +192,22 @@ class UnitBookingService:
                 exchange_rate=exchange_rate or Decimal('1.000000'),
                 status=UnitBooking.BookingStatus.ACTIVE,
                 notes=notes or "",
+                finishing_package=finishing_package,
+                finishing_meter_rate=finishing_meter_rate or Decimal('0.00'),
+                total_finishing_amount=total_finishing_amount or Decimal('0.00'),
+                utilities_deposit_amount=utilities_deposit_amount or Decimal('0.00'),
+                parking_slot_code=str(parking_slot_code).strip() if parking_slot_code else '',
+                parking_slot_price=parking_slot_price or Decimal('0.00'),
+                storage_locker_code=str(storage_locker_code).strip() if storage_locker_code else '',
+                storage_locker_price=storage_locker_price or Decimal('0.00'),
+                partner=partner,
+                company_share_percentage=company_share_percentage if company_share_percentage is not None else Decimal('100.00'),
+                partner_share_percentage=partner_share_percentage if partner_share_percentage is not None else Decimal('0.00'),
+                sales_channel=sales_channel or '',
+                marketing_lead_source=marketing_lead_source or '',
+                call_specialist=call_specialist,
+                visit_specialist=visit_specialist,
+                site_specialist=site_specialist,
                 created_by=user
             )
 
@@ -145,7 +221,7 @@ class UnitBookingService:
                         from real_estate.services.accounting_service import RealEstateAccountingService
                         from financial.services.role_registry import AccountRoleNames
                         deposit_acc = RealEstateAccountingService.get_or_resolve_account(
-                            AccountRoleNames.CASH_DRAWER.value,
+                            AccountRoleNames.DEFAULT_CASH_DRAWER.value,
                             fallback_code="11101"
                         )
 
@@ -184,6 +260,10 @@ class UnitBookingService:
         exchange_rate: Decimal = None,
         contract_number: str = None,
         payment_account=None,
+        contract_tax_structure: str = None,
+        has_decoupled_finishing: bool = False,
+        primary_owner_share: Decimal = None,
+        co_owners_data: list = None,
     ) -> PropertyContract:
         """
         تحويل استمارة الحجز إلى تعاقد بيع نهائي (SPA) بقفل ثنائي ذري
@@ -201,6 +281,12 @@ class UnitBookingService:
                     _("لا يمكن تحويل حجز غير نشط إلى عقد (الحالة الحالية: %(status)s).") % {
                         'status': locked_booking.get_status_display()
                     }
+                )
+
+            # التحقق الصارم من منظومة الاعتماد المالي والرقابي الثنائي
+            if not (locked_booking.is_confirmed_audit or locked_booking.is_legacy_pre_audit or locked_booking.audit_bypassed):
+                raise BookingValidationError(
+                    _("لا يمكن تحويل الحجز لعقد: الحجز لم يحصل على الاعتماد المالي والرقابي الثنائي، ولم يتم استثناؤه إدارياً.")
                 )
 
             if locked_unit.status != PropertyUnit.UnitStatus.RESERVED or locked_unit.current_booking_id != locked_booking.id:
@@ -289,6 +375,11 @@ class UnitBookingService:
 
             # 3. إنشاء العقد الرسمي
             cnt_num = contract_number or f"CTR-{locked_unit.unit_code}-{timezone.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
+            is_decoupled = bool(
+                has_decoupled_finishing
+                or (contract_tax_structure == PropertyContract.ContractTaxStructure.SPLIT_SPA_FINISHING_ANNEX)
+            )
+
             contract = PropertyContract.objects.create(
                 contract_number=cnt_num,
                 project=locked_unit.project,
@@ -301,8 +392,32 @@ class UnitBookingService:
                 down_payment=dp,
                 currency=curr,
                 exchange_rate=exchange_rate or Decimal('1.000000'),
+                contract_tax_structure=contract_tax_structure or PropertyContract.ContractTaxStructure.UNIFIED_SPA,
+                primary_owner_share=primary_owner_share if primary_owner_share is not None else Decimal('100.00'),
+                has_decoupled_finishing=is_decoupled,
+                finishing_meter_rate=locked_booking.finishing_meter_rate,
+                finishing_total_amount=locked_booking.total_finishing_amount,
+                utilities_deposit_amount=locked_booking.utilities_deposit_amount,
+                parking_slot_code=locked_booking.parking_slot_code,
+                parking_slot_price=locked_booking.parking_slot_price,
+                storage_locker_code=locked_booking.storage_locker_code,
+                storage_locker_price=locked_booking.storage_locker_price,
+                call_specialist=locked_booking.call_specialist,
+                visit_specialist=locked_booking.visit_specialist,
+                site_specialist=locked_booking.site_specialist,
                 created_by=user
             )
+
+            # مزامنة المشترين المتضامنين ونسب الملكية إن وُجدت
+            if co_owners_data:
+                from real_estate.services.contract_service import PropertyContractService
+                PropertyContractService.sync_contract_ownership(
+                    contract_id=contract.id,
+                    co_owners_data=co_owners_data,
+                    primary_owner_share=primary_owner_share,
+                    user=user
+                )
+                contract.refresh_from_db()
 
             # 4. إعادة تصنيف مقدم الحجز محاسبياً ونقله إلى التزام العقد وتحصيل أي فرق إضافي ذرياً (Event 1b)
             if locked_booking.holding_deposit > Decimal('0.00') or additional_to_collect > Decimal('0.00'):

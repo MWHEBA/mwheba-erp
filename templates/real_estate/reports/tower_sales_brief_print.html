@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>تقرير الموقف التنفيذي ومبيعات الأبراج — {% if target_block %}{{ target_block.name }}{% elif target_project %}{{ target_project.name }}{% else %}المحفظة العامة{% endif %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @media print {
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+      .no-print {
+        display: none !important;
+      }
+      body {
+        background-color: #fff !important;
+        font-size: 11px !important;
+        color: #000 !important;
+      }
+      .table {
+        border-color: #000 !important;
+      }
+      .table th, .table td {
+        border: 1px solid #333 !important;
+        padding: 4px 6px !important;
+      }
+      .badge {
+        border: 1px solid #333 !important;
+        color: #000 !important;
+        background: transparent !important;
+      }
+    }
+    body {
+      background-color: #f8f9fa;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 12px;
+      color: #212529;
+    }
+    .print-container {
+      max-width: 1200px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 24px;
+      border: 1px solid #dee2e6;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .report-header {
+      border-bottom: 2px solid #212529;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: bold;
+      background: #f1f3f5;
+      padding: 6px 10px;
+      border-right: 4px solid #0d6efd;
+      margin-top: 18px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-container">
+  <!-- Actions toolbar (hidden on print) -->
+  <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <div>
+      <button onclick="window.print()" class="btn btn-primary btn-sm fw-bold">
+        <i class="fas fa-print me-1"></i>طباعة المستند الرسمي
+      </button>
+      <button onclick="window.close()" class="btn btn-outline-secondary btn-sm ms-2">
+        <i class="fas fa-times me-1"></i>إغلاق النافذة
+      </button>
+    </div>
+    <span class="text-muted small">تنسيق الطباعة المعتمد: A4 أفقي (Landscape)</span>
+  </div>
+
+  <!-- Header -->
+  <div class="report-header d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="fw-bold mb-1">
+        تقرير الموقف التنفيذي ومصفوفة مبيعات الأبراج
+      </h4>
+      <div class="text-muted">
+        <strong>الهدف:</strong>
+        {% if target_block %}
+          برج: {{ target_block.name }} (كود: {{ target_block.code }}) — المشروع: {{ target_project.name }}
+        {% elif target_project %}
+          مشروع: {{ target_project.name }} (كود: {{ target_project.code }})
+        {% else %}
+          محفظة المشروعات والأبراج الشاملة
+        {% endif %}
+      </div>
+    </div>
+    <div class="text-start">
+      <div><strong>تاريخ الاستخراج:</strong> {{ today|date:"Y-m-d" }}</div>
+      <div><strong>نسبة الإنجاز الميداني:</strong> <span class="badge bg-light text-dark fw-bold">{{ construction_progress }}%</span></div>
+      <div><strong>المستخدم:</strong> {{ generated_by.get_full_name|default:generated_by.username }}</div>
+    </div>
+  </div>
+
+  <!-- 1. Inventory Summary -->
+  <div class="section-title">
+    أولاً: الملخص الإنشائي وحركة استيعاب المخزون العقاري
+  </div>
+  <table class="table table-bordered table-sm text-center mb-3">
+    <thead class="table-light">
+      <tr>
+        <th>إجمالي الوحدات</th>
+        <th>المساحة الإجمالية</th>
+        <th>الوحدات المباعة/التعاقدية</th>
+        <th>نسبة الاستيعاب البيعي</th>
+        <th>الوحدات المحجوزة</th>
+        <th>نسبة الحجز</th>
+        <th>الوحدات المتاحة</th>
+        <th>نسبة المتاح</th>
+        <th>محظورة / شراكة</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="fw-bold">
+        <td>{{ total_units_count }} وحدة</td>
+        <td>{{ total_units_area|floatformat:1 }} م²</td>
+        <td class="text-success">{{ contracted_count }} ({{ contracted_area|floatformat:1 }} م²)</td>
+        <td>{{ absorption_rate }}%</td>
+        <td class="text-warning">{{ reserved_count }} ({{ reserved_area|floatformat:1 }} م²)</td>
+        <td>{{ reservation_rate }}%</td>
+        <td class="text-info">{{ available_count }} ({{ available_area|floatformat:1 }} م²)</td>
+        <td>{{ available_rate }}%</td>
+        <td>{{ blocked_count }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 2. Financial Sales Portfolio -->
+  <div class="section-title">
+    ثانياً: الموقف المالي ومحصلات البيع بالعملة الوظيفية ({{ func_currency_code }})
+  </div>
+  <table class="table table-bordered table-sm text-center mb-3">
+    <thead class="table-light">
+      <tr>
+        <th>إجمالي التعاقدات الرسمية</th>
+        <th>مقدمات الحجز والتعاقد</th>
+        <th>أقساط مسددة فعلياً</th>
+        <th>إجمالي السيولة المحصلة</th>
+        <th>شيكات بالحافظة والتحصيل</th>
+        <th>المتبقي للتحصيل</th>
+        <th>كفاءة التحصيل</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="fw-bold">
+        <td>{{ total_contracted_sales_func|floatformat:2 }}</td>
+        <td>{{ total_down_payments_collected_func|floatformat:2 }}</td>
+        <td>{{ total_installments_collected_func|floatformat:2 }}</td>
+        <td>{{ total_collected_liquidity_func|floatformat:2 }}</td>
+        <td>{{ total_cheques_in_vault_func|floatformat:2 }}</td>
+        <td>{{ total_remaining_receivables_func|floatformat:2 }}</td>
+        <td>{{ collection_efficiency_rate }}%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {% if foreign_currencies %}
+    <div class="section-title">
+      ملحق: جدول العملات الأجنبية المعزولة
+    </div>
+    <table class="table table-bordered table-sm text-center mb-3">
+      <thead class="table-light">
+        <tr>
+          <th>العملة</th>
+          <th>سعر الصرف</th>
+          <th>العقود</th>
+          <th>الحجوزات</th>
+          <th>إجمالي المبيعات الأجنبية</th>
+          <th>المحصل الأجنبي</th>
+          <th>المتبقي الأجنبي</th>
+          <th>المعادل بالعملة الوظيفية ({{ func_currency_code }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fc in foreign_currencies %}
+          <tr>
+            <td class="fw-bold">{{ fc.currency_name }} ({{ fc.currency_code }})</td>
+            <td>{{ fc.exchange_rate|floatformat:4 }}</td>
+            <td>{{ fc.contracts_count }}</td>
+            <td>{{ fc.bookings_count }}</td>
+            <td>{{ fc.foreign_contracted_amount|floatformat:2 }} {{ fc.symbol }}</td>
+            <td>{{ fc.foreign_collected_amount|floatformat:2 }} {{ fc.symbol }}</td>
+            <td>{{ fc.foreign_remaining_amount|floatformat:2 }} {{ fc.symbol }}</td>
+            <td class="fw-bold">{{ fc.functional_equivalent_sales|floatformat:2 }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <!-- 3. Closer Matrix -->
+  <div class="section-title">
+    ثالثاً: مصفوفة إغلاق صفقات فريق المبيعات (Closer Matrix)
+  </div>
+  <table class="table table-bordered table-sm text-center mb-3">
+    <thead class="table-light">
+      <tr>
+        <th>مسئول البيع / Closer</th>
+        <th>العقود المبرمة</th>
+        <th>حجوزات نشطة</th>
+        <th>حجم المبيعات التعاقدية ({{ func_currency_code }})</th>
+        <th>المحصل الفعلي ({{ func_currency_code }})</th>
+        <th>متوسط قيمة الصفقة</th>
+        <th>نسبة المساهمة</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for closer in closer_matrix %}
+        <tr>
+          <td class="text-start ps-3 fw-bold">{{ closer.name }}</td>
+          <td>{{ closer.contracts_count }}</td>
+          <td>{{ closer.active_bookings_count }}</td>
+          <td class="fw-bold">{{ closer.total_sales_volume|floatformat:2 }}</td>
+          <td>{{ closer.total_collected|floatformat:2 }}</td>
+          <td>{{ closer.avg_deal_size|floatformat:2 }}</td>
+          <td>{{ closer.contribution_percentage }}%</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="7" class="text-muted">لا توجد بيانات مبيعات مسجلة لفريق البيع.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- 4. Unit Inventory List -->
+  <div class="section-title">
+    رابعاً: سجل جرد وموقف الوحدات التفصيلي
+  </div>
+  <table class="table table-bordered table-sm text-center mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>كود الوحدة</th>
+        <th>العمارة / البرج</th>
+        <th>الدور</th>
+        <th>النوع</th>
+        <th>المساحة</th>
+        <th>الحالة</th>
+        <th>العميل الحالي</th>
+        <th>رقم السند</th>
+        <th>القيمة</th>
+        <th>مسئول البيع</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in unit_rows %}
+        <tr>
+          <td class="fw-bold">{{ u.unit_code }}</td>
+          <td>{{ u.block_name }}</td>
+          <td>{{ u.floor_name }}</td>
+          <td>{{ u.unit_type }}</td>
+          <td>{{ u.gross_area|floatformat:1 }} م²</td>
+          <td>{{ u.status_display }}</td>
+          <td class="fw-bold">{{ u.customer_name }}</td>
+          <td>{{ u.doc_number }}</td>
+          <td>
+            {% if u.deal_value > 0 %}
+              {{ u.deal_value|floatformat:2 }}
+            {% else %}
+              {{ u.base_price|floatformat:2 }}
+            {% endif %}
+          </td>
+          <td>{{ u.closer_name }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="10" class="text-muted">لا توجد وحدات عقارية مسجلة.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="mt-4 pt-3 border-top text-center text-muted small">
+    تم استخراج هذا التقرير آلياً بواسطة منظومة MWHEBA ERP — إدارة التطوير والاستثمار العقاري.
+  </div>
+</div>
+
+</body>
+</html>

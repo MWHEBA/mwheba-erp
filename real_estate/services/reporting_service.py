@@ -9,7 +9,7 @@ from datetime import date
 from typing import Dict, Any, List, Optional
 from collections import defaultdict
 
-from django.db.models import Sum, Count, Q
+from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 
 from real_estate.models import (
@@ -593,4 +593,345 @@ class RealEstateReportingService:
             'total_commissions_amount': total_commissions_amount,
             'total_released_commissions': total_released_commissions,
             'total_retained_commissions': total_retained_commissions,
+        }
+
+    @classmethod
+    def get_tower_sales_brief_report(
+        cls,
+        block_id: Optional[int] = None,
+        project_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        تقرير الموقف التنفيذي ومصفوفة مبيعات الأبراج (Tower Sales Brief Report)
+        المحاور الرئيسية الثلاثة:
+        1. الملخص التنفيذي ونسبة الإنجاز الميداني واستيعاب المخزون
+        2. المحفظة البيعية بالعملة الوظيفية (EGP) والعملات الأجنبية المعزولة
+        3. مصفوفة أداء فريق المبيعات وإغلاق الصفقات (Closer Matrix)
+        """
+        from real_estate.models import PropertyBlock, UnitBooking
+        from financial.models.currency import Currency
+        from cheques.models.allocation import ChequeInvoiceAllocation
+        from cheques.models.cheque import ChequeStatus
+
+        block = None
+        project = None
+
+        if block_id:
+            block = PropertyBlock.objects.select_related('project').filter(pk=block_id).first()
+            if block:
+                project = block.project
+                units_qs = PropertyUnit.objects.filter(block=block, is_active=True).select_related(
+                    'floor', 'block', 'project'
+                ).order_by('floor__floor_number', 'unit_code')
+            else:
+                units_qs = PropertyUnit.objects.none()
+        elif project_id:
+            project = RealEstateProject.objects.filter(pk=project_id).first()
+            if project:
+                units_qs = PropertyUnit.objects.filter(project=project, is_active=True).select_related(
+                    'floor', 'block', 'project'
+                ).order_by('block__name', 'floor__floor_number', 'unit_code')
+            else:
+                units_qs = PropertyUnit.objects.none()
+        else:
+            units_qs = PropertyUnit.objects.filter(is_active=True).select_related(
+                'floor', 'block', 'project'
+            ).order_by('project__name', 'block__name', 'floor__floor_number', 'unit_code')
+
+        # 1. نسبة الإنجاز الإنشائي الميداني (Construction Progress)
+        if block:
+            construction_progress = block.construction_progress_percentage or Decimal('0.00')
+        elif project:
+            construction_progress = project.blocks.aggregate(avg=Avg('construction_progress_percentage'))['avg'] or Decimal('0.00')
+        else:
+            construction_progress = PropertyBlock.objects.aggregate(avg=Avg('construction_progress_percentage'))['avg'] or Decimal('0.00')
+        construction_progress = Decimal(str(construction_progress)).quantize(Decimal('0.01'))
+
+        # 2. حصر المخزون العقاري (Inventory Breakdown)
+        total_units_count = units_qs.count()
+        total_units_area = units_qs.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+
+        available_units = units_qs.filter(status=PropertyUnit.UnitStatus.AVAILABLE)
+        available_count = available_units.count()
+        available_area = available_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+
+        reserved_units = units_qs.filter(status=PropertyUnit.UnitStatus.RESERVED)
+        reserved_count = reserved_units.count()
+        reserved_area = reserved_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+
+        contracted_statuses = [
+            PropertyUnit.UnitStatus.CONTRACTED,
+            PropertyUnit.UnitStatus.DELIVERED,
+            PropertyUnit.UnitStatus.DELIVERED_DEEMED
+        ]
+        contracted_units = units_qs.filter(status__in=contracted_statuses)
+        contracted_count = contracted_units.count()
+        contracted_area = contracted_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+
+        blocked_statuses = [
+            PropertyUnit.UnitStatus.BLOCKED,
+            PropertyUnit.UnitStatus.LANDOWNER_ALLOCATED
+        ]
+        blocked_units = units_qs.filter(status__in=blocked_statuses)
+        blocked_count = blocked_units.count()
+        blocked_area = blocked_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+
+        total_units_dec = Decimal(total_units_count) if total_units_count > 0 else Decimal('1')
+        absorption_rate = (Decimal(contracted_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
+        reservation_rate = (Decimal(reserved_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
+        available_rate = (Decimal(available_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
+
+        # 3. المحفظة البيعية والمالية (Functional Currency & Foreign Isolations)
+        contracts_qs = PropertyContract.objects.filter(
+            unit__in=units_qs,
+            status=PropertyContract.ContractStatus.ACTIVE
+        ).select_related('unit', 'customer', 'currency', 'created_by', 'visit_specialist')
+
+        bookings_qs = UnitBooking.objects.filter(
+            unit__in=units_qs,
+            status=UnitBooking.BookingStatus.ACTIVE
+        ).select_related('unit', 'customer', 'currency', 'created_by', 'visit_specialist')
+
+        func_currency = Currency.objects.filter(is_functional=True).first()
+        func_currency_code = func_currency.code if func_currency else 'EGP'
+
+        total_contracted_sales_func = Decimal('0.00')
+        total_down_payments_collected_func = Decimal('0.00')
+        total_installments_collected_func = Decimal('0.00')
+        total_active_holding_deposits_func = Decimal('0.00')
+        total_cheques_in_vault_func = Decimal('0.00')
+
+        foreign_currencies_map: Dict[str, Dict[str, Any]] = {}
+        closers_map: Dict[Any, Dict[str, Any]] = {}
+
+        def get_closer_entry(user_obj):
+            key = user_obj.id if user_obj else 0
+            if key not in closers_map:
+                name = (user_obj.get_full_name() or user_obj.username) if user_obj else "غير محدد / بيع مباشر"
+                username = user_obj.username if user_obj else "-"
+                closers_map[key] = {
+                    'user_id': key,
+                    'name': name,
+                    'username': username,
+                    'contracts_count': 0,
+                    'active_bookings_count': 0,
+                    'total_sales_volume': Decimal('0.00'),
+                    'total_collected': Decimal('0.00'),
+                    'avg_deal_size': Decimal('0.00'),
+                    'contribution_percentage': Decimal('0.00'),
+                }
+            return closers_map[key]
+
+        vault_statuses = [ChequeStatus.IN_PORTFOLIO, ChequeStatus.UNDER_COLLECTION]
+
+        # معالجة العقود السارية
+        contracts_by_unit_id: Dict[int, PropertyContract] = {}
+        for contract in contracts_qs:
+            contracts_by_unit_id[contract.unit_id] = contract
+
+            c_curr = contract.currency
+            is_foreign = (c_curr is not None and not c_curr.is_functional)
+            rate = c_curr.current_rate if is_foreign else Decimal('1.000000')
+
+            price = contract.final_contract_price
+            price_func = price * rate
+            total_contracted_sales_func += price_func
+
+            # المقدم المحصل المعتمد
+            dp = ContractDebtClearanceService.get_verified_down_payment(contract)
+            dp_func = dp * rate
+            total_down_payments_collected_func += dp_func
+
+            # الأقساط المحصلة
+            inst_paid = Decimal('0.00')
+            if contract.installment_plan_id:
+                inst_paid = InstallmentItem.objects.filter(
+                    plan_id=contract.installment_plan_id,
+                    is_paid=True
+                ).aggregate(s=Sum('paid_amount'))['s'] or Decimal('0.00')
+            inst_paid_func = inst_paid * rate
+            total_installments_collected_func += inst_paid_func
+
+            # شيكات بالحافظة / برسم التحصيل
+            chqs_val = Decimal('0.00')
+            if contract.installment_plan_id:
+                chqs_val = ChequeInvoiceAllocation.objects.filter(
+                    installment__plan_id=contract.installment_plan_id,
+                    cheque__status__in=vault_st if 'vault_st' in locals() else vault_statuses
+                ).aggregate(s=Sum('allocated_amount'))['s'] or Decimal('0.00')
+            chqs_val_func = chqs_val * rate
+            total_cheques_in_vault_func += chqs_val_func
+
+            # تجميع أداء الـ Closer
+            closer_user = contract.visit_specialist or contract.created_by
+            closer_entry = get_closer_entry(closer_user)
+            closer_entry['contracts_count'] += 1
+            closer_entry['total_sales_volume'] += price_func
+            closer_entry['total_collected'] += (dp_func + inst_paid_func)
+
+            # عزل العملات الأجنبية
+            if is_foreign:
+                code = c_curr.code
+                if code not in foreign_currencies_map:
+                    foreign_currencies_map[code] = {
+                        'currency_code': code,
+                        'currency_name': c_curr.name,
+                        'symbol': c_curr.symbol,
+                        'exchange_rate': rate,
+                        'contracts_count': 0,
+                        'bookings_count': 0,
+                        'foreign_contracted_amount': Decimal('0.00'),
+                        'foreign_collected_amount': Decimal('0.00'),
+                        'foreign_remaining_amount': Decimal('0.00'),
+                        'functional_equivalent_sales': Decimal('0.00'),
+                    }
+                f_entry = foreign_currencies_map[code]
+                f_entry['contracts_count'] += 1
+                f_entry['foreign_contracted_amount'] += price
+                f_entry['foreign_collected_amount'] += (dp + inst_paid)
+                f_entry['foreign_remaining_amount'] += max(Decimal('0.00'), price - dp - inst_paid)
+                f_entry['functional_equivalent_sales'] += price_func
+
+        # معالجة استمارات الحجز السارية
+        bookings_by_unit_id: Dict[int, UnitBooking] = {}
+        for booking in bookings_qs:
+            bookings_by_unit_id[booking.unit_id] = booking
+
+            b_curr = booking.currency
+            is_b_foreign = (b_curr is not None and not b_curr.is_functional)
+            b_rate = b_curr.current_rate if is_b_foreign else Decimal('1.000000')
+
+            deposit = booking.holding_deposit
+            deposit_func = deposit * b_rate
+            total_active_holding_deposits_func += deposit_func
+
+            closer_user = booking.visit_specialist or booking.created_by
+            closer_entry = get_closer_entry(closer_user)
+            closer_entry['active_bookings_count'] += 1
+            closer_entry['total_collected'] += deposit_func
+
+            if is_b_foreign:
+                code = b_curr.code
+                if code not in foreign_currencies_map:
+                    foreign_currencies_map[code] = {
+                        'currency_code': code,
+                        'currency_name': b_curr.name,
+                        'symbol': b_curr.symbol,
+                        'exchange_rate': b_rate,
+                        'contracts_count': 0,
+                        'bookings_count': 0,
+                        'foreign_contracted_amount': Decimal('0.00'),
+                        'foreign_collected_amount': Decimal('0.00'),
+                        'foreign_remaining_amount': Decimal('0.00'),
+                        'functional_equivalent_sales': Decimal('0.00'),
+                    }
+                f_entry = foreign_currencies_map[code]
+                f_entry['bookings_count'] += 1
+                f_entry['foreign_collected_amount'] += deposit
+
+        total_collected_liquidity_func = (
+            total_down_payments_collected_func +
+            total_active_holding_deposits_func +
+            total_installments_collected_func
+        )
+        total_remaining_receivables_func = max(
+            Decimal('0.00'),
+            total_contracted_sales_func - total_down_payments_collected_func - total_installments_collected_func
+        )
+        total_pipeline_value_func = total_contracted_sales_func + total_active_holding_deposits_func
+        collection_efficiency_rate = (
+            (total_collected_liquidity_func / total_pipeline_value_func * Decimal('100.00')).quantize(Decimal('0.01'))
+            if total_pipeline_value_func > Decimal('0.00') else Decimal('0.00')
+        )
+
+        # حساب متوسط حجم الصفقة ونسبة المساهمة لفريق المبيعات
+        closer_matrix = list(closers_map.values())
+        for c in closer_matrix:
+            if c['contracts_count'] > 0:
+                c['avg_deal_size'] = (c['total_sales_volume'] / Decimal(c['contracts_count'])).quantize(Decimal('0.01'))
+            if total_contracted_sales_func > Decimal('0.00'):
+                c['contribution_percentage'] = (c['total_sales_volume'] / total_contracted_sales_func * Decimal('100.00')).quantize(Decimal('0.01'))
+        closer_matrix.sort(key=lambda x: x['total_sales_volume'], reverse=True)
+
+        # 4. بناء مصفوفة الوحدات التفصيلية (Unit Matrix Grid)
+        unit_rows: List[Dict[str, Any]] = []
+        for unit in units_qs:
+            contract_obj = contracts_by_unit_id.get(unit.id)
+            booking_obj = bookings_by_unit_id.get(unit.id)
+
+            customer_name = "-"
+            doc_number = "-"
+            deal_date = None
+            closer_display = "-"
+            deal_value = Decimal('0.00')
+
+            if contract_obj:
+                customer_name = contract_obj.customer.name
+                doc_number = contract_obj.contract_number
+                deal_date = contract_obj.contract_date
+                deal_value = contract_obj.final_contract_price
+                c_u = contract_obj.visit_specialist or contract_obj.created_by
+                closer_display = (c_u.get_full_name() or c_u.username) if c_u else "-"
+            elif booking_obj:
+                customer_name = booking_obj.customer.name
+                doc_number = booking_obj.booking_number
+                deal_date = booking_obj.booking_date
+                deal_value = booking_obj.holding_deposit
+                b_u = booking_obj.visit_specialist or booking_obj.created_by
+                closer_display = (b_u.get_full_name() or b_u.username) if b_u else "-"
+
+            unit_rows.append({
+                'unit': unit,
+                'unit_code': unit.unit_code,
+                'block_name': unit.block.name if unit.block else "-",
+                'floor_name': unit.floor.name if unit.floor else f"الدور {unit.floor.floor_number}" if unit.floor else "-",
+                'unit_type': unit.get_unit_type_display(),
+                'net_area': unit.net_area,
+                'gross_area': unit.gross_area,
+                'base_price': unit.base_price,
+                'status': unit.status,
+                'status_display': unit.get_status_display(),
+                'customer_name': customer_name,
+                'doc_number': doc_number,
+                'deal_date': deal_date,
+                'deal_value': deal_value,
+                'closer_name': closer_display,
+            })
+
+        return {
+            'target_block': block,
+            'target_project': project,
+            'construction_progress': construction_progress,
+            'func_currency_code': func_currency_code,
+
+            # إحصائيات المخزون
+            'total_units_count': total_units_count,
+            'total_units_area': total_units_area,
+            'available_count': available_count,
+            'available_area': available_area,
+            'available_rate': available_rate,
+            'reserved_count': reserved_count,
+            'reserved_area': reserved_area,
+            'reservation_rate': reservation_rate,
+            'contracted_count': contracted_count,
+            'contracted_area': contracted_area,
+            'absorption_rate': absorption_rate,
+            'blocked_count': blocked_count,
+            'blocked_area': blocked_area,
+
+            # المؤشرات المالية بالعملة الوظيفية
+            'total_contracted_sales_func': total_contracted_sales_func,
+            'total_down_payments_collected_func': total_down_payments_collected_func,
+            'total_active_holding_deposits_func': total_active_holding_deposits_func,
+            'total_installments_collected_func': total_installments_collected_func,
+            'total_cheques_in_vault_func': total_cheques_in_vault_func,
+            'total_collected_liquidity_func': total_collected_liquidity_func,
+            'total_remaining_receivables_func': total_remaining_receivables_func,
+            'total_pipeline_value_func': total_pipeline_value_func,
+            'collection_efficiency_rate': collection_efficiency_rate,
+
+            # العملات الأجنبية وفريق البيع
+            'foreign_currencies': list(foreign_currencies_map.values()),
+            'closer_matrix': closer_matrix,
+            'unit_rows': unit_rows,
         }

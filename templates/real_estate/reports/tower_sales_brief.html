@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "تقرير الموقف التنفيذي ومصفوفة مبيعات الأبراج" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Stats Row (Strict UI: Independent row, never inside .section-container) -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "إجمالي الوحدات والمخزون" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-dark">
+              {{ total_units_count|intcomma }} <small class="text-muted fs-6">{% trans "وحدة" %} ({{ total_units_area|floatformat:1|intcomma }} م²)</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-info fs-2">
+            <i class="fas fa-building"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المبيعات التعاقدية (الاستيعاب)" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-success">
+              {{ contracted_count|intcomma }} <small class="text-muted fs-6">({% trans "نسبة" %} {{ absorption_rate }}%)</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-success fs-2">
+            <i class="fas fa-file-contract"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "السيولة المحصلة فعلياً" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-warning">
+              {{ total_collected_liquidity_func|floatformat:2|intcomma }} <small class="text-muted fs-6">{{ func_currency_code }}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-warning fs-2">
+            <i class="fas fa-hand-holding-usd"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-danger h-100">
+        <div class="stats-card-body d-flex align-items-center justify-content-between p-3">
+          <div>
+            <div class="stats-card-title text-muted small mb-1">{% trans "المتبقي للتحصيل والمديونية" %}</div>
+            <div class="stats-card-value h5 mb-0 fw-bold text-danger">
+              {{ total_remaining_receivables_func|floatformat:2|intcomma }} <small class="text-muted fs-6">{{ func_currency_code }}</small>
+            </div>
+          </div>
+          <div class="stats-card-icon text-danger fs-2">
+            <i class="fas fa-balance-scale"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between"
+           role="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+        <h6 class="mb-0 fw-bold text-dark">
+          <i class="fas fa-filter text-primary me-2"></i>{% trans "تصفية الموقف التنفيذي ومبيعات الأبراج" %}
+        </h6>
+        <i class="fas fa-chevron-down text-muted"></i>
+      </div>
+      <div class="collapse show" id="filterSection">
+        <div class="card-body p-3">
+          <form method="get" class="row g-3 align-items-end" id="towerReportFilterForm">
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold text-muted">{% trans "المشروع العقاري" %}</label>
+              <select name="project" class="form-select form-select-sm select2-filter" id="filter_project" onchange="this.form.submit()">
+                <option value="">{% trans "-- كل المشروعات --" %}</option>
+                {% for prj in projects %}
+                  <option value="{{ prj.id }}" {% if selected_project == prj.id|stringformat:"s" %}selected{% endif %}>
+                    {{ prj.code }} - {{ prj.name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-5">
+              <label class="form-label small fw-bold text-muted">{% trans "العمارة / البرج المستهدف" %}</label>
+              <select name="block" class="form-select form-select-sm select2-filter" id="filter_block" onchange="this.form.submit()">
+                <option value="">{% trans "-- كل الأبراج والمباني --" %}</option>
+                {% for blk in blocks %}
+                  <option value="{{ blk.id }}" {% if selected_block == blk.id|stringformat:"s" %}selected{% endif %}>
+                    {{ blk.project.code }} - {{ blk.name }} ({{ blk.code }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2 d-flex gap-2">
+              <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
+                <i class="fas fa-search me-1"></i>{% trans "تطبيق" %}
+              </button>
+              <a href="{% url 'real_estate:report_tower_sales_brief' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة الضبط' %}">
+                <i class="fas fa-undo"></i>
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 1: Construction Progress & Inventory Absorption -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-hard-hat text-primary me-2"></i>{% trans "المحور الأول: الموقف الإنشائي ومعدل استيعاب المخزون العقاري" %}
+        </h5>
+      </div>
+      <div class="card-body p-3">
+        <div class="row g-4 align-items-center mb-3">
+          <div class="col-12 col-md-4 border-start">
+            <div class="p-2">
+              <span class="text-muted small d-block mb-1">{% trans "الهدف المحدد:" %}</span>
+              <h5 class="fw-bold text-dark mb-1">
+                {% if target_block %}
+                  <i class="fas fa-building text-primary me-1"></i>{{ target_block.name }} <span class="badge bg-secondary ms-1">{{ target_block.code }}</span>
+                {% elif target_project %}
+                  <i class="fas fa-city text-primary me-1"></i>{{ target_project.name }} <span class="badge bg-secondary ms-1">{{ target_project.code }}</span>
+                {% else %}
+                  <i class="fas fa-layer-group text-primary me-1"></i>{% trans "محفظة المشروعات والأبراج الشاملة" %}
+                {% endif %}
+              </h5>
+              <p class="text-muted small mb-0">
+                {% if target_block %}{% trans "المشروع الأم:" %} {{ target_project.name }}{% endif %}
+              </p>
+            </div>
+          </div>
+          <div class="col-12 col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="fw-bold text-dark small">
+                <i class="fas fa-ruler-combined text-info me-1"></i>{% trans "نسبة الإنجاز الإنشائي الميداني الفعلي:" %}
+              </span>
+              <span class="badge bg-primary fs-6">{{ construction_progress }}%</span>
+            </div>
+            <div class="progress" style="height: 12px;">
+              <div class="progress-bar bg-primary" role="progressbar" style="width: {{ construction_progress }}%;" aria-valuenow="{{ construction_progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="d-flex justify-content-between text-muted small mt-1">
+              <span>0% {% trans "بداية الأعمال" %}</span>
+              <span>100% {% trans "اكتمال الإنشاءات والتسليم" %}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Breakdown Cards Grid -->
+        <div class="row g-3 text-center">
+          <div class="col-6 col-md-3">
+            <div class="p-3 border rounded bg-light">
+              <div class="text-success fw-bold h4 mb-0">{{ contracted_count }}</div>
+              <div class="small fw-bold text-dark">{% trans "مباعة بتعاقد رسمي" %}</div>
+              <div class="text-muted small">{{ contracted_area|floatformat:1|intcomma }} م² ({{ absorption_rate }}%)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 border rounded bg-light">
+              <div class="text-warning fw-bold h4 mb-0">{{ reserved_count }}</div>
+              <div class="small fw-bold text-dark">{% trans "محجوزة مؤقتاً" %}</div>
+              <div class="text-muted small">{{ reserved_area|floatformat:1|intcomma }} م² ({{ reservation_rate }}%)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 border rounded bg-light">
+              <div class="text-info fw-bold h4 mb-0">{{ available_count }}</div>
+              <div class="small fw-bold text-dark">{% trans "متاحة للبيع" %}</div>
+              <div class="text-muted small">{{ available_area|floatformat:1|intcomma }} م² ({{ available_rate }}%)</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 border rounded bg-light">
+              <div class="text-secondary fw-bold h4 mb-0">{{ blocked_count }}</div>
+              <div class="small fw-bold text-dark">{% trans "محظورة / حصة شراكة" %}</div>
+              <div class="text-muted small">{{ blocked_area|floatformat:1|intcomma }} م²</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Financial Sales Portfolio & Multi-Currency -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-coins text-warning me-2"></i>{% trans "المحور الثاني: المحفظة المالية ومحصلات البيع" %} ({{ func_currency_code }})
+        </h5>
+      </div>
+      <div class="card-body p-3">
+        <div class="table-responsive mb-3">
+          <table class="table table-bordered table-sm align-middle text-center mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "إجمالي التعاقدات الرسمية" %}</th>
+                <th>{% trans "مقدمات التعاقد المحصلة" %}</th>
+                <th>{% trans "أمانات الحجز السارية" %}</th>
+                <th>{% trans "أقساط مسددة فعلياً" %}</th>
+                <th>{% trans "إجمالي السيولة النقدية والبنكية" %}</th>
+                <th>{% trans "أوراق قبض بالحافظة والتحصيل" %}</th>
+                <th>{% trans "المتبقي للتحصيل مستقبلاً" %}</th>
+                <th>{% trans "كفاءة التحصيل" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fw-bold">
+                <td class="text-primary">{{ total_contracted_sales_func|floatformat:2|intcomma }}</td>
+                <td class="text-success">{{ total_down_payments_collected_func|floatformat:2|intcomma }}</td>
+                <td class="text-warning">{{ total_active_holding_deposits_func|floatformat:2|intcomma }}</td>
+                <td class="text-info">{{ total_installments_collected_func|floatformat:2|intcomma }}</td>
+                <td class="text-success bg-light">{{ total_collected_liquidity_func|floatformat:2|intcomma }}</td>
+                <td class="text-dark">{{ total_cheques_in_vault_func|floatformat:2|intcomma }}</td>
+                <td class="text-danger">{{ total_remaining_receivables_func|floatformat:2|intcomma }}</td>
+                <td><span class="badge bg-success">{{ collection_efficiency_rate }}%</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {% if foreign_currencies %}
+          <div class="mt-3">
+            <h6 class="fw-bold text-dark mb-2">
+              <i class="fas fa-globe text-info me-1"></i>{% trans "جدول العملات الأجنبية المعزولة (Foreign Currencies Isolation)" %}
+            </h6>
+            <div class="table-responsive">
+              <table class="table table-bordered table-hover table-sm align-middle text-center mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>{% trans "العملة" %}</th>
+                    <th>{% trans "سعر الصرف المعتمد" %}</th>
+                    <th>{% trans "العقود" %}</th>
+                    <th>{% trans "الحجوزات" %}</th>
+                    <th>{% trans "إجمالي المبيعات بالعملة الأجنبية" %}</th>
+                    <th>{% trans "المحصل الأجنبي" %}</th>
+                    <th>{% trans "المتبقي الأجنبي" %}</th>
+                    <th>{% trans "المعادل بالعملة الوظيفية" %} ({{ func_currency_code }})</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for fc in foreign_currencies %}
+                    <tr>
+                      <td class="fw-bold">{{ fc.currency_name }} ({{ fc.currency_code }} - {{ fc.symbol }})</td>
+                      <td>{{ fc.exchange_rate|floatformat:4 }}</td>
+                      <td><span class="badge bg-secondary">{{ fc.contracts_count }}</span></td>
+                      <td><span class="badge bg-secondary">{{ fc.bookings_count }}</span></td>
+                      <td class="text-primary fw-bold">{{ fc.foreign_contracted_amount|floatformat:2|intcomma }} {{ fc.symbol }}</td>
+                      <td class="text-success fw-bold">{{ fc.foreign_collected_amount|floatformat:2|intcomma }} {{ fc.symbol }}</td>
+                      <td class="text-danger fw-bold">{{ fc.foreign_remaining_amount|floatformat:2|intcomma }} {{ fc.symbol }}</td>
+                      <td class="text-dark fw-bold bg-light">{{ fc.functional_equivalent_sales|floatformat:2|intcomma }} {{ func_currency_code }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3: Closer & Sales Team Performance Matrix -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-users-cog text-primary me-2"></i>{% trans "المحور الثالث: مصفوفة إغلاق صفقات فريق المبيعات (Closer Matrix)" %}
+        </h5>
+      </div>
+      <div class="card-body p-3">
+        {% if closer_matrix %}
+          <div class="table-responsive">
+            <table class="table table-bordered table-hover table-sm align-middle text-center mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>#</th>
+                  <th>{% trans "مسئول البيع / Closer" %}</th>
+                  <th>{% trans "العقود المبرمة" %}</th>
+                  <th>{% trans "حجوزات نشطة" %}</th>
+                  <th>{% trans "حجم المبيعات التعاقدية" %} ({{ func_currency_code }})</th>
+                  <th>{% trans "المحصل الفعلي" %} ({{ func_currency_code }})</th>
+                  <th>{% trans "متوسط قيمة الصفقة" %} ({{ func_currency_code }})</th>
+                  <th>{% trans "نسبة المساهمة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for closer in closer_matrix %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="fw-bold text-start ps-3">
+                      <i class="fas fa-user-tie text-muted me-1"></i>{{ closer.name }}
+                      {% if closer.username != "-" %}<small class="text-muted">(@{{ closer.username }})</small>{% endif %}
+                    </td>
+                    <td><span class="badge bg-primary fs-6">{{ closer.contracts_count }}</span></td>
+                    <td><span class="badge bg-warning text-dark fs-6">{{ closer.active_bookings_count }}</span></td>
+                    <td class="text-primary fw-bold">{{ closer.total_sales_volume|floatformat:2|intcomma }}</td>
+                    <td class="text-success fw-bold">{{ closer.total_collected|floatformat:2|intcomma }}</td>
+                    <td class="text-muted">{{ closer.avg_deal_size|floatformat:2|intcomma }}</td>
+                    <td><span class="badge bg-info text-dark fw-bold">{{ closer.contribution_percentage }}%</span></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-users-slash fs-2 mb-2 d-block"></i>
+            {% trans "لا توجد صفقات بيع مسجلة لفريق المبيعات ضمن نطاق التصفية المختار." %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4: Detailed Unit Inventory Grid -->
+  <div class="section-container mb-4">
+    <div class="card border shadow-sm">
+      <div class="card-header bg-light border-bottom py-2 px-3">
+        <h5 class="section-title mb-0">
+          <i class="fas fa-th-list text-primary me-2"></i>{% trans "رابعاً: سجل جرد وموقف الوحدات التفصيلي" %}
+        </h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover table-striped table-sm align-middle text-center mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "كود الوحدة" %}</th>
+                <th>{% trans "العمارة / البرج" %}</th>
+                <th>{% trans "الدور" %}</th>
+                <th>{% trans "النوع" %}</th>
+                <th>{% trans "المساحة الإجمالية" %}</th>
+                <th>{% trans "حالة الوحدة" %}</th>
+                <th>{% trans "العميل الحالي" %}</th>
+                <th>{% trans "رقم العقد / الحجز" %}</th>
+                <th>{% trans "القيمة المسجلة" %}</th>
+                <th>{% trans "مسئول البيع" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in units_page %}
+                <tr>
+                  <td class="fw-bold text-primary">{{ u.unit_code }}</td>
+                  <td>{{ u.block_name }}</td>
+                  <td>{{ u.floor_name }}</td>
+                  <td>{{ u.unit_type }}</td>
+                  <td>{{ u.gross_area|floatformat:1 }} م²</td>
+                  <td>
+                    {% if u.status == 'CONTRACTED' or u.status == 'DELIVERED' or u.status == 'DELIVERED_DEEMED' %}
+                      <span class="badge bg-success">{{ u.status_display }}</span>
+                    {% elif u.status == 'RESERVED' %}
+                      <span class="badge bg-warning text-dark">{{ u.status_display }}</span>
+                    {% elif u.status == 'AVAILABLE' %}
+                      <span class="badge bg-info text-dark">{{ u.status_display }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ u.status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="fw-bold">{{ u.customer_name }}</td>
+                  <td><code>{{ u.doc_number }}</code></td>
+                  <td class="fw-bold">
+                    {% if u.deal_value > 0 %}
+                      {{ u.deal_value|floatformat:2|intcomma }}
+                    {% else %}
+                      {{ u.base_price|floatformat:2|intcomma }}
+                    {% endif %}
+                  </td>
+                  <td><small class="text-muted">{{ u.closer_name }}</small></td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="10" class="text-center py-4 text-muted">
+                    {% trans "لا توجد وحدات عقارية مسجلة مطابقة لخيارات التصفية." %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+          <div class="p-3 border-top d-flex justify-content-between align-items-center">
+            <span class="text-muted small">
+              {% trans "عرض" %} {{ page_obj.start_index }} - {{ page_obj.end_index }} {% trans "من إجمالي" %} {{ page_obj.paginator.count }} {% trans "وحدة" %}
+            </span>
+            <ul class="pagination pagination-sm mb-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_block %}&block={{ selected_block }}{% endif %}">
+                    &laquo; {% trans "السابق" %}
+                  </a>
+                </li>
+              {% endif %}
+              <li class="page-item disabled">
+                <span class="page-link">{% trans "صفحة" %} {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+              </li>
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_project %}&project={{ selected_project }}{% endif %}{% if selected_block %}&block={{ selected_block }}{% endif %}">
+                    {% trans "التالي" %} &raquo;
+                  </a>
+                </li>
+              {% endif %}
+            </ul>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

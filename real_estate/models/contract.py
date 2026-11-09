@@ -23,6 +23,10 @@ class PropertyContract(models.Model):
         POINT_IN_TIME = 'POINT_IN_TIME', _('عند التسليم ونقل السيطرة الفورية (Point in Time)')
         OVER_TIME = 'OVER_TIME', _('على مدار مدة الإنشاء بنسبة الإنجاز (Over Time - POC)')
 
+    class ContractTaxStructure(models.TextChoices):
+        UNIFIED_SPA = 'UNIFIED_SPA', _('عقد موحد شامل التشطيب (خاضع لضريبة التصرفات 2.5%)')
+        SPLIT_SPA_FINISHING_ANNEX = 'SPLIT_SPA_FINISHING_ANNEX', _('عقد نصف تشطيب + ملحق أعمال تشطيب مستقل (معفى قانونياً من الـ 2.5%)')
+
     contract_number = models.CharField(
         max_length=50,
         unique=True,
@@ -108,6 +112,96 @@ class PropertyContract(models.Model):
         db_index=True,
         verbose_name=_('تم سداد كافة الأقساط بالكامل')
     )
+
+    # الهيكلة الضريبية والتعاقدية للتشطيب والملحقات
+    contract_tax_structure = models.CharField(
+        max_length=35,
+        choices=ContractTaxStructure.choices,
+        default=ContractTaxStructure.UNIFIED_SPA,
+        verbose_name=_('الهيكلة الضريبية والتعاقدية للتشطيب')
+    )
+    primary_owner_share = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('100.00'),
+        verbose_name=_('نسبة ملكية العميل الرئيسي (%)')
+    )
+    has_decoupled_finishing = models.BooleanField(
+        default=False,
+        verbose_name=_('فصل مالي وتعاقدي لأعمال التشطيب')
+    )
+    base_unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('القيمة البيعية للوحدة بدون تشطيب')
+    )
+    finishing_meter_rate = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر متر التشطيب')
+    )
+    finishing_total_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('إجمالي سعر التشطيب')
+    )
+    utilities_deposit_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('أمانات رسوم المرافق والصيانة')
+    )
+    parking_slot_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name=_('كود بايكة الجراج')
+    )
+    parking_slot_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر الجراج')
+    )
+    storage_locker_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name=_('كود المخزن السريع')
+    )
+    storage_locker_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر المخزن')
+    )
+    call_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='contracts_as_call_rep',
+        verbose_name=_('مسئول الاتصال')
+    )
+    visit_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='contracts_as_visit_rep',
+        verbose_name=_('مسئول المقابلة/الزيارة')
+    )
+    site_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='contracts_as_site_rep',
+        verbose_name=_('مسئول الموقع/المعرض')
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -153,6 +247,21 @@ class PropertyContract(models.Model):
             except Exception:
                 pass
 
+    def validate_ownership_integrity(self):
+        """التحقق من أن مجموع نسب الملكية للعميل الرئيسي والشركاء يساوي 100% بالضبط"""
+        if not self.pk:
+            return
+        co_owners_total = self.co_owners.aggregate(total=models.Sum('share_percentage'))['total'] or Decimal('0.00')
+        total_share = self.primary_owner_share + co_owners_total
+        if total_share != Decimal('100.00'):
+            raise ValidationError(
+                _("إجمالي نسب الملكية في العقد يجب أن يساوي 100.00%% بالضبط (المالك الرئيسي: %(p)s%% + الشركاء: %(c)s%% = %(t)s%%).") % {
+                    'p': self.primary_owner_share,
+                    'c': co_owners_total,
+                    't': total_share
+                }
+            )
+
     def on_installments_completed(self):
         """
         يستدعى تلقائياً من محرك الأقساط عند إتمام سداد كامل قيمة الخطة
@@ -194,6 +303,9 @@ class PropertyContract(models.Model):
                 contract=self,
                 target_plan=self.installment_plan
             )
+
+        if self.pk and (self.co_owners.exists() or self.primary_owner_share != Decimal('100.00')):
+            self.validate_ownership_integrity()
 
     @transaction.atomic
     def save(self, *args, **kwargs):
@@ -260,6 +372,14 @@ class ContractCoOwner(models.Model):
     """
     نموذج الشركاء في ملكية الوحدة والضامنين المتضامنين في العقد (Co-Owners & Guarantors)
     """
+    class RelationshipType(models.TextChoices):
+        SPOUSE = 'SPOUSE', _('زوج / زوجة')
+        SIBLING = 'SIBLING', _('أخ / أخت')
+        PARENT_CHILD = 'PARENT_CHILD', _('أب / أم / ابن')
+        BUSINESS_PARTNER = 'BUSINESS_PARTNER', _('شريك تجاري / استثماري')
+        LEGAL_AGENT = 'LEGAL_AGENT', _('وكيل قانوني مفوض')
+        OTHER = 'OTHER', _('أخرى')
+
     contract = models.ForeignKey(
         PropertyContract,
         on_delete=models.CASCADE,
@@ -281,6 +401,17 @@ class ContractCoOwner(models.Model):
         default=True,
         verbose_name=_('ضامن متضامن في سداد كامل المستحقات')
     )
+    relationship = models.CharField(
+        max_length=30,
+        choices=RelationshipType.choices,
+        default=RelationshipType.BUSINESS_PARTNER,
+        verbose_name=_('صلة القرابة / الصفة التعاقدية')
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('ملاحظات الشريك المتضامن')
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name=_('تاريخ الإضافة')
@@ -300,6 +431,28 @@ class ContractCoOwner(models.Model):
                 name='chk_co_owner_share_range'
             )
         ]
+
+    def save(self, *args, **kwargs):
+        skip_integrity_check = kwargs.pop('skip_integrity_check', False)
+        super().save(*args, **kwargs)
+        if not skip_integrity_check and self.contract_id:
+            contract = self.contract
+            co_owners_total = contract.co_owners.aggregate(total=models.Sum('share_percentage'))['total'] or Decimal('0.00')
+            if contract.primary_owner_share == Decimal('100.00') and co_owners_total <= Decimal('100.00'):
+                contract.primary_owner_share = Decimal('100.00') - co_owners_total
+                contract.save(update_fields=['primary_owner_share'])
+            contract.validate_ownership_integrity()
+
+    def delete(self, *args, **kwargs):
+        skip_integrity_check = kwargs.pop('skip_integrity_check', False)
+        contract = self.contract
+        super().delete(*args, **kwargs)
+        if not skip_integrity_check and contract:
+            co_owners_total = contract.co_owners.aggregate(total=models.Sum('share_percentage'))['total'] or Decimal('0.00')
+            if co_owners_total == Decimal('0.00'):
+                contract.primary_owner_share = Decimal('100.00')
+                contract.save(update_fields=['primary_owner_share'])
+            contract.validate_ownership_integrity()
 
     def __str__(self):
         return f"{self.contract.contract_number} - {self.co_owner.name} ({self.share_percentage}%)"

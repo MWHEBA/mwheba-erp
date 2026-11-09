@@ -138,6 +138,8 @@ class ChequeAccountingService:
             "target_status": str(params.get("target_status", "")),
             "supplier_id": str(params.get("supplier_id", "")),
             "new_purpose": str(params.get("new_purpose", "")),
+            "booking_advance_account_id": str(params.get("booking_advance_account_id", "")),
+            "advance_foreign_amount": str(params.get("advance_foreign_amount", "")),
         }
         raw_str = json.dumps(canonical, sort_keys=True)
         return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()
@@ -257,6 +259,13 @@ class ChequeAccountingService:
                     action=action_type
                 )
             )
+
+        # حظر إعادة إصدار أو تقديم شيك رد الحجز المرتد نهائياً
+        if cheque.purpose == ChequePurpose.CUSTOMER_REFUND and cheque.status == ChequeStatus.BOUNCED and target_status == ChequeStatus.ISSUED:
+            raise ValidationError(
+                _("يُحظر إعادة تقديم شيك استرداد الحجز المرتد (CUSTOMER_REFUND). يجب إصدار شيك بديل جديد بموجب طلب صرف مستقل.")
+            )
+
         return target_status
 
     @classmethod
@@ -460,15 +469,34 @@ class ChequeAccountingService:
             logger.info(f"Guarantee cheque #{cheque.id}: Off-balance sheet, zero GL entries generated.")
             return None
 
+        # معالجة القيد العكسي المتطابق (Mirror Reversal) لشيكات رد الحجز العقاري في الارتداد والإلغاء
+        if cheque.purpose == ChequePurpose.CUSTOMER_REFUND and action_type in [ChequeActionType.BOUNCE, ChequeActionType.CANCEL]:
+            if cheque.status == ChequeStatus.BOUNCED and action_type == ChequeActionType.CANCEL:
+                logger.info(f"Cheque #{cheque.id} already reversed on BOUNCE. Zero new entries on CANCEL.")
+                return None
+
+            issue_log = ChequeActionLog.objects.filter(
+                cheque=cheque,
+                action=ChequeActionType.ISSUE,
+                journal_entry__isnull=False
+            ).order_by('-id').first()
+            if issue_log and issue_log.journal_entry:
+                reason = f"عكس قيد إصدار شيك رد حجز #{cheque.cheque_number} لـ {action_log.get_action_display()}"
+                return AccountingGateway.reverse_journal_entry(
+                    journal_entry=issue_log.journal_entry,
+                    user=user,
+                    reason=reason
+                )
+
         value_date = params.get("value_date") or timezone.localdate()
         entry_lines: List[Dict[str, Any]] = []
         entry_type = "automatic"
         description = f"{action_log.get_action_display()} - شيك #{cheque.cheque_number} ({cheque.voucher_number})"
 
         # حل الحسابات الرقابية
-        rec_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL)
-        coll_account = AccountRoleRegistry.get_account(AccountRoleNames.CHEQUES_UNDER_COLLECTION)
-        pay_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL)
+        rec_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_RECEIVABLE_CONTROL) or ChartOfAccounts.objects.filter(code__in=["11220", "11221"]).first()
+        coll_account = AccountRoleRegistry.get_account(AccountRoleNames.CHEQUES_UNDER_COLLECTION) or ChartOfAccounts.objects.filter(code="11190").first()
+        pay_control = AccountRoleRegistry.get_account(AccountRoleNames.NOTES_PAYABLE_CONTROL) or ChartOfAccounts.objects.filter(code__in=["21301", "21120"]).first()
 
         # 1. إيصال استلام شيك قبض (RECEIVE) أو تحويل شيك ضمان وارد لتشغيلي (CONVERT_GUARANTEE)
         if action_type == ChequeActionType.RECEIVE or (action_type == ChequeActionType.CONVERT_GUARANTEE and cheque.cheque_type == ChequeType.RECEIVABLE):
@@ -730,29 +758,104 @@ class ChequeAccountingService:
             entry_type = "cheque_payment"
             amount_func = cheque.functional_amount
             effective_purpose = params.get('new_purpose') or cheque.purpose
-            if effective_purpose == ChequePurpose.ADVANCE_PAYMENT:
-                advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.SUPPLIER_ADVANCE_ASSET)
-                debit_acc_id = advance_acc.id
-            else:
-                supp_acc = SubledgerAccountService.get_or_create_supplier_account(cheque.supplier, user=user)
-                debit_acc_id = supp_acc.id if supp_acc else pay_control.id
+            if effective_purpose == ChequePurpose.CUSTOMER_REFUND:
+                booking_advance_account_id = params.get('booking_advance_account_id')
+                if not booking_advance_account_id:
+                    booking_acc = AccountRoleRegistry.get_account(AccountRoleNames.REAL_ESTATE_BOOKING_ADVANCE)
+                    booking_advance_account_id = booking_acc.id if booking_acc else pay_control.id
 
-            # الطرف المدين: المورد / الدفعات المقدمة للموردين
-            entry_lines.append({
-                "account_id": debit_acc_id,
-                "debit": amount_func,
-                "credit": Decimal("0.00"),
-                "description": f"تحويل شيك ضمان صادر #{cheque.cheque_number} إلى ورقة دفع" if action_type == ChequeActionType.CONVERT_GUARANTEE else f"إصدار شيك دفع #{cheque.cheque_number} للمورد {cheque.supplier.name if cheque.supplier else ''}",
-                "cost_center_id": None,
-            })
-            # الطرف الدائن: أوراق الدفع
-            entry_lines.append({
-                "account_id": pay_control.id,
-                "debit": Decimal("0.00"),
-                "credit": amount_func,
-                "description": f"إثبات التزام ورقة دفع شيك #{cheque.cheque_number}",
-                "cost_center_id": None,
-            })
+                advance_currency_code = params.get('advance_currency_code') or cheque.currency.code
+                advance_exchange_rate = Decimal(str(params.get('advance_exchange_rate') or cheque.original_exchange_rate or '1.000000'))
+                advance_foreign_amount = Decimal(str(params.get('advance_foreign_amount') or '0.00'))
+                advance_book_value_functional = Decimal(str(params.get('advance_book_value_functional') or amount_func))
+                pure_fx_diff = Decimal(str(params.get('pure_fx_diff') or '0.00'))
+                rounding_amount_func = Decimal(str(params.get('rounding_amount_func') or '0.00'))
+
+                # الطرف المدين: أمانات حجز العملاء بالعملة الأصلية للأمانات
+                entry_lines.append({
+                    "account_id": booking_advance_account_id,
+                    "debit": advance_book_value_functional,
+                    "credit": Decimal("0.00"),
+                    "currency": advance_currency_code,
+                    "exchange_rate": advance_exchange_rate,
+                    "foreign_debit": advance_foreign_amount,
+                    "foreign_credit": Decimal("0.00"),
+                    "description": f"رد جدية حجز عقاري بشيك صادر #{cheque.cheque_number}",
+                    "cost_center_id": None,
+                })
+                # الطرف الدائن: أوراق الدفع
+                entry_lines.append({
+                    "account_id": pay_control.id,
+                    "debit": Decimal("0.00"),
+                    "credit": amount_func,
+                    "currency": cheque.currency.code,
+                    "exchange_rate": cheque.original_exchange_rate,
+                    "foreign_debit": Decimal("0.00"),
+                    "foreign_credit": cheque.amount if not cheque.currency.is_functional else Decimal("0.00"),
+                    "description": f"إثبات التزام ورقة دفع شيك رد حجز #{cheque.cheque_number}",
+                    "cost_center_id": None,
+                })
+                # فروق أسعار الصرف وفروق التقريب
+                if pure_fx_diff > Decimal("0.00"):
+                    fx_loss = AccountRoleRegistry.get_account(AccountRoleNames.FX_REALIZED_LOSS) or ChartOfAccounts.objects.filter(code="54300").first()
+                    if fx_loss:
+                        entry_lines.append({
+                            "account_id": fx_loss.id,
+                            "debit": pure_fx_diff,
+                            "credit": Decimal("0.00"),
+                            "currency": "EGP",
+                            "exchange_rate": Decimal("1.000000"),
+                            "description": f"خسائر فروق عملة محققة عند إصدار شيك رد حجز #{cheque.cheque_number}",
+                            "cost_center_id": None,
+                        })
+                elif pure_fx_diff < Decimal("0.00"):
+                    fx_gain = AccountRoleRegistry.get_account(AccountRoleNames.FX_REALIZED_GAIN) or ChartOfAccounts.objects.filter(code="43100").first()
+                    if fx_gain:
+                        entry_lines.append({
+                            "account_id": fx_gain.id,
+                            "debit": Decimal("0.00"),
+                            "credit": abs(pure_fx_diff),
+                            "currency": "EGP",
+                            "exchange_rate": Decimal("1.000000"),
+                            "description": f"أرباح فروق عملة محققة عند إصدار شيك رد حجز #{cheque.cheque_number}",
+                            "cost_center_id": None,
+                        })
+                if rounding_amount_func > Decimal("0.00"):
+                    round_acc = AccountRoleRegistry.get_account(AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT) or ChartOfAccounts.objects.filter(code="54400").first()
+                    if round_acc:
+                        entry_lines.append({
+                            "account_id": round_acc.id,
+                            "debit": rounding_amount_func,
+                            "credit": Decimal("0.00"),
+                            "currency": "EGP",
+                            "exchange_rate": Decimal("1.000000"),
+                            "description": f"فروق تقريب كسور العملة عند تصفية الاسترداد بشيك #{cheque.cheque_number}",
+                            "cost_center_id": None,
+                        })
+            else:
+                if effective_purpose == ChequePurpose.ADVANCE_PAYMENT:
+                    advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.SUPPLIER_ADVANCE_ASSET)
+                    debit_acc_id = advance_acc.id
+                else:
+                    supp_acc = SubledgerAccountService.get_or_create_supplier_account(cheque.supplier, user=user)
+                    debit_acc_id = supp_acc.id if supp_acc else pay_control.id
+
+                # الطرف المدين: المورد / الدفعات المقدمة للموردين
+                entry_lines.append({
+                    "account_id": debit_acc_id,
+                    "debit": amount_func,
+                    "credit": Decimal("0.00"),
+                    "description": f"تحويل شيك ضمان صادر #{cheque.cheque_number} إلى ورقة دفع" if action_type == ChequeActionType.CONVERT_GUARANTEE else f"إصدار شيك دفع #{cheque.cheque_number} للمورد {cheque.supplier.name if cheque.supplier else ''}",
+                    "cost_center_id": None,
+                })
+                # الطرف الدائن: أوراق الدفع
+                entry_lines.append({
+                    "account_id": pay_control.id,
+                    "debit": Decimal("0.00"),
+                    "credit": amount_func,
+                    "description": f"إثبات التزام ورقة دفع شيك #{cheque.cheque_number}",
+                    "cost_center_id": None,
+                })
 
         # 7. صرف وخصم شيك بنكي (CLEAR)
         elif action_type == ChequeActionType.CLEAR:
@@ -936,8 +1039,10 @@ class ChequeAccountingService:
                     credit=credit,
                     description=line.get("description", ""),
                     cost_center=cc_code or None,
-                    currency=currency_code,
-                    exchange_rate=exchange_rate,
+                    currency=line.get("currency") or currency_code,
+                    exchange_rate=line.get("exchange_rate") or exchange_rate,
+                    foreign_debit=line.get("foreign_debit", Decimal("0.00")),
+                    foreign_credit=line.get("foreign_credit", Decimal("0.00")),
                 )
             )
 
@@ -1492,6 +1597,10 @@ class ChequeAccountingService:
     def clear_payable_cheque(cls, cheque_or_id=None, user=None, idempotency_key: Optional[str] = None, cheque=None, cheque_id=None, **params) -> Dict[str, Any]:
         c_id, ikey = cls._extract_cheque_id_and_key(cheque_or_id=cheque_or_id, cheque=cheque, cheque_id=cheque_id, idempotency_key=idempotency_key, prefix="CLR", **params)
         return cls.process_lifecycle_action(c_id, ChequeActionType.CLEAR, user, ikey, **params)
+
+    @classmethod
+    def clear_cheque(cls, cheque_or_id=None, user=None, idempotency_key: Optional[str] = None, cheque=None, cheque_id=None, **params) -> Dict[str, Any]:
+        return cls.clear_payable_cheque(cheque_or_id=cheque_or_id, user=user, idempotency_key=idempotency_key, cheque=cheque, cheque_id=cheque_id, **params)
 
     @classmethod
     def return_to_drawer(cls, cheque_or_id=None, user=None, idempotency_key: Optional[str] = None, cheque=None, cheque_id=None, **params) -> Dict[str, Any]:

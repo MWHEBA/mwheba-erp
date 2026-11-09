@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  {% load i18n humanize %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% trans "بوابة التحقق الرقمي اللحظي" %} — {{ booking.booking_number }}</title>
+  <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+  <style>
+    body {
+      background-color: var(--bs-tertiary-bg, #f8f9fa);
+      color: var(--bs-body-color);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .verification-card {
+      max-width: 680px;
+      width: 100%;
+      background-color: var(--bs-body-bg, #ffffff);
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.75rem;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+    .verification-header {
+      background-color: var(--bs-light);
+      border-bottom: 1px solid var(--bs-border-color);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .verification-body {
+      padding: 1.75rem;
+    }
+    .status-badge {
+      font-size: 0.95rem;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+    }
+    .info-table td, .info-table th {
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--bs-border-color-translucent);
+      font-size: 0.95rem;
+    }
+    .info-table th {
+      color: var(--bs-secondary-color);
+      font-weight: 500;
+      width: 38%;
+    }
+    .info-table td {
+      font-weight: 600;
+    }
+    .seal-box {
+      background-color: var(--bs-tertiary-bg);
+      border: 1px dashed var(--bs-border-color);
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      font-family: var(--bs-font-monospace);
+      font-size: 0.78rem;
+      word-break: break-all;
+      color: var(--bs-secondary-color);
+    }
+  </style>
+</head>
+<body>
+
+<div class="verification-card">
+  <div class="verification-header">
+    <div class="mb-2">
+      <i class="fas fa-shield-alt text-primary fs-1"></i>
+    </div>
+    <h4 class="fw-bold text-dark mb-1">{% trans "بوابة التوثيق والتحقق الرقمي المعتمد" %}</h4>
+    <div class="text-muted small">{% trans "شركة موهبة للاستثمار والتطوير العقاري — نظام الحوكمة المؤسسي" %}</div>
+  </div>
+
+  <div class="verification-body">
+    <!-- Verification Status Banner -->
+    <div class="text-center mb-4">
+      {% if booking.status == 'ACTIVE' %}
+        <span class="badge bg-success status-badge">
+          <i class="fas fa-check-circle me-1"></i>{% trans "استمارة حجز سارية ومعتمدة رسمياً" %}
+        </span>
+      {% elif booking.status == 'CONVERTED_TO_CONTRACT' %}
+        <span class="badge bg-primary status-badge">
+          <i class="fas fa-file-contract me-1"></i>{% trans "تم تحويل الحجز إلى تعاقد بيع رسمي" %}
+        </span>
+      {% elif booking.status == 'CANCELLED_PENDING_REFUND' %}
+        <span class="badge bg-warning text-dark status-badge">
+          <i class="fas fa-clock me-1"></i>{% trans "حجز ملغى — بانتظار صرف الاسترداد" %}
+        </span>
+      {% elif booking.status == 'EXPIRED_RELEASED' %}
+        <span class="badge bg-secondary status-badge">
+          <i class="fas fa-hourglass-end me-1"></i>{% trans "حجز منتهي الصلاحية وتم تحرير الوحدة" %}
+        </span>
+      {% else %}
+        <span class="badge bg-danger status-badge">
+          <i class="fas fa-ban me-1"></i>{{ booking.get_status_display }}
+        </span>
+      {% endif %}
+    </div>
+
+    {% if booking.status == 'CANCELLED' or booking.status == 'CANCELLED_PENDING_REFUND' or booking.status == 'FORFEITED' or booking.status == 'EXPIRED_RELEASED' %}
+    <div class="alert alert-danger py-2 small mb-4 text-center">
+      <i class="fas fa-exclamation-triangle me-1"></i>
+      <strong>{% trans "تنبيه رسمي:" %}</strong>
+      {% trans "استمارة الحجز هذه ملغاة ولا يعتد بها قانونياً ولا تخول حاملها أي حقوق عينية على الوحدة." %}
+    </div>
+    {% endif %}
+
+    <!-- Booking Data Table -->
+    <table class="table info-table mb-4">
+      <tbody>
+        <tr>
+          <th>{% trans "رقم استمارة الحجز" %}</th>
+          <td class="font-monospace text-primary">{{ booking.booking_number }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "كود الوحدة العقارية" %}</th>
+          <td class="font-monospace">{{ booking.unit.unit_code }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "اسم المشروع" %}</th>
+          <td>{{ booking.unit.project.name }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "العميل الحاجز" %}</th>
+          <td>{{ masked_name }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "تاريخ تحرير الحجز" %}</th>
+          <td>{{ booking.booking_date|date:"Y-m-d" }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "تاريخ انتهاء صلاحية الحجز" %}</th>
+          <td>{{ booking.expiry_date|date:"Y-m-d" }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "دفعة جدية الحجز" %}</th>
+          <td class="font-monospace">{{ booking.holding_deposit|floatformat:2|intcomma }} {{ booking.currency.code|default:"EGP" }}</td>
+        </tr>
+        <tr>
+          <th>{% trans "حالة تحصيل الأمانة" %}</th>
+          <td>
+            {% if booking.is_deposit_collected %}
+              <span class="text-success"><i class="fas fa-check-circle me-1"></i>{% trans "محصلة ومثبتة دفترياً" %}</span>
+            {% else %}
+              <span class="text-warning"><i class="fas fa-hourglass-half me-1"></i>{% trans "غير محصلة" %}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if booking.parking_slot_code %}
+        <tr>
+          <th>{% trans "بايكة الجراج الملحقة" %}</th>
+          <td class="font-monospace">{{ booking.parking_slot_code }}</td>
+        </tr>
+        {% endif %}
+        {% if booking.storage_locker_code %}
+        <tr>
+          <th>{% trans "المخزن السريع الملحق" %}</th>
+          <td class="font-monospace">{{ booking.storage_locker_code }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    <!-- Digital Seal -->
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-muted fw-bold">{% trans "بصمة التوثيق الرقمي المعتمدة (SHA-256 Seal)" %}</small>
+        <small class="font-monospace text-muted">{{ verification_token }}</small>
+      </div>
+      <div class="seal-box text-center">
+        {{ verification_hash }}
+      </div>
+    </div>
+
+    <div class="text-center text-muted small mt-4">
+      <i class="fas fa-history me-1"></i>{% trans "تم فحص وتأكيد الوثيقة لحظياً بتاريخ:" %} {{ verified_at|date:"Y-m-d H:i:s" }}
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

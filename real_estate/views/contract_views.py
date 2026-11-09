@@ -14,11 +14,13 @@ from django.utils import timezone
 
 from users.mixins import SmartPermissionRequiredMixin
 from real_estate.models import (
-    PropertyContract, PropertyUnit, RealEstateProject, ContractCoOwner, RealEstateBroker
+    PropertyContract, PropertyUnit, RealEstateProject, ContractCoOwner, RealEstateBroker, UnitBooking
 )
 from real_estate.services.clearance_service import ContractDebtClearanceService
+from real_estate.services.booking_service import UnitBookingService, BookingValidationError
 from customer.models import Customer
 from financial.models.currency import Currency
+from financial.models.chart_of_accounts import ChartOfAccounts
 
 
 class ContractListView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
@@ -175,14 +177,34 @@ class ContractDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
 
 class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """
-    إبرام عقد بيع رسمي جديد
+    إبرام عقد بيع رسمي جديد أو تحويل استمارة حجز معتمدة إلى تعاقد نهائي
     """
     permission_required = 'real_estate.add_propertycontract'
 
     def get(self, request):
+        booking_id = request.GET.get('booking_id')
+        selected_booking = None
+        if booking_id:
+            selected_booking = get_object_or_404(
+                UnitBooking.objects.select_related('customer', 'unit__project', 'currency'),
+                pk=booking_id
+            )
+
         customers = Customer.objects.filter(is_active=True).order_by('name')
-        available_units = PropertyUnit.objects.filter(is_active=True, status='AVAILABLE').select_related('project')
+        if selected_booking:
+            available_units = PropertyUnit.objects.filter(is_active=True).filter(
+                Q(status=PropertyUnit.UnitStatus.AVAILABLE) | Q(id=selected_booking.unit_id)
+            ).select_related('project')
+        else:
+            available_units = PropertyUnit.objects.filter(is_active=True, status=PropertyUnit.UnitStatus.AVAILABLE).select_related('project')
+
         currencies = Currency.objects.all()
+        payment_accounts = ChartOfAccounts.objects.filter(
+            is_active=True,
+            is_leaf=True,
+            account_type__category='asset',
+            code__startswith='111'
+        )
 
         breadcrumb_items = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
@@ -195,6 +217,8 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             'customers': customers,
             'available_units': available_units,
             'currencies': currencies,
+            'payment_accounts': payment_accounts,
+            'selected_booking': selected_booking,
             'breadcrumb_items': breadcrumb_items,
             'active_menu': 'real_estate',
             'active_submenu': 'contracts',
@@ -202,6 +226,7 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
         return render(request, 'real_estate/contract_form.html', context)
 
     def post(self, request):
+        booking_id = request.POST.get('booking_id')
         customer_id = request.POST.get('customer')
         unit_id = request.POST.get('unit')
         contract_price = Decimal(str(request.POST.get('final_contract_price', '0.00') or '0.00'))
@@ -209,14 +234,57 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
         contract_date = request.POST.get('contract_date') or timezone.localdate()
         delivery_date = request.POST.get('delivery_date') or None
         currency_id = request.POST.get('currency') or None
+        payment_account_id = request.POST.get('payment_account')
+        contract_tax_structure = request.POST.get('contract_tax_structure') or PropertyContract.ContractTaxStructure.UNIFIED_SPA
+        primary_owner_share_raw = request.POST.get('primary_owner_share')
+        primary_owner_share = Decimal(str(primary_owner_share_raw)) if primary_owner_share_raw else None
 
+        currency = Currency.objects.filter(pk=currency_id).first() if currency_id else None
+        payment_account = ChartOfAccounts.objects.filter(pk=payment_account_id).first() if payment_account_id else None
+
+        # مسار تحويل استمارة الحجز إلى تعاقد عبر محرك الخدمات المركزي
+        if booking_id:
+            booking = get_object_or_404(
+                UnitBooking.objects.select_related('customer', 'unit__project'),
+                pk=booking_id
+            )
+            if booking.status != UnitBooking.BookingStatus.ACTIVE:
+                messages.error(request, _('لا يمكن تحويل استمارة حجز غير نشطة إلى عقد (الحالة الحالية: %(st)s).') % {'st': booking.get_status_display()})
+                return redirect('real_estate:booking_detail', pk=booking.pk)
+
+            if not (booking.is_confirmed_audit or booking.is_legacy_pre_audit or booking.audit_bypassed):
+                messages.error(request, _('لا يمكن تحويل الحجز لعقد: الحجز لم يحصل على الاعتماد المالي والرقابي الثنائي، ولم يتم استثناؤه إدارياً.'))
+                return redirect('real_estate:booking_detail', pk=booking.pk)
+
+            try:
+                contract = UnitBookingService.convert_booking_to_contract(
+                    booking_id=booking.id,
+                    user=request.user,
+                    final_contract_price=contract_price if contract_price > Decimal('0.00') else None,
+                    down_payment=down_payment if down_payment > Decimal('0.00') else None,
+                    contract_date=contract_date,
+                    delivery_date=delivery_date,
+                    currency=currency,
+                    payment_account=payment_account,
+                    contract_tax_structure=contract_tax_structure,
+                    primary_owner_share=primary_owner_share
+                )
+                messages.success(request, _('تم تحويل الحجز وإبرام العقد العقاري بنجاح برقم: %(num)s') % {'num': contract.contract_number})
+                return redirect('real_estate:contract_detail', pk=contract.pk)
+            except BookingValidationError as b_err:
+                messages.error(request, str(b_err))
+                return redirect('real_estate:booking_detail', pk=booking.pk)
+            except Exception as err:
+                messages.error(request, _('حدث خطأ أثناء تحويل الحجز: %(err)s') % {'err': str(err)})
+                return redirect('real_estate:booking_detail', pk=booking.pk)
+
+        # مسار إبرام عقد جديد مباشر بدون حجز مسبق
         if not customer_id or not unit_id or contract_price <= Decimal('0.00'):
             messages.error(request, _('يرجى اختيار العميل والوحدة وتحديد القيمة التعاقدية الصحيحة.'))
             return redirect('real_estate:contract_create')
 
         customer = get_object_or_404(Customer, pk=customer_id)
         unit = get_object_or_404(PropertyUnit, pk=unit_id)
-        currency = Currency.objects.filter(pk=currency_id).first() if currency_id else None
 
         if unit.status != PropertyUnit.UnitStatus.AVAILABLE:
             messages.error(request, _('الوحدة المختارة غير متاحة للتعاقد حالياً.'))
@@ -235,7 +303,9 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             delivery_date=delivery_date,
             final_contract_price=contract_price,
             down_payment=down_payment,
-            currency=currency,
+            currency=currency or getattr(unit.project, 'currency', None),
+            contract_tax_structure=contract_tax_structure,
+            primary_owner_share=primary_owner_share or Decimal('100.00'),
             created_by=request.user
         )
 

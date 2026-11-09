@@ -68,6 +68,8 @@ from real_estate.models import (
     InfrastructureApportionmentLine,
     AsBuiltSurveyAdjustment,
     ResaleContingentRefund,
+    BookingCancellationSettlement,
+    RefundDisbursementPayment,
 )
 
 
@@ -102,9 +104,26 @@ class PropertyUnitAdmin(admin.ModelAdmin):
 
 @admin.register(UnitBooking)
 class UnitBookingAdmin(admin.ModelAdmin):
-    list_display = ('booking_number', 'unit', 'customer', 'status', 'booking_date', 'expiry_date', 'holding_deposit')
-    list_filter = ('status', 'booking_date')
+    list_display = ('booking_number', 'unit', 'customer', 'status', 'booking_date', 'expiry_date', 'holding_deposit', 'is_reviewed_sales', 'is_confirmed_audit')
+    list_filter = ('status', 'is_reviewed_sales', 'is_confirmed_audit', 'booking_date')
     search_fields = ('booking_number', 'customer__name', 'unit__unit_code')
+    readonly_fields = ('booking_number', 'active_cancellation_settlement', 'verification_uuid')
+
+
+@admin.register(BookingCancellationSettlement)
+class BookingCancellationSettlementAdmin(admin.ModelAdmin):
+    list_display = ('settlement_number', 'booking', 'status', 'net_refundable_amount', 'committed_amount', 'cleared_amount', 'remaining_disbursable_amount', 'settlement_date')
+    list_filter = ('status', 'is_active', 'settlement_date')
+    search_fields = ('settlement_number', 'booking__booking_number', 'booking__customer__name')
+    readonly_fields = ('settlement_number', 'committed_amount', 'cleared_amount', 'remaining_disbursable_amount')
+
+
+@admin.register(RefundDisbursementPayment)
+class RefundDisbursementPaymentAdmin(admin.ModelAdmin):
+    list_display = ('payment_number', 'settlement', 'method', 'status', 'amount', 'payout_currency', 'payment_date')
+    list_filter = ('method', 'status', 'payment_date')
+    search_fields = ('payment_number', 'settlement__settlement_number', 'idempotency_key')
+    readonly_fields = ('payment_number', 'functional_amount', 'settlement_currency_equivalent', 'realized_fx_gain_loss', 'rounding_difference')
 
 
 class ContractCoOwnerInline(admin.TabularInline):

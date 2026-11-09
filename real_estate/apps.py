@@ -7,3 +7,6 @@ class RealEstateConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'real_estate'
     verbose_name = _('إدارة التطوير العقاري')
+
+    def ready(self):
+        import real_estate.receivers

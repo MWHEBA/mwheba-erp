@@ -1863,6 +1863,7 @@ class WhatsAppMessageLog(models.Model):
     """
     STATUS_CHOICES = [
         ('PENDING', _('قيد الإرسال')),
+        ('IN_FLIGHT', _('جارٍ المعالجة والإرسال ⏳')),
         ('SENT', _('تم الإرسال لـ Meta')),
         ('DELIVERED', _('تم التسليم للهاتف')),
         ('READ', _('تمت القراءة 👁️')),
@@ -1874,6 +1875,7 @@ class WhatsAppMessageLog(models.Model):
     # مصفوفة التدرج الآمن لمنع ارتداد الحالات للخلف
     STATUS_RANK = {
         'PENDING': 0,
+        'IN_FLIGHT': 0,
         'SENT': 1,
         'DELIVERED': 2,
         'READ': 3,
@@ -1978,6 +1980,7 @@ class WhatsAppMessageLog(models.Model):
 
     # قيد الـ Idempotency الصارم لمنع تكرار أي رسالة في الداتابيز
     message_id = models.CharField(_("معرف الرسالة (wamid)"), max_length=150, blank=True, null=True, unique=True, db_index=True)
+    event_idempotency_key = models.CharField(_("مفتاح منع تكرار الحدث"), max_length=150, blank=True, null=True, unique=True, db_index=True)
     status = models.CharField(_("حالة الرسالة"), max_length=20, choices=STATUS_CHOICES, default='PENDING', db_index=True)
 
     has_media = models.BooleanField(_("يحتوي على مرفق PDF"), default=False)

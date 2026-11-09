@@ -97,20 +97,29 @@
           <div class="card-body p-3">
             {% if booking.status == 'ACTIVE' %}
             <div class="d-grid gap-2">
+              {% if booking.is_confirmed_audit or booking.is_legacy_pre_audit or booking.audit_bypassed %}
               <button type="button" class="btn btn-success fw-bold py-2" data-bs-toggle="modal" data-bs-target="#convertBookingModal">
                 <i class="fas fa-file-signature me-1"></i>{% trans "تحويل الحجز إلى عقد بيع رسمي" %}
               </button>
+              {% else %}
+              <div class="alert alert-warning py-2 small mb-2">
+                <i class="fas fa-shield-alt me-1"></i>{% trans "الحجز بانتظار الاعتماد المالي والرقابي الثنائي قبل التحويل لعقد." %}
+              </div>
+              <button type="button" class="btn btn-secondary py-2 disabled" disabled title="{% trans 'يتطلب اعتماد رقابي' %}">
+                <i class="fas fa-lock me-1"></i>{% trans "تحويل الحجز (معلق رقابياً)" %}
+              </button>
+              {% endif %}
               <button type="button" class="btn btn-outline-danger py-2" data-bs-toggle="modal" data-bs-target="#cancelBookingModal">
                 <i class="fas fa-times me-1"></i>{% trans "إلغاء الحجز / تحرير الوحدة" %}
               </button>
             </div>
-            {% elif booking.status == 'CANCELLED_PENDING_REFUND' %}
+            {% elif booking.status == 'CANCELLED_PENDING_REFUND' or settlement and settlement.remaining_disbursable_amount > 0 %}
             <div class="d-grid gap-2">
               <div class="alert alert-warning py-2 small mb-2">
                 <i class="fas fa-info-circle me-1"></i>{% trans "تم إلغاء الحجز وبانتظار صرف سند استرداد الأمانة للعميل." %}
               </div>
               <button type="button" class="btn btn-primary fw-bold py-2" data-bs-toggle="modal" data-bs-target="#refundBookingModal">
-                <i class="fas fa-hand-holding-usd me-1"></i>{% trans "إثبات صرف استرداد الأمانة" %}
+                <i class="fas fa-hand-holding-usd me-1"></i>{% trans "تسوية وصرف الاسترداد" %}
               </button>
             </div>
             {% elif booking.status == 'CONVERTED_TO_CONTRACT' %}
@@ -124,6 +133,35 @@
               <div>{% trans "الحجز مغلق / مؤرشف" %}</div>
             </div>
             {% endif %}
+
+            {% if settlement %}
+            <div class="border rounded p-3 bg-light mt-3 small">
+              <div class="fw-bold text-dark border-bottom pb-2 mb-2 d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-receipt text-primary me-1"></i>{% trans "قرار التسوية المالية" %}</span>
+                <span class="badge bg-secondary">{{ settlement.get_status_display }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{% trans "رقم التسوية:" %}</span>
+                <span class="font-monospace fw-bold">{{ settlement.settlement_number }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{% trans "صافي المستحق:" %}</span>
+                <span class="font-monospace fw-bold">{{ settlement.net_refundable_amount }} {{ settlement.currency.code }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{% trans "المحجوز بأدوات صرف:" %}</span>
+                <span class="font-monospace">{{ settlement.committed_amount }} {{ settlement.currency.code }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{% trans "المنصرف والمسيل:" %}</span>
+                <span class="font-monospace text-success">{{ settlement.cleared_amount }} {{ settlement.currency.code }}</span>
+              </div>
+              <div class="d-flex justify-content-between pt-1 border-top mt-1">
+                <span class="fw-bold text-dark">{% trans "المتبقي المتاح:" %}</span>
+                <span class="font-monospace fw-bold text-primary">{{ settlement.remaining_disbursable_amount }} {{ settlement.currency.code }}</span>
+              </div>
+            </div>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -135,4 +173,90 @@
 {% include "real_estate/modals/cancel_booking_modal.html" %}
 {% include "real_estate/modals/refund_booking_modal.html" %}
 {% include "real_estate/modals/convert_booking_modal.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Modal Select2 RTL configuration
+  if (typeof $ !== 'undefined' && $.fn.select2) {
+    $('#convertBookingModal').on('shown.bs.modal', function () {
+      $(this).find('.select2-modal').select2({
+        dropdownParent: $('#convertBookingModal'),
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%'
+      });
+    });
+
+    $('#refundBookingModal').on('shown.bs.modal', function () {
+      $(this).find('.select2-modal').select2({
+        dropdownParent: $('#refundBookingModal'),
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%'
+      });
+    });
+  }
+
+  // Generic AJAX modal submit helper with safe fallback
+  function handleFormAjax(formId, modalId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+      if (!form.action || form.action.indexOf('/api/') === -1) {
+        return; // Allow standard POST submission
+      }
+      e.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (submitBtn) submitBtn.disabled = true;
+
+      const formData = new FormData(form);
+      const dataObj = {};
+      formData.forEach((value, key) => { dataObj[key] = value; });
+
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]') ? form.querySelector('[name=csrfmiddlewaretoken]').value : ''
+        },
+        body: JSON.stringify(dataObj)
+      })
+      .then(response => response.json().then(data => ({ status: response.status, body: data })))
+      .then(res => {
+        if (res.status >= 200 && res.status < 300 && res.body.success) {
+          const modalEl = document.getElementById(modalId);
+          if (modalEl && typeof bootstrap !== 'undefined') {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+          }
+          if (window.showNotification) {
+            window.showNotification(res.body.message || '{% trans "تمت العملية بنجاح" %}', 'success');
+          }
+          setTimeout(function() {
+            window.location.reload();
+          }, 1500);
+        } else {
+          if (submitBtn) submitBtn.disabled = false;
+          const msg = (res.body && res.body.message) ? res.body.message : '{% trans "حدث خطأ أثناء معالجة الطلب." %}';
+          if (window.showNotification) {
+            window.showNotification(msg, 'error');
+          } else {
+            alert(msg);
+          }
+        }
+      })
+      .catch(err => {
+        // Fallback to normal form submit if fetch fails
+        form.submit();
+      });
+    });
+  }
+
+  handleFormAjax('cancel-booking-form', 'cancelBookingModal');
+  handleFormAjax('refund-booking-form', 'refundBookingModal');
+});
+</script>
 {% endblock %}

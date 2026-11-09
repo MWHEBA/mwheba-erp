@@ -1148,6 +1148,7 @@ def test_18_booking_conversion_to_foreign_currency_converts_contract_down_paymen
         currency=s['currency'],  # EGP
         exchange_rate=Decimal("1.000000"),
         is_deposit_collected=True,
+        is_confirmed_audit=True,
         created_by=s['user']
     )
     unit.current_booking = booking
@@ -1418,6 +1419,8 @@ def test_22_booking_conversion_to_contract_transfers_holding_deposit_to_contract
         payment_account=s['bank_account']
     )
     assert booking.is_deposit_collected is True
+    booking.is_confirmed_audit = True
+    booking.save()
 
     # تحويل الحجز إلى عقد رسمي
     contract = UnitBookingService.convert_booking_to_contract(

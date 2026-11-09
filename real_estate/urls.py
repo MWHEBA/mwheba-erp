@@ -43,6 +43,7 @@ urlpatterns = [
     path('bookings/', booking_views.BookingListView.as_view(), name='booking_list'),
     path('bookings/<int:pk>/', booking_views.BookingDetailView.as_view(), name='booking_detail'),
     path('bookings/<int:pk>/print/', booking_views.BookingOfficialPrintView.as_view(), name='booking_print'),
+    path('verify-booking/<uuid:token>/', booking_views.BookingPublicVerificationView.as_view(), name='booking_public_verify'),
 
     # Contracts (عقود البيع الرسمية)
     path('contracts/', contract_views.ContractListView.as_view(), name='contract_list'),
@@ -145,11 +146,14 @@ urlpatterns = [
     path('api/projects/<int:project_id>/pricing/preview/', pricing_views.ApiPreviewPricingView.as_view(), name='api_preview_pricing'),
     path('api/projects/<int:project_id>/pricing/apply/', pricing_views.ApiApplyBulkPricingView.as_view(), name='api_apply_bulk_pricing'),
 
-    # Real Estate Analytics & Financial Reports (Wave 6 - Phase 6.1)
+    # Real Estate Analytics & Financial Reports (Wave 6 - Phase 6.1 & Track 4 Tower Sales Brief)
     path('reports/dual-subledger/', report_views.DualSubledgerReportView.as_view(), name='report_dual_subledger'),
     path('reports/cash-flow/', report_views.CashFlowLiquidityReportView.as_view(), name='report_cash_flow'),
     path('reports/wip-revenue/', report_views.ProjectWIPRevenueReportView.as_view(), name='report_wip_revenue'),
     path('reports/broker-commissions/', report_views.BrokerCommissionReportView.as_view(), name='report_broker_commissions'),
+    path('reports/tower-sales-brief/', report_views.TowerSalesBriefReportView.as_view(), name='report_tower_sales_brief'),
+    path('reports/tower-sales-brief/print/', report_views.TowerSalesBriefPrintView.as_view(), name='report_tower_sales_brief_print'),
+    path('reports/tower-sales-brief/export/', report_views.TowerSalesBriefExportView.as_view(), name='report_tower_sales_brief_export'),
 
     # Finishing & Variations (Track 2: Finishing Packages & Specs Directory)
     path('finishing/orders/', finishing_views.FinishingOrderListView.as_view(), name='finishing_order_list'),

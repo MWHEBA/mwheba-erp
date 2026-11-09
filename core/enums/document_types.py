@@ -58,6 +58,8 @@ class DocumentType(models.TextChoices):
     INFRASTRUCTURE_APPORTIONMENT = "INFRASTRUCTURE_APPORTIONMENT", _("محضر توزيع تكاليف بنية تحتية")
     SURVEY_ADJUSTMENT = "SURVEY_ADJUSTMENT", _("ملحق تسوية رفع مساحي فعلي")
     RESALE_REFUND = "RESALE_REFUND", _("سند تسوية مستحقات إعادة الطرح")
+    BOOKING_REFUND_PAYMENT = "BOOKING_REFUND_PAYMENT", _("سند صرف استرداد حجز عقاري")
+    BOOKING_CANCELLATION_SETTLEMENT = "BOOKING_CANCELLATION_SETTLEMENT", _("قرار تسوية إلغاء حجز عقاري")
 
 
 # Aliases for convenience

@@ -185,6 +185,8 @@ class RealEstatePhase2ConcurrencyAndMatrixTests(TestCase):
             expiry_date=expiry,
             user=self.user,
         )
+        booking.is_confirmed_audit = True
+        booking.save()
 
         contract = UnitBookingService.convert_booking_to_contract(
             booking_id=booking.id,
@@ -292,7 +294,7 @@ class RealEstatePhase2ConcurrencyAndMatrixTests(TestCase):
 
         booking_expired.refresh_from_db()
         self.unit.refresh_from_db()
-        self.assertEqual(booking_expired.status, UnitBooking.BookingStatus.EXPIRED_RELEASED)
+        self.assertEqual(booking_expired.status, UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND)
         self.assertEqual(self.unit.status, PropertyUnit.UnitStatus.AVAILABLE)
         self.assertIsNone(self.unit.current_booking)
 
@@ -305,6 +307,8 @@ class RealEstatePhase2ConcurrencyAndMatrixTests(TestCase):
             booking_date=today,
             user=self.user,
         )
+        booking_race.is_confirmed_audit = True
+        booking_race.save()
 
         # تحويل الوحدة بالتزامن لعقد
         UnitBookingService.convert_booking_to_contract(

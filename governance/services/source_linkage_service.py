@@ -99,6 +99,8 @@ class SourceLinkageService:
         'real_estate.SharedInfrastructureApportionment',
         'real_estate.AsBuiltSurveyAdjustment',
         'real_estate.ResaleContingentRefund',
+        'real_estate.BookingCancellationSettlement',
+        'real_estate.RefundDisbursementPayment',
     }
     
     @classmethod

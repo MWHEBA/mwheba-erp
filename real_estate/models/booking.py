@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import uuid
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
@@ -83,6 +84,208 @@ class UnitBooking(models.Model):
         default=False,
         verbose_name=_('تم إثبات تحصيل جدية الحجز')
     )
+    active_cancellation_settlement = models.ForeignKey(
+        'real_estate.BookingCancellationSettlement',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='+',
+        verbose_name=_('قرار تسوية الإلغاء الساري حالياً')
+    )
+
+    # منظومة الاعتماد المالي والرقابي الثنائي (Dual Financial & Audit Control)
+    is_reviewed_sales = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('تمت مراجعة المبيعات والحسابات')
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='bookings_reviewed',
+        verbose_name=_('المراجع للمبيعات')
+    )
+    reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('تاريخ مراجعة المبيعات')
+    )
+
+    is_confirmed_audit = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('تم الاعتماد المالي والرقابي')
+    )
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='bookings_confirmed',
+        verbose_name=_('المعتمد رقابياً')
+    )
+    confirmed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_('تاريخ الاعتماد الرقابي')
+    )
+
+    audit_bypassed = models.BooleanField(
+        default=False,
+        verbose_name=_('تم التجاوز الإداري الموثق')
+    )
+    audit_bypass_reason = models.TextField(
+        blank=True,
+        default='',
+        verbose_name=_('سبب التجاوز الإداري')
+    )
+    audit_bypassed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='bookings_audit_bypassed',
+        verbose_name=_('المسؤول المتجاوز إدارياً')
+    )
+
+    is_legacy_pre_audit = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name=_('حجز سابق لمنظومة الاعتماد الثنائي')
+    )
+
+    # باقات التشطيب والملحقات (Finishing Packages & Accessories)
+    finishing_package = models.ForeignKey(
+        'real_estate.FinishingPackageTemplate',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='bookings',
+        verbose_name=_('باقة التشطيب')
+    )
+    finishing_meter_rate = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر متر التشطيب')
+    )
+    total_finishing_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('إجمالي مبلغ التشطيب')
+    )
+    utilities_deposit_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('أمانات رسوم المرافق')
+    )
+
+    parking_slot_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name=_('كود بايكة الجراج')
+    )
+    parking_slot_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر الجراج')
+    )
+    storage_locker_code = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name=_('كود المخزن السريع')
+    )
+    storage_locker_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('سعر المخزن')
+    )
+
+    # هيكلة الشراكة وفريق البيع (Landowner Partnership & Sales Attribution)
+    partner = models.ForeignKey(
+        'real_estate.LandownerPartnership',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='bookings',
+        verbose_name=_('شريك الأرض')
+    )
+    company_share_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('100.00'),
+        verbose_name=_('حصة الشركة (%)')
+    )
+    partner_share_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('حصة الشريك (%)')
+    )
+
+    sales_channel = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        verbose_name=_('قناة البيع')
+    )
+    marketing_lead_source = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name=_('مصدر الحملة التسويقية')
+    )
+    call_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='bookings_as_call_rep',
+        verbose_name=_('مسئول الاتصال')
+    )
+    visit_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='bookings_as_visit_rep',
+        verbose_name=_('مسئول المقابلة')
+    )
+    site_specialist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='bookings_as_site_rep',
+        verbose_name=_('مسئول المعاينة/الموقع')
+    )
+    broker = models.ForeignKey(
+        'real_estate.RealEstateBroker',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='bookings',
+        verbose_name=_('الوسيط العقاري')
+    )
+
+    # المعرف التشفيري العام للتحقق الحي عبر QR Code
+    verification_uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        db_index=True,
+        verbose_name=_('المعرف التشفيري للتحقق الحي')
+    )
     notes = models.TextField(
         blank=True,
         verbose_name=_('ملاحظات وشروط الحجز')
@@ -122,6 +325,64 @@ class UnitBooking(models.Model):
             raise ValidationError(
                 _("لا يمكن حجز هذه الوحدة نظراً لأنها مخصصة لمالك الأرض ضمن اتفاقية المشاركة (LANDOWNER_ALLOCATED).")
             )
+
+        if not self.is_deposit_collected and self.status == self.BookingStatus.ACTIVE and self.customer_id:
+            project_id = self.unit.project_id if self.unit else None
+            unpaid_count = UnitBooking.objects.filter(
+                customer_id=self.customer_id,
+                unit__project_id=project_id,
+                is_deposit_collected=False,
+                status=self.BookingStatus.ACTIVE
+            ).exclude(pk=self.pk).count()
+            if unpaid_count >= 2:
+                raise ValidationError(_("لا يمكن للعميل حجز أكثر من وحدتين دون سداد جدية الحجز لحماية مخزون المشروع."))
+
+        if (self.company_share_percentage + self.partner_share_percentage) != Decimal('100.00'):
+            raise ValidationError(_("مجموع حصة الشركة وحصة الشريك يجب أن يساوي 100.00% بالضبط."))
+
+        if self.active_cancellation_settlement_id:
+            if self.active_cancellation_settlement.booking_id != self.id:
+                raise ValidationError(_("مؤشر التسوية النشطة يشير إلى قرار تسوية لا ينتمي لهذا الحجز."))
+            if not self.active_cancellation_settlement.is_active:
+                raise ValidationError(_("لا يمكن تعيين قرار تسوية مؤرشف أو غير نشط كمؤشر سارٍ للحجز."))
+
+    def save(self, *args, **kwargs):
+        force_audit_update = kwargs.pop('force_audit_update', False)
+
+        if not self.booking_number:
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.booking_number = SequenceService.get_next_number(
+                document_type=DocumentType.UNIT_BOOKING,
+                date=self.booking_date,
+                user=self.created_by
+            )
+        if not self.verification_uuid:
+            self.verification_uuid = uuid.uuid4()
+
+        self.full_clean()
+
+        if self.pk:
+            persisted = UnitBooking.objects.filter(pk=self.pk).first()
+            if persisted and persisted.is_confirmed_audit and not force_audit_update:
+                ALLOWED_TRANSITION_FIELDS = {
+                    'status', 'status_version', 'notes', 'updated_at',
+                    'active_cancellation_settlement', 'active_cancellation_settlement_id'
+                }
+                changed_fields = []
+                for field in self._meta.fields:
+                    f_name = field.name
+                    if f_name not in ALLOWED_TRANSITION_FIELDS:
+                        if getattr(persisted, f_name) != getattr(self, f_name):
+                            changed_fields.append(f_name)
+                if changed_fields:
+                    raise ValidationError(
+                        _("حظر تعديل الحجز المعتمد رقابياً: الحقول التالية مجمدة ولا تقبل التعديل: %(fields)s") % {
+                            'fields': ', '.join(changed_fields)
+                        }
+                    )
+
+        super().save(*args, **kwargs)
 
     @property
     def is_expired(self) -> bool:

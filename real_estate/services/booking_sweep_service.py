@@ -5,6 +5,7 @@ UnitBookingSweepService - خدمة كنس الحجوزات المنتهية وت
 """
 import logging
 from datetime import date
+from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from real_estate.models.unit import PropertyUnit
@@ -54,7 +55,10 @@ class UnitBookingSweepService:
                     and locked_unit.status == PropertyUnit.UnitStatus.RESERVED
                     and locked_unit.current_booking_id == locked_booking.id
                 ):
-                    locked_booking.status = UnitBooking.BookingStatus.EXPIRED_RELEASED
+                    if locked_booking.holding_deposit > Decimal('0.00') and locked_booking.is_deposit_collected:
+                        locked_booking.status = UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND
+                    else:
+                        locked_booking.status = UnitBooking.BookingStatus.EXPIRED_RELEASED
                     locked_booking.save(update_fields=['status', 'updated_at'])
 
                     locked_unit.status = PropertyUnit.UnitStatus.AVAILABLE

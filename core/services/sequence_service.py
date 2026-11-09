@@ -68,6 +68,8 @@ class SequenceService:
         DocumentType.INFRASTRUCTURE_APPORTIONMENT: "INF",
         DocumentType.SURVEY_ADJUSTMENT: "SRV",
         DocumentType.RESALE_REFUND: "RRF",
+        DocumentType.BOOKING_REFUND_PAYMENT: "RFND",
+        DocumentType.BOOKING_CANCELLATION_SETTLEMENT: "CSETL",
     }
 
     # خريطة الموديلات والحقول لتحديد الـ Seed الأولي للبيانات القديمة
@@ -107,6 +109,8 @@ class SequenceService:
         DocumentType.INFRASTRUCTURE_APPORTIONMENT: [("real_estate.SharedInfrastructureApportionment", "apportionment_number")],
         DocumentType.SURVEY_ADJUSTMENT: [("real_estate.AsBuiltSurveyAdjustment", "adjustment_number")],
         DocumentType.RESALE_REFUND: [("real_estate.ResaleContingentRefund", "refund_number")],
+        DocumentType.BOOKING_REFUND_PAYMENT: [("real_estate.RefundDisbursementPayment", "payment_number")],
+        DocumentType.BOOKING_CANCELLATION_SETTLEMENT: [("real_estate.BookingCancellationSettlement", "settlement_number")],
     }
 
     @classmethod

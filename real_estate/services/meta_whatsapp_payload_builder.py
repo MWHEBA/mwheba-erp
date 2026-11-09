@@ -21,6 +21,7 @@ class MetaWhatsAppPayloadBuilder:
     TEMPLATE_INSTALLMENT_REMINDER = "re_installment_reminder"
     TEMPLATE_BOOKING_CONFIRMATION = "re_booking_confirmation"
     TEMPLATE_LEGAL_NOTICE_DEMAND = "re_legal_notice_demand"
+    TEMPLATE_REFUND_CHEQUE_ISSUED = "re_refund_cheque_issued"
 
     @classmethod
     def normalize_phone_number(cls, raw_phone: str) -> str:
@@ -203,6 +204,58 @@ class MetaWhatsAppPayloadBuilder:
             "type": "template",
             "template": {
                 "name": cls.TEMPLATE_LEGAL_NOTICE_DEMAND,
+                "language": {"code": language_code},
+                "components": [
+                    {
+                        "type": "body",
+                        "parameters": body_parameters
+                    }
+                ]
+            }
+        }
+
+    @classmethod
+    def build_refund_cheque_payload(
+        cls,
+        recipient_phone: str,
+        customer_name: str,
+        unit_code: str,
+        cheque_number: str,
+        amount: Decimal,
+        due_date: str,
+        bank_name: str,
+        currency_code: str = "EGP",
+        language_code: str = "ar"
+    ) -> Dict[str, Any]:
+        """
+        قالب: re_refund_cheque_issued
+        المتغيرات المعتمدة:
+        {{1}}: اسم العميل
+        {{2}}: كود الوحدة
+        {{3}}: رقم الشيك
+        {{4}}: مبلغ الشيك
+        {{5}}: تاريخ الاستحقاق
+        {{6}}: اسم البنك المسحوب عليه
+        """
+        phone = cls.normalize_phone_number(recipient_phone)
+        formatted_amount = f"{Decimal(str(amount)):,.2f} {currency_code}"
+
+        body_parameters = [
+            {"type": "text", "text": cls.clean_text_parameter(customer_name, 60)},
+            {"type": "text", "text": cls.clean_text_parameter(unit_code, 40)},
+            {"type": "text", "text": cls.clean_text_parameter(cheque_number, 50)},
+            {"type": "text", "text": formatted_amount},
+            {"type": "text", "text": cls.clean_text_parameter(due_date, 30)},
+            {"type": "text", "text": cls.clean_text_parameter(bank_name, 60)},
+        ]
+
+        return {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone,
+            "type": "template",
+            "template": {
+                "name": cls.TEMPLATE_REFUND_CHEQUE_ISSUED,
                 "language": {"code": language_code},
                 "components": [
                     {

@@ -15,6 +15,7 @@ class ChequePurpose(models.TextChoices):
     INVOICE_SETTLEMENT = "INVOICE_SETTLEMENT", _("سداد فاتورة قائمة")
     ADVANCE_PAYMENT = "ADVANCE_PAYMENT", _("دفعة مقدمة على الحساب")
     SECURITY_GUARANTEE = "SECURITY_GUARANTEE", _("شيك ضمان / تأمين حسن تنفيذ")
+    CUSTOMER_REFUND = "CUSTOMER_REFUND", _("صرف استرداد حجز عقاري")
 
 
 class ChequeStatus(models.TextChoices):

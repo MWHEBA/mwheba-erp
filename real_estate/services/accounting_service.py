@@ -5,7 +5,7 @@ RealEstateAccountingService - محرك المعالجة المحاسبية ال�
 """
 
 import logging
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Optional
 
 from django.db import transaction
@@ -439,6 +439,340 @@ class RealEstateAccountingService:
             reference=reference or f"FORF-{booking.booking_number}",
             date=timezone.localdate()
         )
+
+    @classmethod
+    def _verify_idempotency_fingerprint(
+        cls,
+        payment,
+        settlement_id: int,
+        requested_amount: Decimal,
+        payout_currency,
+        method: str,
+        payment_account,
+        cheque_data: dict = None
+    ) -> bool:
+        """مطابقة البصمة الشاملة للمعلمات المالية والتشغيلية لمنع التكرار"""
+        if payment.settlement_id != settlement_id:
+            return False
+        if payment.amount != requested_amount:
+            return False
+        if payment.payout_currency_id != payout_currency.id:
+            return False
+        if payment.method != method:
+            return False
+        if payment_account and payment.payment_account_id != payment_account.id:
+            return False
+        from real_estate.models.refund import RefundDisbursementPayment
+        if method == RefundDisbursementPayment.DisbursementMethod.CHEQUE and cheque_data:
+            req_chq_num = (cheque_data.get('cheque_number') or '').strip()
+            if payment.cheque and payment.cheque.cheque_number != req_chq_num:
+                return False
+        return True
+
+    @classmethod
+    def disburse_refund(
+        cls,
+        settlement_id: int,
+        requested_amount: Decimal,
+        payout_currency,
+        method: str,
+        payment_account=None,
+        cheque_data: dict = None,
+        idempotency_key: str = None,
+        payment_date=None,
+        is_full_sweep: bool = False,
+        user=None
+    ):
+        """
+        صرف استرداد الحجز (نقداً، بنكياً، أو بشيك) بالخوارزمية الدقيقة V14:
+        1. التحقق الاستباقي الصارم من وسيلة الصرف وإيجابية المبلغ.
+        2. الفحص السريع قبل الأقفال (Pre-Lock Fast Path) لمفتاح منع التكرار.
+        3. حيازة الأقفال بالترتيب الهرمي الصارم (Level 1: payment_account, Level 2: settlement).
+        4. فحص اتساق المؤشر النشط.
+        5. فحص مفتاح التكرار فوراً بعد القفل (Post-Lock Idempotency First).
+        6. حراسة الرصيد الصفري للطلبات الجديدة حصراً.
+        7. حل أسعار الصرف الثنائية والحساب بدقة كاملة وتأجيل التقريب.
+        8. الحصر الصارم لسماحية التقريب باشتراط التصفية الكاملة صراحة (is_full_sweep=True).
+        9. التفكيك الرياضي المتوازن للانحراف المحاسبي (pure_fx_diff + rounding_amount_func).
+        10. التنفيذ المحاسبي والتشغيلي (محرك الشيكات أو قيود النقد/البنك مع مطابقة الأستاذ المساعد).
+        11. إنشاء سجل الصرف وتحديث أرصدة وحالة التسوية.
+        """
+        from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
+        from cheques.models.cheque import Cheque, ChequeType, ChequeStatus, ChequePurpose
+        from cheques.services.accounting_service import ChequeAccountingService
+        from financial.services.exchange_rate_service import ExchangeRateService
+
+        # 1. التحقق الاستباقي الصارم من وسيلة الصرف وإيجابية المبلغ المطلوب
+        if method not in RefundDisbursementPayment.DisbursementMethod.values:
+            raise ValidationError(
+                _("وسيلة الصرف '%(m)s' غير مقبولة. الوسائل المعتمدة: نقد، تحويل بنكي، شيك.") % {'m': method}
+            )
+
+        idempotency_key = (idempotency_key or '').strip()
+        if not idempotency_key:
+            raise ValidationError(_("مفتاح منع التكرار (idempotency_key) إلزامي لكافة عمليات الصرف."))
+
+        if requested_amount <= Decimal('0.00'):
+            raise ValidationError(_("يجب أن يكون مبلغ الصرف أكبر من الصفر."))
+
+        if payment_date is None:
+            payment_date = timezone.localdate()
+
+        # 2. الفحص السريع قبل الأقفال (Pre-Lock Fast Path)
+        existing = RefundDisbursementPayment.objects.filter(idempotency_key=idempotency_key).first()
+        if existing:
+            if cls._verify_idempotency_fingerprint(existing, settlement_id, requested_amount, payout_currency, method, payment_account, cheque_data):
+                return existing
+            raise ValidationError(_("تعارض في مفتاح منع التكرار: المفتاح مستخدم مسبقاً لعملية صرف بمعلمات مختلفة."))
+
+        # 3. حيازة الأقفال بالترتيب الهرمي الصارم (Hierarchical Lock Acquisition)
+        with transaction.atomic():
+            # المستوى الأول: قفل حساب البنك/الخزينة إن وُجد
+            locked_account = None
+            if payment_account:
+                locked_account = ChartOfAccounts.objects.select_for_update().get(pk=payment_account.pk)
+            elif method in [RefundDisbursementPayment.DisbursementMethod.CASH, RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER]:
+                raise ValidationError(_("يجب تحديد حساب الخزينة أو البنك المنصرف منه."))
+
+            # المستوى الثاني: قفل صف التسوية
+            try:
+                locked_settlement = BookingCancellationSettlement.objects.select_for_update().get(pk=settlement_id)
+            except BookingCancellationSettlement.DoesNotExist:
+                raise ValidationError(_("قرار تسوية الإلغاء المطلوب غير موجود."))
+
+            # فحص اتساق المؤشر النشط
+            if not locked_settlement.is_active or (locked_settlement.booking and locked_settlement.booking.active_cancellation_settlement_id != locked_settlement.id):
+                raise ValidationError(_("التسوية المحددة ليست التسوية السارية لهذا الحجز."))
+
+            # 4. إعادة فحص مفتاح التكرار فوراً بعد القفل (Post-Lock Idempotency First)
+            existing_locked = RefundDisbursementPayment.objects.filter(idempotency_key=idempotency_key).first()
+            if existing_locked:
+                if cls._verify_idempotency_fingerprint(existing_locked, settlement_id, requested_amount, payout_currency, method, payment_account, cheque_data):
+                    return existing_locked
+                raise ValidationError(_("تعارض في مفتاح منع التكرار: المفتاح مستخدم مسبقاً لعملية صرف بمعلمات مختلفة."))
+
+            # 5. حراسة الرصيد الصفري الصارمة للطلبات الجديدة حصراً
+            if locked_settlement.remaining_disbursable_amount <= Decimal('0.00'):
+                raise ValidationError(
+                    _("لا يوجد رصيد متبقٍ متاح للصرف في قرار التسوية (المتبقي: %(rem)s %(curr)s).") % {
+                        'rem': locked_settlement.remaining_disbursable_amount,
+                        'curr': locked_settlement.currency.code
+                    }
+                )
+
+            # 6. حل أسعار الصرف الثنائية والحساب بدقة كاملة
+            func_curr = ExchangeRateService.get_functional_currency()
+
+            payout_to_func_rate = ExchangeRateService.get_rate(
+                from_code=payout_currency.code,
+                to_code=func_curr.code,
+                date=payment_date
+            ) if payout_currency.code != func_curr.code else Decimal('1.000000')
+
+            settlement_to_func_rate = ExchangeRateService.get_rate(
+                from_code=locked_settlement.currency.code,
+                to_code=func_curr.code,
+                date=payment_date
+            ) if locked_settlement.currency.code != func_curr.code else Decimal('1.000000')
+
+            # احتساب المعادل بدقة كاملة وتأجيل التقريب
+            penny_rounding_diff = Decimal('0.0000')
+            if payout_currency.id == locked_settlement.currency_id:
+                settlement_currency_equivalent = requested_amount
+            else:
+                raw_equivalent = (requested_amount * payout_to_func_rate) / settlement_to_func_rate
+                prec = Decimal('10') ** -getattr(locked_settlement.currency, 'decimal_places', 2)
+                settlement_currency_equivalent = raw_equivalent.quantize(prec, rounding=ROUND_HALF_UP)
+
+                if settlement_currency_equivalent <= Decimal('0.00'):
+                    raise ValidationError(_("المعادل بعملة التسوية المحسوب غير صالح (أقل من أو يساوي الصفر)."))
+
+                # الحصر الصارم لسماحية التقريب باشتراط التصفية الكاملة صراحة (is_full_sweep=True)
+                tolerance = getattr(locked_settlement.currency, 'rounding_tolerance', Decimal('0.05'))
+                diff_from_rem = settlement_currency_equivalent - locked_settlement.remaining_disbursable_amount
+                if Decimal('0.00') < diff_from_rem <= tolerance and is_full_sweep:
+                    penny_rounding_diff = diff_from_rem
+                    settlement_currency_equivalent = locked_settlement.remaining_disbursable_amount
+
+            if settlement_currency_equivalent > locked_settlement.remaining_disbursable_amount:
+                raise ValidationError(
+                    _("المعادل بعملة التسوية (%(equiv)s %(curr)s) يتجاوز الرصيد المتبقي المتاح للصرف (%(rem)s %(curr)s).") % {
+                        'equiv': settlement_currency_equivalent,
+                        'rem': locked_settlement.remaining_disbursable_amount,
+                        'curr': locked_settlement.currency.code
+                    }
+                )
+
+            # 7. التفكيك الرياضي المتوازن للانحراف المحاسبي
+            functional_payout = (requested_amount * payout_to_func_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            functional_advance_settled = (settlement_currency_equivalent * locked_settlement.exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            total_variance = functional_payout - functional_advance_settled
+
+            rounding_amount_func = Decimal('0.00')
+            if penny_rounding_diff > Decimal('0.0000'):
+                rounding_amount_func = (penny_rounding_diff * locked_settlement.exchange_rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+            pure_fx_diff = total_variance - rounding_amount_func
+
+            # 8. التنفيذ المحاسبي والتشغيلي بحسب وسيلة الصرف
+            cheque_obj = None
+            journal_entry_obj = None
+            clearing_entry_obj = None
+            payment_status = RefundDisbursementPayment.PaymentStatus.ISSUED
+
+            booking_advance_account = cls.get_or_resolve_account(
+                AccountRoleNames.REAL_ESTATE_BOOKING_ADVANCE.value,
+                fallback_code="21101"
+            )
+
+            # حساب المبلغ والعملة الأجنبية للأمانات المستردة
+            advance_foreign_amount = settlement_currency_equivalent if not locked_settlement.currency.is_functional else Decimal('0.00')
+
+            if method == RefundDisbursementPayment.DisbursementMethod.CHEQUE:
+                if not cheque_data or not cheque_data.get('cheque_number'):
+                    raise ValidationError(_("بيانات الشيك ورقم الشيك إلزامية للصرف بشيك."))
+
+                # أ. إنشاء الشيك بحالة مسودة DRAFT بالحقول الفعلية
+                cheque_obj = Cheque.objects.create(
+                    cheque_type=ChequeType.PAYABLE,
+                    purpose=ChequePurpose.CUSTOMER_REFUND,
+                    status=ChequeStatus.DRAFT,
+                    customer=locked_settlement.booking.customer,
+                    amount=requested_amount,
+                    currency=payout_currency,
+                    original_exchange_rate=payout_to_func_rate,
+                    issue_date=payment_date,
+                    due_date=cheque_data.get('due_date', payment_date),
+                    cheque_number=str(cheque_data.get('cheque_number')).strip(),
+                    drawer_bank_name=cheque_data.get('drawer_bank_name') or (locked_account.name if locked_account else ''),
+                    payee_name=cheque_data.get('payee_name') or locked_settlement.booking.customer.name,
+                    deposit_bank_account=locked_account,
+                    created_by=user,
+                )
+
+                # ب. استدعاء حركة الإصدار مع تمرير بيانات الأمانات الأجنبية الكاملة لمطابقة الأستاذ المساعد
+                issue_result = ChequeAccountingService.issue_cheque(
+                    cheque_or_id=cheque_obj.id,
+                    user=user,
+                    idempotency_key=f"ISS-REFUND-{idempotency_key}",
+                    bank_account_id=locked_account.id if locked_account else None,
+                    booking_advance_account_id=booking_advance_account.id,
+                    advance_currency_code=locked_settlement.currency.code,
+                    advance_exchange_rate=locked_settlement.exchange_rate,
+                    advance_foreign_amount=advance_foreign_amount,
+                    advance_book_value_functional=functional_advance_settled,
+                    pure_fx_diff=pure_fx_diff,
+                    rounding_amount_func=rounding_amount_func
+                )
+                cheque_obj = issue_result["cheque"]
+                journal_entry_obj = issue_result.get("journal_entry")
+                payment_status = RefundDisbursementPayment.PaymentStatus.ISSUED
+
+            elif method in [RefundDisbursementPayment.DisbursementMethod.CASH, RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER]:
+                # إعداد أسطر القيد المحاسبي المتوازن تماماً
+                proj_code = (
+                    locked_settlement.booking.unit.project.code
+                    if locked_settlement.booking and locked_settlement.booking.unit and locked_settlement.booking.unit.project
+                    else None
+                )
+                lines = [
+                    JournalEntryLineData(
+                        account_code=booking_advance_account.code,
+                        debit=functional_advance_settled,
+                        credit=Decimal("0.00"),
+                        currency=locked_settlement.currency.code,
+                        exchange_rate=locked_settlement.exchange_rate,
+                        foreign_debit=advance_foreign_amount,
+                        foreign_credit=Decimal("0.00"),
+                        description=f"رد جدية حجز - حجز {locked_settlement.booking.booking_number} - تسوية {locked_settlement.settlement_number}",
+                        project=proj_code
+                    ),
+                    JournalEntryLineData(
+                        account_code=locked_account.code,
+                        debit=Decimal("0.00"),
+                        credit=functional_payout,
+                        currency=payout_currency.code,
+                        exchange_rate=payout_to_func_rate,
+                        foreign_debit=Decimal("0.00"),
+                        foreign_credit=requested_amount if not payout_currency.is_functional else Decimal('0.00'),
+                        description=f"صرف استرداد حجز نقد/بنك - تسوية {locked_settlement.settlement_number}",
+                        project=proj_code
+                    )
+                ]
+
+                if pure_fx_diff > Decimal('0.00'):
+                    fx_loss_acc = cls.get_or_resolve_account(AccountRoleNames.FX_REALIZED_LOSS.value, fallback_code="54300")
+                    lines.append(JournalEntryLineData(
+                        account_code=fx_loss_acc.code,
+                        debit=pure_fx_diff,
+                        credit=Decimal("0.00"),
+                        currency=func_curr.code,
+                        exchange_rate=Decimal("1.000000"),
+                        description=f"خسائر فروق عملة محققة - تسوية {locked_settlement.settlement_number}"
+                    ))
+                elif pure_fx_diff < Decimal('0.00'):
+                    fx_gain_acc = cls.get_or_resolve_account(AccountRoleNames.FX_REALIZED_GAIN.value, fallback_code="43100")
+                    lines.append(JournalEntryLineData(
+                        account_code=fx_gain_acc.code,
+                        debit=Decimal("0.00"),
+                        credit=abs(pure_fx_diff),
+                        currency=func_curr.code,
+                        exchange_rate=Decimal("1.000000"),
+                        description=f"أرباح فروق عملة محققة - تسوية {locked_settlement.settlement_number}"
+                    ))
+
+                if rounding_amount_func > Decimal('0.00'):
+                    round_acc = cls.get_or_resolve_account(AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value, fallback_code="54400")
+                    lines.append(JournalEntryLineData(
+                        account_code=round_acc.code,
+                        debit=rounding_amount_func,
+                        credit=Decimal("0.00"),
+                        currency=func_curr.code,
+                        exchange_rate=Decimal("1.000000"),
+                        description=f"فروق تقريب كسور العملة عند تصفية الاسترداد - تسوية {locked_settlement.settlement_number}"
+                    ))
+
+                gateway = AccountingGateway()
+                journal_entry_obj = gateway.create_journal_entry(
+                    source_module='real_estate',
+                    source_model='BookingCancellationSettlement',
+                    source_id=locked_settlement.id,
+                    lines=lines,
+                    idempotency_key=f"JE:real_estate:BookingCancellationSettlement:{locked_settlement.id}:refund_{idempotency_key}",
+                    user=user,
+                    entry_type='payment_voucher',
+                    description=f"صرف رد حجز {locked_settlement.booking.booking_number} عبر {locked_account.name}",
+                    reference=f"REFUND-{locked_settlement.settlement_number}",
+                    date=payment_date
+                )
+                clearing_entry_obj = journal_entry_obj
+                payment_status = RefundDisbursementPayment.PaymentStatus.CLEARED
+
+            # 9. إنشاء سجل الصرف
+            payment = RefundDisbursementPayment.objects.create(
+                idempotency_key=idempotency_key,
+                settlement=locked_settlement,
+                method=method,
+                status=payment_status,
+                payment_date=payment_date,
+                amount=requested_amount,
+                payout_currency=payout_currency,
+                payout_exchange_rate=payout_to_func_rate,
+                settlement_currency_equivalent=settlement_currency_equivalent,
+                functional_amount=functional_payout,
+                realized_fx_gain_loss=pure_fx_diff,
+                rounding_difference=penny_rounding_diff,
+                cheque=cheque_obj,
+                payment_account=locked_account,
+                journal_entry=journal_entry_obj,
+                clearing_journal_entry=clearing_entry_obj,
+                processed_by=user
+            )
+
+            # 10. تحديث أرصدة وحالة التسوية
+            locked_settlement.recalculate_balances()
+            locked_settlement.save(update_fields=['committed_amount', 'cleared_amount', 'remaining_disbursable_amount', 'status'])
+            return payment
 
     @classmethod
     def post_contract_execution_cheques(

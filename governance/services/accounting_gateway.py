@@ -186,6 +186,8 @@ class AccountingGateway:
         'real_estate.SharedInfrastructureApportionment',
         'real_estate.AsBuiltSurveyAdjustment',
         'real_estate.ResaleContingentRefund',
+        'real_estate.BookingCancellationSettlement',
+        'real_estate.RefundDisbursementPayment',
     }
     
     # High-priority workflows that require strict validation

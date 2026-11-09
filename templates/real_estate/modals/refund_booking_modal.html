@@ -9,8 +9,9 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="refund-booking-form" method="post">
+      <form id="refund-booking-form" method="post" action="{% url 'real_estate:api_refund_booking' booking_id=booking.id %}">
         {% csrf_token %}
+        <input type="hidden" name="action" value="refund">
         <div class="modal-body p-4">
           <div class="mb-3">
             <label class="form-label small text-muted">{% trans "مبلغ الأمانة المسترد للعميل" %}</label>
