@@ -531,6 +531,21 @@ class RealEstateAccountingService:
             locked_account = None
             if payment_account:
                 locked_account = ChartOfAccounts.objects.select_for_update().get(pk=payment_account.pk)
+                if not locked_account.is_active or not locked_account.is_leaf:
+                    raise ValidationError(_("حساب الصرف المحدد يجب أن يكون حساباً تحليلياً نشطاً."))
+                if locked_account.account_type.category != 'asset':
+                    raise ValidationError(_("حساب الصرف المحدد ليس حساب أصول نقدية أو بنكية صالحاً."))
+
+                is_cash_or_bank = (
+                    getattr(locked_account, 'is_cash_account', False)
+                    or getattr(locked_account, 'is_bank_account', False)
+                    or (locked_account.code and (
+                        (str(locked_account.code).startswith('111') and not str(locked_account.code).startswith('1119'))
+                        or str(locked_account.code).startswith('1020')
+                    ))
+                )
+                if not is_cash_or_bank:
+                    raise ValidationError(_("حساب الصرف المحدد ليس حساب خزينة نقدية أو بنك معتمداً للصرف."))
             elif method in [RefundDisbursementPayment.DisbursementMethod.CASH, RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER]:
                 raise ValidationError(_("يجب تحديد حساب الخزينة أو البنك المنصرف منه."))
 
@@ -733,12 +748,14 @@ class RealEstateAccountingService:
                     ))
 
                 gateway = AccountingGateway()
+                src_model = 'UnitBooking' if locked_settlement.booking_id else 'BookingCancellationSettlement'
+                src_id = locked_settlement.booking_id if locked_settlement.booking_id else locked_settlement.id
                 journal_entry_obj = gateway.create_journal_entry(
                     source_module='real_estate',
-                    source_model='BookingCancellationSettlement',
-                    source_id=locked_settlement.id,
+                    source_model=src_model,
+                    source_id=src_id,
                     lines=lines,
-                    idempotency_key=f"JE:real_estate:BookingCancellationSettlement:{locked_settlement.id}:refund_{idempotency_key}",
+                    idempotency_key=f"JE:real_estate:{src_model}:{src_id}:refund_{idempotency_key}",
                     user=user,
                     entry_type='payment_voucher',
                     description=f"صرف رد حجز {locked_settlement.booking.booking_number} عبر {locked_account.name}",
@@ -772,6 +789,13 @@ class RealEstateAccountingService:
             # 10. تحديث أرصدة وحالة التسوية
             locked_settlement.recalculate_balances()
             locked_settlement.save(update_fields=['committed_amount', 'cleared_amount', 'remaining_disbursable_amount', 'status'])
+
+            if locked_settlement.cleared_amount >= locked_settlement.net_refundable_amount and locked_settlement.net_refundable_amount > Decimal('0.00'):
+                from real_estate.models.booking import UnitBooking
+                if locked_settlement.booking and locked_settlement.booking.status != UnitBooking.BookingStatus.CANCELLED_REFUNDED:
+                    locked_settlement.booking.status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
+                    locked_settlement.booking.save(update_fields=['status', 'updated_at'])
+
             return payment
 
     @classmethod

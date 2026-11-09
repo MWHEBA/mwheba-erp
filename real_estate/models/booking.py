@@ -340,6 +340,26 @@ class UnitBooking(models.Model):
         if (self.company_share_percentage + self.partner_share_percentage) != Decimal('100.00'):
             raise ValidationError(_("مجموع حصة الشركة وحصة الشريك يجب أن يساوي 100.00% بالضبط."))
 
+        # قيد الفصل الرقابي واكتمال أدلة الاعتماد الثنائي (Segregation of Duties - SoD)
+        if not (self.is_legacy_pre_audit or self.audit_bypassed):
+            if self.is_reviewed_sales:
+                if not self.reviewed_by_id:
+                    raise ValidationError(_("لا يجوز تفعيل علامة مراجعة المبيعات دون توثيق المراجع المسؤول (reviewed_by)."))
+                if not self.reviewed_at:
+                    raise ValidationError(_("لا يجوز تفعيل علامة مراجعة المبيعات دون توثيق تاريخ المراجعة (reviewed_at)."))
+                if self.created_by_id and self.reviewed_by_id == self.created_by_id:
+                    raise ValidationError(_("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لمنشئ الحجز مراجعة حجزه بنفسه."))
+
+            if self.is_confirmed_audit:
+                if not self.confirmed_by_id:
+                    raise ValidationError(_("لا يجوز تفعيل علامة الاعتماد الرقابي دون توثيق المعتمد المسؤول (confirmed_by)."))
+                if not self.confirmed_at:
+                    raise ValidationError(_("لا يجوز تفعيل علامة الاعتماد الرقابي دون توثيق تاريخ الاعتماد (confirmed_at)."))
+                if not self.is_reviewed_sales:
+                    raise ValidationError(_("لا يجوز الاعتماد الرقابي لحجز لم تستوفَ فيه مراجعة المبيعات أولاً."))
+                if self.reviewed_by_id and self.confirmed_by_id == self.reviewed_by_id:
+                    raise ValidationError(_("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لنفس المستخدم تسجيل مراجعة المبيعات والاعتماد الرقابي معاً."))
+
         if self.active_cancellation_settlement_id:
             if self.active_cancellation_settlement.booking_id != self.id:
                 raise ValidationError(_("مؤشر التسوية النشطة يشير إلى قرار تسوية لا ينتمي لهذا الحجز."))

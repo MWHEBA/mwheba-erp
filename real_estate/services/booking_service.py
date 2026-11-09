@@ -115,6 +115,12 @@ class UnitBookingService:
                 )
 
             # فحص تصادم بايكات الجراج والمخازن السريعة داخل نطاق المشروع
+            contract_ownership_statuses = [
+                PropertyContract.ContractStatus.ACTIVE,
+                PropertyContract.ContractStatus.COMPLETED,
+                PropertyContract.ContractStatus.UNDER_APPROVAL,
+                PropertyContract.ContractStatus.SUSPENDED,
+            ]
             if parking_slot_code and locked_unit.project_id:
                 clean_slot = str(parking_slot_code).strip()
                 if clean_slot:
@@ -126,7 +132,7 @@ class UnitBookingService:
                     slot_in_contract = PropertyContract.objects.filter(
                         project_id=locked_unit.project_id,
                         parking_slot_code=clean_slot,
-                        status=PropertyContract.ContractStatus.ACTIVE
+                        status__in=contract_ownership_statuses
                     ).exists()
                     if slot_in_booking or slot_in_contract:
                         raise BookingValidationError(
@@ -144,7 +150,7 @@ class UnitBookingService:
                     locker_in_contract = PropertyContract.objects.filter(
                         project_id=locked_unit.project_id,
                         storage_locker_code=clean_locker,
-                        status=PropertyContract.ContractStatus.ACTIVE
+                        status__in=contract_ownership_statuses
                     ).exists()
                     if locker_in_booking or locker_in_contract:
                         raise BookingValidationError(
@@ -289,6 +295,25 @@ class UnitBookingService:
                     _("لا يمكن تحويل الحجز لعقد: الحجز لم يحصل على الاعتماد المالي والرقابي الثنائي، ولم يتم استثناؤه إدارياً.")
                 )
 
+            # التحقق الصارم من دورة الاعتماد المالي والرقابي الثنائي والفصل الرقابي الكامل (SoD)
+            if not (locked_booking.is_legacy_pre_audit or locked_booking.audit_bypassed):
+                if not (locked_booking.is_reviewed_sales and locked_booking.reviewed_by_id and locked_booking.reviewed_at):
+                    raise BookingValidationError(
+                        _("لا يمكن تحويل الحجز لعقد: دورة مراجعة المبيعات غير مكتملة (تتطلب علامة المراجعة، والمراجع المسؤول، وتاريخ المراجعة).")
+                    )
+                if not (locked_booking.is_confirmed_audit and locked_booking.confirmed_by_id and locked_booking.confirmed_at):
+                    raise BookingValidationError(
+                        _("لا يمكن تحويل الحجز لعقد: دورة الاعتماد الرقابي غير مكتملة (تتطلب علامة الاعتماد، والمعتمد المسؤول، وتاريخ الاعتماد).")
+                    )
+                if locked_booking.created_by_id and locked_booking.reviewed_by_id == locked_booking.created_by_id:
+                    raise BookingValidationError(
+                        _("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لمنشئ الحجز مراجعة حجزه بنفسه.")
+                    )
+                if locked_booking.reviewed_by_id == locked_booking.confirmed_by_id:
+                    raise BookingValidationError(
+                        _("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لنفس المستخدم تسجيل مراجعة المبيعات والاعتماد الرقابي معاً.")
+                    )
+
             if locked_unit.status != PropertyUnit.UnitStatus.RESERVED or locked_unit.current_booking_id != locked_booking.id:
                 raise BookingValidationError(_("حالة الوحدة لا تتوافق مع بيانات الحجز الحالي."))
 
@@ -380,6 +405,37 @@ class UnitBookingService:
                 or (contract_tax_structure == PropertyContract.ContractTaxStructure.SPLIT_SPA_FINISHING_ANNEX)
             )
 
+            # التحقق الصارم من تكامل ونطاق نسب الملكية
+            p_share = Decimal(str(primary_owner_share)).quantize(Decimal('0.01')) if primary_owner_share is not None else Decimal('100.00')
+            if p_share < Decimal('0.00') or p_share > Decimal('100.00'):
+                raise BookingValidationError(
+                    _("نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00%% و 100.00%% (القيمة المدخلة: %(p)s%%).") % {
+                        'p': p_share
+                    }
+                )
+
+            for item in (co_owners_data or []):
+                c_share = Decimal(str(item.get('share_percentage', '0'))).quantize(Decimal('0.01'))
+                if c_share <= Decimal('0.00') or c_share > Decimal('100.00'):
+                    raise BookingValidationError(
+                        _("نسبة ملكية الشريك يجب أن تكون أكبر من 0%% وحتى 100.00%% (القيمة المدخلة: %(c)s%%).") % {
+                            'c': c_share
+                        }
+                    )
+
+            co_share_sum = sum(
+                Decimal(str(item.get('share_percentage', '0'))).quantize(Decimal('0.01'))
+                for item in (co_owners_data or [])
+            )
+            if p_share + co_share_sum != Decimal('100.00'):
+                raise BookingValidationError(
+                    _("إجمالي نسب الملكية في العقد يجب أن يساوي 100.00%% بالضبط (المالك الرئيسي: %(p)s%% + الشركاء: %(c)s%% = %(t)s%%).") % {
+                        'p': p_share,
+                        'c': co_share_sum,
+                        't': p_share + co_share_sum
+                    }
+                )
+
             contract = PropertyContract.objects.create(
                 contract_number=cnt_num,
                 project=locked_unit.project,
@@ -393,7 +449,7 @@ class UnitBookingService:
                 currency=curr,
                 exchange_rate=exchange_rate or Decimal('1.000000'),
                 contract_tax_structure=contract_tax_structure or PropertyContract.ContractTaxStructure.UNIFIED_SPA,
-                primary_owner_share=primary_owner_share if primary_owner_share is not None else Decimal('100.00'),
+                primary_owner_share=p_share,
                 has_decoupled_finishing=is_decoupled,
                 finishing_meter_rate=locked_booking.finishing_meter_rate,
                 finishing_total_amount=locked_booking.total_finishing_amount,
@@ -414,10 +470,12 @@ class UnitBookingService:
                 PropertyContractService.sync_contract_ownership(
                     contract_id=contract.id,
                     co_owners_data=co_owners_data,
-                    primary_owner_share=primary_owner_share,
+                    primary_owner_share=p_share,
                     user=user
                 )
-                contract.refresh_from_db()
+
+            contract.refresh_from_db()
+            contract.validate_ownership_integrity()
 
             # 4. إعادة تصنيف مقدم الحجز محاسبياً ونقله إلى التزام العقد وتحصيل أي فرق إضافي ذرياً (Event 1b)
             if locked_booking.holding_deposit > Decimal('0.00') or additional_to_collect > Decimal('0.00'):
@@ -430,6 +488,111 @@ class UnitBookingService:
                     payment_account=payment_account,
                     reference=contract.contract_number
                 )
+
+            # 5. توليد جدول الأقساط الإلزامي للعقد الساري إن لم يكن مرتبطاً بجدول مسبقاً
+            if not contract.installment_plan_id:
+                from sale.models.installments import InstallmentPlan, InstallmentItem
+                tot_price = contract.final_contract_price if contract.final_contract_price > Decimal('0.00') else Decimal('1000.00')
+                net_financed = max(Decimal('0.00'), tot_price - (contract.down_payment or Decimal('0.00')))
+
+                if net_financed <= Decimal('0.00'):
+                    # سداد نقدي كامل 100% بالمقدم - خطة منتهية ومكتملة فوراً
+                    plan = InstallmentPlan.objects.create(
+                        customer=contract.customer,
+                        total_principal=Decimal('0.00'),
+                        total_markup=Decimal('0.00'),
+                        total_amount=tot_price,
+                        down_payment=tot_price,
+                        number_of_installments=1,
+                        frequency='CUSTOM',
+                        start_date=c_date,
+                        status=InstallmentPlan.PlanStatus.DRAFT,
+                        created_by=user or contract.created_by,
+                    )
+                    InstallmentItem.objects.create(
+                        plan=plan,
+                        installment_number=1,
+                        trigger_type=InstallmentItem.TriggerType.DATE_BASED,
+                        due_date=c_date,
+                        principal_amount=Decimal('0.00'),
+                        interest_amount=Decimal('0.00'),
+                        total_amount=Decimal('0.00'),
+                        paid_amount=Decimal('0.00'),
+                    )
+                    contract.installment_plan = plan
+                    contract.save(update_fields=['installment_plan', 'updated_at'])
+                    plan.status = InstallmentPlan.PlanStatus.COMPLETED
+                    plan.save(update_fields=['status'])
+                else:
+                    num_inst = 4
+                    plan = InstallmentPlan.objects.create(
+                        customer=contract.customer,
+                        total_principal=net_financed,
+                        total_markup=Decimal('0.00'),
+                        total_amount=tot_price,
+                        down_payment=contract.down_payment or Decimal('0.00'),
+                        number_of_installments=num_inst,
+                        frequency='QUARTERLY',
+                        start_date=c_date,
+                        status=InstallmentPlan.PlanStatus.DRAFT,
+                        created_by=user or contract.created_by,
+                    )
+                    base_inst_val = (net_financed / Decimal(num_inst)).quantize(Decimal('0.01'))
+                    running_sum = Decimal('0.00')
+                    inst_due = c_date
+                    for idx in range(1, num_inst + 1):
+                        if idx == num_inst:
+                            item_val = net_financed - running_sum
+                        else:
+                            item_val = base_inst_val
+                            running_sum += item_val
+                        InstallmentItem.objects.create(
+                            plan=plan,
+                            installment_number=idx,
+                            trigger_type=InstallmentItem.TriggerType.DATE_BASED,
+                            due_date=inst_due,
+                            principal_amount=item_val,
+                            interest_amount=Decimal('0.00'),
+                            total_amount=item_val,
+                        )
+                        y = inst_due.year + (inst_due.month + 3 - 1) // 12
+                        m = (inst_due.month + 3 - 1) % 12 + 1
+                        d = min(inst_due.day, 28)
+                        inst_due = datetime.date(y, m, d)
+
+                    contract.installment_plan = plan
+                    contract.save(update_fields=['installment_plan', 'updated_at'])
+                    plan.status = InstallmentPlan.PlanStatus.ACTIVE
+                    plan.save(update_fields=['status'])
+
+            # 6. إنشاء أمر تشطيب ملحق وخطة سداد مستقلة عند اختيار هيكلة فصل التشطيب
+            if contract.contract_tax_structure == PropertyContract.ContractTaxStructure.SPLIT_SPA_FINISHING_ANNEX or contract.has_decoupled_finishing:
+                fin_total = contract.finishing_total_amount or locked_booking.total_finishing_amount or Decimal('0.00')
+                if fin_total > Decimal('0.00'):
+                    from real_estate.models.finishing import UnitFinishingOrder
+                    from real_estate.services.finishing_financial_service import FinishingFinancialService
+
+                    order_num = f"FO-{contract.contract_number}"
+                    fin_order, created = UnitFinishingOrder.objects.get_or_create(
+                        contract=contract,
+                        defaults={
+                            'order_number': order_num,
+                            'unit': locked_unit,
+                            'customer': contract.customer,
+                            'title': f"أمر تشطيب ملحق للعقد {contract.contract_number}",
+                            'gross_finishing_amount': fin_total,
+                            'net_finishing_price': fin_total,
+                            'remaining_balance': fin_total,
+                            'created_by': user or contract.created_by,
+                        }
+                    )
+                    if not fin_order.finishing_installment_plan_id:
+                        FinishingFinancialService.generate_segregated_installment_plan(
+                            order=fin_order,
+                            number_of_installments=4,
+                            start_date=c_date,
+                            user=user or contract.created_by
+                        )
 
             logger.info(
                 f"✅ تم تحويل الحجز {locked_booking.booking_number} إلى العقد {contract.contract_number} "
@@ -492,6 +655,7 @@ class UnitBookingService:
                         from django.core.exceptions import PermissionDenied
                         raise PermissionDenied(_("غير مصرح لك بصرف واسترداد جدية الحجز المالية."))
 
+            from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
             from real_estate.services.accounting_service import RealEstateAccountingService
 
             if forfeit_deposit:
@@ -503,12 +667,36 @@ class UnitBookingService:
                 target_status = UnitBooking.BookingStatus.CANCELLED_FORFEITED
             else:
                 if has_deposit:
+                    settlement = locked_booking.active_cancellation_settlement
+                    if not settlement:
+                        settlement = BookingCancellationSettlement.objects.create(
+                            booking=locked_booking,
+                            currency=locked_booking.currency,
+                            exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
+                            total_deposit_paid=locked_booking.holding_deposit,
+                            net_refundable_amount=locked_booking.holding_deposit,
+                            remaining_disbursable_amount=locked_booking.holding_deposit,
+                            cancellation_reason='FINANCIAL_HARDSHIP',
+                            notes=f"إلغاء حجز: {reason}",
+                            processed_by=user or locked_booking.created_by,
+                        )
+                        locked_booking.active_cancellation_settlement = settlement
+                        locked_booking.save(update_fields=['active_cancellation_settlement', 'updated_at'])
+
                     if payment_account:
                         # تسوية مالية فورية
-                        RealEstateAccountingService.post_booking_refund(
-                            booking=locked_booking,
+                        pay_method = RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER
+                        if payment_account and getattr(payment_account, 'code', '').startswith('1111'):
+                            pay_method = RefundDisbursementPayment.DisbursementMethod.CASH
+
+                        RealEstateAccountingService.disburse_refund(
+                            settlement_id=settlement.id,
+                            requested_amount=settlement.remaining_disbursable_amount,
+                            payout_currency=settlement.currency,
+                            method=pay_method,
                             payment_account=payment_account,
-                            user=user
+                            user=user,
+                            idempotency_key=f"CANCEL-REFUND-{locked_booking.booking_number}-{timezone.now().timestamp()}",
                         )
                         target_status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
                     else:
@@ -520,7 +708,7 @@ class UnitBookingService:
             # 1. تحديث حالة الحجز
             locked_booking.status = target_status
             locked_booking.notes = f"{locked_booking.notes}\n[سبب الإلغاء: {reason}]".strip()
-            locked_booking.save(update_fields=['status', 'notes', 'updated_at'])
+            locked_booking.save(update_fields=['status', 'notes', 'active_cancellation_settlement', 'updated_at'])
 
             # 2. تحرير الوحدة فقط إذا كانت لا تزال محجوزة لهذا الحجز تحديداً
             if locked_unit.current_booking_id == locked_booking.id:
@@ -568,32 +756,65 @@ class UnitBookingService:
             except UnitBooking.DoesNotExist:
                 raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
 
-            allowed_refund_statuses = [
-                UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND,
-                UnitBooking.BookingStatus.EXPIRED_RELEASED
-            ]
-            if locked_booking.status not in allowed_refund_statuses:
-                raise BookingValidationError(
-                    _("لا يمكن صرف استرداد لحجز حالته ليست بانتظار رد جدية الحجز أو منتهياً معلقاً (الحالة الحالية: %(status)s).") % {
-                        'status': locked_booking.get_status_display()
-                    }
-                )
-
             if locked_booking.holding_deposit <= Decimal('0.00') or not locked_booking.is_deposit_collected:
                 raise BookingValidationError(_("لا يوجد مبلغ جدية حجز محصل مسجل على هذا الحجز لصرفه."))
 
+            # حراسة عدم الصرف المزدوج وعدم التكرار (Idempotency & Double-Refund Guard)
+            settlement = locked_booking.active_cancellation_settlement
+            if settlement:
+                if settlement.remaining_disbursable_amount <= Decimal('0.00'):
+                    logger.info(
+                        f"⚠️ تسوية الحجز {locked_booking.booking_number} مصروفة بالكامل بالفعل ({settlement.settlement_number})."
+                    )
+                    return locked_booking
+            elif locked_booking.status == UnitBooking.BookingStatus.CANCELLED_REFUNDED:
+                return locked_booking
+
+            # التحقق من أن حالة الحجز مؤهلة للصرف إن لم توجد تسوية مسبقة ذات رصيد
+            if not settlement:
+                allowed_refund_statuses = [
+                    UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND,
+                    UnitBooking.BookingStatus.EXPIRED_RELEASED
+                ]
+                if locked_booking.status not in allowed_refund_statuses:
+                    raise BookingValidationError(
+                        _("لا يمكن صرف استرداد لحجز حالته ليست بانتظار رد جدية الحجز أو منتهياً معلقاً (الحالة الحالية: %(status)s).") % {
+                            'status': locked_booking.get_status_display()
+                        }
+                    )
+
+            from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
             from real_estate.services.accounting_service import RealEstateAccountingService
-            RealEstateAccountingService.post_booking_refund(
-                booking=locked_booking,
-                payment_account=payment_account,
-                user=user,
-                reference=reference
-            )
 
-            locked_booking.status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
-            locked_booking.save(update_fields=['status', 'updated_at'])
+            if not settlement:
+                settlement = BookingCancellationSettlement.objects.create(
+                    booking=locked_booking,
+                    currency=locked_booking.currency,
+                    exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
+                    total_deposit_paid=locked_booking.holding_deposit,
+                    net_refundable_amount=locked_booking.holding_deposit,
+                    remaining_disbursable_amount=locked_booking.holding_deposit,
+                    cancellation_reason='FINANCIAL_HARDSHIP',
+                    notes=f"تسوية صرف استرداد لحجز {locked_booking.booking_number}",
+                    processed_by=user or locked_booking.created_by,
+                )
+                locked_booking.active_cancellation_settlement = settlement
+                locked_booking.save(update_fields=['active_cancellation_settlement', 'updated_at'])
 
-            logger.info(
-                f"💸 تم صرف واسترداد جدية حجز {locked_booking.booking_number} بنجاح بمبلغ {locked_booking.holding_deposit}"
-            )
+            if settlement.remaining_disbursable_amount > Decimal('0.00'):
+                pay_method = RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER
+                if payment_account and getattr(payment_account, 'code', '').startswith('1111'):
+                    pay_method = RefundDisbursementPayment.DisbursementMethod.CASH
+
+                RealEstateAccountingService.disburse_refund(
+                    settlement_id=settlement.id,
+                    requested_amount=settlement.remaining_disbursable_amount,
+                    payout_currency=settlement.currency,
+                    method=pay_method,
+                    payment_account=payment_account,
+                    user=user,
+                    idempotency_key=f"PROC-REFUND-{locked_booking.booking_number}-{timezone.now().timestamp()}",
+                )
+
+            locked_booking.refresh_from_db()
             return locked_booking

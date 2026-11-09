@@ -35,6 +35,22 @@ class PropertyContractService:
             contract = PropertyContract.objects.select_for_update().get(pk=contract_id)
 
             primary_share = Decimal(str(primary_owner_share)).quantize(Decimal('0.01'))
+            if primary_share < Decimal('0.00') or primary_share > Decimal('100.00'):
+                raise ValidationError(
+                    _("نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00%% و 100.00%% (القيمة الحالية: %(p)s%%).") % {
+                        'p': primary_share
+                    }
+                )
+
+            for item in co_owners_data:
+                share = Decimal(str(item.get('share_percentage', '0'))).quantize(Decimal('0.01'))
+                if share <= Decimal('0.00') or share > Decimal('100.00'):
+                    raise ValidationError(
+                        _("نسبة ملكية الشريك يجب أن تكون أكبر من 0%% وحتى 100.00%% (القيمة المدخلة: %(c)s%%).") % {
+                            'c': share
+                        }
+                    )
+
             co_owners_total = sum(
                 Decimal(str(item.get('share_percentage', '0'))).quantize(Decimal('0.01'))
                 for item in co_owners_data

@@ -186,6 +186,7 @@ class RealEstatePhase2ConcurrencyAndMatrixTests(TestCase):
             user=self.user,
         )
         booking.is_confirmed_audit = True
+        booking.is_legacy_pre_audit = True
         booking.save()
 
         contract = UnitBookingService.convert_booking_to_contract(
@@ -308,6 +309,7 @@ class RealEstatePhase2ConcurrencyAndMatrixTests(TestCase):
             user=self.user,
         )
         booking_race.is_confirmed_audit = True
+        booking_race.is_legacy_pre_audit = True
         booking_race.save()
 
         # تحويل الوحدة بالتزامن لعقد

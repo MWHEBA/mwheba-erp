@@ -177,6 +177,7 @@ class TestContractCreateViewEnhancements:
             booking_date=timezone.localdate(),
             expiry_date=timezone.localdate() + timedelta(days=14),
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             created_by=s['user']
         )
         s['unit'].status = PropertyUnit.UnitStatus.RESERVED
@@ -205,6 +206,7 @@ class TestContractCreateViewEnhancements:
             user=s['user']
         )
         booking.is_confirmed_audit = True
+        booking.is_legacy_pre_audit = True
         booking.confirmed_by = s['user']
         booking.confirmed_at = timezone.now()
         booking.save()
@@ -279,6 +281,7 @@ class TestBookingDetailViewEliminationOf405:
             booking_date=timezone.localdate(),
             expiry_date=timezone.localdate() + timedelta(days=14),
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             created_by=s['user']
         )
         url = reverse('real_estate:booking_detail', kwargs={'pk': booking.pk})
@@ -367,6 +370,7 @@ class TestBookingPublicVerificationAndPrintView:
             booking_date=timezone.localdate(),
             expiry_date=timezone.localdate() + timedelta(days=14),
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             created_by=s['user']
         )
 
@@ -395,6 +399,7 @@ class TestBookingPublicVerificationAndPrintView:
             booking_date=timezone.localdate(),
             expiry_date=timezone.localdate() + timedelta(days=14),
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             created_by=s['user']
         )
 
@@ -427,6 +432,7 @@ class TestBookingPublicVerificationAndPrintView:
             booking_date=timezone.localdate(),
             expiry_date=timezone.localdate() + timedelta(days=14),
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             created_by=s['user']
         )
 

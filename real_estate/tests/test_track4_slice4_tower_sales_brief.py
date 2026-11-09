@@ -170,6 +170,7 @@ def slice4_setup(db):
         expiry_date=timezone.localdate() + timedelta(days=14), user=user_admin
     )
     b1.is_confirmed_audit = True
+    b1.is_legacy_pre_audit = True
     b1.visit_specialist = user_closer
     b1.save()
     contract1 = UnitBookingService.convert_booking_to_contract(
@@ -193,6 +194,7 @@ def slice4_setup(db):
         booking_date=timezone.localdate(),
         expiry_date=timezone.localdate() + timedelta(days=14),
         is_confirmed_audit=True,
+        is_legacy_pre_audit=True,
         visit_specialist=user_closer,
         created_by=user_closer
     )

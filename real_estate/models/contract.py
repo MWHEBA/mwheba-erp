@@ -230,6 +230,10 @@ class PropertyContract(models.Model):
                 check=models.Q(down_payment__gte=0) & models.Q(down_payment__lte=models.F('final_contract_price')),
                 name='chk_contract_down_payment_valid'
             ),
+            models.CheckConstraint(
+                check=models.Q(primary_owner_share__gte=0) & models.Q(primary_owner_share__lte=Decimal('100.00')),
+                name='chk_contract_primary_owner_share_range'
+            ),
             models.UniqueConstraint(
                 fields=['unit'],
                 condition=models.Q(status__in=['ACTIVE', 'COMPLETED', 'UNDER_APPROVAL']),
@@ -248,9 +252,15 @@ class PropertyContract(models.Model):
                 pass
 
     def validate_ownership_integrity(self):
-        """التحقق من أن مجموع نسب الملكية للعميل الرئيسي والشركاء يساوي 100% بالضبط"""
+        """التحقق من أن مجموع نسب الملكية للعميل الرئيسي والشركاء يساوي 100% بالضبط ونسبة المالك الرئيسي ضمن النطاق النظامي"""
         if not self.pk:
             return
+        if self.primary_owner_share is None or self.primary_owner_share < Decimal('0.00') or self.primary_owner_share > Decimal('100.00'):
+            raise ValidationError(
+                _("نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00%% و 100.00%% (القيمة الحالية: %(p)s%%).") % {
+                    'p': self.primary_owner_share
+                }
+            )
         co_owners_total = self.co_owners.aggregate(total=models.Sum('share_percentage'))['total'] or Decimal('0.00')
         total_share = self.primary_owner_share + co_owners_total
         if total_share != Decimal('100.00'):
@@ -271,6 +281,16 @@ class PropertyContract(models.Model):
 
     def clean(self):
         super().clean()
+        if self.primary_owner_share is not None and (self.primary_owner_share < Decimal('0.00') or self.primary_owner_share > Decimal('100.00')):
+            raise ValidationError(
+                _("نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00%% و 100.00%% (القيمة المدخلة: %(p)s%%).") % {
+                    'p': self.primary_owner_share
+                }
+            )
+
+        if self.pk:
+            self.validate_ownership_integrity()
+
         if self.unit_id and self.project_id and self.unit.project_id != self.project_id:
             raise ValidationError(_("الوحدة العقارية المحددة لا تنتمي إلى هذا المشروع."))
 

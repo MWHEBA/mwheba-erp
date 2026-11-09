@@ -8,6 +8,7 @@ from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.db.models import Q, Sum
 from django.utils import timezone
@@ -239,6 +240,29 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
         primary_owner_share_raw = request.POST.get('primary_owner_share')
         primary_owner_share = Decimal(str(primary_owner_share_raw)) if primary_owner_share_raw else None
 
+        # استخراج بيانات الشركاء المتضامنين (co-owners batch)
+        co_owners_data = []
+        raw_co_owners = request.POST.get('co_owners') or request.POST.get('co_owners_data')
+        if raw_co_owners:
+            import json
+            try:
+                if isinstance(raw_co_owners, str):
+                    co_owners_data = json.loads(raw_co_owners)
+                elif isinstance(raw_co_owners, list):
+                    co_owners_data = raw_co_owners
+            except Exception:
+                pass
+        if not co_owners_data:
+            co_owner_ids = request.POST.getlist('co_owner_id') or request.POST.getlist('co_owner_id[]')
+            co_owner_shares = request.POST.getlist('co_owner_share') or request.POST.getlist('share_percentage') or request.POST.getlist('co_owner_share[]')
+            if co_owner_ids and co_owner_shares:
+                for cid, cshare in zip(co_owner_ids, co_owner_shares):
+                    if cid and cshare:
+                        co_owners_data.append({
+                            'customer_id': cid,
+                            'share_percentage': cshare
+                        })
+
         currency = Currency.objects.filter(pk=currency_id).first() if currency_id else None
         payment_account = ChartOfAccounts.objects.filter(pk=payment_account_id).first() if payment_account_id else None
 
@@ -250,6 +274,10 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             )
             if booking.status != UnitBooking.BookingStatus.ACTIVE:
                 messages.error(request, _('لا يمكن تحويل استمارة حجز غير نشطة إلى عقد (الحالة الحالية: %(st)s).') % {'st': booking.get_status_display()})
+                return redirect('real_estate:booking_detail', pk=booking.pk)
+
+            if primary_owner_share is not None and (primary_owner_share < Decimal('0.00') or primary_owner_share > Decimal('100.00')):
+                messages.error(request, _('نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00% و 100.00%.'))
                 return redirect('real_estate:booking_detail', pk=booking.pk)
 
             if not (booking.is_confirmed_audit or booking.is_legacy_pre_audit or booking.audit_bypassed):
@@ -267,11 +295,12 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
                     currency=currency,
                     payment_account=payment_account,
                     contract_tax_structure=contract_tax_structure,
-                    primary_owner_share=primary_owner_share
+                    primary_owner_share=primary_owner_share,
+                    co_owners_data=co_owners_data if co_owners_data else None
                 )
                 messages.success(request, _('تم تحويل الحجز وإبرام العقد العقاري بنجاح برقم: %(num)s') % {'num': contract.contract_number})
                 return redirect('real_estate:contract_detail', pk=contract.pk)
-            except BookingValidationError as b_err:
+            except (BookingValidationError, ValidationError) as b_err:
                 messages.error(request, str(b_err))
                 return redirect('real_estate:booking_detail', pk=booking.pk)
             except Exception as err:
@@ -290,6 +319,19 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             messages.error(request, _('الوحدة المختارة غير متاحة للتعاقد حالياً.'))
             return redirect('real_estate:contract_create')
 
+        p_share = Decimal(str(primary_owner_share)).quantize(Decimal('0.01')) if primary_owner_share is not None else Decimal('100.00')
+        if p_share < Decimal('0.00') or p_share > Decimal('100.00'):
+            messages.error(request, _('نسبة ملكية العميل الرئيسي يجب أن تكون بين 0.00% و 100.00%.'))
+            return redirect('real_estate:contract_create')
+
+        co_share_sum = sum(
+            Decimal(str(item.get('share_percentage', '0'))).quantize(Decimal('0.01'))
+            for item in co_owners_data
+        )
+        if p_share + co_share_sum != Decimal('100.00'):
+            messages.error(request, _('إجمالي نسب الملكية في العقد يجب أن يساوي 100.00% بالضبط.'))
+            return redirect('real_estate:contract_create')
+
         import uuid
         cnt_num = f"CTR-{unit.unit_code}-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
 
@@ -305,9 +347,21 @@ class ContractCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View)
             down_payment=down_payment,
             currency=currency or getattr(unit.project, 'currency', None),
             contract_tax_structure=contract_tax_structure,
-            primary_owner_share=primary_owner_share or Decimal('100.00'),
+            primary_owner_share=p_share,
             created_by=request.user
         )
+
+        if co_owners_data:
+            from real_estate.services.contract_service import PropertyContractService
+            PropertyContractService.sync_contract_ownership(
+                contract_id=contract.id,
+                co_owners_data=co_owners_data,
+                primary_owner_share=p_share,
+                user=request.user
+            )
+
+        contract.refresh_from_db()
+        contract.validate_ownership_integrity()
 
         unit.status = PropertyUnit.UnitStatus.CONTRACTED
         unit.status_version += 1

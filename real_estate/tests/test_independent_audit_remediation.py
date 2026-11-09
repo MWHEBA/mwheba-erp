@@ -1149,6 +1149,7 @@ def test_18_booking_conversion_to_foreign_currency_converts_contract_down_paymen
         exchange_rate=Decimal("1.000000"),
         is_deposit_collected=True,
         is_confirmed_audit=True,
+        is_legacy_pre_audit=True,
         created_by=s['user']
     )
     unit.current_booking = booking
@@ -1420,6 +1421,7 @@ def test_22_booking_conversion_to_contract_transfers_holding_deposit_to_contract
     )
     assert booking.is_deposit_collected is True
     booking.is_confirmed_audit = True
+    booking.is_legacy_pre_audit = True
     booking.save()
 
     # تحويل الحجز إلى عقد رسمي

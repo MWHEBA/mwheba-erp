@@ -199,6 +199,7 @@ def test_uncollected_down_payment_cannot_get_full_clearance(audit_setup):
     assert booking.is_deposit_collected is True
     assert booking.holding_deposit == Decimal("100.00")
     booking.is_confirmed_audit = True
+    booking.is_legacy_pre_audit = True
     booking.save()
 
     # 2. محاولة تحويل الحجز لعقد بمقدم 1000 دون تحديد حساب لتحصيل الفرق (900) يجب أن تُرْفَض

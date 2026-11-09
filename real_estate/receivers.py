@@ -4,6 +4,7 @@ real_estate/receivers.py - مستقبلات الإشارات لربط منظوم
 (Two-Way Sync Hook between Central Cheques Engine and Real Estate Booking Settlements)
 """
 import logging
+from decimal import Decimal
 from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -66,6 +67,18 @@ def sync_refund_cheque_lifecycle(sender, instance, created, **kwargs):
 
         locked_payment.save(update_fields=updated_fields)
         locked_settlement.recalculate_balances()
+
+        # مزامنة حالة الحجز بحسب الرصيد المتبقي والمسيل فعلياً بعد حركة الشيك
+        if locked_settlement.booking:
+            from real_estate.models import UnitBooking
+            if locked_settlement.remaining_disbursable_amount > Decimal('0.00'):
+                if locked_settlement.booking.status == UnitBooking.BookingStatus.CANCELLED_REFUNDED:
+                    locked_settlement.booking.status = UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND
+                    locked_settlement.booking.save(update_fields=['status', 'updated_at'])
+            elif locked_settlement.cleared_amount >= locked_settlement.net_refundable_amount and locked_settlement.net_refundable_amount > Decimal('0.00'):
+                if locked_settlement.booking.status != UnitBooking.BookingStatus.CANCELLED_REFUNDED:
+                    locked_settlement.booking.status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
+                    locked_settlement.booking.save(update_fields=['status', 'updated_at'])
 
         logger.info(
             f"🔄 [ChequeSyncHook] تم مزامنة حركة الشيك #{cheque.cheque_number} ({to_status}) "

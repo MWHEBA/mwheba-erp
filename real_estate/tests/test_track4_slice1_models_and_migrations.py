@@ -223,6 +223,7 @@ class TestSlice1ModelsAndMigrations:
             is_deposit_collected=True,
             is_reviewed_sales=True,
             is_confirmed_audit=True,
+            is_legacy_pre_audit=True,
             confirmed_by=data['user'],
             confirmed_at=timezone.now(),
             created_by=data['user']

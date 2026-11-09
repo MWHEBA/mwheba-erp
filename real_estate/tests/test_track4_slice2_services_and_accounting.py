@@ -222,6 +222,27 @@ def test_sync_contract_ownership_batch(slice2_setup):
             user=user
         )
 
+    # Reject negative primary share even if sum is 100% (-50 + 75 + 75 = 100%)
+    with pytest.raises(ValidationError):
+        PropertyContractService.sync_contract_ownership(
+            contract_id=contract.id,
+            co_owners_data=[
+                {'customer_id': cust2.id, 'share_percentage': Decimal("75.00")},
+                {'customer_id': cust3.id, 'share_percentage': Decimal("75.00")},
+            ],
+            primary_owner_share=Decimal("-50.00"),
+            user=user
+        )
+
+    # Reject share > 100%
+    with pytest.raises(ValidationError):
+        PropertyContractService.sync_contract_ownership(
+            contract_id=contract.id,
+            co_owners_data=[],
+            primary_owner_share=Decimal("120.00"),
+            user=user
+        )
+
 
 @pytest.mark.django_db
 def test_create_booking_accessories_and_collision(slice2_setup):
@@ -300,9 +321,16 @@ def test_convert_booking_to_contract_dual_audit_guard(slice2_setup):
         )
     assert "الاعتماد المالي والرقابي الثنائي" in str(exc.value)
 
-    # اعتماد الحجز
+    # اعتماد الحجز بمراجعة مبيعات واعتماد رقابي لمستخدمين منفصلين (Segregation of Duties)
+    from django.contrib.auth import get_user_model
+    sales_rep = get_user_model().objects.create_user(username='slice2_sales_reviewer', email='sl2_sales@test.com')
+    audit_rep = get_user_model().objects.create_user(username='slice2_audit_approver', email='sl2_audit@test.com')
+
+    booking.is_reviewed_sales = True
+    booking.reviewed_by = sales_rep
+    booking.reviewed_at = timezone.now()
     booking.is_confirmed_audit = True
-    booking.confirmed_by = user
+    booking.confirmed_by = audit_rep
     booking.confirmed_at = timezone.now()
     booking.save()
 

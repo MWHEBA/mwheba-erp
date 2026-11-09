@@ -13,11 +13,9 @@ def populate_legacy_bookings_data(apps, schema_editor):
     for booking in UnitBooking.objects.filter(verification_uuid__isnull=True):
         booking.verification_uuid = uuid.uuid4()
         booking.save(update_fields=['verification_uuid'])
-    # Mark existing active bookings as pre-audit to avoid breaking legacy data
+    # Mark existing active bookings as pre-audit to avoid breaking legacy data without fabricating approvals
     UnitBooking.objects.filter(status='ACTIVE').update(
-        is_legacy_pre_audit=True,
-        is_reviewed_sales=True,
-        is_confirmed_audit=True
+        is_legacy_pre_audit=True
     )
 
 

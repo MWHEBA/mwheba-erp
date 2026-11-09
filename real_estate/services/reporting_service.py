@@ -684,7 +684,10 @@ class RealEstateReportingService:
         # 3. المحفظة البيعية والمالية (Functional Currency & Foreign Isolations)
         contracts_qs = PropertyContract.objects.filter(
             unit__in=units_qs,
-            status=PropertyContract.ContractStatus.ACTIVE
+            status__in=[
+                PropertyContract.ContractStatus.ACTIVE,
+                PropertyContract.ContractStatus.COMPLETED,
+            ]
         ).select_related('unit', 'customer', 'currency', 'created_by', 'visit_specialist')
 
         bookings_qs = UnitBooking.objects.filter(
@@ -747,7 +750,7 @@ class RealEstateReportingService:
             if contract.installment_plan_id:
                 inst_paid = InstallmentItem.objects.filter(
                     plan_id=contract.installment_plan_id,
-                    is_paid=True
+                    paid_amount__gt=Decimal('0.00')
                 ).aggregate(s=Sum('paid_amount'))['s'] or Decimal('0.00')
             inst_paid_func = inst_paid * rate
             total_installments_collected_func += inst_paid_func
@@ -756,8 +759,8 @@ class RealEstateReportingService:
             chqs_val = Decimal('0.00')
             if contract.installment_plan_id:
                 chqs_val = ChequeInvoiceAllocation.objects.filter(
-                    installment__plan_id=contract.installment_plan_id,
-                    cheque__status__in=vault_st if 'vault_st' in locals() else vault_statuses
+                    installment_item__plan_id=contract.installment_plan_id,
+                    cheque__status__in=vault_statuses
                 ).aggregate(s=Sum('allocated_amount'))['s'] or Decimal('0.00')
             chqs_val_func = chqs_val * rate
             total_cheques_in_vault_func += chqs_val_func
