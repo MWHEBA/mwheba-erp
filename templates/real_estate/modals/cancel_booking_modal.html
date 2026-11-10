@@ -29,10 +29,28 @@
             <label for="cancel_disposition" class="form-label fw-semibold text-dark">
               {% trans "المعالجة المالية للأمانة" %} <span class="text-danger">*</span>
             </label>
-            <select name="disposition" id="cancel_disposition" class="form-select" required>
-              <option value="REFUND">{% trans "استرداد الأمانة للعميل (CANCELLED_PENDING_REFUND)" %}</option>
-              <option value="FORFEIT">{% trans "مصادرة الأمانة كإيراد تعويض للشركة (FORFEITED)" %}</option>
+            <select name="disposition" id="cancel_disposition" class="form-select" onchange="toggleCancelDeduction(this.value)" required>
+              <option value="REFUND">{% trans "استرداد الأمانة للعميل (مع إمكانية خصم مصاريف)" %}</option>
+              <option value="FORFEIT">{% trans "مصادرة الأمانة بالكامل كإيراد تعويض للشركة (FORFEITED)" %}</option>
             </select>
+          </div>
+
+          <div id="cancel_deduction_group" class="mb-3 p-3 bg-light rounded border">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label for="cancel_deduction_fees" class="form-label fw-semibold text-dark mb-0 small">
+                {% trans "مصاريف إدارية معتمدة مخصومة من الأمانة" %}
+              </label>
+              <span class="small text-muted font-monospace">
+                {% trans "إجمالي الأمانة:" %} {{ booking.holding_deposit|default:"0.00" }} {{ booking.currency.code|default:"EGP" }}
+              </span>
+            </div>
+            <div class="input-group input-group-sm">
+              <input type="number" step="0.01" min="0" max="{{ booking.holding_deposit|default:'0' }}" name="deduction_fees" id="cancel_deduction_fees" class="form-control font-monospace" value="0.00">
+              <span class="input-group-text">{{ booking.currency.code|default:"EGP" }}</span>
+            </div>
+            <div class="form-text small text-muted">
+              {% trans "المبلغ المتبقي بعد الخصم سيكون متاحاً للصرف بقرار تسوية مالي." %}
+            </div>
           </div>
         </div>
         <div class="modal-footer bg-light border-top px-4 py-3">
@@ -45,3 +63,12 @@
     </div>
   </div>
 </div>
+
+<script>
+function toggleCancelDeduction(val) {
+  var grp = document.getElementById('cancel_deduction_group');
+  if (grp) {
+    grp.style.display = (val === 'REFUND') ? 'block' : 'none';
+  }
+}
+</script>

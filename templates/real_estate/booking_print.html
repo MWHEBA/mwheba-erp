@@ -146,21 +146,24 @@
     </table>
   </div>
 
-  <!-- Financial Holding Deposit -->
+  <!-- Financial Holding Deposit & Payment Instrument -->
   <div class="section-box">
-    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثالثاً: بيان دفعة جدية الحجز (أمانات العملاء)</h6>
-    <table class="table table-bordered table-sm mb-0">
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثالثاً: بيان دفعة جدية الحجز وسند السداد المالي (أمانات العملاء)</h6>
+    <table class="table table-bordered table-sm mb-3">
       <thead class="table-light">
         <tr>
           <th class="text-center">مبلغ جدية الحجز</th>
+          <th class="text-center">وسيلة وأداة السداد</th>
+          <th class="text-center">حساب التحصيل (الخزينة/البنك)</th>
           <th class="text-center">حالة التحصيل المالي</th>
-          <th class="text-center">حالة صلاحية الحجز</th>
           <th class="text-center">رقم القيد المحاسبي</th>
         </tr>
       </thead>
       <tbody>
         <tr class="text-center font-monospace fw-bold">
-          <td class="fs-6 text-primary">{{ booking.holding_deposit|floatformat:2|intcomma }}</td>
+          <td class="fs-6 text-primary">{{ booking.holding_deposit|floatformat:2|intcomma }} {{ booking.currency.code|default:"EGP" }}</td>
+          <td><span class="badge bg-light text-dark border">{{ payment_info.instrument_type|default:"نقداً بالخزينة" }}</span></td>
+          <td><small class="text-dark">{{ payment_info.account_name|default:"الخزينة الرئيسية" }} (<code>{{ payment_info.account_code|default:"11101" }}</code>)</small></td>
           <td>
             {% if booking.is_deposit_collected %}
               <span class="badge bg-success">محصل ومقيد بالخزينة</span>
@@ -168,17 +171,18 @@
               <span class="badge bg-warning text-dark">قيد التحصيل</span>
             {% endif %}
           </td>
-          <td>
-            {% if not booking.is_expired %}
-              <span class="badge bg-info text-dark">ساري المفعول</span>
-            {% else %}
-              <span class="badge bg-secondary">منتهي المهلة</span>
-            {% endif %}
-          </td>
-          <td>{{ booking.journal_entry.entry_number|default:"-" }}</td>
+          <td>{{ payment_info.entry_number|default:"-" }}</td>
         </tr>
       </tbody>
     </table>
+    {% if booking.is_deposit_collected %}
+    <div class="p-2 border rounded bg-light small">
+      <span class="fw-bold text-dark"><i class="fas fa-receipt text-primary me-1"></i>حجية إيصال الأمانة:</span>
+      <span class="text-muted">
+        تم قيد المبلغ المذكور كأمانة حجز مؤقتة بحسابات الشركة بموجب السند المقيد برقم ({{ payment_info.entry_number|default:"-" }}) وتاريخ {{ booking.booking_date|date:"Y-m-d" }}، ويعد هذا البيان إيصال استلام رسمي لأمانة جدية الحجز.
+      </span>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Terms -->

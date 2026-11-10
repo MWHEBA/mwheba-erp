@@ -13,16 +13,39 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="refund">
         <div class="modal-body p-4">
-          <div class="mb-3">
-            <label class="form-label small text-muted">{% trans "مبلغ الأمانة المسترد للعميل" %}</label>
-            <div class="fs-4 fw-bold text-success font-monospace">
-              {{ booking.holding_deposit|default:"0.00" }} {{ booking.deposit_currency.code|default:"EGP" }}
+          <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded border">
+            <div>
+              <div class="small text-muted">{% trans "المبلغ المستحق رده للعميل" %}</div>
+              <div class="fs-4 fw-bold text-success font-monospace">
+                {% if settlement %}{{ settlement.remaining_disbursable_amount }}{% else %}{{ booking.holding_deposit|default:"0.00" }}{% endif %}
+                {{ booking.currency.code|default:"EGP" }}
+              </div>
             </div>
+            {% if settlement and settlement.approved_deduction_fees > 0 %}
+            <div class="text-end">
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                <i class="fas fa-cut me-1"></i>{% trans "مخصوم مصاريف:" %} {{ settlement.approved_deduction_fees }}
+              </span>
+            </div>
+            {% endif %}
           </div>
 
+          <!-- Refund Method Selector -->
           <div class="mb-3">
+            <label for="refund_method" class="form-label fw-semibold text-dark">
+              {% trans "طريقة صرف الاسترداد" %} <span class="text-danger">*</span>
+            </label>
+            <select name="method" id="refund_method" class="form-select" onchange="toggleRefundMethodFields(this.value)" required>
+              <option value="BANK_TRANSFER">{% trans "تحويل بنكي مباشر (حساب بنكي)" %}</option>
+              <option value="CASH">{% trans "نقداً من الخزينة النقدية" %}</option>
+              <option value="CHEQUE">{% trans "شيك مصرفي آجل (أوراق دفع)" %}</option>
+            </select>
+          </div>
+
+          <!-- Payment Account (Bank / Cash) -->
+          <div class="mb-3" id="refund_account_group">
             <label for="refund_account" class="form-label fw-semibold text-dark">
-              {% trans "حساب الصرف (الخزينة / البنك)" %} <span class="text-danger">*</span>
+              <span id="refund_account_label">{% trans "حساب الصرف (الخزينة / البنك)" %}</span> <span class="text-danger">*</span>
             </label>
             <select name="refund_account" id="refund_account" class="form-select select2-modal" dir="rtl" required>
               <option value="">{% trans "اختر الحساب المصروف منه..." %}</option>
@@ -30,6 +53,39 @@
               <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
               {% endfor %}
             </select>
+          </div>
+
+          <!-- Conditional Cheque Fields -->
+          <div id="refund_cheque_fields" class="p-3 border rounded bg-light mb-3" style="display: none;">
+            <div class="fw-bold text-dark mb-2 small">
+              <i class="fas fa-money-check text-primary me-1"></i>{% trans "بيانات الشيك الصادر (أوراق دفع)" %}
+            </div>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label for="cheque_number" class="form-label small fw-semibold text-dark">
+                  {% trans "رقم الشيك" %} <span class="text-danger">*</span>
+                </label>
+                <input type="text" name="cheque_number" id="cheque_number" class="form-control form-control-sm font-monospace" placeholder="{% trans 'مثال: 001248' %}">
+              </div>
+              <div class="col-md-6">
+                <label for="cheque_due_date" class="form-label small fw-semibold text-dark">
+                  {% trans "تاريخ الاستحقاق" %} <span class="text-danger">*</span>
+                </label>
+                <input type="date" name="due_date" id="cheque_due_date" class="form-control form-control-sm" value="{% now 'Y-m-d' %}">
+              </div>
+              <div class="col-md-6">
+                <label for="drawer_bank_name" class="form-label small text-dark">
+                  {% trans "البنك المسحوب عليه" %}
+                </label>
+                <input type="text" name="drawer_bank_name" id="drawer_bank_name" class="form-control form-control-sm" placeholder="{% trans 'اسم البنك المصدر...' %}">
+              </div>
+              <div class="col-md-6">
+                <label for="payee_name" class="form-label small text-dark">
+                  {% trans "المستفيد" %}
+                </label>
+                <input type="text" name="payee_name" id="payee_name" class="form-control form-control-sm" value="{{ booking.customer.name|default:'' }}">
+              </div>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -47,3 +103,27 @@
     </div>
   </div>
 </div>
+
+<script>
+function toggleRefundMethodFields(method) {
+  var chequeSection = document.getElementById('refund_cheque_fields');
+  var accountSelect = document.getElementById('refund_account');
+  var accountLabel = document.getElementById('refund_account_label');
+  var chkNum = document.getElementById('cheque_number');
+  var chkDue = document.getElementById('cheque_due_date');
+
+  if (method === 'CHEQUE') {
+    chequeSection.style.display = 'block';
+    if (chkNum) chkNum.setAttribute('required', 'required');
+    if (chkDue) chkDue.setAttribute('required', 'required');
+    if (accountLabel) accountLabel.textContent = "{% trans 'البنك المسحوب منه (اختياري)' %}";
+    if (accountSelect) accountSelect.removeAttribute('required');
+  } else {
+    chequeSection.style.display = 'none';
+    if (chkNum) chkNum.removeAttribute('required');
+    if (chkDue) chkDue.removeAttribute('required');
+    if (accountLabel) accountLabel.textContent = "{% trans 'حساب الصرف (الخزينة / البنك)' %}";
+    if (accountSelect) accountSelect.setAttribute('required', 'required');
+  }
+}
+</script>

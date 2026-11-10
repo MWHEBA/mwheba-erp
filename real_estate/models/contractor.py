@@ -1026,6 +1026,12 @@ class ContractorProgressCertificate(models.Model):
         default=Decimal('0.00'),
         verbose_name=_('مبلغ فروق أسعار الخامات المعتمدة بالفترة')
     )
+    unverified_work_holdback = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('استقطاع أعمال غير معتمدة استشارياً لحين اكتمال RFI')
+    )
 
     # تشوينات الموقع (MOS)
     materials_on_site = models.DecimalField(
@@ -1171,6 +1177,12 @@ class ContractorProgressCertificate(models.Model):
         decimal_places=2,
         default=Decimal('0.00'),
         verbose_name=_('أمانة معلقة لصبات مشكوك في نتائج كسر مكعباتها 28 يوم')
+    )
+    released_cube_test_hold_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('رد أمانة كسر مكعبات خرسانة 28 يوم ناجحة')
     )
     equipment_hoisting_charges = models.DecimalField(
         max_digits=15,
@@ -1423,6 +1435,16 @@ class ContractorProgressCertificate(models.Model):
         default='',
         verbose_name=_('ملاحظات وتفاصيل الأعمال')
     )
+    consultant_waiver_approved = models.BooleanField(
+        default=False,
+        verbose_name=_('موافقة الاستشاري على تجاوز الملاحظات الحرجة')
+    )
+    consultant_waiver_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name=_('رقم/مرجع خطاب موافقة الاستشاري على التجاوز')
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -1488,6 +1510,18 @@ class ContractorProgressCertificate(models.Model):
             # الحساب التوافقي القديم للمستخلصات السابقة
             self.wht_amount = (self.current_period_work * self.wht_rate / Decimal('100')).quantize(Decimal('0.01'))
 
+        # التحقق من سقف استرداد الدفعة المقدمة لمنع التجاوز بالسالب
+        if self.contract:
+            advance_pool = (
+                self.contract.advance_payment_disbursed
+                if self.contract.advance_payment_disbursed > Decimal('0.00')
+                else self.contract.advance_payment_amount
+            )
+            if advance_pool > Decimal('0.00'):
+                available_advance = max(Decimal('0.00'), advance_pool - self.contract.advance_payment_recovered)
+                if self.advance_payment_recovery > available_advance:
+                    self.advance_payment_recovery = available_advance
+
         # حساب ضريبة الجدول (5%) أو ضريبة القيمة المضافة (14%) المصرية إذا كان العقد خاضعاً
         if self.contract:
             if self.contract.tax_regime == ContractorContract.TaxRegime.TABLE_TAX_5:
@@ -1514,7 +1548,8 @@ class ContractorProgressCertificate(models.Model):
                 self.net_materials_on_site +
                 self.price_escalation_amount +
                 self.approved_suspension_standby_claims +
-                self.released_retention_amount
+                self.released_retention_amount +
+                self.released_cube_test_hold_amount
             )
             total_operational_penalties = (
                 self.delay_penalties +
@@ -1535,6 +1570,7 @@ class ContractorProgressCertificate(models.Model):
                 self.interim_on_account_payments +
                 self.direct_labor_advances_deduction +
                 self.pending_cube_test_hold_amount +
+                self.unverified_work_holdback +
                 self.equipment_hoisting_charges +
                 self.debris_clearance_charges +
                 self.hse_medical_and_incident_costs +
@@ -1583,12 +1619,93 @@ class ContractorProgressCertificate(models.Model):
             f"{self.penalty_deductions}:{self.net_amount}:{self.vat_schedule_amount}:"
             f"{self.disputed_items_holdback_total}:{self.total_backcharges}:"
             f"{self.scaffolding_damage_deduction}:{self.third_party_lab_charges}:"
-            f"{self.defect_rectification_costs}:{self.version}#{items_payload}"
+            f"{self.defect_rectification_costs}:{self.unverified_work_holdback}:"
+            f"{self.released_cube_test_hold_amount}:{self.price_escalation_amount}:"
+            f"{self.version}#{items_payload}"
         )
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
     def clean(self):
         super().clean()
+        if self.contract:
+            advance_pool = (
+                self.contract.advance_payment_disbursed
+                if self.contract.advance_payment_disbursed > Decimal('0.00')
+                else self.contract.advance_payment_amount
+            )
+            if advance_pool > Decimal('0.00'):
+                available_advance = max(Decimal('0.00'), advance_pool - self.contract.advance_payment_recovered)
+                if self.advance_payment_recovery > available_advance:
+                    raise ValidationError(_("مبلغ استرداد الدفعة المقدمة (%(rec)s) يتجاوز الرصيد المتبقي الفعلي للدفعة المقدمة بالعقد (%(avail)s).") % {
+                        'rec': self.advance_payment_recovery,
+                        'avail': available_advance
+                    })
+
+        # حراسة رد أمانات كسر المكعبات الخرسانية: التحقق من الرصيد المحتجز مسبقاً ونتائج الفحص المعملي
+        if self.released_cube_test_hold_amount and self.released_cube_test_hold_amount > Decimal('0.00'):
+            prev_certs = ContractorProgressCertificate.objects.filter(
+                contract_id=self.contract_id,
+                status=ContractorProgressCertificate.CertificateStatus.APPROVED
+            )
+            if self.pk:
+                prev_certs = prev_certs.exclude(pk=self.pk)
+            total_held = sum((c.pending_cube_test_hold_amount for c in prev_certs), Decimal('0.00'))
+            total_rel = sum((c.released_cube_test_hold_amount for c in prev_certs), Decimal('0.00'))
+            available_cube = max(Decimal('0.00'), total_held - total_rel)
+            if self.released_cube_test_hold_amount > available_cube:
+                raise ValidationError(
+                    _("مبلغ رد أمانة كسر المكعبات (%(amt)s) يتجاوز رصيد الأمانات المحتجزة مسبقاً بالعقد (%(avail)s).") % {
+                        'amt': self.released_cube_test_hold_amount,
+                        'avail': available_cube
+                    }
+                )
+
+            from real_estate.models.contractor import ThirdPartyLabTestLog, ConcreteBatchDelivery
+            concrete_q = (
+                models.Q(test_type__icontains='cube') |
+                models.Q(test_type__icontains='مكعب') |
+                models.Q(test_type__icontains='concrete') |
+                models.Q(test_type__icontains='خرسان') |
+                models.Q(test_type__icontains='core') |
+                models.Q(tested_element__icontains='cube') |
+                models.Q(tested_element__icontains='مكعب') |
+                models.Q(tested_element__icontains='concrete') |
+                models.Q(tested_element__icontains='خرسان')
+            )
+            early_test_q = (
+                models.Q(test_type__icontains='7-day') |
+                models.Q(test_type__icontains='7 day') |
+                models.Q(test_type__icontains='7 days') |
+                models.Q(test_type__icontains='7 أيام') |
+                models.Q(test_type__icontains='7 يوم') |
+                models.Q(tested_element__icontains='7-day') |
+                models.Q(tested_element__icontains='7 day') |
+                models.Q(tested_element__icontains='7 days') |
+                models.Q(tested_element__icontains='7 أيام') |
+                models.Q(tested_element__icontains='7 يوم')
+            )
+            maturity_q = (
+                models.Q(test_type__icontains='28') |
+                models.Q(test_type__icontains='core') |
+                models.Q(test_type__icontains='قلب') |
+                models.Q(tested_element__icontains='28') |
+                models.Q(tested_element__icontains='core') |
+                models.Q(tested_element__icontains='قلب')
+            )
+            has_passed_lab = ThirdPartyLabTestLog.objects.filter(
+                contract_id=self.contract_id,
+                is_test_passed=True
+            ).filter(concrete_q).filter(maturity_q).exclude(early_test_q).exists()
+            has_passed_batch = ConcreteBatchDelivery.objects.filter(
+                models.Q(supplier_contract_id=self.contract_id) | (models.Q(project_id=self.project_id) & models.Q(supplier_contract__isnull=True)),
+                is_sample_passed=True,
+                cube_test_28days_kg_cm2__isnull=False
+            ).exists()
+            if not (has_passed_lab or has_passed_batch):
+                raise ValidationError(
+                    _("لا يمكن رد أمانة كسر المكعبات دون وجود نتائج اختبارات معملية معتمدة وناجحة لكسر 28 يوماً.")
+                )
+
         self.compute_amounts()
         if self.net_amount < Decimal('0.00'):
             raise ValidationError(_("صافي مبلغ المستخلص لا يمكن أن يكون سالباً."))
@@ -1808,11 +1925,37 @@ class ContractorBackcharge(models.Model):
     """
     الخصومات البينية وتكاليف إصلاح العيوب (مربوطة مع UnitSnagItem ومهلة إخطار 48 ساعة)
     """
+    class SettlementMethod(models.TextChoices):
+        CERTIFICATE = 'CERTIFICATE', _('خصم من مستخلص جاري')
+        RETENTION_LIQUIDATION = 'RETENTION_LIQUIDATION', _('تسييل مباشر من حساب التأمين 21310')
+        PENDING = 'PENDING', _('معلق بمحفظة الخصومات')
+
+    # Alias for backward compatibility
+    SettlementMethod.CERTIFICATE_DEDUCTION = SettlementMethod.CERTIFICATE
+
     certificate = models.ForeignKey(
         ContractorProgressCertificate,
-        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name='backcharges',
         verbose_name=_('المستخلص المخصوم منه')
+    )
+    contractor = models.ForeignKey(
+        'supplier.Supplier',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='contractor_backcharges',
+        verbose_name=_('المقاول المحمل عليه الخصم')
+    )
+    contract = models.ForeignKey(
+        ContractorContract,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='backcharges',
+        verbose_name=_('عقد المقاولة المرتبط')
     )
     beneficiary_contractor = models.ForeignKey(
         'supplier.Supplier',
@@ -1841,10 +1984,42 @@ class ContractorBackcharge(models.Model):
     reason = models.TextField(verbose_name=_('سبب الخصم البيني وتوصيف التلفيات أو الخدمة'))
     memo_reference = models.CharField(max_length=100, blank=True, default='', verbose_name=_('رقم مذكرة الاستشاري / أمر الشغل للإصلاح'))
     amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name=_('مبلغ الخصم البيني'))
+    is_settled = models.BooleanField(default=False, verbose_name=_('تمت تسوية الخصم'))
+    settlement_method = models.CharField(
+        max_length=30,
+        choices=SettlementMethod.choices,
+        default=SettlementMethod.PENDING,
+        verbose_name=_('طريقة التسوية')
+    )
+    settlement_journal_entry = models.ForeignKey(
+        'financial.JournalEntry',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='settled_backcharges',
+        verbose_name=_('قيد تسوية الخصم')
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name=_('تاريخ إنشاء الخصم'))
 
     class Meta:
         verbose_name = _('خصم بيني / تكلفة إصلاح عيوب')
         verbose_name_plural = _('الخصومات البينية وتكاليف العيوب')
+        ordering = ['-created_at', '-id']
+
+    def clean(self):
+        super().clean()
+        if self.certificate_id:
+            if self.certificate.status in [
+                ContractorProgressCertificate.CertificateStatus.APPROVED,
+                ContractorProgressCertificate.CertificateStatus.PAID
+            ]:
+                raise ValidationError(_("لا يمكن ربط خصم بمستخلص معتمد أو مسدد مسبقاً."))
+            if not self.contractor_id:
+                self.contractor_id = self.certificate.contractor_id
+            if not self.contract_id and self.certificate.contract_id:
+                self.contract_id = self.certificate.contract_id
+        elif self.contract_id and not self.contractor_id:
+            self.contractor_id = self.contract.contractor_id
 
 
 class ConcreteBatchDelivery(models.Model):

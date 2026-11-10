@@ -1,11 +1,11 @@
 {% load i18n %}
 
 <div class="modal fade" id="bookUnitModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-light border-bottom px-4 py-3">
         <h5 class="modal-title fw-bold text-dark mb-0">
-          <i class="fas fa-bookmark text-warning me-2"></i>{% trans "حجز وحدة عقارية وسداد الأمانة" %}
+          <i class="fas fa-bookmark text-primary me-2"></i>{% trans "حجز وحدة عقارية وسداد الأمانة" %}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -14,45 +14,126 @@
         <div class="modal-body p-4">
           <input type="hidden" name="unit_id" id="book_unit_id">
 
+          <!-- Unit Info Header -->
           <div class="mb-3">
             <label class="form-label small text-muted">{% trans "الوحدة العقارية" %}</label>
             <input type="text" id="book_unit_display" class="form-control bg-light font-monospace fw-bold" readonly>
           </div>
 
-          <div class="mb-3">
-            <label for="book_customer" class="form-label fw-semibold text-dark">
-              {% trans "العميل الحاجز" %} <span class="text-danger">*</span>
-            </label>
-            <select name="customer" id="book_customer" class="form-select select2-modal" dir="rtl" required>
-              <option value="">{% trans "اختر العميل..." %}</option>
-              {% for cust in customers %}
-              <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.phone|default:cust.code }})</option>
-              {% endfor %}
-            </select>
+          <!-- Customer & Expiry -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-8">
+              <label for="book_customer" class="form-label fw-semibold text-dark">
+                {% trans "العميل الحاجز" %} <span class="text-danger">*</span>
+              </label>
+              <select name="customer_id" id="book_customer" class="form-select select2-modal" dir="rtl" required>
+                <option value="">{% trans "اختر العميل..." %}</option>
+                {% for cust in customers %}
+                <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.phone|default:cust.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label for="book_expiry_days" class="form-label text-dark">{% trans "مدة السريان (أيام)" %}</label>
+              <input type="number" name="expiry_days" id="book_expiry_days" class="form-control" value="7" min="1" max="60">
+            </div>
           </div>
 
-          <div class="row g-2 mb-3">
-            <div class="col-8">
+          <!-- Financial Details -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-4">
               <label for="book_deposit" class="form-label fw-semibold text-dark">
                 {% trans "مبلغ جدية الحجز" %} <span class="text-danger">*</span>
               </label>
               <input type="number" step="0.01" name="holding_deposit" id="book_deposit" class="form-control fw-bold" required>
             </div>
-            <div class="col-4">
-              <label for="book_deposit_currency" class="form-label text-dark">{% trans "العملة" %}</label>
+            <div class="col-12 col-md-4">
+              <label for="book_deposit_currency" class="form-label text-dark">{% trans "عملة الأمانة" %}</label>
               <select name="deposit_currency" id="book_deposit_currency" class="form-select">
-                <option value="EGP">EGP</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="SAR">SAR</option>
+                {% for curr in currencies %}
+                <option value="{{ curr.code }}" {% if curr.is_functional %}selected{% endif %}>{{ curr.code }} - {{ curr.name }}</option>
+                {% empty %}
+                <option value="EGP" selected>EGP - الجنيه المصري</option>
+                <option value="USD">USD - الدولار الأمريكي</option>
+                <option value="EUR">EUR - اليورو</option>
+                <option value="SAR">SAR - الريال السعودي</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label for="book_payment_account" class="form-label text-dark">{% trans "حساب التحصيل (خزينة/بنك)" %}</label>
+              <select name="payment_account_id" id="book_payment_account" class="form-select">
+                <option value="">{% trans "حساب الخزينة الرئيسي" %}</option>
+                {% for acc in payment_accounts %}
+                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                {% endfor %}
               </select>
             </div>
           </div>
 
-          <div class="mb-3">
-            <label for="book_expiry_days" class="form-label text-dark">{% trans "مدة سريان الحجز (بالأيام)" %}</label>
-            <input type="number" name="expiry_days" id="book_expiry_days" class="form-control" value="7" min="1" max="60">
-            <small class="text-muted">{% trans "تنتهي صلاحية الحجز وتُتاح الوحدة تلقائياً بعد انتهاء المدة." %}</small>
+          <!-- Extras & Addons -->
+          <div class="border rounded p-3 bg-light mb-3">
+            <div class="fw-bold text-dark mb-2 small">
+              <i class="fas fa-layer-group text-primary me-1"></i>{% trans "ملحقات وتجهيزات الوحدة التعاقدية (اختياري)" %}
+            </div>
+            <div class="row g-2">
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-muted">{% trans "كود الجراج" %}</label>
+                <input type="text" name="parking_slot_code" class="form-control form-control-sm" placeholder="P-01">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-muted">{% trans "سعر الجراج" %}</label>
+                <input type="number" step="0.01" name="parking_slot_price" class="form-control form-control-sm" value="0.00">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-muted">{% trans "كود المخزن" %}</label>
+                <input type="text" name="storage_locker_code" class="form-control form-control-sm" placeholder="S-01">
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-muted">{% trans "سعر المخزن" %}</label>
+                <input type="number" step="0.01" name="storage_locker_price" class="form-control form-control-sm" value="0.00">
+              </div>
+              <div class="col-12 col-md-6 mt-2">
+                <label class="form-label small text-muted">{% trans "وديعة الصيانة والمرافق" %}</label>
+                <input type="number" step="0.01" name="utilities_deposit_amount" class="form-control form-control-sm" value="0.00">
+              </div>
+            </div>
+          </div>
+
+          <!-- Sales Team Attribution -->
+          <div class="row g-2 mb-2">
+            <div class="col-12 col-md-4">
+              <label class="form-label small text-muted">{% trans "قناة البيع" %}</label>
+              <select name="sales_channel" class="form-select form-select-sm">
+                <option value="DIRECT_SALES">{% trans "مبيعات مباشرة للمقر" %}</option>
+                <option value="BROKER_EXTERNAL">{% trans "وسيط وتسويق خارجي" %}</option>
+                <option value="DIGITAL_MARKETING">{% trans "تسويق رقمي وإعلانات" %}</option>
+                <option value="EXHIBITION">{% trans "معرض عقاري" %}</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small text-muted">{% trans "الوسيط الخارجي" %}</label>
+              <select name="broker_id" class="form-select form-select-sm">
+                <option value="">{% trans "بدون وسيط (بيع مباشر)" %}</option>
+                {% for b in brokers %}
+                <option value="{{ b.id }}">{{ b.name }} ({{ b.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label small text-muted">{% trans "مسؤول الزيارة/المقابلة" %}</label>
+              <select name="visit_specialist_id" class="form-select form-select-sm">
+                <option value="">{% trans "اختر المسؤول..." %}</option>
+                {% for sp in specialists %}
+                <option value="{{ sp.id }}">{{ sp.get_full_name|default:sp.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-0">
+            <label for="book_notes" class="form-label small text-muted">{% trans "ملاحظات الحجز" %}</label>
+            <textarea name="notes" id="book_notes" class="form-control" rows="2" placeholder="{% trans 'ملاحظات إدارية أو تعاقدية إضافية...' %}"></textarea>
           </div>
         </div>
         <div class="modal-footer bg-light border-top px-4 py-3">

@@ -96,6 +96,8 @@
             <th>اسم الشريك</th>
             <th class="text-center">نسبة التملك (%)</th>
             <th class="text-center">الصفة التعاقدية</th>
+            <th class="text-center">بيانات التوكيل الرسمي</th>
+            <th class="text-center">مكتب التوثيق الصادر منه</th>
           </tr>
         </thead>
         <tbody>
@@ -103,7 +105,21 @@
           <tr>
             <td class="fw-semibold">{{ co.co_owner.name }}</td>
             <td class="text-center font-monospace">{{ co.share_percentage|floatformat:2 }}%</td>
-            <td class="text-center">{% if co.is_joint_and_several_guarantor %}شريك وضامن متضامن{% else %}شريك على المشاع{% endif %}</td>
+            <td class="text-center">
+              {% if co.representation_capacity %}
+                {{ co.representation_capacity }}
+              {% elif co.is_joint_and_several_guarantor %}
+                شريك وضامن متضامن
+              {% else %}
+                شريك على المشاع
+              {% endif %}
+            </td>
+            <td class="text-center font-monospace">
+              {{ co.power_of_attorney_number|default:"-" }}
+            </td>
+            <td class="text-center">
+              {{ co.issuing_registry_office|default:"-" }}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -151,9 +167,58 @@
     </table>
   </div>
 
-  <!-- Section 3: Financial Terms -->
+  <!-- Section 3: Accessories & Extras Annex -->
+  <div class="section-box bg-light">
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثالثاً: ملحق التجهيزات والملحقات ووديعة المرافق والصيانة</h6>
+    <table class="table table-bordered table-sm mb-0 bg-white">
+      <thead class="table-light">
+        <tr>
+          <th>البند / التجهيز</th>
+          <th class="text-center">الكود / المواصفة</th>
+          <th class="text-end">القيمة التعاقدية</th>
+          <th>الشروط والأحكام الخاصة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="fw-semibold">بايكة الجراج (Parking Slot)</td>
+          <td class="text-center font-monospace">{{ contract.parking_slot_code|default:"غير مشمولة" }}</td>
+          <td class="text-end font-monospace">{{ contract.parking_slot_price|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}</td>
+          <td class="small text-muted">تخصيص انتفاع حصري وفق اللائحة العقارية للمشروع</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">المخزن السريع (Storage Locker)</td>
+          <td class="text-center font-monospace">{{ contract.storage_locker_code|default:"غير مشمول" }}</td>
+          <td class="text-end font-monospace">{{ contract.storage_locker_price|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}</td>
+          <td class="small text-muted">ملحق تخزين مخصص ومقيد بالرسم الهندسي</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">باقة وأعمال التشطيب</td>
+          <td class="text-center font-monospace">{{ contract.get_contract_tax_structure_display }}</td>
+          <td class="text-end font-monospace">{{ contract.finishing_total_amount|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}</td>
+          <td class="small text-muted">
+            {% if contract.finishing_meter_rate > 0 %}بسعر متر {{ contract.finishing_meter_rate|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}{% else %}شاملة أو عظم{% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">أمانة مقايسات وعدادات المرافق</td>
+          <td class="text-center font-monospace">حساب مقايسات المرافق</td>
+          <td class="text-end font-monospace fw-bold text-primary">{{ contract.utilities_deposit_amount|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}</td>
+          <td class="small text-muted">أمانة مخصصة لتركيب عدادات الكهرباء والمياه والغاز والمقايسات</td>
+        </tr>
+        <tr>
+          <td class="fw-semibold">وديعة الصيانة الدورية للأجزاء المشتركة</td>
+          <td class="text-center font-monospace">حساب ضمان الصيانة</td>
+          <td class="text-end font-monospace fw-bold text-primary">{{ contract.maintenance_deposit_amount|floatformat:2|intcomma }} {{ contract.currency.code|default:"" }}</td>
+          <td class="small text-muted">وديعة مستديمة مخصصة لإدارة وصيانة مرافق العقار المشتركة وفق اللائحة</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 4: Financial Terms -->
   <div class="section-box">
-    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">ثالثاً: القيمة التعاقدية وشروط السداد المالي</h6>
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">رابعاً: القيمة التعاقدية وشروط السداد المالي</h6>
     <table class="table table-bordered table-sm mb-0">
       <thead class="table-light">
         <tr>
@@ -180,9 +245,9 @@
     </table>
   </div>
 
-  <!-- Section 4: Installment Schedule -->
+  <!-- Section 5: Installment Schedule -->
   <div class="section-box">
-    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">رابعاً: جدول الأقساط التعاقدية المستحقة</h6>
+    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">خامساً: جدول الأقساط التعاقدية المستحقة</h6>
     {% if installment_items %}
     <table class="table table-bordered table-sm mb-0">
       <thead class="table-light">
@@ -211,9 +276,9 @@
     {% endif %}
   </div>
 
-  <!-- Section 5: Legal Clauses -->
+  <!-- Section 6: Legal Clauses -->
   <div class="section-box bg-light small">
-    <h6 class="fw-bold text-dark border-bottom pb-2 mb-2">خامساً: أحكام وشروط تعاقدية عامة</h6>
+    <h6 class="fw-bold text-dark border-bottom pb-2 mb-2">سادساً: أحكام وشروط تعاقدية عامة</h6>
     <ol class="mb-0 ps-3" style="line-height: 1.7;">
       <li>تحتفظ الشركة (الطرف الأول) بملكية الوحدة العقارية المبيعة لحين سداد كامل الثمن التعاقدي وملحقاته ووديعة الصيانة وحصول الطرف الثاني على شهادة المخالصة النهائية الموثقة رقمياً.</li>
       <li>يلتزم الطرف الثاني بسداد الأقساط في مواعيد استحقاقها المحددة بالجدول أعلاه، وفي حال التأخير تطبق الإجراءات التعاقدية والقانونية المتفق عليها.</li>

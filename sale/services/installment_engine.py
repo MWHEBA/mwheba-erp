@@ -298,6 +298,12 @@ class InstallmentEngine:
         contract = getattr(plan, 'property_contract', None)
         contract_doc_no = getattr(contract, 'contract_number', str(plan.id)) if contract else str(plan.id)
 
+        # حظر تحصيل أقساط على خطة ملغاة أو عقد عقاري مفسوخ/ملغى
+        if plan.status == InstallmentPlan.PlanStatus.CANCELLED:
+            raise ValidationError(_("لا يمكن تحصيل أقساط على خطة تقسيط ملغاة."))
+        if contract and getattr(contract, 'status', None) in ['TERMINATED', 'CANCELLED']:
+            raise ValidationError(_("لا يمكن تحصيل أقساط على عقد عقاري مفسوخ أو ملغى."))
+
         # التحقق الاستباقي الصارم من تكرار طلب التحصيل (Idempotency Key / Reference Check)
         if reference_number and not collection_request:
             existing_req = InstallmentCollectionRequest.objects.filter(

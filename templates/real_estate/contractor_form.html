@@ -183,6 +183,28 @@
 
                 <div class="col-12"><hr class="my-2"></div>
 
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-bold">{% trans "فروق أسعار الخامات المعتمدة بالفترة" %}</label>
+                  <div class="input-group">
+                    <input type="number" step="0.01" min="0" name="price_escalation_amount" id="id_price_escalation"
+                           class="form-control" value="{{ cert.price_escalation_amount|default:'0.00' }}">
+                    <span class="input-group-text">ج.م</span>
+                  </div>
+                  <div class="form-text small text-muted">{% trans "تعويضات وتغير أسعار دون زيادة في كميات مقايسة WBS" %}</div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label small fw-bold">{% trans "رد أمانة كسر مكعبات خرسانة 28 يوم ناجحة" %}</label>
+                  <div class="input-group">
+                    <input type="number" step="0.01" min="0" name="released_cube_test_hold_amount" id="id_released_cube"
+                           class="form-control" value="{{ cert.released_cube_test_hold_amount|default:'0.00' }}">
+                    <span class="input-group-text">ج.م</span>
+                  </div>
+                  <div class="form-text small text-muted">{% trans "رد المبالغ المحتجزة بعد ثبوت نجاح نتائج كسر المعمل (حساب 21315)" %}</div>
+                </div>
+
+                <div class="col-12"><hr class="my-2"></div>
+
                 <div class="col-12 col-md-3">
                   <label class="form-label small fw-bold">{% trans "نسبة تأمين الأعمال (%)" %}</label>
                   <input type="number" step="0.01" min="0" max="100" name="retention_rate" id="id_retention_rate"
@@ -243,6 +265,14 @@
                 <span class="fw-bold text-dark" id="display_materials">0.00 ج.م</span>
               </li>
               <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted small">{% trans "فروق أسعار خامات:" %}</span>
+                <span class="fw-bold text-primary" id="display_escalation">+0.00 ج.م</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                <span class="text-muted small">{% trans "رد أمانة مكعبات 28 يوم:" %}</span>
+                <span class="fw-bold text-success" id="display_released_cube">+0.00 ج.م</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
                 <span class="text-muted small">{% trans "استقطاع حسن التنفيذ:" %}</span>
                 <span class="fw-bold text-danger" id="display_retention">-0.00 ج.م</span>
               </li>
@@ -292,6 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const gross = parseFloat(document.getElementById('id_gross_work').value) || 0;
     const prev = parseFloat(document.getElementById('id_prev_work').value) || 0;
     const materials = parseFloat(document.getElementById('id_materials').value) || 0;
+    const priceEscalation = parseFloat(document.getElementById('id_price_escalation').value) || 0;
+    const releasedCube = parseFloat(document.getElementById('id_released_cube').value) || 0;
     const retRate = parseFloat(document.getElementById('id_retention_rate').value) || 0;
     const advRecovery = parseFloat(document.getElementById('id_advance_recovery').value) || 0;
     const whtRate = parseFloat(document.getElementById('id_wht_rate').value) || 0;
@@ -300,11 +332,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentWork = Math.max(0, gross - prev);
     const baseForRetention = currentWork + materials;
     const retentionAmt = baseForRetention * (retRate / 100);
-    const whtAmt = currentWork * (whtRate / 100);
-    const net = Math.max(0, currentWork + materials - retentionAmt - advRecovery - whtAmt - penalties);
+    const whtAmt = Math.max(0, currentWork - advRecovery) * (whtRate / 100);
+    const grossAdditions = currentWork + materials + priceEscalation + releasedCube;
+    const totalDeductions = retentionAmt + advRecovery + whtAmt + penalties;
+    const net = Math.max(0, grossAdditions - totalDeductions);
 
     document.getElementById('display_current_work').innerText = formatMoney(currentWork);
     document.getElementById('display_materials').innerText = formatMoney(materials);
+    document.getElementById('display_escalation').innerText = '+' + formatMoney(priceEscalation);
+    document.getElementById('display_released_cube').innerText = '+' + formatMoney(releasedCube);
     document.getElementById('display_retention').innerText = '-' + formatMoney(retentionAmt);
     document.getElementById('display_advance').innerText = '-' + formatMoney(advRecovery);
     document.getElementById('display_wht').innerText = '-' + formatMoney(whtAmt);
@@ -312,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('display_net_amount').innerText = formatMoney(net);
   }
 
-  const inputs = ['id_gross_work', 'id_prev_work', 'id_materials', 'id_retention_rate', 'id_advance_recovery', 'id_wht_rate', 'id_penalties'];
+  const inputs = ['id_gross_work', 'id_prev_work', 'id_materials', 'id_price_escalation', 'id_released_cube', 'id_retention_rate', 'id_advance_recovery', 'id_wht_rate', 'id_penalties'];
   inputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) {

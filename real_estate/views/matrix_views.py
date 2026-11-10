@@ -5,6 +5,7 @@ Matrix Views - عروض مصفوفة الوحدات المعمارية التف�
 مع مراعاة التجاوب اللوحي (Tablet Touch Support) والتحكم في التزامن المتفائل
 """
 import json
+import datetime
 from decimal import Decimal
 from django.shortcuts import render, get_object_or_404
 from django.views import View
@@ -13,12 +14,17 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.db.models import Prefetch
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 
 from users.mixins import SmartPermissionRequiredMixin
 from financial.models.chart_of_accounts import ChartOfAccounts
-from real_estate.models import RealEstateProject, PropertyFloor, PropertyUnit, UnitBooking
+from financial.models.currency import Currency
+from real_estate.models import (
+    RealEstateProject, PropertyFloor, PropertyUnit, UnitBooking,
+    RealEstateBroker, BrokerAttributionAudit
+)
 from real_estate.services.booking_service import (
     UnitBookingService,
     ConcurrencyBookingConflictError,
@@ -85,10 +91,11 @@ class ProjectMatrixView(LoginRequiredMixin, View):
             reverse=True
         )
 
+        User = get_user_model()
         breadcrumb_items = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
-            {'title': _('إدارة التطوير العقاري'), 'url': '#', 'icon': 'fa-building'},
-            {'title': project.name, 'url': '#'},
+            {'title': _('إدارة التطوير العقاري'), 'url': reverse('real_estate:dashboard'), 'icon': 'fa-building'},
+            {'title': project.name, 'url': reverse('real_estate:project_detail', kwargs={'pk': project.id})},
             {'title': _('المصفوفة التفاعلية'), 'active': True}
         ]
 
@@ -107,6 +114,16 @@ class ProjectMatrixView(LoginRequiredMixin, View):
             }
         ]
 
+        currencies = Currency.objects.filter(is_active=True)
+        payment_accounts = ChartOfAccounts.objects.filter(
+            is_active=True,
+            is_leaf=True,
+            account_type__category='asset',
+            code__startswith='111'
+        )
+        brokers = RealEstateBroker.objects.filter(is_active=True)
+        specialists = User.objects.filter(is_active=True).only('id', 'first_name', 'last_name', 'username')
+
         context = {
             'project': project,
             'floors_data': floors_data,
@@ -120,6 +137,10 @@ class ProjectMatrixView(LoginRequiredMixin, View):
             'header_buttons': header_buttons,
             'page_title': f"{_('مصفوفة الوحدات')}: {project.name}",
             'customers': Customer.objects.filter(is_active=True).only('id', 'name', 'code', 'phone')[:100],
+            'currencies': currencies,
+            'payment_accounts': payment_accounts,
+            'brokers': brokers,
+            'specialists': specialists,
         }
         return render(request, 'real_estate/matrix.html', context)
 
@@ -181,24 +202,68 @@ class ApiBookUnitView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
         except Exception:
             body = request.POST
 
-        customer_id = body.get('customer_id')
+        customer_id = body.get('customer_id') or body.get('customer')
         holding_deposit = Decimal(str(body.get('holding_deposit', '0.00') or '0.00'))
         expiry_date_str = body.get('expiry_date')
+        expiry_days = body.get('expiry_days')
         notes = body.get('notes', '')
 
         if not customer_id:
             return JsonResponse({'success': False, 'message': _('يرجى اختيار العميل الحاجز.')}, status=400)
 
-        if not expiry_date_str:
-            return JsonResponse({'success': False, 'message': _('يرجى تحديد تاريخ انتهاء مهلة الحجز.')}, status=400)
-
-        try:
-            from datetime import datetime
-            expiry_date = datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            return JsonResponse({'success': False, 'message': _('صيغة التاريخ غير صحيحة (YYYY-MM-DD).')}, status=400)
+        if expiry_date_str:
+            try:
+                expiry_date = datetime.datetime.strptime(expiry_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'message': _('صيغة التاريخ غير صحيحة (YYYY-MM-DD).')}, status=400)
+        elif expiry_days:
+            try:
+                expiry_date = timezone.localdate() + datetime.timedelta(days=int(expiry_days))
+            except (ValueError, TypeError):
+                expiry_date = timezone.localdate() + datetime.timedelta(days=7)
+        else:
+            expiry_date = timezone.localdate() + datetime.timedelta(days=7)
 
         customer = get_object_or_404(Customer, pk=customer_id)
+
+        # العملة وحساب السداد
+        currency_id = body.get('deposit_currency') or body.get('currency_id') or body.get('currency')
+        currency = None
+        if currency_id:
+            currency = Currency.objects.filter(pk=currency_id).first() if str(currency_id).isdigit() else Currency.objects.filter(code=str(currency_id)).first()
+
+        payment_account_id = body.get('payment_account_id') or body.get('payment_account')
+        payment_account = ChartOfAccounts.objects.filter(pk=payment_account_id).first() if payment_account_id else None
+
+        # ملحقات الوحدة
+        parking_slot_code = body.get('parking_slot_code') or None
+        parking_slot_price = Decimal(str(body.get('parking_slot_price', '0.00') or '0.00')) if body.get('parking_slot_price') else None
+        storage_locker_code = body.get('storage_locker_code') or None
+        storage_locker_price = Decimal(str(body.get('storage_locker_price', '0.00') or '0.00')) if body.get('storage_locker_price') else None
+        finishing_meter_rate = Decimal(str(body.get('finishing_meter_rate', '0.00') or '0.00')) if body.get('finishing_meter_rate') else None
+        total_finishing_amount = Decimal(str(body.get('total_finishing_amount', '0.00') or '0.00')) if body.get('total_finishing_amount') else None
+        utilities_deposit_amount = Decimal(str(body.get('utilities_deposit_amount', '0.00') or '0.00')) if body.get('utilities_deposit_amount') else None
+
+        # مسؤولو المبيعات وبصمة الإحالة
+        User = get_user_model()
+        call_specialist_id = body.get('call_specialist_id') or body.get('call_specialist')
+        visit_specialist_id = body.get('visit_specialist_id') or body.get('visit_specialist')
+        site_specialist_id = body.get('site_specialist_id') or body.get('site_specialist')
+        call_specialist = User.objects.filter(pk=call_specialist_id).first() if call_specialist_id else None
+        visit_specialist = User.objects.filter(pk=visit_specialist_id).first() if visit_specialist_id else None
+        site_specialist = User.objects.filter(pk=site_specialist_id).first() if site_specialist_id else None
+
+        sales_channel = body.get('sales_channel') or None
+        marketing_lead_source = body.get('marketing_lead_source') or body.get('lead_source') or None
+        broker_id = body.get('broker_id')
+        broker = None
+        if broker_id:
+            broker = RealEstateBroker.objects.filter(pk=broker_id, is_active=True).first()
+
+        collection_method = body.get('collection_method') or 'CASH'
+        cheque_number = body.get('cheque_number') or None
+        due_date = body.get('due_date') or None
+        drawer_bank_name = body.get('drawer_bank_name') or ''
 
         try:
             booking = UnitBookingService.create_booking(
@@ -207,8 +272,41 @@ class ApiBookUnitView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
                 holding_deposit=holding_deposit,
                 expiry_date=expiry_date,
                 notes=notes,
-                user=request.user
+                user=request.user,
+                currency=currency,
+                payment_account=payment_account,
+                finishing_meter_rate=finishing_meter_rate,
+                total_finishing_amount=total_finishing_amount,
+                utilities_deposit_amount=utilities_deposit_amount,
+                parking_slot_code=parking_slot_code,
+                parking_slot_price=parking_slot_price,
+                storage_locker_code=storage_locker_code,
+                storage_locker_price=storage_locker_price,
+                sales_channel=sales_channel,
+                marketing_lead_source=marketing_lead_source,
+                collection_method=collection_method,
+                cheque_number=cheque_number,
+                due_date=due_date,
+                drawer_bank_name=drawer_bank_name,
+                call_specialist=call_specialist,
+                visit_specialist=visit_specialist,
+                site_specialist=site_specialist,
             )
+
+            # توثيق بصمة أسبقية ومصدر العميل (Lead Attribution Lock) لكافة القنوات والوسطاء بعد نجاح الحجز
+            if not BrokerAttributionAudit.objects.filter(customer=customer).exists():
+                touch_source = BrokerAttributionAudit.LeadSource.DIRECT_WALK_IN
+                if broker_id and broker:
+                    touch_source = BrokerAttributionAudit.LeadSource.BROKER_REFERRAL
+                elif marketing_lead_source in BrokerAttributionAudit.LeadSource.values:
+                    touch_source = marketing_lead_source
+
+                BrokerAttributionAudit.objects.create(
+                    customer=customer,
+                    first_touch_source=touch_source,
+                    referring_broker=broker if broker_id else None,
+                    is_locked=True
+                )
             return JsonResponse({
                 'success': True,
                 'message': _('تم حجز الوحدة بنجاح برقم: %(num)s') % {'num': booking.booking_number},
@@ -240,7 +338,9 @@ class ApiCancelBookingView(LoginRequiredMixin, SmartPermissionRequiredMixin, Vie
             body = request.POST
 
         reason = body.get('reason', _('إلغاء بناء على رغبة العميل'))
-        forfeit_deposit = bool(body.get('forfeit_deposit', False))
+        disposition = body.get('disposition', 'REFUND')
+        forfeit_deposit = (disposition == 'FORFEIT') or bool(body.get('forfeit_deposit', False))
+        deduction_fees = Decimal(str(body.get('deduction_fees') or '0.00'))
         payment_account_id = body.get('payment_account_id')
 
         # فحص صلاحية الصرف المالي المستقلة عند طلب استرداد نقدي فوري
@@ -268,6 +368,7 @@ class ApiCancelBookingView(LoginRequiredMixin, SmartPermissionRequiredMixin, Vie
                 booking_id=booking_id,
                 reason=reason,
                 forfeit_deposit=forfeit_deposit,
+                approved_deduction_fees=deduction_fees,
                 user=request.user,
                 payment_account=payment_account
             )
@@ -293,6 +394,7 @@ class ApiRefundBookingView(LoginRequiredMixin, SmartPermissionRequiredMixin, Vie
     """
     إجراء التسوية المالية لرد وصرف جدية الحجز (Settle Refund)
     تشترط صلاحية صرف مالي مستقلة (refund_unitbooking أو صلاحيات مالية معتمدة)
+    يدعم الصرف نقداً أو بتحويل بنكي أو بشيك مصرفي آجل.
     """
     permission_required = 'real_estate.refund_unitbooking'
 
@@ -315,16 +417,31 @@ class ApiRefundBookingView(LoginRequiredMixin, SmartPermissionRequiredMixin, Vie
         except Exception:
             body = request.POST
 
-        payment_account_id = body.get('payment_account_id')
-        if not payment_account_id:
+        method = body.get('method') or body.get('refund_method') or 'BANK_TRANSFER'
+        payment_account_id = body.get('payment_account_id') or body.get('refund_account')
+
+        cheque_data = None
+        if method == 'CHEQUE':
+            cheque_num = body.get('cheque_number', '').strip()
+            if not cheque_num:
+                return JsonResponse({'success': False, 'message': _('رقم الشيك إلزامي للصرف بشيك.')}, status=400)
+            cheque_data = {
+                'cheque_number': cheque_num,
+                'due_date': body.get('due_date') or timezone.localdate(),
+                'drawer_bank_name': body.get('drawer_bank_name', ''),
+                'payee_name': body.get('payee_name', ''),
+            }
+        elif not payment_account_id:
             return JsonResponse({'success': False, 'message': _('يرجى تحديد حساب الخزينة أو البنك لصرف المبلغ.')}, status=400)
 
-        payment_account = get_object_or_404(ChartOfAccounts, pk=payment_account_id)
+        payment_account = get_object_or_404(ChartOfAccounts, pk=payment_account_id) if payment_account_id else None
 
         try:
             booking = UnitBookingService.process_booking_refund(
                 booking_id=booking_id,
                 payment_account=payment_account,
+                method=method,
+                cheque_data=cheque_data,
                 user=request.user
             )
             return JsonResponse({

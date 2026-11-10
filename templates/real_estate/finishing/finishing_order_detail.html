@@ -121,11 +121,12 @@
                     <th class="text-center">{% trans "الكمية الإجمالية" %}</th>
                     <th class="text-end">{% trans "سعر البيع" %}</th>
                     <th class="text-end pe-3">{% trans "الإجمالي" %}</th>
+                    <th class="text-center" style="width: 70px;">{% trans "إجراء" %}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for item in ws_items %}
-                  <tr>
+                  <tr id="item-row-{{ item.id }}">
                     <td class="ps-3 fw-bold text-dark">{{ item.item_description }}</td>
                     <td><span class="badge bg-light text-secondary border">{{ item.get_category_display }}</span></td>
                     <td>
@@ -140,6 +141,11 @@
                     <td class="text-center fw-bold">{{ item.gross_quantity }} {{ item.measuring_unit }}</td>
                     <td class="text-end">{{ item.unit_selling_price|intcomma }}</td>
                     <td class="text-end pe-3 fw-bold">{{ item.total_selling_price|intcomma }} ج.م</td>
+                    <td class="text-center">
+                      <button type="button" class="btn btn-outline-danger btn-sm p-1" onclick="deleteFinishingItem({{ item.id }})" title="{% trans 'حذف البند' %}">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -149,8 +155,13 @@
         </div>
       </div>
       {% empty %}
-      <div class="alert alert-info border-0 shadow-sm">
-        <i class="fas fa-info-circle me-2"></i>{% trans "لم يتم إضافة بنود مقايسة بعد لهذا الطلب." %}
+      <div class="alert alert-info border-0 shadow-sm d-flex justify-content-between align-items-center">
+        <div>
+          <i class="fas fa-info-circle me-2"></i>{% trans "لم يتم إضافة بنود مقايسة بعد لهذا الطلب." %}
+        </div>
+        <a href="{% url 'real_estate:finishing_order_wizard' order.pk %}" class="btn btn-sm btn-primary">
+          <i class="fas fa-magic me-1"></i>{% trans "فتح ساحر ومقايسة الفراغات" %}
+        </a>
       </div>
       {% endfor %}
     </div>
@@ -298,6 +309,22 @@
           </div>
         </div>
       </div>
+      {% else %}
+      <div class="section-container">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold text-dark">
+              <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "جدولة أقساط التشطيب المستقلة" %}
+            </h6>
+          </div>
+          <div class="card-body p-4 text-center">
+            <p class="text-muted mb-3">{% trans "لم يتم توليد خطة أقساط تشطيب مستقلة لهذا الطلب بعد. يمكنك توليد جدول الأقساط بعدد ودورية مرنة تتناسب مع فترة التنفيذ الميداني." %}</p>
+            <button type="button" class="btn btn-primary px-4" data-bs-toggle="modal" data-bs-target="#generateInstallmentsModal">
+              <i class="fas fa-calendar-plus me-1"></i>{% trans "توليد جدول الأقساط الآن" %}
+            </button>
+          </div>
+        </div>
+      </div>
       {% endif %}
     </div>
 
@@ -351,4 +378,119 @@
     </div>
   </div>
 </div>
+
+<!-- Modal: توليد خطة أقساط التشطيب المرنة -->
+<div class="modal fade" id="generateInstallmentsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "توليد خطة أقساط التشطيب المستقلة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="generateInstallmentsForm">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-info border-0 mb-3 small">
+            <i class="fas fa-info-circle me-1"></i>{% trans "يتم توزيع الرصيد المتبقي بعد خصم الدفعة المقدمة على عدد الأقساط المحددة ودوريتها المستقلة عن عقد الوحدة." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "عدد الأقساط" %}</label>
+            <input type="number" class="form-control" name="number_of_installments" id="numInstallmentsInput" min="1" max="36" value="4" required>
+            <small class="text-muted">{% trans "مثال: 3 إلى 6 أقساط خلال فترة التنفيذ" %}</small>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "دورية الاستحقاق" %}</label>
+            <select class="form-select" name="frequency_months" id="freqMonthsSelect">
+              <option value="1">{% trans "شهرياً (كل شهر)" %}</option>
+              <option value="2">{% trans "كل شهرين" %}</option>
+              <option value="3" selected>{% trans "ربع سنوي (كل 3 أشهر)" %}</option>
+              <option value="6">{% trans "نصف سنوي (كل 6 أشهر)" %}</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "تاريخ أول قسط" %}</label>
+            <input type="date" class="form-control" name="start_date" id="startDateInput" value="{% now 'Y-m-d' %}" required>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSubmitInstallments">
+            <i class="fas fa-check me-1"></i>{% trans "توليد الأقساط" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function deleteFinishingItem(itemId) {
+  if (!confirm("{% trans 'هل أنت متأكد من حذف هذا البند من المقايسة؟ سيتم إعادة احتساب التكاليف والأسعار تلقائياً.' %}")) {
+    return;
+  }
+  const deleteUrl = "{% url 'real_estate:api_delete_finishing_order_item' order.pk 0 %}".replace('/0/', '/' + itemId + '/');
+  fetch(deleteUrl, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(data.message, 'success');
+      } else {
+        alert(data.message);
+      }
+      const row = document.getElementById('item-row-' + itemId);
+      if (row) row.remove();
+      setTimeout(() => window.location.reload(), 1200);
+    } else {
+      alert(data.message || "{% trans 'حدث خطأ أثناء حذف البند' %}");
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert("{% trans 'فشل الاتصال بالخادم.' %}");
+  });
+}
+
+document.getElementById('generateInstallmentsForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubmitInstallments');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري التوليد..." %}';
+
+  const formData = new FormData(this);
+  fetch("{% url 'real_estate:api_generate_finishing_installments' order.pk %}", {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(data.message, 'success');
+      }
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "توليد الأقساط" %}';
+      alert(data.message || "{% trans 'فشل توليد جدول الأقساط.' %}");
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "توليد الأقساط" %}';
+    alert("{% trans 'فشل الاتصال بالخادم.' %}");
+  });
+});
+</script>
 {% endblock %}

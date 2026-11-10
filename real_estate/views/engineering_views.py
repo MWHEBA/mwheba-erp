@@ -18,7 +18,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Avg
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ from real_estate.models import (
     SiteDailyLog,
     UnitSiteProgressRecord,
     SiteProgressAuditLog,
+    UnitFinishingOrder,
 )
 from real_estate.services.variation_service import VariationOrderService
 from real_estate.services.snagging_service import OfflineSnaggingSyncService
@@ -579,6 +580,97 @@ class SnagItemResolveView(LoginRequiredMixin, SmartPermissionRequiredMixin, View
         return redirect('real_estate:snag_list')
 
 
+class SnagItemConvertBackchargeView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    تحويل ملاحظة العيب الفني الميداني إلى أمر خصم مالي على المقاول (Contractor Backcharge)
+    مع إمكانية وضعه في محفظة الخصومات المعلقة أو التسييل المباشر من حساب التأمين 21310
+    """
+    permission_required = 'real_estate.change_unitsnagitem'
+
+    def post(self, request, pk):
+        from supplier.models import Supplier
+        from real_estate.models import ContractorBackcharge, ContractorContract, ContractorProgressCertificate
+        from real_estate.services.contractor_service import ContractorProgressService
+        snag = get_object_or_404(UnitSnagItem, pk=pk)
+
+        amount = Decimal(str(request.POST.get('amount', '0.00') or '0.00'))
+        if amount <= Decimal('0.00'):
+            messages.error(request, _('مبلغ الخصم يجب أن يكون أكبر من الصفر.'))
+            return redirect('real_estate:snag_list')
+
+        contractor_id = request.POST.get('contractor_id') or getattr(snag, 'contractor_id', None)
+        contractor = Supplier.objects.filter(pk=contractor_id).first() if contractor_id else snag.contractor
+        if not contractor:
+            messages.error(request, _('يجب تحديد المقاول المحمل عليه الخصم.'))
+            return redirect('real_estate:snag_list')
+
+        contract_id = request.POST.get('contract_id')
+        contract = ContractorContract.objects.filter(pk=contract_id).first() if contract_id else None
+        if not contract and snag.unit and snag.unit.project_id:
+            contract = ContractorContract.objects.filter(
+                contractor=contractor,
+                project=snag.unit.project,
+                status=ContractorContract.ContractStatus.ACTIVE
+            ).first()
+
+        reason = request.POST.get('reason', '').strip() or f"خصم إصلاح العيب المعماري {snag.snag_code} بالوحدة {snag.unit.unit_code}"
+        memo_ref = request.POST.get('memo_reference', '').strip() or f"MEMO-SNAG-{snag.snag_code}"
+        settlement_method = request.POST.get('settlement_method', 'PENDING')
+
+        # التحقق الاستباقي الصارم من عدم تكرار تحويل نفس الملاحظة (Idempotent Guard)
+        existing_bc = ContractorBackcharge.objects.filter(snag_item=snag).first()
+        if existing_bc:
+            messages.info(
+                request,
+                _('تم تحويل هذه الملاحظة الفنية مسبقاً إلى أمر خصم برقم %(id)s.') % {'id': existing_bc.id}
+            )
+            return redirect('real_estate:snag_list')
+
+        backcharge = ContractorBackcharge.objects.create(
+            snag_item=snag,
+            contractor=contractor,
+            contract=contract,
+            amount=amount,
+            reason=reason,
+            memo_reference=memo_ref,
+            settlement_method=settlement_method,
+            is_settled=False
+        )
+
+        # التسييل المباشر من حساب التأمين 21310 إن طُلب
+        if settlement_method == 'RETENTION_LIQUIDATION':
+            try:
+                entry = ContractorProgressService.liquidate_backcharge_against_retention(backcharge.id, user=request.user)
+                messages.success(
+                    request,
+                    _('تم تحويل الملاحظة بنجاح وتسييل %(amt)s ج.م مباشرة من تأمين المقاول بقيد رقم %(entry)s.') % {
+                        'amt': amount,
+                        'entry': entry.number
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Error liquidating backcharge: {e}", exc_info=True)
+                messages.warning(
+                    request,
+                    _('تم إنشاء الخصم برقم %(bc)s ولكن تعذر التسييل المباشر: %(err)s. تم حفظه في محفظة الخصومات المعلقة.') % {
+                        'bc': backcharge.id,
+                        'err': str(e)
+                    }
+                )
+                backcharge.settlement_method = ContractorBackcharge.SettlementMethod.PENDING
+                backcharge.save(update_fields=['settlement_method'])
+        else:
+            messages.success(
+                request,
+                _('تم تحويل الملاحظة الفنية %(code)s إلى خصم مالي بمبلغ %(amt)s ج.م وحفظه في محفظة خصومات المقاول.') % {
+                    'code': snag.snag_code,
+                    'amt': amount
+                }
+            )
+
+        return redirect('real_estate:snag_list')
+
+
 class ApiSnagSyncView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
     """
     واجهة برمجة التطبيقات (API) لمزامنة حزم الملاحظات الميدانية المسجلة دون اتصال (Offline-First Sync)
@@ -872,7 +964,12 @@ class BulkUpdateFloorStageAjaxView(LoginRequiredMixin, SmartPermissionRequiredMi
             has_variation = unit.variation_orders.filter(
                 status__in=[ClientVariationOrder.OrderStatus.APPROVED, ClientVariationOrder.OrderStatus.IN_PROGRESS]
             ).exists()
-            if has_variation and str(unit.id) not in request.POST.getlist('explicit_included_units[]'):
+            has_finishing_variation = hasattr(unit, 'finishing_orders') and unit.finishing_orders.filter(
+                order_type=UnitFinishingOrder.OrderType.CUSTOM_VARIATION
+            ).exclude(
+                current_stage__in=[UnitFinishingOrder.OrderStage.CANCELLED, UnitFinishingOrder.OrderStage.COMPLETED]
+            ).exists()
+            if (has_variation or has_finishing_variation) and str(unit.id) not in request.POST.getlist('explicit_included_units[]'):
                 continue
 
             # صمام أمان الأسبقيات الهندسية
@@ -1760,6 +1857,112 @@ class MilestoneAlertUpdateStatusAjaxView(LoginRequiredMixin, SmartPermissionRequ
         except Exception as e:
             logger.error("Failed to update milestone alert %s: %s", alert_id, e)
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+class SiteReportsLandingView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    شاشة الهبوط المركزية لمتابعة وتقارير المواقع الميدانية (Central Site Reports Landing View):
+    - استعراض مشروعات التطوير العقاري التنفيذية النشطة بمؤشرات لحظية.
+    - مؤشرات تنفيذ مجمعة (إجمالي المشروعات، البلوكات، الوحدات، متوسط الإنجاز، الملاحظات المفتوحة).
+    - روابط مباشرة لمصفوفة البنود الـ 32، شجرة WBS، يوميات الموقع، وتنبيهات الأقساط الهندسية.
+    """
+    permission_required = 'real_estate.view_realestateproject'
+
+    def get(self, request):
+        search_query = request.GET.get('q', '').strip()
+        status_filter = request.GET.get('status', '').strip()
+
+        base_projects = RealEstateProject.objects.filter(is_archived=False)
+
+        # حساب المؤشرات الإجمالية العامة (Global Executive KPIs)
+        total_projects = base_projects.count()
+        total_blocks = PropertyBlock.objects.filter(project__is_archived=False).count()
+        total_units = PropertyUnit.objects.filter(project__is_archived=False, is_active=True).count()
+        avg_progress = base_projects.aggregate(avg=Avg('construction_progress_percentage'))['avg'] or Decimal('0.00')
+        open_snags = UnitSnagItem.objects.filter(
+            status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+        ).count()
+        critical_snags = UnitSnagItem.objects.filter(
+            severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER,
+            status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+        ).count()
+
+        # التصفية والبحث
+        projects_qs = base_projects
+        if search_query:
+            projects_qs = projects_qs.filter(
+                Q(name__icontains=search_query) | Q(code__icontains=search_query)
+            )
+        if status_filter:
+            projects_qs = projects_qs.filter(status=status_filter)
+
+        projects_qs = projects_qs.prefetch_related('blocks', 'units').order_by('code')
+
+        # تجهيز كروت المشروعات ببيانات إحصائية
+        project_cards = []
+        for p in projects_qs:
+            blocks_cnt = p.blocks.count()
+            units_cnt = p.units.filter(is_active=True).count()
+            project_snags = UnitSnagItem.objects.filter(
+                unit__project=p,
+                status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+            ).count()
+            wbs_count = p.wbs_activities.count()
+
+            project_cards.append({
+                'project': p,
+                'blocks_count': blocks_cnt,
+                'units_count': units_cnt,
+                'open_snags_count': project_snags,
+                'wbs_count': wbs_count,
+                'progress_percentage': p.construction_progress_percentage or Decimal('0.00'),
+            })
+
+        breadcrumb_items = [
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('إدارة المشروعات العقارية'), 'url': reverse('real_estate:project_list'), 'icon': 'fa-city'},
+            {'title': _('متابعة المواقع والتنفيذ الميداني'), 'active': True},
+        ]
+
+        header_buttons = [
+            {
+                'url': reverse('real_estate:project_list'),
+                'label': _('دليل المشروعات'),
+                'icon': 'fa-building',
+                'class': 'btn-outline-secondary',
+            },
+            {
+                'url': reverse('real_estate:snag_list'),
+                'label': _('ملاحظات الفحص (Snag List)'),
+                'icon': 'fa-clipboard-check',
+                'class': 'btn-outline-danger',
+            },
+            {
+                'url': reverse('real_estate:milestone_collection_alerts'),
+                'label': _('تنبيهات الأقساط الهندسية'),
+                'icon': 'fa-bell',
+                'class': 'btn-outline-primary',
+            },
+        ]
+
+        context = {
+            'project_cards': project_cards,
+            'total_projects': total_projects,
+            'total_blocks': total_blocks,
+            'total_units': total_units,
+            'avg_progress': Decimal(str(avg_progress)).quantize(Decimal('0.01')),
+            'open_snags': open_snags,
+            'critical_snags': critical_snags,
+            'search_query': search_query,
+            'status_filter': status_filter,
+            'status_choices': RealEstateProject.ProjectStatus.choices,
+            'breadcrumb_items': breadcrumb_items,
+            'header_buttons': header_buttons,
+            'active_menu': 're_projects',
+            'active_submenu': 'site_reports_landing',
+        }
+        return render(request, 'real_estate/site_reports_landing.html', context)
+
 
 
 

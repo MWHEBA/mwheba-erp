@@ -171,6 +171,7 @@ class AccountingGateway:
         'real_estate.RealEstateBroker',
         'real_estate.ContractorContract',
         'real_estate.ContractorProgressCertificate',
+        'real_estate.ContractorBackcharge',
         'real_estate.JointTerminationSurveyProtocol',
         'real_estate.CertificatePaymentInstallmentSchedule',
         'real_estate.AdvancePaymentGuaranteeBond',

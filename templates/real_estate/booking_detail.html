@@ -83,10 +83,172 @@
           </div>
         </div>
       </div>
+
+      <!-- Unit Extras & Sales Attribution Card -->
+      <div class="section-container mt-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-layer-group text-primary me-2"></i>{% trans "ملحقات الوحدة وفريق المبيعات" %}
+            </h5>
+          </div>
+          <div class="card-body p-4">
+            <div class="row g-3">
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "بايكة الجراج" %}</span>
+                <span class="fw-bold text-dark">{{ booking.parking_slot_code|default:"-" }}</span>
+                {% if booking.parking_slot_price > 0 %}
+                <small class="text-muted d-block font-monospace">({{ booking.parking_slot_price|floatformat:2|intcomma }} {{ booking.currency.code|default:"EGP" }})</small>
+                {% endif %}
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "المخزن السريع" %}</span>
+                <span class="fw-bold text-dark">{{ booking.storage_locker_code|default:"-" }}</span>
+                {% if booking.storage_locker_price > 0 %}
+                <small class="text-muted d-block font-monospace">({{ booking.storage_locker_price|floatformat:2|intcomma }} {{ booking.currency.code|default:"EGP" }})</small>
+                {% endif %}
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "أعمال التشطيب" %}</span>
+                <span class="fw-bold text-dark">{{ booking.total_finishing_amount|default:"0.00"|floatformat:2|intcomma }}</span>
+                <small class="text-muted d-block">{{ booking.currency.code|default:"EGP" }}</small>
+              </div>
+              <div class="col-6 col-md-3">
+                <span class="text-muted d-block small mb-1">{% trans "وديعة المرافق والصيانة" %}</span>
+                <span class="fw-bold text-dark">{{ booking.utilities_deposit_amount|default:"0.00"|floatformat:2|intcomma }}</span>
+                <small class="text-muted d-block">{{ booking.currency.code|default:"EGP" }}</small>
+              </div>
+
+              <div class="col-12"><hr class="my-2 opacity-25"></div>
+
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "قناة البيع ومصدر العميل" %}</span>
+                <span class="text-dark">{{ booking.get_sales_channel_display|default:booking.sales_channel|default:"مبيعات مباشرة" }}</span>
+                {% if booking.marketing_lead_source %}
+                <small class="text-muted d-block">({{ booking.marketing_lead_source }})</small>
+                {% endif %}
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "مسؤول المقابلة / الزيارة" %}</span>
+                <span class="text-dark">
+                  {% if booking.visit_specialist %}{{ booking.visit_specialist.get_full_name|default:booking.visit_specialist }}{% else %}-{% endif %}
+                </span>
+              </div>
+              <div class="col-6 col-md-4">
+                <span class="text-muted d-block small mb-1">{% trans "مسؤول الموقع / الاتصال" %}</span>
+                <span class="text-dark">
+                  {% if booking.site_specialist %}{{ booking.site_specialist.get_full_name|default:booking.site_specialist }}{% elif booking.call_specialist %}{{ booking.call_specialist.get_full_name|default:booking.call_specialist }}{% else %}-{% endif %}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Booking Actions Card -->
+    <!-- Booking Actions & Audit Column -->
     <div class="col-12 col-lg-4">
+      <!-- Dual Audit Card -->
+      <div class="section-container mb-4">
+        <div class="card border shadow-sm">
+          <div class="card-header bg-light border-bottom py-3 px-3 d-flex align-items-center justify-content-between">
+            <h5 class="section-title mb-0 fw-bold text-dark">
+              <i class="fas fa-user-shield text-primary me-2"></i>{% trans "الرقابة الثنائية والاعتماد" %}
+            </h5>
+            {% if booking.is_confirmed_audit or booking.is_legacy_pre_audit or booking.audit_bypassed %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+              <i class="fas fa-check-circle me-1"></i>{% trans "معتمد للتعاقد" %}
+            </span>
+            {% else %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">
+              <i class="fas fa-lock me-1"></i>{% trans "قيد الاعتماد" %}
+            </span>
+            {% endif %}
+          </div>
+          <div class="card-body p-3">
+            <!-- Step 1: Sales Review -->
+            <div class="p-3 rounded mb-3 {% if booking.is_reviewed_sales %}bg-success-subtle border border-success-subtle{% else %}bg-light border{% endif %}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold {% if booking.is_reviewed_sales %}text-success{% else %}text-dark{% endif %}">
+                  <i class="fas {% if booking.is_reviewed_sales %}fa-check-circle text-success{% else %}fa-clock text-muted{% endif %} me-1"></i>
+                  1. {% trans "مراجعة المبيعات والحسابات" %}
+                </span>
+                {% if booking.is_reviewed_sales %}
+                <span class="badge bg-success">{% trans "تمت المراجعة" %}</span>
+                {% else %}
+                <span class="badge bg-secondary">{% trans "بانتظار المراجعة" %}</span>
+                {% endif %}
+              </div>
+              {% if booking.is_reviewed_sales %}
+              <div class="small text-muted mt-2">
+                <div><i class="fas fa-user me-1"></i>{{ booking.reviewed_by.get_full_name|default:booking.reviewed_by|default:"-" }}</div>
+                <div><i class="fas fa-calendar-alt me-1"></i>{{ booking.reviewed_at|date:"Y-m-d H:i" }}</div>
+              </div>
+              {% elif booking.status == 'ACTIVE' %}
+              <form method="post" action="{% url 'real_estate:booking_detail' pk=booking.id %}" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="review_sales">
+                <button type="submit" class="btn btn-sm btn-outline-primary w-100 fw-bold">
+                  <i class="fas fa-check me-1"></i>{% trans "تسجيل مراجعة المبيعات" %}
+                </button>
+              </form>
+              {% endif %}
+            </div>
+
+            <!-- Step 2: Audit Confirmation -->
+            <div class="p-3 rounded mb-3 {% if booking.is_confirmed_audit %}bg-success-subtle border border-success-subtle{% else %}bg-light border{% endif %}">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold {% if booking.is_confirmed_audit %}text-success{% else %}text-dark{% endif %}">
+                  <i class="fas {% if booking.is_confirmed_audit %}fa-check-circle text-success{% else %}fa-lock text-muted{% endif %} me-1"></i>
+                  2. {% trans "الاعتماد المالي والرقابي" %}
+                </span>
+                {% if booking.is_confirmed_audit %}
+                <span class="badge bg-success">{% trans "معتمد رقابياً" %}</span>
+                {% else %}
+                <span class="badge bg-secondary">{% trans "معلق" %}</span>
+                {% endif %}
+              </div>
+              {% if booking.is_confirmed_audit %}
+              <div class="small text-muted mt-2">
+                <div><i class="fas fa-user me-1"></i>{{ booking.confirmed_by.get_full_name|default:booking.confirmed_by|default:"-" }}</div>
+                <div><i class="fas fa-calendar-alt me-1"></i>{{ booking.confirmed_at|date:"Y-m-d H:i" }}</div>
+              </div>
+              {% elif booking.status == 'ACTIVE' and booking.is_reviewed_sales %}
+              <form method="post" action="{% url 'real_estate:booking_detail' pk=booking.id %}" class="mt-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="confirm_audit">
+                <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                  <i class="fas fa-stamp me-1"></i>{% trans "منح الاعتماد الرقابي والمالي" %}
+                </button>
+              </form>
+              {% elif booking.status == 'ACTIVE' and not booking.is_reviewed_sales %}
+              <small class="text-muted d-block mt-1">{% trans "يتطلب إتمام مراجعة المبيعات أولاً." %}</small>
+              {% endif %}
+            </div>
+
+            <!-- Bypass / SoD Override Details -->
+            {% if booking.audit_bypassed %}
+            <div class="p-3 rounded bg-warning-subtle border border-warning-subtle mb-2">
+              <div class="fw-bold text-dark mb-1">
+                <i class="fas fa-exclamation-triangle text-warning me-1"></i>{% trans "تجاوز إداري موثق (SoD Override)" %}
+              </div>
+              <div class="small text-muted">
+                <div><strong>{% trans "المعتمد:" %}</strong> {{ booking.audit_bypassed_by.get_full_name|default:booking.audit_bypassed_by|default:"-" }}</div>
+                <div><strong>{% trans "السبب الموثق:" %}</strong> {{ booking.audit_bypass_reason }}</div>
+              </div>
+            </div>
+            {% elif booking.status == 'ACTIVE' and not booking.is_confirmed_audit %}
+            <div class="text-center pt-1">
+              <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" data-bs-toggle="modal" data-bs-target="#bypassAuditModal">
+                <i class="fas fa-key me-1"></i>{% trans "تجاوز رقابي استثنائي مبرر" %}
+              </button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking Actions Card -->
       <div class="section-container">
         <div class="card border shadow-sm">
           <div class="card-header bg-light border-bottom py-3 px-3">
@@ -98,9 +260,9 @@
             {% if booking.status == 'ACTIVE' %}
             <div class="d-grid gap-2">
               {% if booking.is_confirmed_audit or booking.is_legacy_pre_audit or booking.audit_bypassed %}
-              <button type="button" class="btn btn-success fw-bold py-2" data-bs-toggle="modal" data-bs-target="#convertBookingModal">
+              <a href="{% url 'real_estate:contract_create' %}?booking_id={{ booking.id }}" class="btn btn-success fw-bold py-2">
                 <i class="fas fa-file-signature me-1"></i>{% trans "تحويل الحجز إلى عقد بيع رسمي" %}
-              </button>
+              </a>
               {% else %}
               <div class="alert alert-warning py-2 small mb-2">
                 <i class="fas fa-shield-alt me-1"></i>{% trans "الحجز بانتظار الاعتماد المالي والرقابي الثنائي قبل التحويل لعقد." %}
@@ -173,6 +335,38 @@
 {% include "real_estate/modals/cancel_booking_modal.html" %}
 {% include "real_estate/modals/refund_booking_modal.html" %}
 {% include "real_estate/modals/convert_booking_modal.html" %}
+
+<!-- SoD Bypass Modal -->
+<div class="modal fade" id="bypassAuditModal" tabindex="-1" aria-labelledby="bypassAuditModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="bypassAuditModalLabel">
+          <i class="fas fa-key text-warning me-2"></i>{% trans "تجاوز رقابي استثنائي لقيد الفصل الرقابي (SoD)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'real_estate:booking_detail' pk=booking.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="bypass_audit">
+        <div class="modal-body p-4">
+          <div class="alert alert-warning small mb-3">
+            <i class="fas fa-shield-alt me-1"></i>
+            {% trans "هذا الإجراء مخصص لحالات الضرورة القصوى وسيسجل في سجل التدقيق الرقابي باسمك وتوقيتك." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold small text-dark">{% trans "سبب وتبرير التجاوز الإداري الاستثنائي" %} <span class="text-danger">*</span></label>
+            <textarea name="bypass_reason" class="form-control" rows="3" required placeholder="{% trans 'اكتب تبرير التجاوز الإداري والموافقة المرجعية...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-warning px-4 fw-bold">{% trans "تأكيد التجاوز وتوثيقه" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

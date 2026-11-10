@@ -154,6 +154,18 @@ class PropertyContract(models.Model):
         default=Decimal('0.00'),
         verbose_name=_('أمانات رسوم المرافق والصيانة')
     )
+    maintenance_deposit_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('وديعة الصيانة التعاقدية المنفصلة')
+    )
+    maintenance_deposit_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('نسبة وديعة الصيانة التعاقدية (%)')
+    )
     parking_slot_code = models.CharField(
         max_length=50,
         blank=True,
@@ -221,6 +233,9 @@ class PropertyContract(models.Model):
         verbose_name = _('عقد عقاري')
         verbose_name_plural = _('العقود العقارية')
         ordering = ['-contract_date', '-id']
+        permissions = [
+            ('view_executive_reports', _('صلاحية استعراض التقارير التنفيذية ومبيعات الأبراج')),
+        ]
         constraints = [
             models.CheckConstraint(
                 check=models.Q(final_contract_price__gt=0),
@@ -426,6 +441,24 @@ class ContractCoOwner(models.Model):
         choices=RelationshipType.choices,
         default=RelationshipType.BUSINESS_PARTNER,
         verbose_name=_('صلة القرابة / الصفة التعاقدية')
+    )
+    power_of_attorney_number = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name=_('رقم التوكيل الرسمي / سند الوكالة')
+    )
+    issuing_registry_office = models.CharField(
+        max_length=150,
+        blank=True,
+        default='',
+        verbose_name=_('مكتب الشهر العقاري / جهة التوثيق')
+    )
+    representation_capacity = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        verbose_name=_('صفة التمثيل القانوني (أصيل، وكيل خاص، ولي طبيعي، وصي)')
     )
     notes = models.TextField(
         blank=True,

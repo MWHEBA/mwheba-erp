@@ -272,6 +272,89 @@ class RealEstateAccountingService:
         )
 
     @classmethod
+    def post_direct_contract_down_payment(
+        cls,
+        contract,
+        payment_account: ChartOfAccounts,
+        user,
+        down_payment: Optional[Decimal] = None,
+        reference: str = ""
+    ) -> Optional[JournalEntry]:
+        """
+        إثبات تحصيل سداد مقدم التعاقد المباشر نقداً أو بالبنك (Direct Contract Down Payment)
+        Dr: Cash / Bank (111xx) [بمبلغ مقدم التعاقد المسدد]
+        Cr: Real Estate Contract Liability - Down Payment (21102) [بمقدم التعاقد المعتمد]
+        """
+        dp = down_payment if down_payment is not None else (contract.down_payment or Decimal("0.00"))
+        dp = Decimal(str(dp))
+        if dp <= Decimal("0.00") or not payment_account:
+            return None
+
+        contract_liability_account = cls.get_or_resolve_account(
+            AccountRoleNames.REAL_ESTATE_CONTRACT_LIABILITY.value,
+            fallback_code="21102"
+        )
+
+        curr_code = getattr(contract, 'currency', None)
+        currency_str = getattr(curr_code, 'code', 'EGP') if curr_code else 'EGP'
+        rate = Decimal(str(getattr(contract, 'exchange_rate', '1.000000') or '1.000000'))
+        proj_code = contract.project.code if contract.project else None
+        is_foreign = (currency_str != 'EGP')
+
+        if is_foreign and rate > Decimal("0.00"):
+            func_val = (dp * rate).quantize(Decimal('0.01'))
+            foreign_val = dp
+        else:
+            func_val = dp
+            foreign_val = Decimal('0.00')
+
+        lines = [
+            JournalEntryLineData(
+                account_code=payment_account.code,
+                debit=func_val,
+                credit=Decimal("0.00"),
+                currency=currency_str,
+                exchange_rate=rate,
+                foreign_debit=foreign_val if is_foreign else Decimal('0.00'),
+                foreign_credit=Decimal("0.00"),
+                description=f"تحصيل مقدم التعاقد المباشر للعقد {contract.contract_number}",
+                project=proj_code
+            ),
+            JournalEntryLineData(
+                account_code=contract_liability_account.code,
+                debit=Decimal("0.00"),
+                credit=func_val,
+                currency=currency_str,
+                exchange_rate=rate,
+                foreign_debit=Decimal("0.00"),
+                foreign_credit=foreign_val if is_foreign else Decimal('0.00'),
+                description=f"التزامات عقد بيع وحدة - مقدم العقد المباشر {contract.contract_number}",
+                project=proj_code
+            )
+        ]
+
+        idempotency_key = AccountingGateway.generate_idempotency_key(
+            module='real_estate',
+            model='PropertyContract',
+            object_id=contract.id,
+            operation='direct_down_payment'
+        )
+
+        gateway = AccountingGateway()
+        return gateway.create_journal_entry(
+            source_module='real_estate',
+            source_model='PropertyContract',
+            source_id=contract.id,
+            lines=lines,
+            idempotency_key=idempotency_key,
+            user=user,
+            entry_type='receipt_voucher',
+            description=f"تحصيل مقدم التعاقد المباشر للعقد {contract.contract_number} للعميل {contract.customer.name}",
+            reference=reference or contract.contract_number,
+            date=contract.contract_date
+        )
+
+    @classmethod
     def post_booking_refund(
         cls,
         booking,
@@ -359,15 +442,20 @@ class RealEstateAccountingService:
         cls,
         booking,
         user,
+        amount: Optional[Decimal] = None,
         reference: str = ""
     ) -> JournalEntry:
         """
-        Event 1d: إثبات مصادرة جدية الحجز كإيرادات عند إلغاء الحجز (Booking Holding Fee Forfeiture)
+        Event 1d: إثبات مصادرة جدية الحجز أو خصم المصاريف الإدارية كإيرادات عند إلغاء الحجز (Booking Holding Fee Forfeiture)
         Dr: Customer Booking Advances (21101) [إقفال الأمانات]
         Cr: Penalty Income / Forfeited Fee (42201) [إيرادات غرامات ومصادرات]
         """
-        deposit_amt = getattr(booking, 'holding_deposit', Decimal('0.00'))
-        deposit_dec = Decimal(str(deposit_amt))
+        if amount is not None:
+            deposit_dec = Decimal(str(amount))
+        else:
+            deposit_amt = getattr(booking, 'holding_deposit', Decimal('0.00'))
+            deposit_dec = Decimal(str(deposit_amt))
+
         if deposit_dec <= Decimal("0.00"):
             raise ValidationError(_("مبلغ جدية الحجز المطلوب مصادرته يجب أن يكون أكبر من الصفر."))
 
@@ -403,7 +491,7 @@ class RealEstateAccountingService:
                 exchange_rate=rate,
                 foreign_debit=foreign_deposit if is_foreign else Decimal('0.00'),
                 foreign_credit=Decimal("0.00"),
-                description=f"مصادرة جدية حجز الوحدة {booking.unit.unit_code} للعميل {booking.customer.name}",
+                description=f"مصادرة أو خصم أمانة حجز الوحدة {booking.unit.unit_code} للعميل {booking.customer.name}",
                 project=proj_code
             ),
             JournalEntryLineData(
@@ -414,16 +502,17 @@ class RealEstateAccountingService:
                 exchange_rate=rate,
                 foreign_debit=Decimal("0.00"),
                 foreign_credit=foreign_deposit if is_foreign else Decimal('0.00'),
-                description=f"إيرادات مصادرة جدية حجز - استمارة {booking.booking_number}",
+                description=f"إيرادات مصادرة أو خصم جدية حجز - استمارة {booking.booking_number}",
                 project=proj_code
             ),
         ]
 
+        op_suffix = f"forfeiture_{deposit_dec}" if amount is not None else "holding_fee_forfeiture"
         idempotency_key = AccountingGateway.generate_idempotency_key(
             module='real_estate',
             model='UnitBooking',
             object_id=booking.id,
-            operation='holding_fee_forfeiture'
+            operation=op_suffix
         )
 
         gateway = AccountingGateway()
@@ -435,7 +524,7 @@ class RealEstateAccountingService:
             idempotency_key=idempotency_key,
             user=user,
             entry_type='journal_voucher',
-            description=f"مصادرة جدية حجز الوحدة {booking.unit.unit_code} للعميل {booking.customer.name}",
+            description=f"مصادرة أو خصم مصاريف جدية حجز الوحدة {booking.unit.unit_code} للعميل {booking.customer.name}",
             reference=reference or f"FORF-{booking.booking_number}",
             date=timezone.localdate()
         )
@@ -1395,6 +1484,92 @@ class RealEstateAccountingService:
         )
 
         return cancel_entry
+
+    @classmethod
+    def post_revenue_reversal(
+        cls,
+        contract,
+        amount: Decimal,
+        user=None,
+        reference: str = ""
+    ) -> Optional[JournalEntry]:
+        """
+        عكس الاعتراف بالإيراد وفق معيار IFRS 15 عند فسخ العقد (Revenue Recognition Reversal)
+        Dr: Realized Real Estate Revenue (41101) [عكس الإيراد]
+        Cr: Real Estate Contract Liability (21102) [إعادة إثبات الالتزام لفسخه لاحقاً]
+        """
+        amount_dec = Decimal(str(amount or Decimal("0.00")))
+        if amount_dec <= Decimal("0.00"):
+            return None
+
+        contract_liability_account = cls.get_or_resolve_account(
+            AccountRoleNames.REAL_ESTATE_CONTRACT_LIABILITY.value,
+            fallback_code="21102"
+        )
+        revenue_account = cls.get_or_resolve_account(
+            AccountRoleNames.REAL_ESTATE_REVENUE.value,
+            fallback_code="41101"
+        )
+
+        curr_code = getattr(contract, 'currency', None)
+        currency_str = getattr(curr_code, 'code', 'EGP') if curr_code else 'EGP'
+        rate = Decimal(str(getattr(contract, 'exchange_rate', '1.000000') or '1.000000'))
+        is_foreign = (currency_str != 'EGP')
+
+        if is_foreign and rate > Decimal("0.00"):
+            functional_rev = (amount_dec * rate).quantize(Decimal('0.01'))
+            foreign_rev = amount_dec
+        else:
+            functional_rev = amount_dec
+            foreign_rev = Decimal('0.00')
+
+        proj_code = contract.unit.project.code if contract.unit and contract.unit.project else None
+
+        lines = [
+            JournalEntryLineData(
+                account_code=revenue_account.code,
+                debit=functional_rev,
+                credit=Decimal("0.00"),
+                currency=currency_str,
+                exchange_rate=rate,
+                foreign_debit=foreign_rev if is_foreign else Decimal('0.00'),
+                foreign_credit=Decimal("0.00"),
+                description=f"عكس إيراد مبيعات عقارية مفسوخ - عقد {contract.contract_number}",
+                project=proj_code
+            ),
+            JournalEntryLineData(
+                account_code=contract_liability_account.code,
+                debit=Decimal("0.00"),
+                credit=functional_rev,
+                currency=currency_str,
+                exchange_rate=rate,
+                foreign_debit=Decimal("0.00"),
+                foreign_credit=foreign_rev if is_foreign else Decimal('0.00'),
+                description=f"إعادة إثبات التزام عقد مفسوخ - عقد {contract.contract_number}",
+                project=proj_code
+            ),
+        ]
+
+        idempotency_key = AccountingGateway.generate_idempotency_key(
+            module='real_estate',
+            model='PropertyContract',
+            object_id=contract.id,
+            operation='revenue_reversal'
+        )
+
+        gateway = AccountingGateway()
+        return gateway.create_journal_entry(
+            source_module='real_estate',
+            source_model='PropertyContract',
+            source_id=contract.id,
+            lines=lines,
+            idempotency_key=idempotency_key,
+            user=user,
+            entry_type='journal_voucher',
+            description=f"عكس الاعتراف بالإيراد لفسخ العقد {contract.contract_number}",
+            reference=reference or f"REV-REV-{contract.contract_number}",
+            date=timezone.localdate()
+        )
 
     @classmethod
     def post_handover_interim_cogs(

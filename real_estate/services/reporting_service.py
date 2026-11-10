@@ -668,6 +668,17 @@ class RealEstateReportingService:
         contracted_count = contracted_units.count()
         contracted_area = contracted_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
 
+        # تخصيص حصة مالك الأرض (Landowner JV Allocation)
+        landowner_units = units_qs.filter(status=PropertyUnit.UnitStatus.LANDOWNER_ALLOCATED)
+        landowner_count = landowner_units.count()
+        landowner_area = landowner_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+        landowner_value = landowner_units.aggregate(s=Sum('base_price'))['s'] or Decimal('0.00')
+
+        company_units = units_qs.exclude(status=PropertyUnit.UnitStatus.LANDOWNER_ALLOCATED)
+        company_count = company_units.count()
+        company_area = company_units.aggregate(s=Sum('gross_area'))['s'] or Decimal('0.00')
+        company_value = company_units.aggregate(s=Sum('base_price'))['s'] or Decimal('0.00')
+
         blocked_statuses = [
             PropertyUnit.UnitStatus.BLOCKED,
             PropertyUnit.UnitStatus.LANDOWNER_ALLOCATED
@@ -680,6 +691,8 @@ class RealEstateReportingService:
         absorption_rate = (Decimal(contracted_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
         reservation_rate = (Decimal(reserved_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
         available_rate = (Decimal(available_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
+        landowner_count_share = (Decimal(landowner_count) / total_units_dec * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_count > 0 else Decimal('0.00')
+        landowner_area_share = (Decimal(landowner_area) / (total_units_area or Decimal('1')) * Decimal('100.00')).quantize(Decimal('0.01')) if total_units_area > 0 else Decimal('0.00')
 
         # 3. المحفظة البيعية والمالية (Functional Currency & Foreign Isolations)
         contracts_qs = PropertyContract.objects.filter(
@@ -921,6 +934,18 @@ class RealEstateReportingService:
             'absorption_rate': absorption_rate,
             'blocked_count': blocked_count,
             'blocked_area': blocked_area,
+
+            # تخصيص حصة مالك الأرض (Landowner JV Allocation)
+            'landowner_jv': {
+                'landowner_count': landowner_count,
+                'landowner_area': landowner_area,
+                'landowner_value': landowner_value,
+                'landowner_count_share': landowner_count_share,
+                'landowner_area_share': landowner_area_share,
+                'company_count': company_count,
+                'company_area': company_area,
+                'company_value': company_value,
+            },
 
             # المؤشرات المالية بالعملة الوظيفية
             'total_contracted_sales_func': total_contracted_sales_func,

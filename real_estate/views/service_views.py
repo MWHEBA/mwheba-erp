@@ -156,11 +156,13 @@ class HandoverReceiptCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin
             {'title': _('محضر تسليم جديد'), 'active': True}
         ]
 
+        selected_contract_id = request.GET.get('contract_id')
         context = {
             'contracts': contracts,
             'site_engineers': site_engineers,
             'legal_notices': legal_notices,
             'handover_types': PropertyHandoverReceipt.HandoverType.choices,
+            'selected_contract_id': int(selected_contract_id) if selected_contract_id and selected_contract_id.isdigit() else None,
             'breadcrumb_items': breadcrumb_items,
             'active_menu': 're_service',
             'active_submenu': 'handovers',

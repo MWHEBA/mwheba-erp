@@ -88,6 +88,118 @@
     {% include "components/document_lifecycle_timeline.html" with current_status=cert.status is_posted=cert.journal_entry %}
   </div>
 
+  <!-- Verified Scope Ceiling & Contractor Quality Audit Row -->
+  <div class="row g-3 mb-4">
+    <!-- Card 1: Verified Field Scope Ceiling -->
+    <div class="col-12 col-lg-7">
+      <div class="card border shadow-sm h-100">
+        <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-tasks text-primary me-2"></i>{% trans "كارت المطابقة الميدانية الصريحة بالشقق وسقف الأعمال" %}
+          </h6>
+          {% if cert.unverified_work_holdback > 0 %}
+          <span class="badge bg-danger">
+            <i class="fas fa-lock me-1"></i>{% trans "استقطاع RFI نشط" %}: {{ cert.unverified_work_holdback|floatformat:2|intcomma }} ج.م
+          </span>
+          {% else %}
+          <span class="badge bg-success">
+            <i class="fas fa-check-circle me-1"></i>{% trans "مطابق لسقف الأعمال المعتمدة" %}
+          </span>
+          {% endif %}
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3 text-center border-end">
+              <div class="text-muted small mb-1">{% trans "المطالب به تراكمياً" %}</div>
+              <div class="fw-bold text-dark h6 mb-0">{{ cert.gross_certified_work|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="col-6 col-md-3 text-center border-end">
+              <div class="text-muted small mb-1">{% trans "السقف المعتمد استشارياً" %}</div>
+              <div class="fw-bold text-primary h6 mb-0">{{ max_ceiling|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="col-6 col-md-3 text-center border-end">
+              <div class="text-muted small mb-1">{% trans "نسبة الإنجاز الموزونة" %}</div>
+              <div class="fw-bold text-info h6 mb-0">{{ verified_ratio_pct }}%</div>
+            </div>
+            <div class="col-6 col-md-3 text-center">
+              <div class="text-muted small mb-1">{% trans "استقطاع غير معتمد" %}</div>
+              <div class="fw-bold text-danger h6 mb-0">{{ cert.unverified_work_holdback|floatformat:2|intcomma }}</div>
+            </div>
+          </div>
+
+          {% if cert.unverified_work_holdback > 0 %}
+          <div class="alert alert-warning border mb-3 py-2 small d-flex align-items-center">
+            <i class="fas fa-shield-alt text-warning me-2 fs-5"></i>
+            <div>
+              <strong>{% trans "حماية ضد القص الصامت:" %}</strong>
+              {% trans "تم الإبقاء على إجمالي الأعمال المنفذة كما هي بجدول البنود، واستقطاع الفارق صراحة كأمانة أعمال غير معتمدة (حساب 21318) لحين اعتماد RFI من الاستشاري." %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if unverified_units %}
+          <div>
+            <div class="small fw-bold text-muted mb-2">
+              <i class="fas fa-door-open me-1"></i>{% trans "شقق ووحدات لم تُعتمد مراحلها بالكامل استشارياً:" %}
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              {% for u in unverified_units %}
+              <span class="badge bg-light text-dark border">{{ u }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Contractor Quality & Critical Snag Blocker -->
+    <div class="col-12 col-lg-5">
+      <div class="card border shadow-sm h-100">
+        <div class="card-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+          <h6 class="mb-0 fw-bold text-dark">
+            <i class="fas fa-hard-hat text-warning me-2"></i>{% trans "سجل جودة المقاول وحارس العيوب" %}
+          </h6>
+          {% if critical_snags_count > 0 %}
+          <span class="badge bg-danger animate__animated animate__pulse">
+            <i class="fas fa-exclamation-triangle me-1"></i>{{ critical_snags_count }} {% trans "مانع للتسليم" %}
+          </span>
+          {% else %}
+          <span class="badge bg-success">
+            <i class="fas fa-check me-1"></i>{% trans "لا توجد موانع حرجة" %}
+          </span>
+          {% endif %}
+        </div>
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center justify-content-around mb-3">
+            <div class="text-center">
+              <div class="h4 mb-0 fw-bold text-dark">{{ open_snags_count }}</div>
+              <div class="small text-muted">{% trans "ملاحظات مفتوحة" %}</div>
+            </div>
+            <div class="vr"></div>
+            <div class="text-center">
+              <div class="h4 mb-0 fw-bold text-danger">{{ critical_snags_count }}</div>
+              <div class="small text-muted">{% trans "عيوب حرجة مانعة" %}</div>
+            </div>
+          </div>
+
+          {% if critical_snags_count > 0 %}
+          <div class="alert alert-danger border py-2 small mb-0">
+            <i class="fas fa-ban me-1 fw-bold"></i>
+            <strong>{% trans "تحذير رقابي مانع للاعتماد:" %}</strong>
+            {% trans "توجد عيوب حرجة مانعة للتسليم (Critical Blockers) مسجلة على المقاول. يمنع النظام تقديم أو اعتماد المستخلص دون تسويتها بخصم مالي أو تدوين مبرر الاستشاري المعتمد بالملاحظات." %}
+          </div>
+          {% else %}
+          <div class="alert alert-success border py-2 small mb-0">
+            <i class="fas fa-check-circle me-1"></i>
+            {% trans "سجل المقاول نظيف من العيوب الحرجة المانعة للتسليم في هذا المشروع." %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Main Panoramic Multi-Tab Card -->
   <div class="card border shadow-sm mb-4">
     <div class="card-header bg-light border-bottom p-0">
@@ -287,6 +399,20 @@
                     </tr>
                   </thead>
                   <tbody>
+                    {% if cert.price_escalation_amount %}
+                    <tr>
+                      <td class="ps-3 text-primary">{% trans "فروق أسعار الخامات المعتمدة بالفترة" %}</td>
+                      <td class="text-end text-primary fw-bold">+{{ cert.price_escalation_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "تعويضات وتغير أسعار (12101)" %}</td>
+                    </tr>
+                    {% endif %}
+                    {% if cert.released_cube_test_hold_amount %}
+                    <tr>
+                      <td class="ps-3 text-success">{% trans "رد أمانة كسر مكعبات خرسانة 28 يوم ناجحة" %}</td>
+                      <td class="text-end text-success fw-bold">+{{ cert.released_cube_test_hold_amount|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "إفراج من حساب الأمانات (21315)" %}</td>
+                    </tr>
+                    {% endif %}
                     <tr>
                       <td class="ps-3">{% trans "تأمين حسن التنفيذ (Retention)" %}</td>
                       <td class="text-end text-danger fw-bold">-{{ cert.retention_amount|floatformat:2|intcomma }}</td>
@@ -297,6 +423,13 @@
                       <td class="text-end text-danger fw-bold">-{{ cert.advance_payment_recovery|floatformat:2|intcomma }}</td>
                       <td class="small text-muted">{% trans "إطفاء رصيد الدفعة المقدمة (12310)" %}</td>
                     </tr>
+                    {% if cert.unverified_work_holdback %}
+                    <tr>
+                      <td class="ps-3 text-danger fw-bold">{% trans "استقطاع أعمال غير معتمدة استشارياً لحين اكتمال RFI" %}</td>
+                      <td class="text-end text-danger fw-bold">-{{ cert.unverified_work_holdback|floatformat:2|intcomma }}</td>
+                      <td class="small text-muted">{% trans "أمانة أعمال غير معتمدة ميدانياً (21318)" %}</td>
+                    </tr>
+                    {% endif %}
                     <tr>
                       <td class="ps-3">{% trans "ضريبة الخصم والإضافة (WHT نموذج 41)" %}</td>
                       <td class="text-end text-danger fw-bold">-{{ cert.wht_amount|floatformat:2|intcomma }}</td>

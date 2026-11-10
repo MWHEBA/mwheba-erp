@@ -248,7 +248,9 @@ class ProjectProgressCalculationService:
 
         # 3. حساب نسبة مقايسة WBS وتصعيد شجرة الأنشطة الموزونة مع جسر الموقع (Unit-to-WBS Bridge)
         if locked_project.wbs_activities.exists():
+            UnitToWbsBridgeService.sync_unit_progress_to_wbs(locked_project)
             final_project_progress = WbsTreeGovernanceService.recalculate_tree_rollup(locked_project)
+            locked_project.construction_progress_percentage = final_project_progress
         else:
             final_project_progress = units_progress_dec
             locked_project.construction_progress_percentage = max(Decimal('0.00'), min(Decimal('100.00'), final_project_progress))

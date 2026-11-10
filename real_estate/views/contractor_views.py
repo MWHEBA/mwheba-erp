@@ -222,6 +222,41 @@ class ContractorCertificateDetailView(LoginRequiredMixin, SmartPermissionRequire
                     'class': 'btn-outline-primary'
                 })
 
+        # فحص السقف الهندسي والمطابقة الميدانية
+        max_ceiling, verified_ratio, has_assigned, max_stage_pct = ContractorProgressService.calculate_engineering_scope_ceiling(cert)
+        verified_ratio_pct = (verified_ratio * Decimal('100.00')).quantize(Decimal('0.1'))
+
+        # حصر الشقق غير المعتمدة
+        unverified_units = []
+        if has_assigned and cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSiteProgressRecord
+            target_block_id = cert.block_id or (cert.contract.block_id if cert.contract else None)
+            assigned_trades = UnitSiteProgressRecord.objects.filter(
+                contractor_id=cert.contractor_id,
+                unit__project_id=cert.project_id,
+                is_applicable=True
+            )
+            if target_block_id:
+                assigned_trades = assigned_trades.filter(unit__block_id=target_block_id)
+            unverified_units = list(
+                assigned_trades.exclude(
+                    status=UnitSiteProgressRecord.StageStatus.PASSED_AND_VERIFIED
+                ).values_list('unit__unit_code', flat=True).distinct()[:15]
+            )
+
+        # فحص عيوب المقاول والعيوب المانعة للتسليم
+        critical_snags_count = 0
+        open_snags_count = 0
+        if cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSnagItem
+            qs_snags = UnitSnagItem.objects.filter(
+                contractor_id=cert.contractor_id,
+                unit__project_id=cert.project_id,
+                status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+            )
+            open_snags_count = qs_snags.count()
+            critical_snags_count = qs_snags.filter(severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER).count()
+
         context = {
             'cert': cert,
             'items': items,
@@ -238,6 +273,13 @@ class ContractorCertificateDetailView(LoginRequiredMixin, SmartPermissionRequire
             'import_form': CertificateExcelImportForm(),
             'storno_form': StornoReversalForm(),
             'cheque_form': InstallmentChequeSettlementForm(),
+            'max_ceiling': max_ceiling,
+            'verified_ratio_pct': verified_ratio_pct,
+            'has_assigned': has_assigned,
+            'max_stage_pct': max_stage_pct,
+            'unverified_units': unverified_units,
+            'open_snags_count': open_snags_count,
+            'critical_snags_count': critical_snags_count,
         }
         return render(request, 'real_estate/contractor_detail.html', context)
 
@@ -307,6 +349,8 @@ class ContractorCertificateCreateView(LoginRequiredMixin, SmartPermissionRequire
         gross_work = Decimal(str(request.POST.get('gross_certified_work', '0.00') or '0.00'))
         prev_work = Decimal(str(request.POST.get('previous_certified_work', '0.00') or '0.00'))
         materials = Decimal(str(request.POST.get('materials_on_site', '0.00') or '0.00'))
+        price_escalation = Decimal(str(request.POST.get('price_escalation_amount', '0.00') or '0.00'))
+        released_cube_hold = Decimal(str(request.POST.get('released_cube_test_hold_amount', '0.00') or '0.00'))
 
         retention_rate = Decimal(str(request.POST.get('retention_rate', '5.00') or '5.00'))
         advance_recovery = Decimal(str(request.POST.get('advance_payment_recovery', '0.00') or '0.00'))
@@ -345,6 +389,8 @@ class ContractorCertificateCreateView(LoginRequiredMixin, SmartPermissionRequire
             gross_certified_work=gross_work,
             previous_certified_work=prev_work,
             materials_on_site=materials,
+            price_escalation_amount=price_escalation,
+            released_cube_test_hold_amount=released_cube_hold,
             retention_rate=contract.retention_rate if contract else retention_rate,
             advance_payment_recovery=advance_recovery,
             wht_rate=wht_rate,
@@ -358,6 +404,9 @@ class ContractorCertificateCreateView(LoginRequiredMixin, SmartPermissionRequire
             with transaction.atomic():
                 cert.clean()
                 cert.save()
+
+                # امتصاص الخصومات المعلقة للمقاول إن وجدت
+                ContractorProgressService.absorb_pending_backcharges(cert)
 
                 if formset.is_valid():
                     formset.instance = cert
@@ -436,6 +485,8 @@ class ContractorCertificateUpdateView(LoginRequiredMixin, SmartPermissionRequire
         cert.gross_certified_work = Decimal(str(request.POST.get('gross_certified_work', '0.00') or '0.00'))
         cert.previous_certified_work = Decimal(str(request.POST.get('previous_certified_work', '0.00') or '0.00'))
         cert.materials_on_site = Decimal(str(request.POST.get('materials_on_site', '0.00') or '0.00'))
+        cert.price_escalation_amount = Decimal(str(request.POST.get('price_escalation_amount', '0.00') or '0.00'))
+        cert.released_cube_test_hold_amount = Decimal(str(request.POST.get('released_cube_test_hold_amount', '0.00') or '0.00'))
 
         cert.retention_rate = Decimal(str(request.POST.get('retention_rate', '5.00') or '5.00'))
         cert.advance_payment_recovery = Decimal(str(request.POST.get('advance_payment_recovery', '0.00') or '0.00'))
@@ -758,3 +809,120 @@ class ContractorCertificatePrintView(LoginRequiredMixin, SmartPermissionRequired
             'print_date': timezone.now(),
         }
         return render(request, 'real_estate/contractor_certificate_print.html', context)
+
+
+class ConcreteBatchDeliveryListView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """عرض بونات توريد الخرسانة الجاهزة ومطابقة اختبارات الجودة للمشروع والعقد"""
+    permission_required = 'real_estate.view_contractorprogresscertificate'
+
+    def get(self, request):
+        from real_estate.models.contractor import ConcreteBatchDelivery
+        batches = ConcreteBatchDelivery.objects.select_related('project', 'block', 'supplier_contract', 'certificate').order_by('-delivery_date', '-id')
+
+        project_id = request.GET.get('project')
+        if project_id:
+            batches = batches.filter(project_id=project_id)
+
+        paginator = Paginator(batches, 25)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+
+        projects = RealEstateProject.objects.filter(is_archived=False).order_by('name')
+
+        breadcrumb_items = [
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('التطوير العقاري'), 'url': reverse('real_estate:contractor_list'), 'icon': 'fa-building'},
+            {'title': _('بونات الخرسانة الجاهزة'), 'active': True},
+        ]
+
+        context = {
+            'page_obj': page_obj,
+            'batches': page_obj.object_list,
+            'projects': projects,
+            'selected_project': project_id,
+            'breadcrumb_items': breadcrumb_items,
+            'active_menu': 'real_estate',
+            'active_submenu': 'concrete_batches',
+        }
+        return render(request, 'real_estate/concrete_batch_list.html', context)
+
+
+class ConcreteBatchDeliveryCreateView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """تسجيل بون توريد خرسانة جاهزة جديد"""
+    permission_required = 'real_estate.add_contractorprogresscertificate'
+
+    def post(self, request):
+        from real_estate.models.contractor import ConcreteBatchDelivery
+        from datetime import datetime as dt
+
+        project_id = request.POST.get('project')
+        delivery_note = request.POST.get('delivery_note_number', '').strip()
+        delivery_date_str = request.POST.get('delivery_date', '').strip()
+        casting_location = request.POST.get('casting_location', '').strip()
+        concrete_grade = request.POST.get('concrete_grade', 'C30').strip()
+        cement_type = request.POST.get('cement_type', 'SRC').strip()
+        batch_volume_str = request.POST.get('batch_volume_m3', '0.00').strip()
+        unit_price_str = request.POST.get('unit_price', '0.00').strip()
+        slump_test_str = request.POST.get('slump_test', '10.0').strip()
+        is_sample_passed = request.POST.get('is_sample_passed') in ['true', '1', 'True', True]
+        supplier_contract_id = request.POST.get('supplier_contract') or None
+
+        if not project_id or not delivery_note or not delivery_date_str:
+            messages.error(request, _("المشروع ورقم البون وتاريخ التوريد حقول إلزامية."))
+            return redirect('real_estate:concrete_batch_list')
+
+        try:
+            delivery_date = dt.strptime(delivery_date_str, '%Y-%m-%d').date()
+            batch_volume = Decimal(batch_volume_str)
+            unit_price = Decimal(unit_price_str or '0.00')
+            slump = Decimal(slump_test_str or '10.0')
+        except Exception as e:
+            messages.error(request, _("بيانات الأرقام أو التواريخ المدخلة غير صالحة: %(err)s") % {'err': str(e)})
+            return redirect('real_estate:concrete_batch_list')
+
+        try:
+            batch = ConcreteBatchDelivery.objects.create(
+                project_id=project_id,
+                delivery_note_number=delivery_note,
+                delivery_date=delivery_date,
+                casting_location=casting_location,
+                concrete_grade=concrete_grade,
+                cement_type=cement_type,
+                batch_volume_m3=batch_volume,
+                unit_price=unit_price,
+                slump_test=slump,
+                is_sample_passed=is_sample_passed,
+                supplier_contract_id=supplier_contract_id,
+            )
+            messages.success(request, _("تم تسجيل بون توريد الخرسانة %(num)s بنجاح.") % {'num': batch.delivery_note_number})
+        except Exception as err:
+            messages.error(request, _("حدث خطأ أثناء حفظ بون التوريد: %(err)s") % {'err': str(err)})
+
+        return redirect('real_estate:concrete_batch_list')
+
+
+class ConcreteReconciliationView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """المطابقة الثلاثية لحصر وصب الخرسانة الجاهزة واحتساب هادر الصب الزائد"""
+    permission_required = 'real_estate.change_contractorprogresscertificate'
+
+    def get(self, request, certificate_id):
+        cert = get_object_or_404(ContractorProgressCertificate, pk=certificate_id)
+        reconciliations = cert.concrete_reconciliations.select_related('casting_subcontractor').all()
+        deliveries = cert.concrete_batches.all()
+
+        breadcrumb_items = [
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('المستخلصات'), 'url': reverse('real_estate:contractor_certificate_list'), 'icon': 'fa-file-invoice'},
+            {'title': f"{cert.certificate_number}", 'url': reverse('real_estate:contractor_certificate_detail', kwargs={'pk': cert.pk})},
+            {'title': _('المطابقة الثلاثية لهادر الخرسانة'), 'active': True},
+        ]
+
+        context = {
+            'cert': cert,
+            'reconciliations': reconciliations,
+            'deliveries': deliveries,
+            'breadcrumb_items': breadcrumb_items,
+            'active_menu': 'real_estate',
+            'active_submenu': 'certificates',
+        }
+        return render(request, 'real_estate/concrete_reconciliation.html', context)

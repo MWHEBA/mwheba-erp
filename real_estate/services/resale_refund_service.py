@@ -36,15 +36,19 @@ class ResaleContingentRefundService:
         cancelled_contract: PropertyContract,
         cancellation_penalty_amount: Decimal = Decimal('0.00'),
         notes: str = "",
-        user=None
+        user=None,
+        total_paid_amount: Optional[Decimal] = None
     ) -> ResaleContingentRefund:
         """
         إنشاء سجل مستحقات رد معلقة لحين إعادة الطرح
         """
-        total_paid = Decimal(str(cancelled_contract.down_payment or Decimal('0.00')))
-        if cancelled_contract.installment_plan:
-            for item in cancelled_contract.installment_plan.items.all():
-                total_paid += Decimal(str(item.paid_amount or Decimal('0.00')))
+        if total_paid_amount is not None:
+            total_paid = Decimal(str(total_paid_amount))
+        else:
+            total_paid = Decimal(str(cancelled_contract.down_payment or Decimal('0.00')))
+            if cancelled_contract.installment_plan:
+                for item in cancelled_contract.installment_plan.items.all():
+                    total_paid += Decimal(str(item.paid_amount or Decimal('0.00')))
 
         penalty_dec = Decimal(str(cancellation_penalty_amount or Decimal('0.00')))
         net_refund = max(Decimal('0.00'), total_paid - penalty_dec)

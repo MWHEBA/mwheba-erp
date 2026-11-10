@@ -211,13 +211,39 @@ class ContractorProgressService:
             if disputed_items.exists():
                 cert.disputed_items_holdback_total = sum(item.current_work_value for item in disputed_items)
 
-        # 4. التحقق الهندسي المسبق وسقف المطالبة قبل تقديم الاعتماد
+        # 4. التحقق الهندسي المسبق وسقف المطالبة ومنع القص الصامت
         max_ceiling, verified_ratio, has_assigned, max_stage_pct = cls.calculate_engineering_scope_ceiling(cert)
         if has_assigned and cert.gross_certified_work > Decimal('0.00') and max_ceiling > Decimal('0.00'):
             if cert.gross_certified_work > max_ceiling:
-                cert.gross_certified_work = max_ceiling
+                # Anti-silent-clipping: Do NOT mutate gross_certified_work!
+                cert.unverified_work_holdback = (cert.gross_certified_work - max_ceiling).quantize(Decimal('0.01'))
+            else:
+                cert.unverified_work_holdback = Decimal('0.00')
 
-        # 5. إعادة حساب المبالغ بدقة
+        # فحص جودة المقاول والعيوب المانعة للتسليم (Critical Snag Blocker Guard)
+        if cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSnagItem
+            critical_snags = UnitSnagItem.objects.filter(
+                contractor_id=cert.contractor_id,
+                unit__project_id=cert.project_id,
+                severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER,
+                status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+            )
+            if critical_snags.exists():
+                is_waiver_valid = bool(
+                    getattr(cert, 'consultant_waiver_approved', False) and
+                    str(getattr(cert, 'consultant_waiver_reference', '') or '').strip()
+                )
+
+                if not is_waiver_valid:
+                    raise ValidationError(
+                        _("لا يمكن تقديم المستخلص للاعتماد: توجد عيوب حرجة مانعة للتسليم (%(count)d ملاحظة) مسجلة على المقاول لم يتم إصلاحها أو تسويتها.") % {
+                            'count': critical_snags.count()
+                        }
+                    )
+
+        # 5. تشغيل فحص النزاهة والحسابات للمستخلص (Clean & Amount Calculation)
+        cert.clean()
         cert.compute_amounts()
 
         # 6. توليد وتثبيت البصمة الرقمية المشفرة لحماية البيانات من التعديل (Cryptographic Financial Snapshot)
@@ -305,6 +331,27 @@ class ContractorProgressService:
                     _("تم تجميد صرف المستخلص لتفعيل صمام المطالبة بتمديد أو تسييل خطاب الضمان البنكي (Pay or Extend).")
                 )
 
+        # 3b. التحقق الرقابي من خلو المقاول من العيوب الحرجة المانعة للصرف لحظة الترحيل المالي (Critical Snag Posting Guard)
+        if cert.contractor_id and cert.project_id:
+            from real_estate.models import UnitSnagItem
+            critical_snags = UnitSnagItem.objects.filter(
+                contractor_id=cert.contractor_id,
+                unit__project_id=cert.project_id,
+                severity=UnitSnagItem.SnagSeverity.CRITICAL_BLOCKER,
+                status__in=[UnitSnagItem.SnagStatus.OPEN, UnitSnagItem.SnagStatus.IN_PROGRESS]
+            )
+            if critical_snags.exists():
+                is_waiver_valid = bool(
+                    getattr(cert, 'consultant_waiver_approved', False) and
+                    str(getattr(cert, 'consultant_waiver_reference', '') or '').strip()
+                )
+                if not is_waiver_valid:
+                    raise ValidationError(
+                        _("لا يمكن ترحيل أو صرف المستخلص المالي: توجد عيوب حرجة مانعة للتسليم (%(count)d ملاحظة) مسجلة على المقاول لم يتم إصلاحها أو تسويتها.") % {
+                            'count': critical_snags.count()
+                        }
+                    )
+
         # 4. التحقق الهندسي الميداني وسقف المطالبة المعتمدة (Site Progress & Claim Ceiling Verification):
         # يراعي نطاق العقد والعمارة بدقة، ويمنع خلط الأعمال بين العمارات، ويحظر تعديل البيانات المالية بعد الاعتماد
         max_ceiling, verified_ratio, has_assigned, max_stage_pct = cls.calculate_engineering_scope_ceiling(cert)
@@ -315,10 +362,11 @@ class ContractorProgressService:
                         'contractor': cert.contractor.name if cert.contractor else cert.contractor_id
                     }
                 )
-            if cert.gross_certified_work > max_ceiling:
+            effective_gross = cert.gross_certified_work - cert.unverified_work_holdback
+            if effective_gross > max_ceiling:
                 raise ValidationError(
-                    _("لا يمكن ترحيل المستخلص: إجمالي الأعمال المطالب بها (%(gross)s) يتجاوز سقف الأعمال المعتمدة هندسياً لنطاق العقد (%(ceiling)s). يرجى تعديل المستخلص وإعادة اعتماده.") % {
-                        'gross': cert.gross_certified_work,
+                    _("لا يمكن ترحيل المستخلص: إجمالي الأعمال المطالب بها بعد الاستقطاع غير المعتمد (%(gross)s) يتجاوز سقف الأعمال المعتمدة هندسياً لنطاق العقد (%(ceiling)s). يرجى تعديل المستخلص وإعادة اعتماده.") % {
+                        'gross': effective_gross,
                         'ceiling': max_ceiling
                     }
                 )
@@ -474,6 +522,7 @@ class ContractorProgressService:
         """
         إصدار القيد المحاسبي المتكامل للمسار الأول مع تفصيل الاستقطاعات الـ 14 والضرائب المتوافقة
         """
+        cert.refresh_from_db()
         contract = ContractorContract.objects.select_for_update().get(id=cert.contract_id)
 
         # الحسابات المدينة
@@ -583,6 +632,30 @@ class ContractorProgressService:
                     credit=cert.pending_cube_test_hold_amount,
                     currency=currency_str,
                     description=f"أمانة نتائج كسر مكعبات خرسانة 28 يوم معلقة - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.released_cube_test_hold_amount > Decimal("0.00"):
+            lines.append(
+                JournalEntryLineData(
+                    account_code=cube_hold_account.code,
+                    debit=cert.released_cube_test_hold_amount,
+                    credit=Decimal("0.00"),
+                    currency=currency_str,
+                    description=f"رد أمانة كسر مكعبات خرسانة 28 يوم ناجحة - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.released_retention_amount > Decimal("0.00"):
+            lines.append(
+                JournalEntryLineData(
+                    account_code=retention_account.code,
+                    debit=cert.released_retention_amount,
+                    credit=Decimal("0.00"),
+                    currency=currency_str,
+                    description=f"رد تأمين حسن تنفيذ بموجب المستخلص - مستخلص {cert.certificate_number}",
                     project=proj_code
                 )
             )
@@ -749,6 +822,19 @@ class ContractorProgressService:
                     credit=cert.disputed_items_holdback_total,
                     currency=currency_str,
                     description=f"أمانة مبالغ بنود متنازع عليها فنياً ومحجوزة مؤقتاً - مستخلص {cert.certificate_number}",
+                    project=proj_code
+                )
+            )
+
+        if cert.unverified_work_holdback > Decimal("0.00"):
+            unverified_hold_account = cls.get_or_resolve_account("unverified_work_hold", fallback_code="21318")
+            lines.append(
+                JournalEntryLineData(
+                    account_code=unverified_hold_account.code,
+                    debit=Decimal("0.00"),
+                    credit=cert.unverified_work_holdback,
+                    currency=currency_str,
+                    description=f"استقطاع أعمال غير معتمدة استشارياً لحين اكتمال RFI - مستخلص {cert.certificate_number}",
                     project=proj_code
                 )
             )
@@ -927,6 +1013,21 @@ class ContractorProgressService:
         cert.journal_entry = journal_entry
         cert.status = ContractorProgressCertificate.CertificateStatus.APPROVED
         cert.save()
+
+        # تسوية أوامر الخصم المرتبطة بالمستخلص عبر الاستقطاع المباشر
+        from real_estate.models import ContractorBackcharge
+        for bc in cert.backcharges.filter(is_settled=False):
+            bc.is_settled = True
+            bc.settlement_method = ContractorBackcharge.SettlementMethod.CERTIFICATE
+            bc.settlement_journal_entry = journal_entry
+            bc.save(update_fields=['is_settled', 'settlement_method', 'settlement_journal_entry'])
+
+        # تسوية الخصومات البينية المرتبطة بالمستخلص
+        from real_estate.models import ContractorBackcharge
+        cert.backcharges.filter(is_settled=False).update(
+            is_settled=True,
+            settlement_method=ContractorBackcharge.SettlementMethod.CERTIFICATE
+        )
 
         logger.info(f"Contractor certificate {cert.certificate_number} posted to GL via Track 1. Entry ID: {journal_entry.id}")
         return journal_entry
@@ -1496,6 +1597,147 @@ class ContractorProgressService:
             inst.save(update_fields=["is_settled"])
 
         logger.info(f"Installment {inst.installment_number} settled with PDC cheque {cheque_num}. Entry ID: {journal_entry.id}")
+        return journal_entry
+
+    @classmethod
+    @transaction.atomic
+    def absorb_pending_backcharges(cls, certificate: ContractorProgressCertificate) -> int:
+        """
+        امتصاص الخصومات المعلقة للمقاول في مسودة المستخلص
+        """
+        from real_estate.models import ContractorBackcharge
+        from django.db.models import Q
+        if certificate.status != ContractorProgressCertificate.CertificateStatus.DRAFT:
+            return 0
+        qs = ContractorBackcharge.objects.filter(
+            contractor_id=certificate.contractor_id,
+            is_settled=False,
+            certificate__isnull=True
+        )
+        if certificate.contract_id:
+            qs = qs.filter(Q(contract_id=certificate.contract_id) | Q(contract__isnull=True))
+
+        count = 0
+        for bc in qs:
+            bc.certificate = certificate
+            bc.settlement_method = ContractorBackcharge.SettlementMethod.CERTIFICATE
+            if not bc.contract_id and certificate.contract_id:
+                bc.contract_id = certificate.contract_id
+            bc.save()
+            count += 1
+
+        if count > 0:
+            certificate.total_backcharges = sum(b.amount for b in certificate.backcharges.all())
+            certificate.compute_amounts()
+            certificate.save()
+
+        return count
+
+    @classmethod
+    @transaction.atomic
+    def liquidate_backcharge_against_retention(cls, backcharge_id: int, user=None) -> JournalEntry:
+        """
+        تسييل خصم بيني أو تكلفة إصلاح عيب مباشرة من حساب تأمين حسن التنفيذ للمقاول (21310)
+        Dr: Contractor Retentions Payable (21310)
+        Cr: Backcharges Recovery / Defect Rectification Income (42201)
+        """
+        from real_estate.models import ContractorBackcharge, UnitSnagItem
+        backcharge = ContractorBackcharge.objects.select_for_update().get(id=backcharge_id)
+        if backcharge.is_settled:
+            raise ValidationError(_("هذا الخصم تمت تسويته مسبقاً."))
+
+        if backcharge.certificate:
+            if backcharge.certificate.status == ContractorProgressCertificate.CertificateStatus.APPROVED:
+                raise ValidationError(_("لا يمكن تسييل خصم تم ترحيل مستخلصه واعتماده نهائياً."))
+            # تعديل مبالغ المستخلص المرتبط لمنع التكرار المحاسبي للاسترداد
+            cert = backcharge.certificate
+            cert.total_backcharges = max(Decimal('0.00'), cert.total_backcharges - backcharge.amount)
+            cert.compute_amounts()
+            if cert.approval_snapshot_hash:
+                cert.approval_snapshot_hash = cert.compute_financial_hash()
+            cert.save(update_fields=['total_backcharges', 'net_amount', 'approval_snapshot_hash'])
+
+        contract = backcharge.contract
+        contractor = backcharge.contractor or (contract.contractor if contract else None)
+        if not contractor:
+            raise ValidationError(_("يجب تحديد المقاول لتسييل الخصم من حسابه."))
+
+        currency_str = getattr(contract.currency if contract else None, 'code', 'EGP')
+        proj_code = contract.project.code if (contract and contract.project) else None
+
+        retention_account = cls.get_or_resolve_account(AccountRoleNames.REAL_ESTATE_CONTRACTOR_RETENTIONS_PAYABLE.value, fallback_code="21310")
+        recovery_account = cls.get_or_resolve_account("backcharges_recovery", fallback_code="42201")
+
+        amount = backcharge.amount
+        if amount <= Decimal('0.00'):
+            raise ValidationError(_("مبلغ الخصم يجب أن يكون أكبر من الصفر."))
+
+        if contract:
+            available_retention = contract.total_retention_retained - contract.total_retention_released
+            if amount > available_retention:
+                raise ValidationError(
+                    _("مبلغ الخصم المراد تسييله (%(amt)s) يتجاوز رصيد التأمين المتاح بالعقد (%(avail)s).") % {
+                        'amt': amount,
+                        'avail': available_retention
+                    }
+                )
+
+        lines = [
+            JournalEntryLineData(
+                account_code=retention_account.code,
+                debit=amount,
+                credit=Decimal("0.00"),
+                currency=currency_str,
+                description=f"تسييل مباشر من تأمين المقاول {contractor.name} لتسوية خصم/عيب {backcharge.memo_reference or backcharge.id}",
+                project=proj_code
+            ),
+            JournalEntryLineData(
+                account_code=recovery_account.code,
+                debit=Decimal("0.00"),
+                credit=amount,
+                currency=currency_str,
+                description=f"استرداد تكاليف إصلاح عيوب / خصم بيني على المقاول {contractor.name}",
+                project=proj_code
+            )
+        ]
+
+        idempotency_key = AccountingGateway.generate_idempotency_key(
+            module='real_estate',
+            model='ContractorBackcharge',
+            object_id=backcharge.id,
+            operation='retention_liquidation'
+        )
+
+        gateway = AccountingGateway()
+        journal_entry = gateway.create_journal_entry(
+            source_module='real_estate',
+            source_model='ContractorBackcharge',
+            source_id=backcharge.id,
+            lines=lines,
+            idempotency_key=idempotency_key,
+            user=user,
+            entry_type='general_ledger',
+            description=f"تسييل تأمين مقاول لتغطية خصم إصلاح عيوب - {contractor.name}",
+            reference=f"BC-LIQ-{backcharge.id}",
+            date=timezone.localdate()
+        )
+
+        backcharge.is_settled = True
+        backcharge.settlement_method = ContractorBackcharge.SettlementMethod.RETENTION_LIQUIDATION
+        backcharge.settlement_journal_entry = journal_entry
+        backcharge.save()
+
+        if contract:
+            contract.total_retention_released += amount
+            contract.save(update_fields=['total_retention_released', 'updated_at'])
+
+        if backcharge.snag_item:
+            backcharge.snag_item.status = UnitSnagItem.SnagStatus.RESOLVED
+            backcharge.snag_item.resolution_notes = f"تمت التسوية بتسييل {amount} {currency_str} من تأمين المقاول بقيد {journal_entry.number}"
+            backcharge.snag_item.resolved_at = timezone.now()
+            backcharge.snag_item.save(update_fields=['status', 'resolution_notes', 'resolved_at'])
+
+        logger.info(f"Backcharge {backcharge.id} liquidated against retention. Journal entry: {journal_entry.id}")
         return journal_entry
 
     reverse_posted_certificate_storno = reverse_certificate

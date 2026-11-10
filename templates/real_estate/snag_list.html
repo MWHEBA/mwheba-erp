@@ -191,10 +191,18 @@
                 </td>
                 <td class="text-center">
                   {% if s.status != 'VERIFIED_BY_ENGINEER' %}
-                  <button type="button" class="btn btn-outline-success btn-sm"
-                          onclick="openResolveModal('{% url 'real_estate:snag_resolve' pk=s.pk %}', '{{ s.snag_code }}', '{{ s.room_location }}')">
-                    <i class="fas fa-check me-1"></i>{% trans "إغلاق واعتماد" %}
-                  </button>
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-success"
+                            onclick="openResolveModal('{% url 'real_estate:snag_resolve' pk=s.pk %}', '{{ s.snag_code }}', '{{ s.room_location }}')"
+                            title="{% trans 'إغلاق واعتماد' %}">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger"
+                            onclick="openBackchargeModal('{% url 'real_estate:snag_convert_backcharge' pk=s.pk %}', '{{ s.snag_code }}', '{{ s.contractor.id|default:'' }}', '{{ s.contractor.name|default:'' }}')"
+                            title="{% trans 'تحويل لخصم فني على المقاول' %}">
+                      <i class="fas fa-gavel"></i>
+                    </button>
+                  </div>
                   {% else %}
                   <span class="text-success small fw-semibold"><i class="fas fa-check-double me-1"></i>{% trans "مغلقة" %}</span>
                   {% endif %}
@@ -326,12 +334,73 @@
   </div>
 </div>
 
+<!-- Modal: تحويل الملاحظة الفنية لخصم على المقاول -->
+<div class="modal fade" id="convertBackchargeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <form method="post" id="convertBackchargeForm">
+        {% csrf_token %}
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-gavel text-danger me-2"></i>{% trans "تحويل العيب الفني إلى أمر خصم مالي على المقاول" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-light border mb-3 small">
+            <div>{% trans "كود الملاحظة:" %} <strong id="bcSnagCode" class="text-primary font-monospace"></strong></div>
+            <div>{% trans "المقاول المحمل عليه:" %} <strong id="bcContractorName" class="text-dark"></strong></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "مبلغ الخصم / تكلفة الإصلاح (ج.م)" %} <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" min="0.01" name="amount" class="form-control" required placeholder="0.00">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "طريقة التسوية المالية" %} <span class="text-danger">*</span></label>
+            <select name="settlement_method" class="form-select" required>
+              <option value="PENDING">{% trans "تعليق بمحفظة الخصومات (يخصم من أول مستخلص قادم)" %}</option>
+              <option value="RETENTION_LIQUIDATION">{% trans "تسييل مباشر وفوري من حساب تأمين حسن التنفيذ (21310)" %}</option>
+            </select>
+            <div class="form-text small text-muted">{% trans "التسييل المباشر يصدر قيد يومية فوري من حساب التأمين لحساب استرداد العيوب (42201)." %}</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "رقم مذكرة الاستشاري / أمر الشغل" %}</label>
+            <input type="text" name="memo_reference" class="form-control" placeholder="{% trans 'مثال: MEMO-2026-SNAG' %}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-bold">{% trans "سبب ومبرر الخصم الفني" %}</label>
+            <textarea name="reason" rows="2" class="form-control" placeholder="{% trans 'توصيف تكلفة الإصلاح الذاتي على حساب المقاول بعد انقضاء المهلة...' %}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "تأكيد وإصدار الخصم" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 function openResolveModal(actionUrl, snagCode, location) {
   document.getElementById('resolveSnagForm').setAttribute('action', actionUrl);
   document.getElementById('modalSnagCode').innerText = snagCode;
   document.getElementById('modalSnagLocation').innerText = location;
   const modal = new bootstrap.Modal(document.getElementById('resolveSnagModal'));
+  modal.show();
+}
+
+function openBackchargeModal(actionUrl, snagCode, contractorId, contractorName) {
+  document.getElementById('convertBackchargeForm').setAttribute('action', actionUrl);
+  document.getElementById('bcSnagCode').innerText = snagCode;
+  document.getElementById('bcContractorName').innerText = contractorName || '{% trans "غير محدد (سيتم ربطه بمقاول المشروع)" %}';
+  const modal = new bootstrap.Modal(document.getElementById('convertBackchargeModal'));
   modal.show();
 }
 </script>

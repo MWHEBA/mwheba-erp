@@ -41,6 +41,7 @@ urlpatterns = [
 
     # Bookings (استمارات الحجز)
     path('bookings/', booking_views.BookingListView.as_view(), name='booking_list'),
+    path('bookings/recovery/', booking_views.BookingRecoveryListView.as_view(), name='booking_recovery_list'),
     path('bookings/<int:pk>/', booking_views.BookingDetailView.as_view(), name='booking_detail'),
     path('bookings/<int:pk>/print/', booking_views.BookingOfficialPrintView.as_view(), name='booking_print'),
     path('verify-booking/<uuid:token>/', booking_views.BookingPublicVerificationView.as_view(), name='booking_public_verify'),
@@ -49,6 +50,8 @@ urlpatterns = [
     path('contracts/', contract_views.ContractListView.as_view(), name='contract_list'),
     path('contracts/create/', contract_views.ContractCreateView.as_view(), name='contract_create'),
     path('contracts/<int:pk>/', contract_views.ContractDetailView.as_view(), name='contract_detail'),
+    path('contracts/<int:pk>/terminate/', contract_views.ContractTerminationView.as_view(), name='contract_terminate'),
+    path('contracts/<int:pk>/survey-adjustment/', contract_views.ContractSurveyAdjustmentView.as_view(), name='contract_survey_adjustment'),
     path('contracts/<int:pk>/print/', contract_views.ContractOfficialPrintView.as_view(), name='contract_print'),
     path('contracts/<int:pk>/statement/print/', contract_views.ContractStatementPrintView.as_view(), name='contract_statement_print'),
     path('contracts/<int:pk>/clearance/print/', contract_views.ContractDebtClearancePrintView.as_view(), name='contract_clearance_print'),
@@ -76,8 +79,10 @@ urlpatterns = [
 
     # Contractors Progress Certificates (مستخلصات المقاولين الإنشائية)
     path('contractors/certificates/', contractor_views.ContractorCertificateListView.as_view(), name='contractor_list'),
+    path('contractors/certificates/list/', contractor_views.ContractorCertificateListView.as_view(), name='contractor_certificate_list'),
     path('contractors/certificates/create/', contractor_views.ContractorCertificateCreateView.as_view(), name='contractor_create'),
     path('contractors/certificates/<int:pk>/', contractor_views.ContractorCertificateDetailView.as_view(), name='contractor_detail'),
+    path('contractors/certificates/<int:pk>/detail/', contractor_views.ContractorCertificateDetailView.as_view(), name='contractor_certificate_detail'),
     path('contractors/certificates/<int:pk>/edit/', contractor_views.ContractorCertificateUpdateView.as_view(), name='contractor_update'),
     path('contractors/certificates/<int:pk>/submit/', contractor_views.ContractorCertificateSubmitView.as_view(), name='contractor_submit'),
     path('contractors/certificates/<int:pk>/post-gl/', contractor_views.ContractorCertificatePostGLView.as_view(), name='contractor_post_gl'),
@@ -86,6 +91,9 @@ urlpatterns = [
     path('contractors/certificates/<int:pk>/excel-import/', contractor_views.ContractorCertificateExcelImportView.as_view(), name='contractor_excel_import'),
     path('contractors/certificates/<int:pk>/print/', contractor_views.ContractorCertificatePrintView.as_view(), name='contractor_print'),
     path('contractors/certificates/installments/<int:installment_id>/settle-cheque/', contractor_views.ContractorCertificateSettleInstallmentView.as_view(), name='contractor_settle_installment'),
+    path('contractors/concrete-batches/', contractor_views.ConcreteBatchDeliveryListView.as_view(), name='concrete_batch_list'),
+    path('contractors/concrete-batches/create/', contractor_views.ConcreteBatchDeliveryCreateView.as_view(), name='concrete_batch_create'),
+    path('contractors/certificates/<int:certificate_id>/concrete-reconciliation/', contractor_views.ConcreteReconciliationView.as_view(), name='concrete_reconciliation'),
 
     # Engineering (أوامر التعديلات وبنود الفحص)
     path('engineering/variations/', engineering_views.VariationOrderListView.as_view(), name='variation_list'),
@@ -97,6 +105,7 @@ urlpatterns = [
     path('engineering/snags/', engineering_views.SnagItemListView.as_view(), name='snag_list'),
     path('engineering/snags/create/', engineering_views.SnagItemCreateView.as_view(), name='snag_create'),
     path('engineering/snags/<int:pk>/resolve/', engineering_views.SnagItemResolveView.as_view(), name='snag_resolve'),
+    path('engineering/snags/<int:pk>/convert-backcharge/', engineering_views.SnagItemConvertBackchargeView.as_view(), name='snag_convert_backcharge'),
     path('api/engineering/snags/sync/', engineering_views.ApiSnagSyncView.as_view(), name='api_snag_sync'),
 
     # Handover & Warranty (محاضر التسليم والضمان)
@@ -160,12 +169,18 @@ urlpatterns = [
     path('finishing/orders/create/', finishing_views.FinishingOrderCreateView.as_view(), name='finishing_order_create'),
     path('finishing/orders/kanban/', finishing_views.FinishingOrderKanbanView.as_view(), name='finishing_kanban'),
     path('finishing/orders/<int:pk>/', finishing_views.FinishingOrderDetailView.as_view(), name='finishing_order_detail'),
+    path('finishing/orders/<int:pk>/wizard/', finishing_views.FinishingOrderWizardView.as_view(), name='finishing_order_wizard'),
     path('finishing/orders/<int:pk>/print/', finishing_views.FinishingOrderPrintView.as_view(), name='finishing_order_print'),
     path('finishing/catalog/', finishing_views.FinishingCatalogView.as_view(), name='finishing_catalog'),
     path('api/finishing/orders/<int:pk>/transition/', finishing_views.ApiFinishingStageTransitionView.as_view(), name='api_finishing_stage_transition'),
     path('api/finishing/orders/<int:pk>/hydrostatic-test/', finishing_views.ApiRecordHydrostaticTestView.as_view(), name='api_finishing_hydrostatic_test'),
+    path('api/finishing/orders/<int:pk>/items/add/', finishing_views.ApiAddFinishingOrderItemView.as_view(), name='api_add_finishing_order_item'),
+    path('api/finishing/orders/<int:pk>/items/<int:item_id>/delete/', finishing_views.ApiDeleteFinishingOrderItemView.as_view(), name='api_delete_finishing_order_item'),
+    path('api/finishing/orders/<int:pk>/generate-installments/', finishing_views.ApiGenerateFinishingInstallmentsView.as_view(), name='api_generate_finishing_installments'),
 
     # Site Execution & Architectural Matrix (Track 3: WBS & 32-Trade Site Inspection Matrix)
+    path('site-reports/', engineering_views.SiteReportsLandingView.as_view(), name='site_reports_landing'),
+    path('projects/<int:project_id>/site-matrix/', engineering_views.SiteProjectReportView.as_view(), name='site_progress_matrix'),
     path('projects/<int:project_id>/wbs/', engineering_views.ProjectWbsTreeView.as_view(), name='project_wbs_tree'),
     path('projects/<int:project_id>/wbs/sync-unit-progress/', engineering_views.ProjectWbsSyncUnitProgressAjaxView.as_view(), name='project_wbs_sync_unit_progress'),
     path('projects/<int:project_id>/wbs/save/', engineering_views.ProjectWbsActivitySaveAjaxView.as_view(), name='project_wbs_activity_save'),

@@ -64,6 +64,10 @@ class UnitBookingService:
         partner_share_percentage: Decimal = None,
         sales_channel: str = None,
         marketing_lead_source: str = None,
+        collection_method: str = 'CASH',
+        cheque_number: str = None,
+        due_date=None,
+        drawer_bank_name: str = None,
         call_specialist=None,
         visit_specialist=None,
         site_specialist=None,
@@ -217,30 +221,66 @@ class UnitBookingService:
                 created_by=user
             )
 
-            # 5. إثبات تحصيل جدية الحجز محاسبياً وإصدار إيصال السداد في دفتر الأستاذ العام
+            # 5. إثبات تحصيل جدية الحجز محاسبياً وإصدار إيصال السداد أو الشيك في دفتر الأستاذ العام
             if holding_deposit > Decimal('0.00'):
-                deposit_acc = payment_account
-                if not deposit_acc:
-                    if locked_unit.project and locked_unit.project.escrow_account:
-                        deposit_acc = locked_unit.project.escrow_account
-                    else:
-                        from real_estate.services.accounting_service import RealEstateAccountingService
-                        from financial.services.role_registry import AccountRoleNames
-                        deposit_acc = RealEstateAccountingService.get_or_resolve_account(
-                            AccountRoleNames.DEFAULT_CASH_DRAWER.value,
-                            fallback_code="11101"
-                        )
+                if collection_method == 'CHEQUE':
+                    if not cheque_number or not due_date or not drawer_bank_name:
+                        raise BookingValidationError(_("بيانات الشيك (رقم الشيك، تاريخ الاستحقاق، واسم البنك) إلزامية للتحصيل بشيك."))
 
-                from real_estate.services.accounting_service import RealEstateAccountingService
-                je = RealEstateAccountingService.post_booking_holding_fee(
-                    booking=booking,
-                    payment_account=deposit_acc,
-                    user=user,
-                    reference=booking.booking_number
-                )
-                booking.journal_entry = je
-                booking.is_deposit_collected = True
-                booking.save(update_fields=['journal_entry', 'is_deposit_collected'])
+                    from cheques.models.cheque import Cheque, ChequeType, ChequeStatus, ChequePurpose
+                    from datetime import datetime as dt
+                    c_due = dt.strptime(due_date, '%Y-%m-%d').date() if isinstance(due_date, str) else due_date
+
+                    chq_curr = currency or getattr(locked_unit.project, 'currency', None)
+                    if not chq_curr:
+                        from financial.models.currency import Currency
+                        chq_curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.filter(code='EGP').first()
+
+                    chq = Cheque.objects.create(
+                        cheque_type=ChequeType.RECEIVABLE,
+                        purpose=ChequePurpose.ADVANCE_PAYMENT,
+                        status=ChequeStatus.IN_PORTFOLIO,
+                        customer=customer,
+                        amount=holding_deposit,
+                        currency=chq_curr,
+                        original_exchange_rate=exchange_rate or Decimal('1.000000'),
+                        issue_date=b_date,
+                        due_date=c_due,
+                        cheque_number=str(cheque_number).strip(),
+                        drawer_bank_name=str(drawer_bank_name).strip(),
+                        drawer_name=customer.name,
+                        payee_name=getattr(locked_unit.project, 'name', 'MWHEBA Real Estate'),
+                        deposit_bank_account=payment_account,
+                        portfolio_account=payment_account,
+                        notes=f"[BOOKING_ID:{booking.id}] [BOOKING_NUM:{booking.booking_number}] حجز الوحدة {locked_unit.unit_code}",
+                        created_by=user,
+                    )
+                    booking.notes = f"{booking.notes or ''} [CHEQUE_ID:{chq.id}] [CHEQUE_NUM:{chq.cheque_number}]".strip()
+                    booking.is_deposit_collected = False
+                    booking.save(update_fields=['is_deposit_collected', 'notes'])
+                else:
+                    deposit_acc = payment_account
+                    if not deposit_acc:
+                        if locked_unit.project and locked_unit.project.escrow_account:
+                            deposit_acc = locked_unit.project.escrow_account
+                        else:
+                            from real_estate.services.accounting_service import RealEstateAccountingService
+                            from financial.services.role_registry import AccountRoleNames
+                            deposit_acc = RealEstateAccountingService.get_or_resolve_account(
+                                AccountRoleNames.DEFAULT_CASH_DRAWER.value,
+                                fallback_code="11101"
+                            )
+
+                    from real_estate.services.accounting_service import RealEstateAccountingService
+                    je = RealEstateAccountingService.post_booking_holding_fee(
+                        booking=booking,
+                        payment_account=deposit_acc,
+                        user=user,
+                        reference=booking.booking_number
+                    )
+                    booking.journal_entry = je
+                    booking.is_deposit_collected = True
+                    booking.save(update_fields=['journal_entry', 'is_deposit_collected'])
 
             # 6. ربط الحجز النشط بالوحدة
             locked_unit.current_booking = booking
@@ -252,6 +292,108 @@ class UnitBookingService:
                 f"للعميل {customer.name} حتى {expiry_date}"
             )
             return booking
+
+    @classmethod
+    def sync_booking_collection_state(cls, booking: UnitBooking) -> bool:
+        """
+        مزامنة حالة تحصيل جدية الحجز (سواء كانت نقداً أو بنكاً أو شيكاً برسم التحصيل)
+        مع التحقق من القيود المحاسبية الصالحة وغير المعكوسة.
+        """
+        if not booking or (booking.holding_deposit or Decimal('0.00')) <= Decimal('0.00'):
+            return False
+
+        from cheques.models.cheque import Cheque, ChequeStatus
+        from financial.models.journal_entry import JournalEntry
+        import re
+
+        # 1. التحقق من الشيك المرتبط بالحجز إن وجد
+        linked_cheque = Cheque.objects.filter(
+            notes__contains=f"[BOOKING_ID:{booking.id}]"
+        ).first()
+
+        if not linked_cheque and booking.notes and '[CHEQUE_ID:' in booking.notes:
+            try:
+                chq_match = re.search(r'\[CHEQUE_ID:(\d+)\]', booking.notes)
+                if chq_match:
+                    linked_cheque = Cheque.objects.filter(id=int(chq_match.group(1))).first()
+            except Exception:
+                pass
+
+        if linked_cheque:
+            is_valid_allocation = (
+                linked_cheque.customer_id == booking.customer_id and
+                (
+                    linked_cheque.status == ChequeStatus.COLLECTED or
+                    (linked_cheque.collected_amount or Decimal('0.00')) >= booking.holding_deposit
+                )
+            )
+            if is_valid_allocation:
+                cheque_je = None
+                collect_log = linked_cheque.action_logs.filter(
+                    action='COLLECT',
+                    journal_entry__isnull=False
+                ).order_by('-id').first()
+                if collect_log and collect_log.journal_entry:
+                    cheque_je = collect_log.journal_entry
+                else:
+                    cheque_je = JournalEntry.objects.filter(
+                        source_module='cheques',
+                        source_id__in=linked_cheque.action_logs.values_list('id', flat=True)
+                    ).first() or JournalEntry.objects.filter(
+                        source_module='cheques',
+                        source_id=linked_cheque.id
+                    ).first()
+
+                is_reversed = False
+                if cheque_je:
+                    is_reversed = (
+                        getattr(cheque_je, 'reversed_by_entry_id', None) is not None or
+                        getattr(cheque_je, 'is_reversal', False) or
+                        cheque_je.reversal_entries.exists() or
+                        getattr(cheque_je, 'status', None) == 'cancelled'
+                    )
+
+                if not is_reversed and (cheque_je is not None or linked_cheque.status == ChequeStatus.COLLECTED):
+                    booking.is_deposit_collected = True
+                    if cheque_je and not booking.journal_entry_id:
+                        booking.journal_entry = cheque_je
+                    booking.save(update_fields=['is_deposit_collected', 'journal_entry'])
+                    return True
+
+        # 2. التحقق من وجود قيد تحصيل مباشر مرحل وغير معكوس للحجز
+        direct_je = JournalEntry.objects.filter(
+            source_module='real_estate',
+            source_model='UnitBooking',
+            source_id=booking.id,
+            status='posted'
+        ).exclude(
+            models.Q(reversal_entries__isnull=False) |
+            models.Q(reversed_by_entry__isnull=False) |
+            models.Q(is_reversal=True)
+        ).first()
+
+        if direct_je:
+            booking.is_deposit_collected = True
+            if not booking.journal_entry_id:
+                booking.journal_entry = direct_je
+            booking.save(update_fields=['is_deposit_collected', 'journal_entry'])
+            return True
+
+        # 3. التحقق إذا كان القيد السابق قد عُكس
+        if booking.is_deposit_collected and booking.journal_entry_id:
+            b_je = booking.journal_entry
+            is_reversed = (
+                getattr(b_je, 'reversed_by_entry_id', None) is not None or
+                getattr(b_je, 'is_reversal', False) or
+                b_je.reversal_entries.exists() or
+                getattr(b_je, 'status', None) == 'cancelled'
+            )
+            if is_reversed:
+                booking.is_deposit_collected = False
+                booking.save(update_fields=['is_deposit_collected'])
+                return False
+
+        return bool(booking.is_deposit_collected)
 
     @classmethod
     def convert_booking_to_contract(
@@ -270,6 +412,26 @@ class UnitBookingService:
         has_decoupled_finishing: bool = False,
         primary_owner_share: Decimal = None,
         co_owners_data: list = None,
+        number_of_installments: int = None,
+        installment_frequency: str = None,
+        first_installment_date: datetime.date = None,
+        broker=None,
+        broker_commission_rate: Decimal = None,
+        finishing_installments_count: int = None,
+        finishing_installment_frequency: int = None,
+        ceo_override_token: str = None,
+        ceo_override_reason: str = None,
+        parking_slot_code: str = None,
+        parking_slot_price: Decimal = None,
+        storage_locker_code: str = None,
+        storage_locker_price: Decimal = None,
+        finishing_meter_rate: Decimal = None,
+        finishing_total_amount: Decimal = None,
+        utilities_deposit_amount: Decimal = None,
+        maintenance_deposit_amount: Decimal = None,
+        call_specialist=None,
+        visit_specialist=None,
+        site_specialist=None,
     ) -> PropertyContract:
         """
         تحويل استمارة الحجز إلى تعاقد بيع نهائي (SPA) بقفل ثنائي ذري
@@ -318,20 +480,38 @@ class UnitBookingService:
                 raise BookingValidationError(_("حالة الوحدة لا تتوافق مع بيانات الحجز الحالي."))
 
             # التحقق الصارم من إثبات تحصيل جدية الحجز محاسبياً قبل اعتمادها كمقدم تعاقد
-            if locked_booking.holding_deposit > Decimal('0.00') and not locked_booking.is_deposit_collected:
-                from financial.models.journal_entry import JournalEntry
-                has_je = JournalEntry.objects.filter(
-                    source_module='real_estate',
-                    source_model='UnitBooking',
-                    source_id=locked_booking.id
-                ).exists()
-                if not has_je:
-                    raise BookingValidationError(
-                        _("لا يمكن تحويل الحجز لعقد: لم يتم إثبات تحصيل جدية الحجز محاسبياً وإصدار إيصال السداد.")
-                    )
+            cls.sync_booking_collection_state(locked_booking)
 
-            c_date = contract_date or timezone.localdate()
-            d_date = delivery_date or (c_date + datetime.timedelta(days=730))
+            if locked_booking.holding_deposit > Decimal('0.00') and not locked_booking.is_deposit_collected:
+                raise BookingValidationError(
+                    _("لا يمكن تحويل الحجز لعقد: لم يتم إثبات تحصيل جدية الحجز محاسبياً وإصدار إيصال السداد.")
+                )
+
+            if isinstance(contract_date, str):
+                from datetime import datetime as dt
+                try:
+                    c_date = dt.strptime(contract_date, '%Y-%m-%d').date()
+                except Exception:
+                    c_date = timezone.localdate()
+            else:
+                c_date = contract_date or timezone.localdate()
+
+            if isinstance(delivery_date, str):
+                from datetime import datetime as dt
+                try:
+                    d_date = dt.strptime(delivery_date, '%Y-%m-%d').date()
+                except Exception:
+                    d_date = c_date + datetime.timedelta(days=730)
+            else:
+                d_date = delivery_date or (c_date + datetime.timedelta(days=730))
+
+            if isinstance(first_installment_date, str):
+                from datetime import datetime as dt
+                try:
+                    first_installment_date = dt.strptime(first_installment_date, '%Y-%m-%d').date() if first_installment_date else None
+                except Exception:
+                    first_installment_date = None
+
             price = final_contract_price or locked_unit.total_price
 
             curr = currency or getattr(locked_unit.project, 'currency', None)
@@ -341,14 +521,18 @@ class UnitBookingService:
 
             cnt_rate = Decimal(str(exchange_rate or getattr(locked_unit.project, 'exchange_rate', '1.000000') or '1.000000'))
 
+            from financial.models import Currency
+            func_curr = Currency.objects.filter(is_functional=True).first()
+            func_curr_code = getattr(func_curr, 'code', 'EGP') if func_curr else 'EGP'
+
             # احتساب معادل جدية الحجز المحصلة بعملة العقد التعاقدية
             booking_curr = getattr(locked_booking, 'currency', None)
-            booking_curr_code = getattr(booking_curr, 'code', 'EGP') if booking_curr else 'EGP'
+            booking_curr_code = getattr(booking_curr, 'code', func_curr_code) if booking_curr else func_curr_code
             booking_rate = Decimal(str(getattr(locked_booking, 'exchange_rate', '1.000000') or '1.000000'))
-            contract_curr_code = getattr(curr, 'code', 'EGP') if curr else 'EGP'
+            contract_curr_code = getattr(curr, 'code', func_curr_code) if curr else func_curr_code
 
             # حساب القيمة الوظيفية لجدية الحجز المسددة
-            if booking_curr_code != 'EGP' and booking_rate > Decimal('0.00'):
+            if booking_curr_code != func_curr_code and booking_rate > Decimal('0.00'):
                 func_holding = (locked_booking.holding_deposit * booking_rate).quantize(Decimal('0.01'))
             else:
                 func_holding = locked_booking.holding_deposit
@@ -356,7 +540,7 @@ class UnitBookingService:
             # تحويل القيمة الوظيفية إلى عملة العقد المقومة به
             if contract_curr_code == booking_curr_code:
                 contract_holding = locked_booking.holding_deposit
-            elif contract_curr_code != 'EGP' and cnt_rate > Decimal('0.00'):
+            elif contract_curr_code != func_curr_code and cnt_rate > Decimal('0.00'):
                 contract_holding = (func_holding / cnt_rate).quantize(Decimal('0.01'))
             else:
                 contract_holding = func_holding
@@ -436,6 +620,18 @@ class UnitBookingService:
                     }
                 )
 
+            final_parking_code = str(parking_slot_code).strip() if parking_slot_code is not None else locked_booking.parking_slot_code
+            final_parking_price = parking_slot_price if parking_slot_price is not None else locked_booking.parking_slot_price
+            final_storage_code = str(storage_locker_code).strip() if storage_locker_code is not None else locked_booking.storage_locker_code
+            final_storage_price = storage_locker_price if storage_locker_price is not None else locked_booking.storage_locker_price
+            final_finishing_rate = finishing_meter_rate if finishing_meter_rate is not None else locked_booking.finishing_meter_rate
+            final_finishing_amount = finishing_total_amount if finishing_total_amount is not None else locked_booking.total_finishing_amount
+            final_utilities_amount = utilities_deposit_amount if utilities_deposit_amount is not None else locked_booking.utilities_deposit_amount
+            final_maintenance_amount = maintenance_deposit_amount if maintenance_deposit_amount is not None else getattr(locked_booking, 'maintenance_deposit_amount', Decimal('0.00'))
+            final_call_specialist = call_specialist or locked_booking.call_specialist
+            final_visit_specialist = visit_specialist or locked_booking.visit_specialist
+            final_site_specialist = site_specialist or locked_booking.site_specialist
+
             contract = PropertyContract.objects.create(
                 contract_number=cnt_num,
                 project=locked_unit.project,
@@ -451,16 +647,17 @@ class UnitBookingService:
                 contract_tax_structure=contract_tax_structure or PropertyContract.ContractTaxStructure.UNIFIED_SPA,
                 primary_owner_share=p_share,
                 has_decoupled_finishing=is_decoupled,
-                finishing_meter_rate=locked_booking.finishing_meter_rate,
-                finishing_total_amount=locked_booking.total_finishing_amount,
-                utilities_deposit_amount=locked_booking.utilities_deposit_amount,
-                parking_slot_code=locked_booking.parking_slot_code,
-                parking_slot_price=locked_booking.parking_slot_price,
-                storage_locker_code=locked_booking.storage_locker_code,
-                storage_locker_price=locked_booking.storage_locker_price,
-                call_specialist=locked_booking.call_specialist,
-                visit_specialist=locked_booking.visit_specialist,
-                site_specialist=locked_booking.site_specialist,
+                finishing_meter_rate=final_finishing_rate,
+                finishing_total_amount=final_finishing_amount,
+                utilities_deposit_amount=final_utilities_amount,
+                maintenance_deposit_amount=final_maintenance_amount,
+                parking_slot_code=final_parking_code,
+                parking_slot_price=final_parking_price,
+                storage_locker_code=final_storage_code,
+                storage_locker_price=final_storage_price,
+                call_specialist=final_call_specialist,
+                visit_specialist=final_visit_specialist,
+                site_specialist=final_site_specialist,
                 created_by=user
             )
 
@@ -524,7 +721,16 @@ class UnitBookingService:
                     plan.status = InstallmentPlan.PlanStatus.COMPLETED
                     plan.save(update_fields=['status'])
                 else:
-                    num_inst = 4
+                    num_inst = number_of_installments if (number_of_installments and number_of_installments > 0) else 4
+                    freq = installment_frequency or 'QUARTERLY'
+                    start_d = first_installment_date or c_date
+                    months_step = {
+                        'MONTHLY': 1,
+                        'QUARTERLY': 3,
+                        'SEMI_ANNUAL': 6,
+                        'ANNUAL': 12,
+                    }.get(freq, 3)
+
                     plan = InstallmentPlan.objects.create(
                         customer=contract.customer,
                         total_principal=net_financed,
@@ -532,14 +738,14 @@ class UnitBookingService:
                         total_amount=tot_price,
                         down_payment=contract.down_payment or Decimal('0.00'),
                         number_of_installments=num_inst,
-                        frequency='QUARTERLY',
-                        start_date=c_date,
+                        frequency=freq,
+                        start_date=start_d,
                         status=InstallmentPlan.PlanStatus.DRAFT,
                         created_by=user or contract.created_by,
                     )
                     base_inst_val = (net_financed / Decimal(num_inst)).quantize(Decimal('0.01'))
                     running_sum = Decimal('0.00')
-                    inst_due = c_date
+                    inst_due = start_d
                     for idx in range(1, num_inst + 1):
                         if idx == num_inst:
                             item_val = net_financed - running_sum
@@ -555,8 +761,8 @@ class UnitBookingService:
                             interest_amount=Decimal('0.00'),
                             total_amount=item_val,
                         )
-                        y = inst_due.year + (inst_due.month + 3 - 1) // 12
-                        m = (inst_due.month + 3 - 1) % 12 + 1
+                        y = inst_due.year + (inst_due.month + months_step - 1) // 12
+                        m = (inst_due.month + months_step - 1) % 12 + 1
                         d = min(inst_due.day, 28)
                         inst_due = datetime.date(y, m, d)
 
@@ -564,6 +770,18 @@ class UnitBookingService:
                     contract.save(update_fields=['installment_plan', 'updated_at'])
                     plan.status = InstallmentPlan.PlanStatus.ACTIVE
                     plan.save(update_fields=['status'])
+
+            # 5b. ربط الوسيط العقاري إن وُجد (Broker Commission Service)
+            if broker:
+                from real_estate.services.broker_service import BrokerCommissionService
+                BrokerCommissionService.assign_broker_to_contract(
+                    contract=contract,
+                    broker=broker,
+                    commission_rate=broker_commission_rate,
+                    user=user,
+                    ceo_override_token=ceo_override_token,
+                    ceo_override_reason=ceo_override_reason or ""
+                )
 
             # 6. إنشاء أمر تشطيب ملحق وخطة سداد مستقلة عند اختيار هيكلة فصل التشطيب
             if contract.contract_tax_structure == PropertyContract.ContractTaxStructure.SPLIT_SPA_FINISHING_ANNEX or contract.has_decoupled_finishing:
@@ -587,9 +805,12 @@ class UnitBookingService:
                         }
                     )
                     if not fin_order.finishing_installment_plan_id:
+                        fin_inst_count = int(finishing_installments_count or 4)
+                        fin_freq = int(finishing_installment_frequency or 3)
                         FinishingFinancialService.generate_segregated_installment_plan(
                             order=fin_order,
-                            number_of_installments=4,
+                            number_of_installments=fin_inst_count,
+                            frequency_months=fin_freq,
                             start_date=c_date,
                             user=user or contract.created_by
                         )
@@ -606,12 +827,13 @@ class UnitBookingService:
         booking_id: int,
         reason: str,
         forfeit_deposit: bool = False,
+        approved_deduction_fees: Decimal = Decimal('0.00'),
         user=None,
         payment_account=None,
     ) -> UnitBooking:
         """
         إلغاء الحجز وإعادة إتاحة الوحدة للبيع مجدداً في دورة إعادة البيع (Resale Lifecycle)
-        مع حراسة الصلاحيات وفصل طلب الاسترداد عن اكتماله الفعلي.
+        مع حراسة الصلاحيات وفصل طلب الاسترداد عن اكتماله الفعلي واحتساب المصاريف الإدارية المعتمدة.
         """
         if not reason:
             raise BookingValidationError(_("يجب تحديد سبب إلغاء الحجز."))
@@ -628,6 +850,9 @@ class UnitBookingService:
                 raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
 
             locked_unit = PropertyUnit.objects.select_for_update().get(pk=locked_booking.unit_id)
+
+            # مزامنة حالة التحصيل للشيكات والقيود المحاسبية
+            cls.sync_booking_collection_state(locked_booking)
 
             has_deposit = (locked_booking.holding_deposit > Decimal('0.00') and locked_booking.is_deposit_collected)
 
@@ -667,23 +892,48 @@ class UnitBookingService:
                 target_status = UnitBooking.BookingStatus.CANCELLED_FORFEITED
             else:
                 if has_deposit:
+                    deduction = min(Decimal(str(approved_deduction_fees or '0.00')), locked_booking.holding_deposit)
+                    net_refundable = max(Decimal('0.00'), locked_booking.holding_deposit - deduction)
+
                     settlement = locked_booking.active_cancellation_settlement
                     if not settlement:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        settle_curr = locked_booking.currency or ExchangeRateService.get_functional_currency()
                         settlement = BookingCancellationSettlement.objects.create(
                             booking=locked_booking,
-                            currency=locked_booking.currency,
+                            currency=settle_curr,
                             exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
                             total_deposit_paid=locked_booking.holding_deposit,
-                            net_refundable_amount=locked_booking.holding_deposit,
-                            remaining_disbursable_amount=locked_booking.holding_deposit,
+                            approved_deduction_fees=deduction,
+                            net_refundable_amount=net_refundable,
+                            remaining_disbursable_amount=net_refundable,
                             cancellation_reason='FINANCIAL_HARDSHIP',
                             notes=f"إلغاء حجز: {reason}",
                             processed_by=user or locked_booking.created_by,
                         )
                         locked_booking.active_cancellation_settlement = settlement
                         locked_booking.save(update_fields=['active_cancellation_settlement', 'updated_at'])
+                    else:
+                        settlement.approved_deduction_fees = deduction
+                        settlement.net_refundable_amount = net_refundable
+                        settlement.remaining_disbursable_amount = net_refundable
+                        settlement.save(update_fields=['approved_deduction_fees', 'net_refundable_amount', 'remaining_disbursable_amount', 'updated_at'])
 
-                    if payment_account:
+                    # إثبات قيد خصم المصاريف الإدارية المعتمَدة إن وُجدت
+                    if deduction > Decimal('0.00') and not settlement.forfeiture_journal_entry:
+                        try:
+                            deduct_entry = RealEstateAccountingService.post_booking_forfeiture(
+                                booking=locked_booking,
+                                user=user,
+                                amount=deduction,
+                                reference=f"DEDUCT-{locked_booking.booking_number}"
+                            )
+                            settlement.forfeiture_journal_entry = deduct_entry
+                            settlement.save(update_fields=['forfeiture_journal_entry', 'updated_at'])
+                        except Exception as fee_err:
+                            logger.error(f"Error posting booking cancellation deduction fee: {fee_err}")
+
+                    if payment_account and settlement.remaining_disbursable_amount > Decimal('0.00'):
                         # تسوية مالية فورية
                         pay_method = RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER
                         if payment_account and getattr(payment_account, 'code', '').startswith('1111'):
@@ -696,14 +946,14 @@ class UnitBookingService:
                             method=pay_method,
                             payment_account=payment_account,
                             user=user,
-                            idempotency_key=f"CANCEL-REFUND-{locked_booking.booking_number}-{timezone.now().timestamp()}",
+                            idempotency_key=f"REFUND-SETTLE-{settlement.id}",
                         )
                         target_status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
                     else:
                         # فصل طلب الاسترداد عن اكتماله: الحجز يصبح بانتظار الرد المالي
                         target_status = UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND
                 else:
-                    target_status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
+                    target_status = UnitBooking.BookingStatus.EXPIRED_RELEASED
 
             # 1. تحديث حالة الحجز
             locked_booking.status = target_status
@@ -728,16 +978,32 @@ class UnitBookingService:
     def process_booking_refund(
         cls,
         booking_id: int,
-        payment_account,
+        payment_account=None,
+        method: str = None,
+        cheque_data: dict = None,
         user=None,
         reference: str = ""
     ) -> UnitBooking:
         """
         التسوية المالية لصرف واسترداد جدية الحجز (Settle Booking Deposit Refund)
-        يرحل قيد رد الأمانات (payment_voucher) ويحول الحالة إلى CANCELLED_REFUNDED
+        يرحل قيد رد الأمانات (payment_voucher أو محرك الشيكات) ويحول الحالة إلى CANCELLED_REFUNDED
+        يدعم وسيلة الصرف نقد / بنك / شيكات بمفتاح منع تكرار حتمي محكم.
         """
-        if not payment_account:
+        from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
+        from real_estate.services.accounting_service import RealEstateAccountingService
+
+        pay_method = method or (
+            RefundDisbursementPayment.DisbursementMethod.CASH
+            if payment_account and getattr(payment_account, 'code', '').startswith('1111')
+            else RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER
+        )
+
+        if pay_method in [RefundDisbursementPayment.DisbursementMethod.CASH, RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER] and not payment_account:
             raise BookingValidationError(_("يجب تحديد حساب الخزينة أو البنك لصرف المبلغ المسترد."))
+
+        if pay_method == RefundDisbursementPayment.DisbursementMethod.CHEQUE:
+            if not cheque_data or not cheque_data.get('cheque_number'):
+                raise BookingValidationError(_("بيانات ورقم الشيك إلزامية للصرف بشيك مصرفي."))
 
         if user and hasattr(user, 'has_perm') and not (user.is_superuser or getattr(user, 'is_admin', False)):
             has_refund_perm = (
@@ -755,6 +1021,9 @@ class UnitBookingService:
                 locked_booking = UnitBooking.objects.select_for_update().get(pk=booking_id)
             except UnitBooking.DoesNotExist:
                 raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
+
+            # مزامنة حالة التحصيل للشيكات والقيود المحاسبية
+            cls.sync_booking_collection_state(locked_booking)
 
             if locked_booking.holding_deposit <= Decimal('0.00') or not locked_booking.is_deposit_collected:
                 raise BookingValidationError(_("لا يوجد مبلغ جدية حجز محصل مسجل على هذا الحجز لصرفه."))
@@ -783,13 +1052,12 @@ class UnitBookingService:
                         }
                     )
 
-            from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
-            from real_estate.services.accounting_service import RealEstateAccountingService
-
             if not settlement:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                settle_curr = locked_booking.currency or ExchangeRateService.get_functional_currency()
                 settlement = BookingCancellationSettlement.objects.create(
                     booking=locked_booking,
-                    currency=locked_booking.currency,
+                    currency=settle_curr,
                     exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
                     total_deposit_paid=locked_booking.holding_deposit,
                     net_refundable_amount=locked_booking.holding_deposit,
@@ -802,19 +1070,162 @@ class UnitBookingService:
                 locked_booking.save(update_fields=['active_cancellation_settlement', 'updated_at'])
 
             if settlement.remaining_disbursable_amount > Decimal('0.00'):
-                pay_method = RefundDisbursementPayment.DisbursementMethod.BANK_TRANSFER
-                if payment_account and getattr(payment_account, 'code', '').startswith('1111'):
-                    pay_method = RefundDisbursementPayment.DisbursementMethod.CASH
-
                 RealEstateAccountingService.disburse_refund(
                     settlement_id=settlement.id,
                     requested_amount=settlement.remaining_disbursable_amount,
                     payout_currency=settlement.currency,
                     method=pay_method,
                     payment_account=payment_account,
+                    cheque_data=cheque_data,
                     user=user,
-                    idempotency_key=f"PROC-REFUND-{locked_booking.booking_number}-{timezone.now().timestamp()}",
+                    idempotency_key=f"REFUND-SETTLE-{settlement.id}",
                 )
 
+            locked_booking.status = UnitBooking.BookingStatus.CANCELLED_REFUNDED
+            locked_booking.save(update_fields=['status', 'updated_at'])
             locked_booking.refresh_from_db()
+            return locked_booking
+
+    @classmethod
+    def review_booking_sales(cls, booking_id: int, user) -> UnitBooking:
+        """
+        تسجيل مراجعة المبيعات والحسابات للحجز
+        التحقق من حالة الحجز وتطبيق قيد الفصل الرقابي (Segregation of Duties).
+        """
+        if not user or not user.is_authenticated:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("يجب تسجيل الدخول لإجراء مراجعة المبيعات."))
+
+        if hasattr(user, 'has_perm') and not (user.is_superuser or getattr(user, 'is_admin', False)):
+            if not user.has_perm('real_estate.change_unitbooking'):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied(_("غير مصرح لك بإجراء مراجعة المبيعات على استمارة الحجز."))
+
+        with transaction.atomic():
+            try:
+                locked_booking = UnitBooking.objects.select_for_update().get(pk=booking_id)
+            except UnitBooking.DoesNotExist:
+                raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
+
+            if locked_booking.status != UnitBooking.BookingStatus.ACTIVE:
+                raise BookingValidationError(
+                    _("لا يمكن مراجعة حجز غير نشط (الحالة الحالية: %(status)s).") % {
+                        'status': locked_booking.get_status_display()
+                    }
+                )
+
+            if locked_booking.is_reviewed_sales:
+                return locked_booking
+
+            # قيد الفصل الرقابي: لا يجوز لمنشئ الحجز مراجعة حجزه بنفسه
+            if locked_booking.created_by_id and user.id == locked_booking.created_by_id and not (user.is_superuser or getattr(user, 'is_admin', False)):
+                raise BookingValidationError(_("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لمنشئ الحجز مراجعة حجزه بنفسه."))
+
+            locked_booking.is_reviewed_sales = True
+            locked_booking.reviewed_by = user
+            locked_booking.reviewed_at = timezone.now()
+            locked_booking.save(force_audit_update=True)
+
+            logger.info(
+                f"✅ تمت مراجعة المبيعات للحجز {locked_booking.booking_number} بواسطة المستخدم {user}."
+            )
+            return locked_booking
+
+    @classmethod
+    def confirm_booking_audit(cls, booking_id: int, user) -> UnitBooking:
+        """
+        تسجيل الاعتماد المالي والرقابي للحجز
+        يشترط استيفاء مراجعة المبيعات مسبقاً وتطبيق قيد الفصل الرقابي الثنائي الكامل.
+        """
+        if not user or not user.is_authenticated:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("يجب تسجيل الدخول لإجراء الاعتماد الرقابي."))
+
+        if hasattr(user, 'has_perm') and not (user.is_superuser or getattr(user, 'is_admin', False)):
+            if not user.has_perm('real_estate.change_unitbooking'):
+                from django.core.exceptions import PermissionDenied
+                raise PermissionDenied(_("غير مصرح لك بالاعتماد المالي والرقابي على استمارة الحجز."))
+
+        with transaction.atomic():
+            try:
+                locked_booking = UnitBooking.objects.select_for_update().get(pk=booking_id)
+            except UnitBooking.DoesNotExist:
+                raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
+
+            if locked_booking.status != UnitBooking.BookingStatus.ACTIVE:
+                raise BookingValidationError(
+                    _("لا يمكن اعتماد حجز غير نشط (الحالة الحالية: %(status)s).") % {
+                        'status': locked_booking.get_status_display()
+                    }
+                )
+
+            if locked_booking.is_confirmed_audit:
+                return locked_booking
+
+            if not locked_booking.is_reviewed_sales:
+                raise BookingValidationError(_("لا يجوز الاعتماد الرقابي لحجز لم تستوفَ فيه مراجعة المبيعات أولاً."))
+
+            # قيد الفصل الرقابي: لا يجوز لنفس المستخدم مراجعة المبيعات والاعتماد الرقابي معاً
+            if locked_booking.reviewed_by_id and user.id == locked_booking.reviewed_by_id and not (user.is_superuser or getattr(user, 'is_admin', False)):
+                raise BookingValidationError(_("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لنفس المستخدم تسجيل مراجعة المبيعات والاعتماد الرقابي معاً."))
+
+            # قيد الفصل الرقابي: لا يجوز لمنشئ الحجز اعتماده رقابياً بنفسه
+            if locked_booking.created_by_id and user.id == locked_booking.created_by_id and not (user.is_superuser or getattr(user, 'is_admin', False)):
+                raise BookingValidationError(_("قيد الفصل الرقابي (Segregation of Duties): لا يجوز لمنشئ الحجز اعتماده رقابياً بنفسه."))
+
+            locked_booking.is_confirmed_audit = True
+            locked_booking.confirmed_by = user
+            locked_booking.confirmed_at = timezone.now()
+            locked_booking.save(force_audit_update=True)
+
+            logger.info(
+                f"✅ تم الاعتماد المالي والرقابي للحجز {locked_booking.booking_number} بواسطة المستخدم {user}."
+            )
+            return locked_booking
+
+    @classmethod
+    def bypass_booking_audit(cls, booking_id: int, user, reason: str) -> UnitBooking:
+        """
+        التجاوز الإداري الاستثنائي المبرر لقيد الفصل الرقابي
+        متاح حصراً للسوبر يوزر أو الحاصلين على صلاحية can_override_sod أو مسؤولي النظام مع توثيق السبب إجبارياً.
+        """
+        if not user or not user.is_authenticated:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("يجب تسجيل الدخول لإجراء التجاوز الإداري."))
+
+        is_authorized = (
+            user.is_superuser
+            or getattr(user, 'is_admin', False)
+            or (hasattr(user, 'has_perm') and user.has_perm('real_estate.can_override_sod'))
+        )
+        if not is_authorized:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied(_("غير مصرح لك بالتجاوز الإداري الاستثنائي لمنظومة الاعتماد الرقابي (real_estate.can_override_sod)."))
+
+        clean_reason = str(reason or '').strip()
+        if not clean_reason:
+            raise BookingValidationError(_("يجب توثيق سبب التجاوز الإداري الاستثنائي بدقة ولا يمكن تركه فارغاً."))
+
+        with transaction.atomic():
+            try:
+                locked_booking = UnitBooking.objects.select_for_update().get(pk=booking_id)
+            except UnitBooking.DoesNotExist:
+                raise BookingValidationError(_("استمارة الحجز المطلوبة غير موجودة."))
+
+            if locked_booking.status != UnitBooking.BookingStatus.ACTIVE:
+                raise BookingValidationError(
+                    _("لا يمكن تطبيق التجاوز الإداري على حجز غير نشط (الحالة الحالية: %(status)s).") % {
+                        'status': locked_booking.get_status_display()
+                    }
+                )
+
+            locked_booking.audit_bypassed = True
+            locked_booking.audit_bypass_reason = clean_reason
+            locked_booking.audit_bypassed_by = user
+            locked_booking.save(force_audit_update=True)
+
+            logger.warning(
+                f"⚠️ تم التجاوز الإداري الاستثنائي للرقابة الثنائية على الحجز {locked_booking.booking_number} "
+                f"بواسطة {user}. السبب: {clean_reason}"
+            )
             return locked_booking

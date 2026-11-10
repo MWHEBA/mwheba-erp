@@ -215,7 +215,16 @@ class TowerSalesBriefReportView(LoginRequiredMixin, SmartPermissionRequiredMixin
     """
     تقرير الموقف التنفيذي ومصفوفة مبيعات الأبراج (Tower Sales Brief Report)
     """
-    permission_required = 'real_estate.view_propertycontract'
+    permission_required = 'real_estate.view_executive_reports'
+    raise_exception = True
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_admin', False):
+            return True
+        return user.has_perm('real_estate.view_executive_reports')
 
     def get(self, request):
         project_id = request.GET.get('project', '').strip()
@@ -292,7 +301,16 @@ class TowerSalesBriefPrintView(LoginRequiredMixin, SmartPermissionRequiredMixin,
     """
     نسخة الطباعة الرسمية لتقرير الموقف التنفيذي ومبيعات الأبراج
     """
-    permission_required = 'real_estate.view_propertycontract'
+    permission_required = 'real_estate.view_executive_reports'
+    raise_exception = True
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_admin', False):
+            return True
+        return user.has_perm('real_estate.view_executive_reports')
 
     def get(self, request):
         project_id = request.GET.get('project', '').strip()
@@ -322,7 +340,16 @@ class TowerSalesBriefExportView(LoginRequiredMixin, SmartPermissionRequiredMixin
     - الترويسة المؤسسية والبيانات الميدانية.
     - الأقسام الثلاثة: 1. الملخص الإنشائي والمخزون، 2. المحفظة المالية والعملات الأجنبية، 3. مصفوفة Closer وفريق البيع، 4. جرد الوحدات.
     """
-    permission_required = 'real_estate.view_propertycontract'
+    permission_required = 'real_estate.view_executive_reports'
+    raise_exception = True
+
+    def has_permission(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser or getattr(user, 'is_admin', False):
+            return True
+        return user.has_perm('real_estate.view_executive_reports')
 
     def get(self, request):
         import openpyxl

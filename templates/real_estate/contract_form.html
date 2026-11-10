@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 {% load static %}
 {% load i18n %}
+{% load humanize %}
 
-{% block title %}{% trans "إبرام عقد بيع رسمي جديد" %}{% endblock %}
+{% block title %}
+  {% if selected_booking %}
+    {% trans "تحويل استمارة حجز إلى تعاقد بيع رسمي" %}
+  {% else %}
+    {% trans "إبرام عقد بيع رسمي جديد" %}
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -10,97 +17,335 @@
   {% include "shared/page_header.html" %}
 
   <div class="row justify-content-center">
-    <div class="col-12 col-xl-10">
+    <div class="col-12 col-xl-11">
+
+      {% if selected_booking %}
+      <div class="alert alert-info border-info-subtle shadow-sm mb-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+          <i class="fas fa-file-signature fa-2x text-primary me-3"></i>
+          <div>
+            <h6 class="fw-bold mb-1">{% trans "تحويل حجز رسمي إلى عقد بيع نهائي (SPA)" %}</h6>
+            <div class="small text-muted">
+              {% trans "استمارة الحجز:" %} <strong class="text-dark font-monospace">{{ selected_booking.booking_number }}</strong> |
+              {% trans "العميل:" %} <strong class="text-dark">{{ selected_booking.customer.name }}</strong> |
+              {% trans "جدية الحجز المسددة:" %} <strong class="text-success">{{ selected_booking.holding_deposit|floatformat:2|intcomma }} {{ selected_booking.currency.code|default:"EGP" }}</strong>
+            </div>
+          </div>
+        </div>
+        <a href="{% url 'real_estate:booking_detail' pk=selected_booking.id %}" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "العودة لتفاصيل الحجز" %}
+        </a>
+      </div>
+      {% endif %}
+
       <div class="section-container">
         <div class="card border shadow-sm">
           <div class="card-header bg-light border-bottom py-3 px-4">
             <h5 class="section-title mb-0 fw-bold text-dark">
-              <i class="fas fa-file-signature text-primary me-2"></i>{% trans "بيانات العقد العقاري الرسمي" %}
+              <i class="fas fa-file-contract text-primary me-2"></i>
+              {% if selected_booking %}{% trans "استكمال بيانات التعاقد النهائي للحجز" %}{% else %}{% trans "بيانات العقد العقاري الرسمي" %}{% endif %}
             </h5>
           </div>
           <div class="card-body p-4">
             <form method="post" id="contract-form">
               {% csrf_token %}
+              {% if selected_booking %}
+              <input type="hidden" name="booking_id" value="{{ selected_booking.id }}">
+              {% endif %}
 
+              <!-- 1. Customer & Unit Selection -->
               <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-user-check text-primary me-2"></i>{% trans "أطراف التعاقد والوحدة العقارية" %}
+                  </h6>
+                </div>
                 <div class="col-12 col-md-6">
                   <label for="id_customer" class="form-label fw-semibold text-dark">
-                    {% trans "العميل المشتري" %} <span class="text-danger">*</span>
+                    {% trans "العميل المشتري (المالك الأصيل)" %} <span class="text-danger">*</span>
                   </label>
-                  <select name="customer" id="id_customer" class="form-select select2-filter" dir="rtl" required>
+                  <select name="customer" id="id_customer" class="form-select select2-filter" dir="rtl" required {% if selected_booking %}disabled{% endif %}>
                     <option value="">{% trans "اختر العميل..." %}</option>
                     {% for cust in customers %}
-                    <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.code }})</option>
+                    <option value="{{ cust.id }}" {% if selected_booking and selected_booking.customer_id == cust.id %}selected{% endif %}>
+                      {{ cust.name }} ({{ cust.phone|default:cust.code }})
+                    </option>
                     {% endfor %}
                   </select>
+                  {% if selected_booking %}
+                  <input type="hidden" name="customer" value="{{ selected_booking.customer_id }}">
+                  {% endif %}
                 </div>
 
                 <div class="col-12 col-md-6">
                   <label for="id_unit" class="form-label fw-semibold text-dark">
-                    {% trans "الوحدة العقارية المتاحة" %} <span class="text-danger">*</span>
+                    {% trans "الوحدة العقارية المخصصة" %} <span class="text-danger">*</span>
                   </label>
-                  <select name="unit" id="id_unit" class="form-select select2-filter" dir="rtl" required>
+                  <select name="unit" id="id_unit" class="form-select select2-filter" dir="rtl" required {% if selected_booking %}disabled{% endif %}>
                     <option value="">{% trans "اختر الوحدة المتاحة..." %}</option>
                     {% for u in available_units %}
-                    <option value="{{ u.id }}" data-price="{{ u.total_price }}" data-project="{{ u.project.name }}">
+                    <option value="{{ u.id }}" data-price="{{ u.total_price }}" data-project="{{ u.project.name }}"
+                            {% if selected_booking and selected_booking.unit_id == u.id %}selected{% endif %}>
                       {{ u.unit_code }} - {{ u.project.name }} ({{ u.total_price }} {{ u.project.currency.code|default:"" }})
                     </option>
                     {% endfor %}
                   </select>
+                  {% if selected_booking %}
+                  <input type="hidden" name="unit" value="{{ selected_booking.unit_id }}">
+                  {% endif %}
                 </div>
               </div>
 
+              <!-- 2. Financial Values & Down Payment -->
               <div class="row g-3 mb-4">
                 <div class="col-12">
                   <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
                     <i class="fas fa-coins text-primary me-2"></i>{% trans "القيم المالية ومقدم التعاقد" %}
                   </h6>
                 </div>
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                   <label for="id_final_contract_price" class="form-label fw-semibold text-dark">
                     {% trans "القيمة التعاقدية النهائية" %} <span class="text-danger">*</span>
                   </label>
-                  <input type="number" step="0.01" name="final_contract_price" id="id_final_contract_price" class="form-control fw-bold" required>
+                  <input type="number" step="0.01" name="final_contract_price" id="id_final_contract_price" class="form-control fw-bold"
+                         value="{% if selected_booking %}{{ selected_booking.unit.total_price }}{% endif %}" required>
                 </div>
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                   <label for="id_down_payment" class="form-label fw-semibold text-dark">
-                    {% trans "المقدم المسدد عند التعاقد" %}
+                    {% trans "مقدم التعاقد المسدد" %}
                   </label>
-                  <input type="number" step="0.01" name="down_payment" id="id_down_payment" class="form-control" value="0.00">
+                  <input type="number" step="0.01" name="down_payment" id="id_down_payment" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.holding_deposit }}{% else %}0.00{% endif %}">
+                  {% if selected_booking and selected_booking.holding_deposit > 0 %}
+                  <small class="text-muted">{% trans "يشمل جدية الحجز المحصلة (" %}{{ selected_booking.holding_deposit|floatformat:2 }}{% trans ")" %}</small>
+                  {% endif %}
                 </div>
 
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-3">
                   <label for="id_currency" class="form-label text-dark">{% trans "عملة العقد" %}</label>
                   <select name="currency" id="id_currency" class="form-select select2-filter" dir="rtl">
-                    <option value="">{% trans "العملة الافتراضية" %}</option>
+                    <option value="">{% trans "العملة الوظيفية للنظام" %}</option>
                     {% for curr in currencies %}
-                    <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
+                    <option value="{{ curr.id }}" {% if selected_booking and selected_booking.currency_id == curr.id %}selected{% elif curr.is_functional %}selected{% endif %}>
+                      {{ curr.code }} - {{ curr.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label for="id_payment_account" class="form-label text-dark">{% trans "حساب التحصيل (خزينة/بنك)" %}</label>
+                  <select name="payment_account" id="id_payment_account" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "الخزينة الرئيسية الافتراضية" %}</option>
+                    {% for acc in payment_accounts %}
+                    <option value="{{ acc.id }}" {% if selected_booking and selected_booking.payment_account_id == acc.id %}selected{% endif %}>
+                      {{ acc.code }} - {{ acc.name }}
+                    </option>
                     {% endfor %}
                   </select>
                 </div>
               </div>
 
+              <!-- 3. Co-owners & Legal Shares Management -->
+              <div class="section-container mb-4">
+                <div class="card border bg-light">
+                  <div class="card-header bg-white border-bottom py-3 px-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-dark">
+                      <i class="fas fa-users text-primary me-2"></i>{% trans "توزيع نسب الملكية والشركاء المتضامنين (Co-Owners)" %}
+                    </h6>
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="small fw-semibold text-muted">{% trans "إجمالي النسب:" %}</span>
+                      <span id="shares-sum-badge" class="badge bg-success fs-6">100.00%</span>
+                    </div>
+                  </div>
+                  <div class="card-body p-3">
+                    <div class="row g-3 mb-3 align-items-center">
+                      <div class="col-12 col-md-4">
+                        <label class="form-label small fw-bold text-dark">{% trans "نسبة ملكية العميل الرئيسي (%)" %}</label>
+                        <input type="number" step="0.01" min="0" max="100" name="primary_owner_share" id="id_primary_owner_share"
+                               class="form-control form-control-sm fw-bold" value="100.00">
+                      </div>
+                      <div class="col-12 col-md-8 text-md-end pt-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="btn-add-co-owner">
+                          <i class="fas fa-user-plus me-1"></i>{% trans "إضافة شريك في الملكية" %}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="table-responsive">
+                      <table class="table table-sm table-bordered bg-white mb-0" id="co-owners-table">
+                        <thead class="table-light">
+                          <tr>
+                            <th>{% trans "الشريك المتضامن" %}</th>
+                            <th style="width: 14%;">{% trans "نسبة الملكية (%)" %}</th>
+                            <th style="width: 16%;">{% trans "الصفة التعاقدية" %}</th>
+                            <th style="width: 18%;">{% trans "رقم وسنة التوكيل" %}</th>
+                            <th style="width: 18%;">{% trans "مكتب التوثيق الصادر منه" %}</th>
+                            <th style="width: 10%;" class="text-center">{% trans "ضامن متضامن" %}</th>
+                            <th style="width: 6%;" class="text-center">{% trans "حذف" %}</th>
+                          </tr>
+                        </thead>
+                        <tbody id="co-owners-tbody">
+                          <!-- Dynamic rows injected here -->
+                        </tbody>
+                      </table>
+                    </div>
+                    <div id="shares-alert" class="alert alert-danger py-2 small mt-2 d-none">
+                      <i class="fas fa-exclamation-triangle me-1"></i>{% trans "تنبيه نظامي: يجب أن يكون مجموع نسب الملكية مساوياً لـ 100.00% تماماً." %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Unit Extras & Accessories -->
               <div class="row g-3 mb-4">
                 <div class="col-12">
                   <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
-                    <i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "التواريخ الرسمية" %}
+                    <i class="fas fa-layer-group text-primary me-2"></i>{% trans "ملحقات وتجهيزات الوحدة التعاقدية" %}
                   </h6>
                 </div>
-                <div class="col-12 col-md-6">
-                  <label for="id_contract_date" class="form-label text-dark">{% trans "تاريخ إبرام العقد" %}</label>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "كود بايكة الجراج" %}</label>
+                  <input type="text" name="parking_slot_code" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.parking_slot_code }}{% endif %}" placeholder="P-01">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "سعر بايكة الجراج" %}</label>
+                  <input type="number" step="0.01" name="parking_slot_price" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.parking_slot_price|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "كود المخزن السريع" %}</label>
+                  <input type="text" name="storage_locker_code" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.storage_locker_code }}{% endif %}" placeholder="S-01">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "سعر المخزن" %}</label>
+                  <input type="number" step="0.01" name="storage_locker_price" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.storage_locker_price|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "سعر متر التشطيب" %}</label>
+                  <input type="number" step="0.01" name="finishing_meter_rate" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.finishing_meter_rate|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label class="form-label small text-muted">{% trans "إجمالي سعر التشطيب" %}</label>
+                  <input type="number" step="0.01" name="finishing_total_amount" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.total_finishing_amount|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label small text-muted">{% trans "أمانة مقايسات المرافق" %}</label>
+                  <input type="number" step="0.01" name="utilities_deposit_amount" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.utilities_deposit_amount|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label class="form-label small text-muted">{% trans "وديعة الصيانة الدورية" %}</label>
+                  <input type="number" step="0.01" name="maintenance_deposit_amount" class="form-control"
+                         value="{% if selected_booking %}{{ selected_booking.maintenance_deposit_amount|default:'0.00' }}{% else %}0.00{% endif %}">
+                </div>
+              </div>
+
+              <!-- 5. Flexible Installment Plan Generator -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-calendar-check text-primary me-2"></i>{% trans "هيكلة وخطة سداد الأقساط التعاقدية" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_number_of_installments" class="form-label text-dark">{% trans "عدد الأقساط الدورية" %}</label>
+                  <input type="number" name="number_of_installments" id="id_number_of_installments" class="form-control" value="4" min="1" max="120">
+                  <small class="text-muted">{% trans "يتم توزيع المتبقي بعد المقدم على هذه الأقساط." %}</small>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_installment_frequency" class="form-label text-dark">{% trans "دورية الاستحقاق" %}</label>
+                  <select name="installment_frequency" id="id_installment_frequency" class="form-select">
+                    <option value="QUARTERLY" selected>{% trans "ربع سنوي (كل 3 أشهر)" %}</option>
+                    <option value="MONTHLY">{% trans "شهري (كل شهر)" %}</option>
+                    <option value="SEMI_ANNUAL">{% trans "نصف سنوي (كل 6 أشهر)" %}</option>
+                    <option value="ANNUAL">{% trans "سنوي (كل سنة)" %}</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_first_installment_date" class="form-label text-dark">{% trans "تاريخ أول قسط مستحق" %}</label>
+                  <input type="date" name="first_installment_date" id="id_first_installment_date" class="form-control" value="{% now 'Y-m-d' %}">
+                </div>
+              </div>
+
+              <!-- 6. Broker, Dates & Attribution -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-user-tie text-primary me-2"></i>{% trans "الوساطة التسويقية والتواريخ الرسمية" %}
+                  </h6>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="id_broker" class="form-label text-dark">{% trans "الوسيط العقاري إن وُجد" %}</label>
+                  <select name="broker" id="id_broker" class="form-select select2-filter" dir="rtl">
+                    <option value="">{% trans "بدون وسيط (بيع مباشر)" %}</option>
+                    {% for b in brokers %}
+                    <option value="{{ b.id }}">{{ b.name }} ({{ b.code }}) - {{ b.default_commission_rate }}%</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-2">
+                  <label for="id_broker_commission_rate" class="form-label text-dark">{% trans "نسبة العمولة (%)" %}</label>
+                  <input type="number" step="0.01" min="0" max="100" name="broker_commission_rate" id="id_broker_commission_rate" class="form-control" placeholder="2.50">
+                </div>
+                <div class="col-12 col-md-3">
+                  <label for="id_contract_date" class="form-label text-dark">{% trans "تاريخ تحرير العقد" %}</label>
                   <input type="date" name="contract_date" id="id_contract_date" class="form-control" value="{% now 'Y-m-d' %}">
                 </div>
-                <div class="col-12 col-md-6">
-                  <label for="id_delivery_date" class="form-label text-dark">{% trans "تاريخ التسليم المتوقع بالعقد" %}</label>
+                <div class="col-12 col-md-3">
+                  <label for="id_delivery_date" class="form-label text-dark">{% trans "تاريخ التسليم التعاقدي" %}</label>
                   <input type="date" name="delivery_date" id="id_delivery_date" class="form-control">
+                </div>
+              </div>
+
+              <!-- Specialists -->
+              <div class="row g-3 mb-4">
+                <div class="col-12 col-md-4">
+                  <label class="form-label small text-muted">{% trans "مسؤول الاتصال" %}</label>
+                  <select name="call_specialist" class="form-select form-select-sm">
+                    <option value="">{% trans "بدون تخصيص" %}</option>
+                    {% for sp in specialists %}
+                    <option value="{{ sp.id }}" {% if selected_booking and selected_booking.call_specialist_id == sp.id %}selected{% endif %}>
+                      {{ sp.get_full_name|default:sp.username }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small text-muted">{% trans "مسؤول الزيارة والمقابلة" %}</label>
+                  <select name="visit_specialist" class="form-select form-select-sm">
+                    <option value="">{% trans "بدون تخصيص" %}</option>
+                    {% for sp in specialists %}
+                    <option value="{{ sp.id }}" {% if selected_booking and selected_booking.visit_specialist_id == sp.id %}selected{% endif %}>
+                      {{ sp.get_full_name|default:sp.username }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small text-muted">{% trans "مسؤول الموقع / المعرض" %}</label>
+                  <select name="site_specialist" class="form-select form-select-sm">
+                    <option value="">{% trans "بدون تخصيص" %}</option>
+                    {% for sp in specialists %}
+                    <option value="{{ sp.id }}" {% if selected_booking and selected_booking.site_specialist_id == sp.id %}selected{% endif %}>
+                      {{ sp.get_full_name|default:sp.username }}
+                    </option>
+                    {% endfor %}
+                  </select>
                 </div>
               </div>
 
               <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                 <a href="{% url 'real_estate:contract_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
-                <button type="submit" class="btn btn-primary px-4 fw-bold">
-                  <i class="fas fa-file-signature me-1"></i>{% trans "إبرام وحفظ العقد" %}
+                <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-contract">
+                  <i class="fas fa-file-signature me-1"></i>
+                  {% if selected_booking %}{% trans "تحويل الحجز وإصدار العقد" %}{% else %}{% trans "إبرام وحفظ العقد" %}{% endif %}
                 </button>
               </div>
             </form>
@@ -116,15 +361,107 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const unitSelect = document.getElementById('id_unit');
-  const priceInput = document.getElementById('final_contract_price');
+  const priceInput = document.getElementById('id_final_contract_price');
 
-  unitSelect.addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
-    const price = selectedOption.getAttribute('data-price');
-    if (price && priceInput) {
-      priceInput.value = price;
+  if (unitSelect && priceInput) {
+    unitSelect.addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const price = selectedOption.getAttribute('data-price');
+      if (price && (!priceInput.value || priceInput.value === '0.00')) {
+        priceInput.value = price;
+      }
+    });
+  }
+
+  // Dynamic Co-owners Management
+  const primaryShareInput = document.getElementById('id_primary_owner_share');
+  const sharesBadge = document.getElementById('shares-sum-badge');
+  const sharesAlert = document.getElementById('shares-alert');
+  const btnAddCoOwner = document.getElementById('btn-add-co-owner');
+  const coOwnersTbody = document.getElementById('co-owners-tbody');
+  const submitBtn = document.getElementById('btn-submit-contract');
+
+  const customerOptionsHtml = `
+    <option value="">{% trans "اختر الشريك..." %}</option>
+    {% for cust in customers %}
+    <option value="{{ cust.id }}">{{ cust.name }} ({{ cust.phone|default:cust.code }})</option>
+    {% endfor %}
+  `;
+
+  function calculateShares() {
+    let pShare = parseFloat(primaryShareInput.value) || 0;
+    let coSum = 0;
+
+    document.querySelectorAll('.co-owner-share-input').forEach(input => {
+      coSum += parseFloat(input.value) || 0;
+    });
+
+    const total = pShare + coSum;
+    sharesBadge.textContent = total.toFixed(2) + '%';
+
+    if (Math.abs(total - 100.00) < 0.001) {
+      sharesBadge.className = 'badge bg-success fs-6';
+      sharesAlert.classList.add('d-none');
+      submitBtn.disabled = false;
+    } else {
+      sharesBadge.className = 'badge bg-danger fs-6';
+      sharesAlert.classList.remove('d-none');
+      submitBtn.disabled = true;
     }
-  });
+  }
+
+  if (primaryShareInput) {
+    primaryShareInput.addEventListener('input', calculateShares);
+  }
+
+  if (btnAddCoOwner) {
+    btnAddCoOwner.addEventListener('click', function() {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <select name="co_owner_id" class="form-select form-select-sm" required>
+            ${customerOptionsHtml}
+          </select>
+        </td>
+        <td>
+          <input type="number" step="0.01" min="0.01" max="99.99" name="co_owner_share" class="form-control form-control-sm co-owner-share-input fw-bold" value="10.00" required>
+        </td>
+        <td>
+          <input type="text" name="representation_capacity" class="form-control form-control-sm" placeholder="{% trans 'مشترٍ / وكيل مفوض' %}">
+        </td>
+        <td>
+          <input type="text" name="power_of_attorney_number" class="form-control form-control-sm" placeholder="{% trans 'رقم وسنة التوكيل' %}">
+        </td>
+        <td>
+          <input type="text" name="issuing_registry_office" class="form-control form-control-sm" placeholder="{% trans 'مكتب الشهر العقاري' %}">
+        </td>
+        <td class="text-center align-middle">
+          <input type="checkbox" name="co_owner_guarantor" class="form-check-input" checked>
+        </td>
+        <td class="text-center align-middle">
+          <button type="button" class="btn btn-outline-danger btn-sm py-0 px-2 btn-remove-co"><i class="fas fa-trash-alt"></i></button>
+        </td>
+      `;
+      coOwnersTbody.appendChild(tr);
+
+      // Adjust primary share automatically
+      let curPrimary = parseFloat(primaryShareInput.value) || 100;
+      if (curPrimary >= 10) {
+        primaryShareInput.value = (curPrimary - 10).toFixed(2);
+      }
+
+      tr.querySelector('.co-owner-share-input').addEventListener('input', calculateShares);
+      tr.querySelector('.btn-remove-co').addEventListener('click', function() {
+        const removedShare = parseFloat(tr.querySelector('.co-owner-share-input').value) || 0;
+        tr.remove();
+        let curP = parseFloat(primaryShareInput.value) || 0;
+        primaryShareInput.value = Math.min(100, curP + removedShare).toFixed(2);
+        calculateShares();
+      });
+
+      calculateShares();
+    });
+  }
 });
 </script>
 {% endblock %}

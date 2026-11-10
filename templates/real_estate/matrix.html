@@ -263,7 +263,15 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           `;
 
-          let actionButtons = `
+          let actionButtons = '';
+          if (u.status === 'AVAILABLE') {
+            actionButtons += `
+              <button type="button" class="btn btn-warning fw-bold px-3" onclick="openBookModal(${u.id}, '${u.unit_code}', '${u.total_price}')">
+                <i class="fas fa-bookmark me-1"></i>{% trans "حجز الوحدة الآن" %}
+              </button>
+            `;
+          }
+          actionButtons += `
             <a href="/real-estate/units/${u.id}/" class="btn btn-outline-secondary px-3">
               <i class="fas fa-external-link-alt me-1"></i>{% trans "فتح الصفحة الكاملة" %}
             </a>
@@ -280,6 +288,86 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   });
+
+  // Helper to trigger Book Unit Modal from Matrix
+  const bookModalEl = document.getElementById('bookUnitModal');
+  const bookModal = bookModalEl ? new bootstrap.Modal(bookModalEl) : null;
+
+  window.openBookModal = function(unitId, unitCode, totalPrice) {
+    unitModal.hide();
+    document.getElementById('book_unit_id').value = unitId;
+    document.getElementById('book_unit_display').value = unitCode + ' - ' + Number(totalPrice).toLocaleString() + ' {{ project.currency.code|default:"EGP" }}';
+    const depInput = document.getElementById('book_deposit');
+    if (depInput && (!depInput.value || depInput.value === '0.00')) {
+      depInput.value = (Number(totalPrice) * 0.05).toFixed(2);
+    }
+    if (bookModal) {
+      bookModal.show();
+    }
+  };
+
+  // Handle Book Unit Form Submission
+  const bookForm = document.getElementById('book-unit-form');
+  if (bookForm) {
+    bookForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const unitId = document.getElementById('book_unit_id').value;
+      if (!unitId) return;
+
+      const formData = new FormData(bookForm);
+      const payload = {};
+      formData.forEach((val, key) => { payload[key] = val; });
+
+      const submitBtn = bookForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> {% trans "جاري الحجز..." %}';
+
+      fetch(`/real-estate/api/units/${unitId}/book/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': formData.get('csrfmiddlewaretoken') || '{{ csrf_token }}',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        if (data.success) {
+          if (bookModal) bookModal.hide();
+          if (typeof window.showNotification === 'function') {
+            window.showNotification(data.message, 'success', '{% trans "تم الحجز بنجاح" %}');
+          } else if (typeof window.showToastr === 'function') {
+            window.showToastr(data.message, 'success');
+          } else {
+            alert(data.message);
+          }
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          if (typeof window.showNotification === 'function') {
+            window.showNotification(data.message || '{% trans "تعذر استكمال الحجز." %}', 'error');
+          } else {
+            alert(data.message || '{% trans "تعذر استكمال الحجز." %}');
+          }
+        }
+      })
+      .catch(err => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        console.error(err);
+        if (typeof window.showNotification === 'function') {
+          window.showNotification('{% trans "حدث خطأ في الخادم." %}', 'error');
+        } else {
+          alert('{% trans "حدث خطأ في الخادم." %}');
+        }
+      });
+    });
+  }
 
   // Client-side filtering on matrix
   const searchInput = document.getElementById('matrix-search');

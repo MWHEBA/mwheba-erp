@@ -151,6 +151,12 @@ class BookingDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
             reason = request.POST.get('reason', _('إلغاء بناء على رغبة العميل'))
             disposition = request.POST.get('disposition', 'REFUND')
             forfeit = (disposition == 'FORFEIT')
+            deduction_fees_raw = request.POST.get('deduction_fees', '0')
+            try:
+                deduction_fees = Decimal(str(deduction_fees_raw))
+            except Exception:
+                deduction_fees = Decimal('0.00')
+
             payment_account_id = request.POST.get('payment_account_id')
             payment_account = ChartOfAccounts.objects.filter(pk=payment_account_id).first() if payment_account_id else None
 
@@ -160,6 +166,7 @@ class BookingDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
                     booking_id=booking.id,
                     reason=reason,
                     forfeit_deposit=forfeit,
+                    approved_deduction_fees=deduction_fees,
                     user=request.user,
                     payment_account=payment_account
                 )
@@ -169,22 +176,72 @@ class BookingDetailView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
             return redirect('real_estate:booking_detail', pk=pk)
 
         elif action == 'refund':
+            method = request.POST.get('method') or request.POST.get('refund_method') or 'BANK_TRANSFER'
             payment_account_id = request.POST.get('refund_account') or request.POST.get('payment_account_id')
-            if not payment_account_id:
+
+            cheque_data = None
+            if method == 'CHEQUE':
+                cheque_num = (request.POST.get('cheque_number') or '').strip()
+                if not cheque_num:
+                    messages.error(request, _('رقم الشيك إلزامي للصرف بشيك مصرفي.'))
+                    return redirect('real_estate:booking_detail', pk=pk)
+                cheque_data = {
+                    'cheque_number': cheque_num,
+                    'due_date': request.POST.get('due_date') or timezone.localdate(),
+                    'drawer_bank_name': request.POST.get('drawer_bank_name', ''),
+                    'payee_name': request.POST.get('payee_name', ''),
+                }
+            elif not payment_account_id:
                 messages.error(request, _('يرجى اختيار حساب الخزينة أو البنك لصرف الاسترداد.'))
                 return redirect('real_estate:booking_detail', pk=pk)
 
-            payment_account = get_object_or_404(ChartOfAccounts, pk=payment_account_id)
+            payment_account = ChartOfAccounts.objects.filter(pk=payment_account_id).first() if payment_account_id else None
             from real_estate.services.booking_service import UnitBookingService
             try:
                 UnitBookingService.process_booking_refund(
                     booking_id=booking.id,
                     payment_account=payment_account,
+                    method=method,
+                    cheque_data=cheque_data,
                     user=request.user
                 )
                 messages.success(request, _('تم صرف واسترداد جدية الحجز بنجاح وتوليد سند الصرف المحاسبي.'))
             except Exception as e:
                 messages.error(request, _('فشل صرف الاسترداد: %(err)s') % {'err': str(e)})
+            return redirect('real_estate:booking_detail', pk=pk)
+
+        elif action == 'review_sales':
+            from real_estate.services.booking_service import UnitBookingService, BookingValidationError
+            try:
+                UnitBookingService.review_booking_sales(booking_id=booking.id, user=request.user)
+                messages.success(request, _('تم تسجيل مراجعة المبيعات والحسابات للحجز بنجاح.'))
+            except (BookingValidationError, ValidationError) as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, _('فشل تسجيل مراجعة المبيعات: %(err)s') % {'err': str(e)})
+            return redirect('real_estate:booking_detail', pk=pk)
+
+        elif action == 'confirm_audit':
+            from real_estate.services.booking_service import UnitBookingService, BookingValidationError
+            try:
+                UnitBookingService.confirm_booking_audit(booking_id=booking.id, user=request.user)
+                messages.success(request, _('تم الاعتماد المالي والرقابي للحجز بنجاح، وأصبح جاهزاً للتحويل إلى عقد بيع.'))
+            except (BookingValidationError, ValidationError) as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, _('فشل الاعتماد الرقابي: %(err)s') % {'err': str(e)})
+            return redirect('real_estate:booking_detail', pk=pk)
+
+        elif action == 'bypass_audit':
+            from real_estate.services.booking_service import UnitBookingService, BookingValidationError
+            reason = request.POST.get('bypass_reason', '').strip()
+            try:
+                UnitBookingService.bypass_booking_audit(booking_id=booking.id, user=request.user, reason=reason)
+                messages.warning(request, _('تم تسجيل التجاوز الإداري الاستثنائي للرقابة الثنائية بنجاح.'))
+            except (BookingValidationError, ValidationError) as e:
+                messages.error(request, str(e))
+            except Exception as e:
+                messages.error(request, _('فشل تسجيل التجاوز الإداري: %(err)s') % {'err': str(e)})
             return redirect('real_estate:booking_detail', pk=pk)
 
         messages.warning(request, _('إجراء غير معروف.'))
@@ -234,8 +291,34 @@ class BookingOfficialPrintView(LoginRequiredMixin, SmartPermissionRequiredMixin,
         img.save(buffer, format="PNG")
         qr_code_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
+        # استخراج وتوثيق وسيلة السداد القانونية للإيصال
+        payment_info = {
+            'instrument_type': _('نقداً بالخزينة'),
+            'account_name': '',
+            'account_code': '',
+            'reference': booking.booking_number,
+            'entry_number': booking.journal_entry.entry_number if (booking.journal_entry and hasattr(booking.journal_entry, 'entry_number')) else (f"#{booking.journal_entry_id}" if booking.journal_entry_id else '-'),
+            'date': booking.booking_date,
+        }
+        if booking.journal_entry:
+            debit_line = booking.journal_entry.lines.filter(debit__gt=0).select_related('account').first()
+            if debit_line and debit_line.account:
+                payment_info['account_name'] = debit_line.account.name
+                payment_info['account_code'] = debit_line.account.code
+                if debit_line.account.code.startswith('1111'):
+                    payment_info['instrument_type'] = _('نقداً (إيصال توريد نقدية بالخزينة)')
+                elif debit_line.account.code.startswith('1112'):
+                    payment_info['instrument_type'] = _('تحويل بنكي / إيداع مباشر بحساب الشركة')
+                elif debit_line.account.code.startswith('112') or debit_line.account.code.startswith('1113'):
+                    payment_info['instrument_type'] = _('شيك بنكي تحت التحصيل')
+                else:
+                    payment_info['instrument_type'] = _('سداد مصرفي معتمد')
+                if debit_line.description:
+                    payment_info['reference'] = debit_line.description
+
         context = {
             'booking': booking,
+            'payment_info': payment_info,
             'verification_hash': verification_hash,
             'verification_token': str(booking.verification_uuid).upper()[:16],
             'verification_url': verification_url,
@@ -282,4 +365,90 @@ class BookingPublicVerificationView(View):
             'verified_at': timezone.now(),
         }
         return render(request, 'real_estate/booking_public_verify.html', context)
+
+
+class BookingRecoveryListView(LoginRequiredMixin, SmartPermissionRequiredMixin, View):
+    """
+    سجل ومتابعة تسويات واسترداد جدية الحجوزات والشيكات الصادرة (Booking Recovery Operational Register)
+    """
+    permission_required = 'real_estate.view_unitbooking'
+
+    def get(self, request):
+        from real_estate.models.refund import BookingCancellationSettlement, RefundDisbursementPayment
+
+        search_query = request.GET.get('q', '').strip()
+        status_filter = request.GET.get('status', '').strip()
+        method_filter = request.GET.get('method', '').strip()
+
+        settlements_qs = BookingCancellationSettlement.objects.select_related(
+            'booking__customer', 'booking__unit__project', 'currency', 'processed_by'
+        ).prefetch_related('disbursements__cheque', 'disbursements__payment_account').order_by('-settlement_date', '-id')
+
+        if search_query:
+            settlements_qs = settlements_qs.filter(
+                Q(settlement_number__icontains=search_query) |
+                Q(booking__booking_number__icontains=search_query) |
+                Q(booking__customer__name__icontains=search_query) |
+                Q(booking__unit__unit_code__icontains=search_query) |
+                Q(disbursements__cheque__cheque_number__icontains=search_query)
+            ).distinct()
+
+        if status_filter:
+            settlements_qs = settlements_qs.filter(status=status_filter)
+
+        if method_filter:
+            settlements_qs = settlements_qs.filter(disbursements__method=method_filter).distinct()
+
+        # KPI Metrics
+        all_settlements = BookingCancellationSettlement.objects.all()
+        total_settlements_count = all_settlements.count()
+        total_deposit_sum = all_settlements.aggregate(s=Sum('total_deposit_paid'))['s'] or Decimal('0.00')
+        total_deductions_sum = all_settlements.aggregate(s=Sum('approved_deduction_fees'))['s'] or Decimal('0.00')
+        total_net_refundable_sum = all_settlements.aggregate(s=Sum('net_refundable_amount'))['s'] or Decimal('0.00')
+        total_cleared_sum = all_settlements.aggregate(s=Sum('cleared_amount'))['s'] or Decimal('0.00')
+        total_remaining_sum = all_settlements.aggregate(s=Sum('remaining_disbursable_amount'))['s'] or Decimal('0.00')
+
+        cheques_count = RefundDisbursementPayment.objects.filter(
+            method=RefundDisbursementPayment.DisbursementMethod.CHEQUE
+        ).count()
+
+        paginator = Paginator(settlements_qs, 20)
+        page_number = request.GET.get('page', 1)
+        page_obj = paginator.get_page(page_number)
+
+        breadcrumb_items = [
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('القطاع العقاري'), 'url': reverse('real_estate:dashboard'), 'icon': 'fa-building'},
+            {'title': _('استمارات الحجز'), 'url': reverse('real_estate:booking_list'), 'icon': 'fa-calendar-check'},
+            {'title': _('سجل تسويات واسترداد الحجوزات'), 'active': True},
+        ]
+
+        header_buttons = [
+            {
+                'url': reverse('real_estate:booking_list'),
+                'label': _('قائمة استمارات الحجز'),
+                'icon': 'fa-calendar-check',
+                'class': 'btn-outline-secondary',
+            }
+        ]
+
+        context = {
+            'settlements': page_obj.object_list,
+            'page_obj': page_obj,
+            'search_query': search_query,
+            'status_filter': status_filter,
+            'method_filter': method_filter,
+            'total_settlements_count': total_settlements_count,
+            'total_deposit_sum': total_deposit_sum,
+            'total_deductions_sum': total_deductions_sum,
+            'total_net_refundable_sum': total_net_refundable_sum,
+            'total_cleared_sum': total_cleared_sum,
+            'total_remaining_sum': total_remaining_sum,
+            'cheques_count': cheques_count,
+            'breadcrumb_items': breadcrumb_items,
+            'header_buttons': header_buttons,
+            'active_menu': 'real_estate',
+            'active_submenu': 'booking_recovery',
+        }
+        return render(request, 'real_estate/booking_recovery_list.html', context)
 

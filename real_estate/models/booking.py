@@ -183,6 +183,12 @@ class UnitBooking(models.Model):
         default=Decimal('0.00'),
         verbose_name=_('أمانات رسوم المرافق')
     )
+    maintenance_deposit_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('وديعة الصيانة المنفصلة')
+    )
 
     parking_slot_code = models.CharField(
         max_length=50,

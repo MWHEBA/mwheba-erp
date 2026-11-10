@@ -4,8 +4,9 @@ Finishing Views & UI/UX Controller
 MWHEBA ERP — Track 2: Finishing Packages, Specs Directory, and Governed Dual-Speed Workflow
 """
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import date
+from django.db import transaction
 
 from django import forms
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, View
@@ -30,6 +31,7 @@ from real_estate.models import (
     FinishingBrand,
     ContractualCreditSchedule,
     FinishingItemSpec,
+    FinishingItemCategory,
     FinishingPackageTemplate,
     UnitFinishingOrder,
     UnitFinishingOrderItem,
@@ -212,6 +214,12 @@ class FinishingOrderDetailView(LoginRequiredMixin, DetailView):
         ]
 
         context['header_buttons'] = [
+            {
+                'url': reverse('real_estate:finishing_order_wizard', kwargs={'pk': order.pk}),
+                'label': _('ساحر ومقايسة الفراغات'),
+                'icon': 'fa-magic',
+                'class': 'btn-primary'
+            },
             {
                 'url': reverse('real_estate:finishing_order_print', kwargs={'pk': order.pk}),
                 'label': _('طباعة المقايسة والكراسة'),
@@ -443,3 +451,210 @@ class ApiRecordHydrostaticTestView(LoginRequiredMixin, View):
             'message': _("تم تسجيل محضر الفحص الهيدروستاتيكي بنجاح."),
             'inspection_id': inspection.id
         })
+
+
+class FinishingOrderWizardView(LoginRequiredMixin, DetailView):
+    """
+    ساحر مقايسة الفراغات والمعمارية المزدوج (Architectural Dimension & BOQ Wizard):
+    - حاسبة أبعاد هندسية للغرفة (L x W x H) وتفريغ مسطحات الأرضيات والأسقف والحوائط والفتحات.
+    - إضافة وتعديل وحذف بنود المقايسة المسعرة مع شريط الملخص المالي اللحظي.
+    - توليد خطة أقساط التشطيب المستقلة بمرونة.
+    """
+    model = UnitFinishingOrder
+    template_name = 'real_estate/finishing/finishing_order_wizard.html'
+    context_object_name = 'order'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        order = self.object
+
+        # Auto-provision default workspaces if project has none (الوقاية من الشاشات البيضاء)
+        workspaces = FinishingPricingService.provision_default_workspaces(order.unit.project)
+        context['workspaces'] = workspaces
+
+        context['breadcrumb_items'] = [
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('التطوير العقاري'), 'url': reverse('real_estate:dashboard'), 'icon': 'fa-building'},
+            {'title': _('أوامر التشطيب'), 'url': reverse('real_estate:finishing_order_list'), 'icon': 'fa-paint-roller'},
+            {'title': order.order_number, 'url': reverse('real_estate:finishing_order_detail', kwargs={'pk': order.pk}), 'icon': 'fa-file-invoice'},
+            {'title': _('ساحر مقايسة الفراغات'), 'active': True}
+        ]
+
+        context['categories'] = FinishingItemCategory.choices
+        context['brands'] = FinishingBrand.objects.filter(is_approved=True)
+        context['specs'] = FinishingItemSpec.objects.filter(is_active=True).select_related('brand', 'workspace')
+        context['credit_schedules'] = ContractualCreditSchedule.objects.filter(project=order.unit.project)
+
+        # بنود المقايسة مصنفة حسب الفراغ
+        items = list(order.items.select_related('workspace', 'spec', 'brand').all())
+        workspaces_dict = {}
+        for ws in workspaces:
+            workspaces_dict[ws.id] = {
+                'workspace': ws,
+                'items': [item for item in items if item.workspace_id == ws.id]
+            }
+        context['workspaces_data'] = workspaces_dict
+        context['items'] = items
+        return context
+
+
+class ApiAddFinishingOrderItemView(LoginRequiredMixin, View):
+    """إضافة بند مقايسة مسعر لأمر التشطيب مع إعادة احتساب التسعير الميداني"""
+
+    def post(self, request, pk):
+        if not request.user.has_perm('real_estate.change_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية تعديل أوامر التشطيب أو إضافة بنود."))
+
+        order = get_object_or_404(UnitFinishingOrder, pk=pk)
+
+        # حظر تعديل أو إضافة بنود بعد تجميد الأسعار أو ترحيل الاستحقاق
+        if FinishingPricingService.is_price_frozen_and_valid(order) or order.accrual_journal_entry_id:
+            return JsonResponse({
+                'success': False,
+                'message': _("لا يمكن تعديل بنود المقايسة بعد تجميد الأسعار المعتمدة أو ترحيل الاستحقاق المالي.")
+            }, status=409)
+
+        workspace_id = request.POST.get('workspace_id')
+        category = request.POST.get('category')
+        item_description = request.POST.get('item_description', '').strip()
+        quantity_str = request.POST.get('quantity', '1.00')
+        unit_price_str = request.POST.get('unit_selling_price', '0.00')
+        measuring_unit = request.POST.get('measuring_unit', 'M2').strip() or 'M2'
+        scrap_rate_str = request.POST.get('scrap_rate', '0.00')
+        supply_source = request.POST.get('supply_source', 'COMPANY_STORE')
+        spec_id = request.POST.get('spec_id') or None
+        brand_id = request.POST.get('brand_id') or None
+        is_custom_specialty = request.POST.get('is_custom_specialty') in ['true', '1', 'True']
+        is_demolition_rework = request.POST.get('is_demolition_rework') in ['true', '1', 'True']
+
+        if not workspace_id:
+            return JsonResponse({'success': False, 'message': _("الفراغ المعماري إلزامي.")}, status=400)
+        if not item_description:
+            return JsonResponse({'success': False, 'message': _("توصيف البند إلزامي.")}, status=400)
+        if not category:
+            return JsonResponse({'success': False, 'message': _("تصنيف العمل إلزامي.")}, status=400)
+
+        try:
+            quantity = Decimal(quantity_str)
+            unit_price = Decimal(unit_price_str)
+            scrap_rate = Decimal(scrap_rate_str)
+        except (ValueError, TypeError, InvalidOperation):
+            return JsonResponse({'success': False, 'message': _("قيم الأرقام والأسعار غير صالحة.")}, status=400)
+
+        workspace = get_object_or_404(FinishingWorkspace, pk=workspace_id)
+        spec = FinishingItemSpec.objects.filter(pk=spec_id).first() if spec_id else None
+        brand = FinishingBrand.objects.filter(pk=brand_id).first() if brand_id else (spec.brand if spec else None)
+
+        with transaction.atomic():
+            gross_quantity = round(quantity * (Decimal('1.00') + (scrap_rate / Decimal('100.00'))), 2)
+            total_selling_price = round(gross_quantity * unit_price, 2)
+
+            item = UnitFinishingOrderItem.objects.create(
+                order=order,
+                workspace=workspace,
+                spec=spec,
+                category=category,
+                supply_source=supply_source,
+                item_description=item_description,
+                brand=brand,
+                quantity=quantity,
+                scrap_rate=scrap_rate,
+                gross_quantity=gross_quantity,
+                measuring_unit=measuring_unit,
+                unit_selling_price=unit_price,
+                total_selling_price=total_selling_price,
+                is_custom_specialty=is_custom_specialty,
+                is_demolition_rework=is_demolition_rework,
+            )
+
+            # Recalculate order pricing
+            pricing = FinishingPricingService.calculate_order_pricing(order)
+
+        return JsonResponse({
+            'success': True,
+            'message': _("تمت إضافة البند بنجاح."),
+            'item': {
+                'id': item.id,
+                'workspace_id': workspace.id,
+                'workspace_name': workspace.name,
+                'item_description': item.item_description,
+                'category_display': item.get_category_display(),
+                'quantity': str(item.quantity),
+                'measuring_unit': item.measuring_unit,
+                'scrap_rate': str(item.scrap_rate),
+                'gross_quantity': str(item.gross_quantity),
+                'unit_selling_price': str(item.unit_selling_price),
+                'total_selling_price': str(item.total_selling_price),
+                'supply_source': item.supply_source,
+                'supply_source_display': item.get_supply_source_display(),
+            },
+            'pricing': {k: str(v) for k, v in pricing.items()}
+        })
+
+
+class ApiDeleteFinishingOrderItemView(LoginRequiredMixin, View):
+    """حذف بند من مقايسة أمر التشطيب وإعادة حساب التسعير"""
+
+    def post(self, request, pk, item_id):
+        if not request.user.has_perm('real_estate.change_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية تعديل أوامر التشطيب أو حذف بنود."))
+
+        order = get_object_or_404(UnitFinishingOrder, pk=pk)
+
+        # حظر حذف بنود بعد تجميد الأسعار أو ترحيل الاستحقاق
+        if FinishingPricingService.is_price_frozen_and_valid(order) or order.accrual_journal_entry_id:
+            return JsonResponse({
+                'success': False,
+                'message': _("لا يمكن حذف بنود المقايسة بعد تجميد الأسعار المعتمدة أو ترحيل الاستحقاق المالي.")
+            }, status=409)
+
+        item = get_object_or_404(UnitFinishingOrderItem, pk=item_id, order=order)
+
+        with transaction.atomic():
+            item.delete()
+            pricing = FinishingPricingService.calculate_order_pricing(order)
+
+        return JsonResponse({
+            'success': True,
+            'message': _("تم حذف البند وإعادة احتساب المقايسة بنجاح."),
+            'pricing': {k: str(v) for k, v in pricing.items()}
+        })
+
+
+class ApiGenerateFinishingInstallmentsView(LoginRequiredMixin, View):
+    """توليد خطة أقساط التشطيب المستقلة بمرونة (عدد ودورية الأقساط)"""
+
+    def post(self, request, pk):
+        if not request.user.has_perm('real_estate.change_unitfinishingorder'):
+            return HttpResponseForbidden(_("ليس لديك صلاحية توليد خطط أقساط التشطيب."))
+
+        order = get_object_or_404(UnitFinishingOrder, pk=pk)
+
+        try:
+            number_of_installments = int(request.POST.get('number_of_installments', 4))
+            frequency_months = int(request.POST.get('frequency_months', 3))
+            start_date_str = request.POST.get('start_date')
+            start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else timezone.now().date()
+        except (ValueError, TypeError):
+            return JsonResponse({'success': False, 'message': _("معايير جدولة الأقساط غير صالحة.")}, status=400)
+
+        try:
+            plan = FinishingFinancialService.generate_segregated_installment_plan(
+                order=order,
+                number_of_installments=number_of_installments,
+                start_date=start_date,
+                frequency_months=frequency_months,
+                user=request.user
+            )
+            return JsonResponse({
+                'success': True,
+                'message': _(f"تم بنجاح توليد خطة أقساط التشطيب رقم {plan.plan_number} بعدد {number_of_installments} قسطاً."),
+                'plan_number': plan.plan_number,
+                'installments_count': plan.items.count(),
+                'scheduled_balance': str(plan.scheduled_balance)
+            })
+        except ValidationError as e:
+            return JsonResponse({'success': False, 'message': str(e.message if hasattr(e, 'message') else e)}, status=400)
+        except Exception as e:
+            logger.exception("Error generating segregated finishing installment plan")
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)

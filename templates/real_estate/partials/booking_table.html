@@ -11,6 +11,7 @@
         <th>{% trans "تاريخ الانتهاء" %}</th>
         <th class="text-end">{% trans "جدية الحجز (الأمانة)" %}</th>
         <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center">{% trans "الرقابة الثنائية" %}</th>
         <th class="text-center pe-3" style="width: 120px;">{% trans "الإجراءات" %}</th>
       </tr>
     </thead>
@@ -59,6 +60,25 @@
           <span class="badge bg-light text-dark border">{{ b.get_status_display }}</span>
           {% endif %}
         </td>
+        <td class="text-center">
+          {% if b.is_confirmed_audit %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle" title="{% trans 'معتمد رقابياً ومالياً' %}">
+            <i class="fas fa-check-circle me-1"></i>{% trans "معتمد" %}
+          </span>
+          {% elif b.audit_bypassed %}
+          <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="{% trans 'تجاوز إداري موثق' %}">
+            <i class="fas fa-exclamation-triangle me-1"></i>{% trans "تجاوز SoD" %}
+          </span>
+          {% elif b.is_reviewed_sales %}
+          <span class="badge bg-info-subtle text-info border border-info-subtle" title="{% trans 'تمت مراجعة المبيعات' %}">
+            <i class="fas fa-user-check me-1"></i>{% trans "مراجعة مبيعات" %}
+          </span>
+          {% elif b.is_legacy_pre_audit %}
+          <span class="badge bg-secondary-subtle text-secondary border">{% trans "نظام سابق" %}</span>
+          {% else %}
+          <span class="badge bg-light text-muted border">{% trans "قيد الاعتماد" %}</span>
+          {% endif %}
+        </td>
         <td class="text-center pe-3" onclick="event.stopPropagation();">
           <div class="btn-group btn-group-sm">
             <a href="{% url 'real_estate:booking_detail' pk=b.id %}" class="btn btn-outline-secondary" title="{% trans 'التفاصيل' %}">
@@ -69,7 +89,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="8" class="text-center py-5 text-muted">
+        <td colspan="9" class="text-center py-5 text-muted">
           <div class="py-4">
             <i class="fas fa-bookmark fa-3x mb-3 text-secondary" style="opacity: 0.5;"></i>
             <p class="h6 mb-2">{% trans "لم يتم العثور على أي استمارات حجز" %}</p>

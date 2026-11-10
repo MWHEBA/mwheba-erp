@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% trans "المطابقة الثلاثية لهادر صب الخرسانة" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">
+          <i class="fas fa-balance-scale text-primary me-2"></i>
+          {% trans "المطابقة الثلاثية (As-Built vs Batch Delivered vs Tolerance) للمستخلص" %} {{ cert.certificate_number }}
+        </h5>
+        <a href="{% url 'real_estate:contractor_certificate_detail' cert.pk %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للمستخلص" %}
+        </a>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>{% trans "العنصر المصبوب" %}</th>
+              <th>{% trans "مقاول المصنعيات" %}</th>
+              <th>{% trans "الحجم المحصور هندسياً (م3)" %}</th>
+              <th>{% trans "الكمية الموردة فعلياً (م3)" %}</th>
+              <th>{% trans "نسبة الهالك المسموحة" %}</th>
+              <th>{% trans "حجم الهادر الزائد" %}</th>
+              <th>{% trans "سعر المتر" %}</th>
+              <th>{% trans "مبلغ الخصم المحمل (ج.م)" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in reconciliations %}
+            <tr>
+              <td class="fw-bold">{{ r.element_description }}</td>
+              <td>{{ r.casting_subcontractor.contractor.name }}</td>
+              <td>{{ r.surveyed_as_built_volume_m3|floatformat:3 }} م3</td>
+              <td>{{ r.actual_batch_delivered_volume_m3|floatformat:3 }} م3</td>
+              <td>{{ r.contractual_waste_tolerance_rate }}%</td>
+              <td class="{% if r.excess_waste_volume_m3 > 0 %}text-danger fw-bold{% endif %}">
+                {{ r.excess_waste_volume_m3|floatformat:3 }} م3
+              </td>
+              <td>{{ r.concrete_unit_price|floatformat:2|intcomma }}</td>
+              <td class="fw-bold {% if r.excess_waste_backcharge_amount > 0 %}text-danger{% endif %}">
+                {{ r.excess_waste_backcharge_amount|floatformat:2|intcomma }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-4 text-muted">
+                {% trans "لا توجد تسويات هادر مسجلة على هذا المستخلص." %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

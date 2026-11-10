@@ -42,7 +42,44 @@ class FinishingPricingService:
     - احتساب رصيد استرداد بنود نصف التشطيب التعاقدية (Core & Shell Credit) وخصمه.
     - احتساب الدفعة المقدمة القانونية الإلزامية (35%).
     - تجميد الأسعار وإدارة مهلة صلاحية العرض.
+    - توليد الفراغات المعمارية القياسية للمشاريع منعاً للشاشات البيضاء.
     """
+
+    @classmethod
+    @transaction.atomic
+    def provision_default_workspaces(cls, project) -> List[FinishingWorkspace]:
+        """
+        الوقاية من الشاشات البيضاء (Auto-Provisioning of Workspaces):
+        توليد آلي للفراغات المعمارية القياسية للمشروع في حال عدم وجود فراغات مسجلة مسبقاً.
+        """
+        if FinishingWorkspace.objects.filter(project=project).exists():
+            return list(FinishingWorkspace.objects.filter(project=project, is_active=True).order_by('sort_order', 'id'))
+
+        default_defs = [
+            {'name': 'الريسبشن والاستقبال', 'code': 'REC', 'is_wet_area': False, 'standard_height_meters': Decimal('2.90'), 'sort_order': 1},
+            {'name': 'غرفة نوم رئيسية (ماستر)', 'code': 'MBR', 'is_wet_area': False, 'standard_height_meters': Decimal('2.90'), 'sort_order': 2},
+            {'name': 'غرفة نوم أطفال / ضيوف', 'code': 'BR2', 'is_wet_area': False, 'standard_height_meters': Decimal('2.90'), 'sort_order': 3},
+            {'name': 'المطبخ', 'code': 'KIT', 'is_wet_area': True, 'standard_height_meters': Decimal('2.90'), 'sort_order': 4},
+            {'name': 'حمام رئيسي', 'code': 'BTH_MAIN', 'is_wet_area': True, 'standard_height_meters': Decimal('2.90'), 'sort_order': 5},
+            {'name': 'حمام ضيوف', 'code': 'BTH_GUEST', 'is_wet_area': True, 'standard_height_meters': Decimal('2.90'), 'sort_order': 6},
+            {'name': 'تراس / شرفة', 'code': 'TERRACE', 'is_wet_area': False, 'standard_height_meters': Decimal('2.90'), 'sort_order': 7},
+        ]
+        created = []
+        for d in default_defs:
+            ws, _ = FinishingWorkspace.objects.get_or_create(
+                project=project,
+                code=d['code'],
+                defaults={
+                    'name': d['name'],
+                    'is_wet_area': d['is_wet_area'],
+                    'standard_height_meters': d['standard_height_meters'],
+                    'sort_order': d['sort_order'],
+                    'is_active': True,
+                }
+            )
+            created.append(ws)
+        logger.info(f"Auto-provisioned {len(created)} default workspaces for project {project.name}")
+        return created
 
     @classmethod
     @transaction.atomic

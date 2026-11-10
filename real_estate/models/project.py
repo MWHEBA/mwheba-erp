@@ -79,6 +79,12 @@ class RealEstateProject(models.Model):
         related_name='escrow_real_estate_projects',
         verbose_name=_('حساب الضمان البنكي (Escrow Account)')
     )
+    default_cancellation_fee = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_('رسوم إلغاء الحجز الإدارية الافتراضية')
+    )
     total_land_area = models.DecimalField(
         max_digits=12,
         decimal_places=2,

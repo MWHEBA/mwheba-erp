@@ -34,7 +34,7 @@
                 <select name="contract" id="id_contract" class="form-select select2-filter" required>
                   <option value="">{% trans "اختر العقد العقاري الساري..." %}</option>
                   {% for c in contracts %}
-                  <option value="{{ c.id }}" {% if form_data.contract == c.id|stringformat:"s" %}selected{% endif %}>
+                  <option value="{{ c.id }}" {% if form_data.contract == c.id|stringformat:"s" or selected_contract_id == c.id %}selected{% endif %}>
                     {{ c.contract_number }} — الوحدة: {{ c.unit.unit_code }} ({{ c.unit.project.name }}) — العميل: {{ c.customer.name }}
                   </option>
                   {% endfor %}
