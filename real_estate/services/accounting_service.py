@@ -134,7 +134,8 @@ class RealEstateAccountingService:
         user,
         additional_down_payment: Decimal = Decimal("0.00"),
         payment_account: Optional[ChartOfAccounts] = None,
-        reference: str = ""
+        reference: str = "",
+        converted_holding_deposit: Optional[Decimal] = None
     ) -> JournalEntry:
         """
         Event 1b: تحويل جدية الحجز إلى دفعة مقدمة تعاقدية رسمية (Booking Conversion to Down Payment)
@@ -151,10 +152,13 @@ class RealEstateAccountingService:
             fallback_code="21102"
         )
 
-        dep_val = getattr(booking, 'holding_deposit', None)
-        if dep_val is None:
-            dep_val = getattr(booking, 'deposit_amount', Decimal('0.00'))
-        holding_fee = Decimal(str(dep_val))
+        if converted_holding_deposit is not None:
+            holding_fee = Decimal(str(converted_holding_deposit))
+        else:
+            dep_val = getattr(booking, 'holding_deposit', None)
+            if dep_val is None:
+                dep_val = getattr(booking, 'deposit_amount', Decimal('0.00'))
+            holding_fee = Decimal(str(dep_val))
         extra_down = Decimal(str(additional_down_payment or Decimal("0.00")))
         total_down_payment = holding_fee + extra_down
 

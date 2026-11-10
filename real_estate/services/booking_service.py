@@ -294,13 +294,13 @@ class UnitBookingService:
             return booking
 
     @classmethod
-    def sync_booking_collection_state(cls, booking: UnitBooking) -> bool:
+    def get_effective_collected_deposit(cls, booking: UnitBooking) -> Decimal:
         """
-        مزامنة حالة تحصيل جدية الحجز (سواء كانت نقداً أو بنكاً أو شيكاً برسم التحصيل)
-        مع التحقق من القيود المحاسبية الصالحة وغير المعكوسة.
+        احتساب صافي المبلغ المحصل فعلياً لجدية الحجز عبر دورة حياة الشيك أو الحسابات
+        مع مراعاة التحصيل الجزئي وحالات الارتداد والعكس.
         """
         if not booking or (booking.holding_deposit or Decimal('0.00')) <= Decimal('0.00'):
-            return False
+            return Decimal('0.00')
 
         from cheques.models.cheque import Cheque, ChequeStatus
         from financial.models.journal_entry import JournalEntry
@@ -320,80 +320,93 @@ class UnitBookingService:
                 pass
 
         if linked_cheque:
-            is_valid_allocation = (
-                linked_cheque.customer_id == booking.customer_id and
-                (
-                    linked_cheque.status == ChequeStatus.COLLECTED or
-                    (linked_cheque.collected_amount or Decimal('0.00')) >= booking.holding_deposit
-                )
-            )
-            if is_valid_allocation:
-                cheque_je = None
-                collect_log = linked_cheque.action_logs.filter(
+            chq_amt = linked_cheque.collected_amount or Decimal('0.00')
+            uncollected_statuses = [
+                ChequeStatus.CANCELLED,
+                getattr(ChequeStatus, 'RETURNED_TO_DRAWER', 'RETURNED_TO_DRAWER'),
+            ]
+            # إذا أُلغي الشيك أو أعيد للساحب أو رصيده المحصل صفر بالكامل (مثل ارتداد كامل دون أي تحصيل)
+            if linked_cheque.status in uncollected_statuses or chq_amt <= Decimal('0.00'):
+                if booking.is_deposit_collected:
+                    booking.is_deposit_collected = False
+                    booking.save(update_fields=['is_deposit_collected'])
+                return Decimal('0.00')
+
+            if linked_cheque.customer_id == booking.customer_id and chq_amt > Decimal('0.00'):
+                collect_logs = linked_cheque.action_logs.filter(
                     action='COLLECT',
                     journal_entry__isnull=False
-                ).order_by('-id').first()
-                if collect_log and collect_log.journal_entry:
-                    cheque_je = collect_log.journal_entry
-                else:
-                    cheque_je = JournalEntry.objects.filter(
-                        source_module='cheques',
-                        source_id__in=linked_cheque.action_logs.values_list('id', flat=True)
-                    ).first() or JournalEntry.objects.filter(
-                        source_module='cheques',
-                        source_id=linked_cheque.id
-                    ).first()
+                ).order_by('-id')
 
-                is_reversed = False
-                if cheque_je:
-                    is_reversed = (
-                        getattr(cheque_je, 'reversed_by_entry_id', None) is not None or
-                        getattr(cheque_je, 'is_reversal', False) or
-                        cheque_je.reversal_entries.exists() or
-                        getattr(cheque_je, 'status', None) == 'cancelled'
+                active_je = None
+                for log in collect_logs:
+                    je = log.journal_entry
+                    is_je_rev = (
+                        getattr(je, 'reversed_by_entry_id', None) is not None or
+                        getattr(je, 'is_reversal', False) or
+                        je.reversal_entries.exists() or
+                        getattr(je, 'status', None) == 'cancelled'
                     )
+                    if not is_je_rev:
+                        active_je = je
+                        break
 
-                if not is_reversed and (cheque_je is not None or linked_cheque.status == ChequeStatus.COLLECTED):
-                    booking.is_deposit_collected = True
-                    if cheque_je and not booking.journal_entry_id:
-                        booking.journal_entry = cheque_je
+                if active_je or chq_amt > Decimal('0.00'):
+                    eff_amt = min(chq_amt, booking.holding_deposit)
+                    if not booking.is_deposit_collected:
+                        booking.is_deposit_collected = True
+                    if active_je and booking.journal_entry_id != active_je.id:
+                        booking.journal_entry = active_je
                     booking.save(update_fields=['is_deposit_collected', 'journal_entry'])
-                    return True
+                    return eff_amt
+                else:
+                    if booking.is_deposit_collected:
+                        booking.is_deposit_collected = False
+                        booking.save(update_fields=['is_deposit_collected'])
+                    return Decimal('0.00')
 
-        # 2. التحقق من وجود قيد تحصيل مباشر مرحل وغير معكوس للحجز
+        # 2. في حال عدم وجود شيك: التحقق من قيد الحسابات المباشر للحجز
         direct_je = JournalEntry.objects.filter(
             source_module='real_estate',
             source_model='UnitBooking',
-            source_id=booking.id,
-            status='posted'
-        ).exclude(
-            models.Q(reversal_entries__isnull=False) |
-            models.Q(reversed_by_entry__isnull=False) |
-            models.Q(is_reversal=True)
-        ).first()
+            source_id=booking.id
+        ).order_by('-id').first()
 
         if direct_je:
-            booking.is_deposit_collected = True
-            if not booking.journal_entry_id:
-                booking.journal_entry = direct_je
-            booking.save(update_fields=['is_deposit_collected', 'journal_entry'])
-            return True
-
-        # 3. التحقق إذا كان القيد السابق قد عُكس
-        if booking.is_deposit_collected and booking.journal_entry_id:
-            b_je = booking.journal_entry
             is_reversed = (
-                getattr(b_je, 'reversed_by_entry_id', None) is not None or
-                getattr(b_je, 'is_reversal', False) or
-                b_je.reversal_entries.exists() or
-                getattr(b_je, 'status', None) == 'cancelled'
+                getattr(direct_je, 'reversed_by_entry_id', None) is not None or
+                getattr(direct_je, 'is_reversal', False) or
+                direct_je.reversal_entries.exists() or
+                getattr(direct_je, 'status', None) == 'cancelled'
             )
             if is_reversed:
-                booking.is_deposit_collected = False
-                booking.save(update_fields=['is_deposit_collected'])
-                return False
+                if booking.is_deposit_collected:
+                    booking.is_deposit_collected = False
+                    booking.save(update_fields=['is_deposit_collected'])
+                return Decimal('0.00')
 
-        return bool(booking.is_deposit_collected)
+            if direct_je.status == 'posted':
+                if not booking.is_deposit_collected:
+                    booking.is_deposit_collected = True
+                    if not booking.journal_entry_id:
+                        booking.journal_entry = direct_je
+                    booking.save(update_fields=['is_deposit_collected', 'journal_entry'])
+                return booking.holding_deposit
+
+        # 3. إذا لم يوجد شيك ولا قيد، ولكن الحجز معلم صراحة كـ is_deposit_collected (حالات الاختبار المباشر أو السندات السابقة)
+        if booking.is_deposit_collected:
+            return booking.holding_deposit
+
+        return Decimal('0.00')
+
+    @classmethod
+    def sync_booking_collection_state(cls, booking: UnitBooking) -> bool:
+        """
+        مزامنة حالة تحصيل جدية الحجز (سواء كانت نقداً أو بنكاً أو شيكاً برسم التحصيل)
+        مع التحقق من القيود المحاسبية الصالحة وغير المعكوسة.
+        """
+        eff = cls.get_effective_collected_deposit(booking)
+        return eff > Decimal('0.00')
 
     @classmethod
     def convert_booking_to_contract(
@@ -526,6 +539,7 @@ class UnitBookingService:
             func_curr_code = getattr(func_curr, 'code', 'EGP') if func_curr else 'EGP'
 
             # احتساب معادل جدية الحجز المحصلة بعملة العقد التعاقدية
+            eff_deposit = cls.get_effective_collected_deposit(locked_booking)
             booking_curr = getattr(locked_booking, 'currency', None)
             booking_curr_code = getattr(booking_curr, 'code', func_curr_code) if booking_curr else func_curr_code
             booking_rate = Decimal(str(getattr(locked_booking, 'exchange_rate', '1.000000') or '1.000000'))
@@ -533,13 +547,13 @@ class UnitBookingService:
 
             # حساب القيمة الوظيفية لجدية الحجز المسددة
             if booking_curr_code != func_curr_code and booking_rate > Decimal('0.00'):
-                func_holding = (locked_booking.holding_deposit * booking_rate).quantize(Decimal('0.01'))
+                func_holding = (eff_deposit * booking_rate).quantize(Decimal('0.01'))
             else:
-                func_holding = locked_booking.holding_deposit
+                func_holding = eff_deposit
 
             # تحويل القيمة الوظيفية إلى عملة العقد المقومة به
             if contract_curr_code == booking_curr_code:
-                contract_holding = locked_booking.holding_deposit
+                contract_holding = eff_deposit
             elif contract_curr_code != func_curr_code and cnt_rate > Decimal('0.00'):
                 contract_holding = (func_holding / cnt_rate).quantize(Decimal('0.01'))
             else:
@@ -675,7 +689,7 @@ class UnitBookingService:
             contract.validate_ownership_integrity()
 
             # 4. إعادة تصنيف مقدم الحجز محاسبياً ونقله إلى التزام العقد وتحصيل أي فرق إضافي ذرياً (Event 1b)
-            if locked_booking.holding_deposit > Decimal('0.00') or additional_to_collect > Decimal('0.00'):
+            if contract_holding > Decimal('0.00') or additional_to_collect > Decimal('0.00'):
                 from real_estate.services.accounting_service import RealEstateAccountingService
                 RealEstateAccountingService.post_booking_conversion(
                     booking=locked_booking,
@@ -683,7 +697,8 @@ class UnitBookingService:
                     user=user,
                     additional_down_payment=additional_to_collect,
                     payment_account=payment_account,
-                    reference=contract.contract_number
+                    reference=contract.contract_number,
+                    converted_holding_deposit=eff_deposit
                 )
 
             # 5. توليد جدول الأقساط الإلزامي للعقد الساري إن لم يكن مرتبطاً بجدول مسبقاً
@@ -851,13 +866,12 @@ class UnitBookingService:
 
             locked_unit = PropertyUnit.objects.select_for_update().get(pk=locked_booking.unit_id)
 
-            # مزامنة حالة التحصيل للشيكات والقيود المحاسبية
-            cls.sync_booking_collection_state(locked_booking)
-
-            has_deposit = (locked_booking.holding_deposit > Decimal('0.00') and locked_booking.is_deposit_collected)
+            # احتساب صافي المبلغ المحصل فعلياً عبر دورة حياة الشيك أو الحسابات
+            eff_deposit = cls.get_effective_collected_deposit(locked_booking)
+            has_deposit = (eff_deposit > Decimal('0.00'))
 
             allowed_cancel_statuses = [UnitBooking.BookingStatus.ACTIVE]
-            if has_deposit:
+            if has_deposit or locked_booking.is_deposit_collected:
                 allowed_cancel_statuses.append(UnitBooking.BookingStatus.EXPIRED_RELEASED)
 
             if locked_booking.status not in allowed_cancel_statuses:
@@ -887,13 +901,14 @@ class UnitBookingService:
                 if has_deposit:
                     RealEstateAccountingService.post_booking_forfeiture(
                         booking=locked_booking,
-                        user=user
+                        user=user,
+                        amount=eff_deposit
                     )
                 target_status = UnitBooking.BookingStatus.CANCELLED_FORFEITED
             else:
                 if has_deposit:
-                    deduction = min(Decimal(str(approved_deduction_fees or '0.00')), locked_booking.holding_deposit)
-                    net_refundable = max(Decimal('0.00'), locked_booking.holding_deposit - deduction)
+                    deduction = min(Decimal(str(approved_deduction_fees or '0.00')), eff_deposit)
+                    net_refundable = max(Decimal('0.00'), eff_deposit - deduction)
 
                     settlement = locked_booking.active_cancellation_settlement
                     if not settlement:
@@ -903,7 +918,7 @@ class UnitBookingService:
                             booking=locked_booking,
                             currency=settle_curr,
                             exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
-                            total_deposit_paid=locked_booking.holding_deposit,
+                            total_deposit_paid=eff_deposit,
                             approved_deduction_fees=deduction,
                             net_refundable_amount=net_refundable,
                             remaining_disbursable_amount=net_refundable,
@@ -914,10 +929,11 @@ class UnitBookingService:
                         locked_booking.active_cancellation_settlement = settlement
                         locked_booking.save(update_fields=['active_cancellation_settlement', 'updated_at'])
                     else:
+                        settlement.total_deposit_paid = eff_deposit
                         settlement.approved_deduction_fees = deduction
                         settlement.net_refundable_amount = net_refundable
                         settlement.remaining_disbursable_amount = net_refundable
-                        settlement.save(update_fields=['approved_deduction_fees', 'net_refundable_amount', 'remaining_disbursable_amount', 'updated_at'])
+                        settlement.save(update_fields=['total_deposit_paid', 'approved_deduction_fees', 'net_refundable_amount', 'remaining_disbursable_amount', 'updated_at'])
 
                     # إثبات قيد خصم المصاريف الإدارية المعتمَدة إن وُجدت
                     if deduction > Decimal('0.00') and not settlement.forfeiture_journal_entry:
@@ -954,6 +970,12 @@ class UnitBookingService:
                         target_status = UnitBooking.BookingStatus.CANCELLED_PENDING_REFUND
                 else:
                     target_status = UnitBooking.BookingStatus.EXPIRED_RELEASED
+                    if locked_booking.active_cancellation_settlement:
+                        settle = locked_booking.active_cancellation_settlement
+                        settle.total_deposit_paid = Decimal('0.00')
+                        settle.net_refundable_amount = Decimal('0.00')
+                        settle.remaining_disbursable_amount = Decimal('0.00')
+                        settle.save(update_fields=['total_deposit_paid', 'net_refundable_amount', 'remaining_disbursable_amount', 'updated_at'])
 
             # 1. تحديث حالة الحجز
             locked_booking.status = target_status

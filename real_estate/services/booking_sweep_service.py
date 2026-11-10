@@ -56,16 +56,16 @@ class UnitBookingSweepService:
                     and locked_unit.current_booking_id == locked_booking.id
                 ):
                     from real_estate.services.booking_service import UnitBookingService
-                    UnitBookingService.sync_booking_collection_state(locked_booking)
+                    eff_deposit = UnitBookingService.get_effective_collected_deposit(locked_booking)
 
-                    if locked_booking.holding_deposit > Decimal('0.00') and locked_booking.is_deposit_collected:
+                    if eff_deposit > Decimal('0.00'):
                         from real_estate.models.refund import BookingCancellationSettlement
                         from real_estate.services.accounting_service import RealEstateAccountingService
 
                         proj = locked_unit.project
                         deduction_fee = getattr(proj, 'default_cancellation_fee', Decimal('0.00')) if proj else Decimal('0.00')
-                        deduction_fee = min(Decimal(str(deduction_fee or '0.00')), locked_booking.holding_deposit)
-                        net_refundable = max(Decimal('0.00'), locked_booking.holding_deposit - deduction_fee)
+                        deduction_fee = min(Decimal(str(deduction_fee or '0.00')), eff_deposit)
+                        net_refundable = max(Decimal('0.00'), eff_deposit - deduction_fee)
 
                         settlement = locked_booking.active_cancellation_settlement
                         if not settlement:
@@ -75,7 +75,7 @@ class UnitBookingSweepService:
                                 booking=locked_booking,
                                 currency=settle_curr,
                                 exchange_rate=locked_booking.exchange_rate or Decimal('1.000000'),
-                                total_deposit_paid=locked_booking.holding_deposit,
+                                total_deposit_paid=eff_deposit,
                                 approved_deduction_fees=deduction_fee,
                                 net_refundable_amount=net_refundable,
                                 remaining_disbursable_amount=net_refundable,
@@ -84,6 +84,12 @@ class UnitBookingSweepService:
                                 processed_by=locked_booking.created_by,
                             )
                             locked_booking.active_cancellation_settlement = settlement
+                        else:
+                            settlement.total_deposit_paid = eff_deposit
+                            settlement.approved_deduction_fees = deduction_fee
+                            settlement.net_refundable_amount = net_refundable
+                            settlement.remaining_disbursable_amount = net_refundable
+                            settlement.save(update_fields=['total_deposit_paid', 'approved_deduction_fees', 'net_refundable_amount', 'remaining_disbursable_amount', 'updated_at'])
 
                         if deduction_fee > Decimal('0.00') and not settlement.forfeiture_journal_entry:
                             try:
