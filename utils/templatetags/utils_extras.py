@@ -692,3 +692,36 @@ def product_badge(product):
         return mark_safe('<span class="badge bg-info"><i class="fas fa-boxes me-1"></i>منتج مجمع</span>')
     else:
         return mark_safe('<span class="badge bg-secondary"><i class="fas fa-box me-1"></i>منتج</span>')
+
+
+@register.filter
+def clean_print_notes(value):
+    """
+    تنظيف الملاحظات والشروط للطباعة وإزالة الأسطر الفاضية الزائدة في البداية والنهاية
+    أو الناتجة عن فواصل HTML مع white-space: pre-line.
+    """
+    if not value:
+        return ""
+
+    import re
+
+    text = str(value).replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        return ""
+
+    has_html = bool(re.search(r"<(p|div|br|ul|ol|li|span|strong|em|b|i|table)\b[^>]*>", text, re.IGNORECASE))
+    if has_html:
+        # إزالة فواصل الأسطر البرمجية بين تاجات HTML حتى لا تترجم إلى فراغات مع pre-line
+        text = re.sub(r">\s*\n+\s*<", "><", text)
+        # إزالة الفقرات أو الفواصل الفارغة في البداية والنهاية
+        empty_block_pattern = r"^(?:\s*<(?:p|div)[^>]*>(?:\s|&nbsp;|<br\s*/?>)*</(?:p|div)>\s*|\s*<br\s*/?>\s*)+"
+        empty_block_end = r"(?:\s*<(?:p|div)[^>]*>(?:\s|&nbsp;|<br\s*/?>)*</(?:p|div)>\s*|\s*<br\s*/?>\s*)+$"
+        text = re.sub(empty_block_pattern, "", text, flags=re.IGNORECASE)
+        text = re.sub(empty_block_end, "", text, flags=re.IGNORECASE)
+        return mark_safe(text.strip())
+
+    # تنظيف النص العادي من الأسطر الفاضية المتكررة
+    lines = [line.rstrip() for line in text.split("\n")]
+    cleaned = "\n".join(lines).strip()
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned

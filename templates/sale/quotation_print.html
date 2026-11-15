@@ -212,12 +212,14 @@
 </div>
 {% endif %}
 
-{% if quotation.notes or default_notes %}
+{% with cleaned_notes=quotation.notes|default:default_notes|clean_print_notes %}
+{% if cleaned_notes %}
 <div class="terms-title">{% if is_english %}Terms & Conditions:{% else %}شروط وملاحظات:{% endif %}</div>
 <div class="terms-content">
-    <div style="white-space: pre-line;">{{ quotation.notes|default:default_notes|safe }}</div>
+    <div style="white-space: pre-line;">{{ cleaned_notes }}</div>
 </div>
 {% endif %}
+{% endwith %}
 {% endblock %}
 
 {% block signatures %}

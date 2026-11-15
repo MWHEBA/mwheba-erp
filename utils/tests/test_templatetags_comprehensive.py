@@ -114,4 +114,22 @@ class AppTagsTemplateTagsTest(TestCase):
                 rendered = template.render(context)
                 self.assertIn(expected, rendered)
 
+    def test_clean_print_notes_filter(self):
+        """اختبار تنظيف الملاحظات والشروط للطباعة"""
+        template = Template('{% load utils_extras %}{{ notes|clean_print_notes }}')
+
+        # نص عادي فيه أسطر فاضية كتير في البداية والنهاية والوسط
+        plain = "\n\n\n\nNumber of Vessel Visits: 2 Visits\n\n\n\n\nLine 2\n\n"
+        rendered_plain = template.render(Context({'notes': plain}))
+        self.assertEqual(rendered_plain, "Number of Vessel Visits: 2 Visits\n\nLine 2")
+
+        # نص HTML فيه فقرات فاضية وفواصل أسطر برمجية
+        html_notes = "<p><br></p>\n<p>&nbsp;</p>\n<p>Number of Vessel Visits: 2 Visits</p>\n<p><br></p>"
+        rendered_html = template.render(Context({'notes': html_notes}))
+        self.assertEqual(rendered_html, "<p>Number of Vessel Visits: 2 Visits</p>")
+
+        # نص فارغ أو مسافات فقط
+        self.assertEqual(template.render(Context({'notes': "   \n\n  "})), "")
+        self.assertEqual(template.render(Context({'notes': None})), "")
+
 

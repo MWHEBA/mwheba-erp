@@ -112,12 +112,14 @@
 {% endblock %}
 
 {% block notes_section %}
-{% if dn.delivery_notes or dn.sales_order.notes %}
+{% with cleaned_notes=dn.delivery_notes|default:dn.sales_order.notes|clean_print_notes %}
+{% if cleaned_notes %}
 <div class="notes-box mb-4">
     <div class="fw-bold mb-1">{% trans "ملاحظات التسليم والبوابة" %}:</div>
-    <div style="white-space: pre-line;">{{ dn.delivery_notes|default:dn.sales_order.notes }}</div>
+    <div style="white-space: pre-line;">{{ cleaned_notes }}</div>
 </div>
 {% endif %}
+{% endwith %}
 {% endblock %}
 
 {% block signatures %}

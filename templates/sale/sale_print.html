@@ -285,10 +285,12 @@
 </div>
 {% endif %}
 
-{% if sale.notes or default_notes %}
+{% with cleaned_notes=sale.notes|default:default_notes|clean_print_notes %}
+{% if cleaned_notes %}
 <div class="terms-title">{% if is_english %}Terms & Conditions:{% else %}الشروط والأحكام:{% endif %}</div>
 <div class="terms-content">
-    <div style="white-space: pre-line;">{{ sale.notes|default:default_notes|safe }}</div>
+    <div style="white-space: pre-line;">{{ cleaned_notes }}</div>
 </div>
 {% endif %}
+{% endwith %}
 {% endblock %}

@@ -275,10 +275,12 @@
 {% endblock %}
 
 {% block terms_and_conditions %}
-{% if so.notes %}
+{% with cleaned_notes=so.notes|clean_print_notes %}
+{% if cleaned_notes %}
 <div class="terms-title">{% if is_english %}Terms, Conditions & Delivery Notes{% else %}الشروط والأحكام وملاحظات التوريد{% endif %}</div>
-<div class="terms-content" style="white-space: pre-line;">{{ so.notes }}</div>
+<div class="terms-content" style="white-space: pre-line;">{{ cleaned_notes }}</div>
 {% endif %}
+{% endwith %}
 {% endblock %}
 
 {% block signatures %}

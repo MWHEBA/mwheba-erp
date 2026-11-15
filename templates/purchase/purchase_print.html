@@ -113,14 +113,16 @@
 {% endblock %}
 
 {% block summary_notes %}
-{% if purchase.notes %}
+{% with cleaned_notes=purchase.notes|clean_print_notes %}
+{% if cleaned_notes %}
 <div class="mb-3">
     <div style="font-weight: 700; color: var(--text-color); margin-bottom: 4px;">{% trans "ملاحظات:" %}</div>
-    <div style="white-space: pre-line;">{{ purchase.notes }}</div>
+    <div style="white-space: pre-line;">{{ cleaned_notes }}</div>
 </div>
 {% else %}
 <p class="m-0">{% trans "فاتورة مشتريات مسجلة بالنظام." %}</p>
 {% endif %}
+{% endwith %}
 {% endblock %}
 
 {% block summary_rows %}
