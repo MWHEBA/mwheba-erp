@@ -251,25 +251,9 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         try:
             employee = Employee.objects.get(id=employee_id, status='active')
             
-            # Check if checked in today
-            today = timezone.localdate()
-            attendance = Attendance.objects.filter(
-                employee=employee,
-                date=today,
-                check_in__isnull=False,
-                check_out__isnull=True
-            ).first()
-            
-            if not attendance:
-                return Response(
-                    {'error': 'لم يتم تسجيل حضور اليوم أو تم تسجيل الانصراف بالفعل'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Record check-out
+            # Record check-out (يدعم اليوم والورديات الليلية المفتوحة من الأمس)
             attendance = AttendanceService.record_check_out(employee)
             serializer = self.get_serializer(attendance)
-            
             
             return Response({
                 'status': 'success',
@@ -281,6 +265,11 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return Response(
                 {'error': 'الموظف غير موجود أو غير نشط'},
                 status=status.HTTP_404_NOT_FOUND
+            )
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
             logger.error(f"Error recording check-out: {e}")

@@ -60,17 +60,34 @@ class MobilePunchService:
                 'is_default': loc.is_default,
             })
 
-        # سجل حضور اليوم
+        # سجل حضور اليوم (مع دعم الوردية الليلية المفتوحة من الأمس)
         today_att = Attendance.objects.filter(employee=employee, date=today).first()
+        active_att = today_att
+        is_night_shift_open = False
+
+        if not (today_att and today_att.check_in):
+            yesterday = today - timedelta(days=1)
+            open_yesterday = Attendance.objects.filter(
+                employee=employee,
+                date=yesterday,
+                check_in__isnull=False,
+                check_out__isnull=True,
+            ).first()
+            if open_yesterday and 0 < (now - open_yesterday.check_in).total_seconds() <= 24 * 3600:
+                active_att = open_yesterday
+                is_night_shift_open = True
+
         attendance_info = {
-            'has_checked_in': bool(today_att and today_att.check_in),
-            'check_in_time': timezone.localtime(today_att.check_in).strftime('%H:%M') if (today_att and today_att.check_in) else None,
-            'has_checked_out': bool(today_att and today_att.check_out),
-            'check_out_time': timezone.localtime(today_att.check_out).strftime('%H:%M') if (today_att and today_att.check_out) else None,
-            'status': today_att.status if today_att else 'absent',
-            'work_hours': float(today_att.work_hours) if today_att else 0.0,
-            'late_minutes': today_att.late_minutes if today_att else 0,
-            'overtime_hours': float(today_att.overtime_hours) if today_att else 0.0,
+            'has_checked_in': bool(active_att and active_att.check_in),
+            'check_in_time': timezone.localtime(active_att.check_in).strftime('%H:%M') if (active_att and active_att.check_in) else None,
+            'has_checked_out': bool(active_att and active_att.check_out),
+            'check_out_time': timezone.localtime(active_att.check_out).strftime('%H:%M') if (active_att and active_att.check_out) else None,
+            'status': active_att.status if active_att else 'absent',
+            'work_hours': float(active_att.work_hours) if active_att else 0.0,
+            'late_minutes': active_att.late_minutes if active_att else 0,
+            'overtime_hours': float(active_att.overtime_hours) if active_att else 0.0,
+            'is_night_shift_open': is_night_shift_open,
+            'attendance_date': active_att.date.isoformat() if active_att else today.isoformat(),
         }
 
         # توليد التوكن الأمني
@@ -289,6 +306,10 @@ class MobilePunchService:
         elif matched_loc and not attendance.location_name:
             attendance.location_name = matched_loc.name_ar
 
+        # حفظ القيم السابقة قبل التعديل لتوثيق سجل التدقيق بدقة
+        prev_check_in = attendance.check_in
+        prev_check_out = attendance.check_out
+
         action_label = ''
         if punch_type in ['check_in', 'field_visit']:
             if punch_type == 'check_in':
@@ -296,7 +317,6 @@ class MobilePunchService:
                     # إذا كانت البصمة مأمورية/زيارة ميدانية والموظف حاضر بالفعل اليوم:
                     if is_field_visit:
                         action_label = 'توثيق زيارة ميدانية'
-                        attendance.check_out = max(attendance.check_out or punch_time, punch_time)
                     else:
                         check_in_fmt = timezone.localtime(attendance.check_in).strftime('%I:%M %p').replace('AM', 'ص').replace('PM', 'م')
                         return _make_res(False, {
@@ -316,8 +336,6 @@ class MobilePunchService:
                     attendance.status = 'present'
                     if attendance.notes and ('غياب' in attendance.notes or 'غائب' in attendance.notes):
                         attendance.notes = ''
-                else:
-                    attendance.check_out = max(attendance.check_out or punch_time, punch_time)
 
         elif punch_type == 'check_out':
             if not attendance.check_in:
@@ -395,9 +413,9 @@ class MobilePunchService:
         if user and hasattr(user, 'id') and user.is_authenticated:
             loc_name = matched_loc.name_ar if matched_loc else ('مأمورية ميدانية' if is_field_visit else 'موقع خارجي')
             old_val = (
-                attendance.check_in.strftime('%Y-%m-%d %H:%M:%S')
-                if (punch_type in ['check_in', 'field_visit'] and attendance.check_in)
-                else (attendance.check_out.strftime('%Y-%m-%d %H:%M:%S') if attendance.check_out else '')
+                prev_check_in.strftime('%Y-%m-%d %H:%M:%S')
+                if (punch_type in ['check_in', 'field_visit'] and prev_check_in)
+                else (prev_check_out.strftime('%Y-%m-%d %H:%M:%S') if prev_check_out else '')
             )
             reason_txt = f'بصمة موبايل ذكية ({action_label}) - {loc_name}'
             if field_visit_reason:
@@ -484,15 +502,16 @@ class MobilePunchService:
 
             # 3. معالجة البصمة داخل try...except مستقل لعزل أي خطأ
             try:
+                raw_acc = p.get('location_accuracy') if p.get('location_accuracy') is not None else p.get('accuracy')
                 res = MobilePunchService.process_mobile_punch(
                     employee=employee,
                     user=user,
                     punch_type=p.get('punch_type', 'check_in'),
                     latitude=float(p.get('latitude', 0.0)),
                     longitude=float(p.get('longitude', 0.0)),
-                    location_accuracy=float(p.get('location_accuracy', 10.0)),
+                    location_accuracy=float(raw_acc) if raw_acc is not None else 10.0,
                     device_uuid=p.get('device_uuid'),
-                    is_mock_flag=bool(p.get('is_mock_flag', False)),
+                    is_mock_flag=bool(p.get('is_mock_flag', p.get('is_mock', False))),
                     speed_kmh=float(p.get('speed_kmh', 0.0)) if p.get('speed_kmh') else None,
                     punch_token=None,  # لا يتطلب فحص التوكن المباشر للأوفلاين
                     selfie_base64=p.get('selfie_base64') or p.get('selfie_image'),

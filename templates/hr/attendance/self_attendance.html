@@ -821,7 +821,7 @@ $(document).ready(function() {
 
  startGeoWatcher();
 
- // إدارة دورة حياة الصفحة وتوفير الموارد والبطارية
+ // إدارة دورة حياة الصفحة وتوفير الموارد والبطارية وتجديد توكن البصمة
  document.addEventListener('visibilitychange', function() {
  if (document.visibilityState === 'hidden') {
  if (cameraStream) {
@@ -832,8 +832,16 @@ $(document).ready(function() {
  } else if (document.visibilityState === 'visible') {
  startCamera(currentFacingMode);
  startGeoWatcher();
+ loadPunchContext();
  }
  });
+
+ // تجديد سياق البصمة والتوكن الأمني تلقائياً كل دقيقتين أثناء بقاء الصفحة مفتوحة
+ setInterval(function() {
+ if (document.visibilityState === 'visible' && navigator.onLine) {
+ loadPunchContext();
+ }
+ }, 120000);
 
  // 6. إدارة حالة الاتصال بالإنترنت والمزامنة الأوفلاين
  function updateOnlineStatus() {
@@ -918,8 +926,13 @@ $(document).ready(function() {
  localStorage.removeItem(OFFLINE_STORAGE_KEY);
  }
  updateOfflineBadge();
+ if (res.synced_count === 0 && res.total_received > 0) {
+ const firstErr = (res.results && res.results[0] && res.results[0].message) ? res.results[0].message : 'تعذر مزامنة البصمات المعلقة.';
+ notifyUser(firstErr, 'error');
+ } else {
  notifyUser(res.message, 'success');
  setTimeout(function() { window.location.reload(); }, 3100);
+ }
  } else {
  notifyUser(res.message || 'فشلت بعض عمليات المزامنة.', 'error');
  }
@@ -935,9 +948,10 @@ $(document).ready(function() {
  $('#btnSyncOffline').on('click', syncOfflinePunches);
 
  // 7. إرسال البصمة وتوثيقها بالخادم
- function executePunch(punchType, isFieldVisit, fieldReason) {
+ function executePunch(punchType, isFieldVisit, fieldReason, isRetry) {
  isFieldVisit = isFieldVisit || false;
  fieldReason = fieldReason || '';
+ isRetry = isRetry || false;
 
  const isFieldVisitType = (punchType === 'field_visit');
  const targetBtn = isFieldVisitType ? $('#btnOpenFieldVisitModal') : (punchType === 'check_in' ? $('#btnCheckIn') : $('#btnCheckOut'));
@@ -1034,6 +1048,10 @@ $(document).ready(function() {
  punchContext.punch_token = xhr.responseJSON.new_punch_token;
  }
  const msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'حدث خطأ أثناء معالجة البصمة.';
+ if (!isRetry && xhr.responseJSON && xhr.responseJSON.new_punch_token && msg.indexOf('انتهت صلاحية') !== -1) {
+ executePunch(punchType, isFieldVisit, fieldReason, true);
+ return;
+ }
  notifyUser(msg, 'error');
  updatePunchButtonStates();
  $('#btnOpenFieldVisitModal').prop('disabled', false).html('<i class="fas fa-route me-1"></i>تسجيل مأمورية / زيارة عمل ميدانية');
@@ -1047,10 +1065,13 @@ $(document).ready(function() {
  }
  const lat = currentPosition.coords.latitude;
  const lng = currentPosition.coords.longitude;
+ const acc = currentPosition.coords.accuracy || 0;
+ const accOffset = Math.min(acc * 0.5, 25);
  for (let i = 0; i < punchContext.locations.length; i++) {
  const loc = punchContext.locations[i];
  const dist = calculateHaversine(lat, lng, loc.latitude, loc.longitude);
- if (dist <= loc.radius_meters) {
+ const effectiveDist = Math.max(0, dist - accOffset);
+ if (effectiveDist <= loc.radius_meters) {
  return false;
  }
  }

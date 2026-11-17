@@ -219,7 +219,7 @@ class TestPhase4MobilePunchAPIs:
         assert data_in['punch_type'] == 'check_in'
 
         # التحقق من قاعدة البيانات
-        today = timezone.now().date()
+        today = timezone.localdate()
         att = Attendance.objects.get(employee=emp, date=today)
         assert att.check_in is not None
         assert att.status in ['present', 'late']
@@ -431,8 +431,8 @@ class TestPhase4MobilePunchAPIs:
         assert data_crew['success_count'] == 2
 
         # كلا الموظفين تم تسجيل حضورهم
-        assert Attendance.objects.filter(employee=emp1, date=timezone.now().date()).exists()
-        assert Attendance.objects.filter(employee=emp_field, date=timezone.now().date()).exists()
+        assert Attendance.objects.filter(employee=emp1, date=timezone.localdate()).exists()
+        assert Attendance.objects.filter(employee=emp_field, date=timezone.localdate()).exists()
 
     def test_multiple_field_visits_same_day(self, phase4_setup):
         """تسجيل زيارات ميدانية متعددة في نفس اليوم مع تحديث سجل الحضور"""
@@ -452,7 +452,7 @@ class TestPhase4MobilePunchAPIs:
         )
         assert res1['success'] is True
 
-        att = Attendance.objects.get(employee=emp_field, date=timezone.now().date())
+        att = Attendance.objects.get(employee=emp_field, date=timezone.localdate())
         assert att.is_field_visit is True
         assert 'شركة النور' in att.location_name
 
@@ -506,7 +506,7 @@ class TestPhase4MobilePunchAPIs:
         )
         assert res['success'] is True
         assert res['success_count'] == 1
-        att = Attendance.objects.get(employee=emp_office, date=timezone.now().date())
+        att = Attendance.objects.get(employee=emp_office, date=timezone.localdate())
         assert att.status in ['present', 'late']
         assert att.is_field_visit is True
 
@@ -708,4 +708,115 @@ class TestPhase4MobilePunchAPIs:
         assert 'المقر الرئيسي' in att.location_name
         assert 'فرع الدقي' in att.location_name
         assert '➔' in att.location_name
+
+    def test_get_punch_context_night_shift_open_yesterday(self, phase4_setup):
+        """إتاحة زر الانصراف في سياق البصمة للوردية الليلية المفتوحة من الأمس"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        yesterday = timezone.localdate() - timedelta(days=1)
+        check_in_ts = timezone.make_aware(datetime.combine(yesterday, time(22, 0)))
+
+        Attendance.objects.create(
+            employee=emp,
+            date=yesterday,
+            shift=emp.shift,
+            check_in=check_in_ts,
+            status='present',
+            source='mobile',
+        )
+
+        ctx = MobilePunchService.get_punch_context(emp, user)
+        att_info = ctx['attendance_today']
+        assert att_info['has_checked_in'] is True
+        assert att_info['has_checked_out'] is False
+        assert att_info['is_night_shift_open'] is True
+        assert att_info['attendance_date'] == yesterday.isoformat()
+
+    def test_field_visit_does_not_overwrite_checkout(self, phase4_setup):
+        """الزيارة الميدانية أثناء اليوم لا تسجل كانصراف نهائي"""
+        emp_field = phase4_setup['emp_field']
+        user = phase4_setup['user_emp']
+
+        res_in = MobilePunchService.process_mobile_punch(
+            employee=emp_field,
+            user=user,
+            punch_type='check_in',
+            latitude=30.080000,
+            longitude=31.320000,
+            is_field_visit=True,
+            field_visit_reason='بداية اليوم',
+            device_uuid='FIELD-NO-CHECKOUT',
+        )
+        assert res_in['success'] is True
+
+        res_visit = MobilePunchService.process_mobile_punch(
+            employee=emp_field,
+            user=user,
+            punch_type='field_visit',
+            latitude=30.085000,
+            longitude=31.325000,
+            is_field_visit=True,
+            field_visit_reason='زيارة عميل',
+            device_uuid='FIELD-NO-CHECKOUT',
+        )
+        assert res_visit['success'] is True
+
+        att = Attendance.objects.get(employee=emp_field, date=timezone.localdate())
+        assert att.check_in is not None
+        assert att.check_out is None
+
+    def test_checkout_audit_log_preserves_old_value(self, phase4_setup):
+        """توثيق القيمة القديمة في سجل التدقيق عند تسجيل الانصراف"""
+        from hr.models import AttendanceAuditLog
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+
+        MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_in',
+            latitude=30.012000,
+            longitude=31.432000,
+            device_uuid='DEV-AUDIT-CHECKOUT',
+        )
+        MobilePunchService.process_mobile_punch(
+            employee=emp,
+            user=user,
+            punch_type='check_out',
+            latitude=30.012000,
+            longitude=31.432000,
+            device_uuid='DEV-AUDIT-CHECKOUT',
+        )
+
+        audit = AttendanceAuditLog.objects.filter(
+            attendance__employee=emp,
+            field_name='check_out'
+        ).latest('id')
+        assert audit.old_value == ''
+        assert audit.new_value != ''
+
+    def test_offline_sync_accepts_frontend_accuracy_and_is_mock(self, phase4_setup):
+        """دعم حقول accuracy و is_mock القادمة من واجهة الموبايل أثناء المزامنة الأوفلاين"""
+        emp = phase4_setup['emp1']
+        user = phase4_setup['user_emp']
+        ts = (timezone.now() - timedelta(minutes=15)).isoformat()
+
+        res_mock = MobilePunchService.process_offline_sync(
+            employee=emp,
+            user=user,
+            punches=[{
+                'punch_type': 'check_in',
+                'latitude': 30.012000,
+                'longitude': 31.432000,
+                'accuracy': 10.0,
+                'is_mock': True,
+                'device_uuid': 'DEV-OFFLINE-MOCK',
+                'client_timestamp': ts,
+                'client_uuid': 'OFFLINE-MOCK-1',
+            }]
+        )
+        assert res_mock['synced_count'] == 0
+        assert res_mock['results'][0]['success'] is False
+        assert 'Mock Location' in res_mock['results'][0]['message']
+
 

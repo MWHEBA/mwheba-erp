@@ -631,7 +631,7 @@ $(document).ready(function() {
  if (res.failed_count && res.failed_count > 0) {
  let warnText = res.message;
  if (res.failed_details && res.failed_details.length > 0) {
- const fails = res.failed_details.map(f => `${f.employee_name || f.employee_id}: ${f.reason}`).join(' | ');
+ const fails = res.failed_details.map(f => `${f.name || f.employee_name || f.id || f.employee_id}: ${f.reason}`).join(' | ');
  warnText += ` (المتعذرون: ${fails})`;
  }
  notifyUser(warnText, 'warning');
