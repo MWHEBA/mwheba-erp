@@ -1797,3 +1797,129 @@ class SaleService:
                 
         return merged
 
+    @staticmethod
+    @transaction.atomic
+    def void_sale(sale, user, reason: str = ""):
+        """
+        إلغاء فاتورة مبيعات معتمدة (Void) بشروط حوكمة صارمة:
+        - صلاحية الإلغاء (cancel_approved_sale)
+        - الفاتورة بحالة confirmed
+        - لا توجد دفعات مرحلة أو مدفوعة
+        - لا توجد مرتجعات مرتبطة
+        - غير مرتبطة بإذن تسليم أو خطة تقسيط نشطة
+        - الفترة المحاسبية مفتوحة
+        يعكس القيد المحاسبي وحركة المخزون ورصيد العميل ويحول الحالة إلى cancelled.
+        """
+        from django.core.exceptions import ValidationError, PermissionDenied
+        from financial.services.period_control_service import PeriodControlService
+        from financial.services.ledger_core_service import LedgerCoreService
+        from financial.services.partner_balance_service import PartnerBalanceService
+        from product.models import Stock
+
+        if not (
+            user.is_superuser
+            or getattr(user, 'is_admin', False)
+            or user.has_perm('sale.cancel_approved_sale')
+        ):
+            raise PermissionDenied("غير مصرح لك بإلغاء فواتير المبيعات المعتمدة.")
+
+        reason_clean = (reason or "").strip()
+        if not reason_clean:
+            raise ValidationError("يلزم إدخال سبب إلغاء الفاتورة.")
+
+        locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
+
+        if locked_sale.status != "confirmed":
+            raise ValidationError("يمكن إلغاء فواتير المبيعات المعتمدة فقط.")
+
+        if locked_sale.payments.filter(status="posted").exists() or locked_sale.amount_paid > Decimal("0.00"):
+            raise ValidationError("لا يمكن إلغاء الفاتورة لوجود دفعات مسجلة أو مرحلة عليها. يرجى إلغاء الدفعات أولاً.")
+
+        if locked_sale.returns.exclude(status="cancelled").exists():
+            raise ValidationError("لا يمكن إلغاء الفاتورة لوجود مرتجعات مرتبطة بها.")
+
+        if getattr(locked_sale, "delivery_note_id", None):
+            raise ValidationError("لا يمكن إلغاء فاتورة مرتبطة بإذن تسليم مباشرة. يرجى إلغاء إذن التسليم أو استخدام مسار المرتجعات.")
+
+        if getattr(locked_sale, "is_installment_sale", False):
+            raise ValidationError("لا يمكن إلغاء فاتورة تقسيط مباشرة. يرجى استخدام مسار التسوية/المرتجع المخصص للأقساط.")
+
+        # التحقق من أن الفترة المحاسبية مفتوحة
+        is_open, _period = PeriodControlService.validate_period_open(locked_sale.date)
+        if not is_open:
+            raise ValidationError(
+                f"لا يمكن إلغاء الفاتورة لأن الفترة المحاسبية لتاريخ {locked_sale.date} مغلقة. يرجى استخدام مسار مرتجعات المبيعات."
+            )
+
+        # 1. عكس حركات المخزون (إرجاع البضاعة للمخزن)
+        movement_service = MovementService()
+        for item in locked_sale.items.select_related('product').all():
+            if not item.product or getattr(item.product, 'is_service', False):
+                continue
+            wh_id = item.warehouse_id or locked_sale.warehouse_id
+            if not wh_id:
+                raise ValidationError("لا يمكن عكس حركة المخزون لعدم تحديد المخزن على الفاتورة.")
+            st = Stock.objects.filter(product_id=item.product_id, warehouse_id=wh_id).first()
+            unit_cost = (
+                st.average_cost
+                if (st and st.average_cost and st.average_cost > Decimal('0.00'))
+                else (
+                    item.product.cost_price
+                    if (item.product.cost_price and item.product.cost_price > Decimal('0.00'))
+                    else Decimal('0.01')
+                )
+            )
+            movement_service.process_movement(
+                product_id=item.product_id,
+                quantity_change=item.quantity,
+                movement_type='in',
+                source_reference=f"SALE-VOID-{locked_sale.number}-ITEM-{item.id}",
+                idempotency_key=f"sale_void_{locked_sale.id}_item_{item.id}_movement",
+                user=user,
+                unit_cost=unit_cost,
+                document_number=f"VOID-{locked_sale.number}",
+                notes=f"إلغاء فاتورة مبيعات رقم {locked_sale.number} - السبب: {reason_clean}",
+                movement_date=locked_sale.date,
+                warehouse_id=wh_id,
+            )
+
+        # 2. عكس القيد المحاسبي
+        if locked_sale.journal_entry_id:
+            LedgerCoreService.reverse_entry(
+                entry_id=locked_sale.journal_entry_id,
+                user=user,
+                reversal_reason=f"إلغاء فاتورة مبيعات {locked_sale.number}: {reason_clean}",
+                reversal_date=locked_sale.date,
+            )
+
+        # 3. إغلاق حركة الأستاذ المساعد وعكس رصيد العميل
+        if locked_sale.customer_id:
+            from customer.models import CustomerTransaction
+            CustomerTransaction.objects.filter(
+                customer=locked_sale.customer,
+                transaction_type="INVOICE",
+                reference_id=str(locked_sale.id),
+            ).update(
+                status="CLOSED",
+                open_amount=Decimal("0.00"),
+                open_amount_functional=Decimal("0.00"),
+                open_amount_foreign=Decimal("0.00"),
+            )
+            rate = getattr(locked_sale, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000")
+            func_tot = getattr(locked_sale, "total_functional", None)
+            if not func_tot or func_tot == Decimal("0.00"):
+                func_tot = (locked_sale.total * rate).quantize(Decimal("0.01"))
+            PartnerBalanceService.apply_document_delta(
+                "customer", locked_sale.customer_id, func_tot, is_addition=False
+            )
+
+        # 4. تحديث حالة الفاتورة وتوثيق السبب
+        actor_name = user.get_full_name() or user.username
+        audit_note = f"[ملغية بواسطة {actor_name} بتاريخ {timezone.localdate()}]: {reason_clean}"
+        locked_sale.status = "cancelled"
+        locked_sale.notes = f"{locked_sale.notes}\n{audit_note}".strip() if locked_sale.notes else audit_note
+        locked_sale.save(update_fields=["status", "notes", "updated_at"])
+
+        logger.info(f"✅ تم إلغاء (Void) فاتورة المبيعات {locked_sale.number} بواسطة {user.username}")
+        return locked_sale
+

@@ -688,3 +688,137 @@ class PurchaseService:
             'is_service': purchase.is_service,
             'service_type_display': purchase.service_type_display if purchase.is_service else None,
         }
+
+    @staticmethod
+    @transaction.atomic
+    def void_purchase(purchase, user, reason: str = ""):
+        """
+        إلغاء فاتورة مشتريات معتمدة (Void) بشروط حوكمة صارمة:
+        - صلاحية الإلغاء (cancel_approved_purchase)
+        - الفاتورة بحالة confirmed
+        - لا توجد دفعات مرحلة أو مدفوعة
+        - لا توجد مرتجعات مرتبطة
+        - الفترة المحاسبية مفتوحة
+        - الكمية كاملة متوفرة في المخزن (للمنتجات المخزنية)
+        يعكس القيد المحاسبي وحركة المخزون ورصيد المورد ويحول الحالة إلى cancelled.
+        """
+        from django.core.exceptions import ValidationError, PermissionDenied
+        from financial.services.period_control_service import PeriodControlService
+        from financial.services.ledger_core_service import LedgerCoreService
+        from financial.services.partner_balance_service import PartnerBalanceService
+        from product.models import Stock
+
+        if not (
+            user.is_superuser
+            or getattr(user, 'is_admin', False)
+            or user.has_perm('purchase.cancel_approved_purchase')
+        ):
+            raise PermissionDenied("غير مصرح لك بإلغاء فواتير المشتريات المعتمدة.")
+
+        reason_clean = (reason or "").strip()
+        if not reason_clean:
+            raise ValidationError("يلزم إدخال سبب إلغاء الفاتورة.")
+
+        locked_purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
+
+        if locked_purchase.status != "confirmed":
+            raise ValidationError("يمكن إلغاء فواتير المشتريات المعتمدة فقط.")
+
+        if locked_purchase.payments.filter(status="posted").exists() or locked_purchase.amount_paid > Decimal("0.00"):
+            raise ValidationError("لا يمكن إلغاء الفاتورة لوجود دفعات مسجلة أو مرحلة عليها. يرجى إلغاء الدفعات أولاً.")
+
+        if locked_purchase.returns.exclude(status="cancelled").exists():
+            raise ValidationError("لا يمكن إلغاء الفاتورة لوجود مرتجعات مرتبطة بها.")
+
+        # التحقق من أن الفترة المحاسبية مفتوحة
+        is_open, _period = PeriodControlService.validate_period_open(locked_purchase.date)
+        if not is_open:
+            raise ValidationError(
+                f"لا يمكن إلغاء الفاتورة لأن الفترة المحاسبية لتاريخ {locked_purchase.date} مغلقة. يرجى استخدام مسار مرتجعات المشتريات."
+            )
+
+        # التحقق من توفر الكميات كاملة في المخزن قبل أي عكس
+        items_to_reverse = []
+        if not locked_purchase.is_service:
+            for item in locked_purchase.items.select_related('product').all():
+                if not item.product or getattr(item.product, 'is_service', False):
+                    continue
+                wh_id = locked_purchase.warehouse_id
+                if not wh_id:
+                    raise ValidationError("لا يمكن عكس حركة المخزون لعدم تحديد المخزن على الفاتورة.")
+                stock = Stock.objects.select_for_update().filter(
+                    product_id=item.product_id, warehouse_id=wh_id
+                ).first()
+                available_qty = stock.quantity if stock else Decimal("0")
+                if available_qty < item.quantity:
+                    raise ValidationError(
+                        f"لا يمكن إلغاء الفاتورة لأن الكمية المتاحة من '{item.product.name}' في المخزن ({available_qty}) أقل من كمية الفاتورة ({item.quantity}). يرجى استخدام مسار مرتجعات المشتريات."
+                    )
+                items_to_reverse.append((item, wh_id))
+
+        # 1. عكس حركات المخزون
+        if items_to_reverse:
+            movement_service = MovementService()
+            for item, wh_id in items_to_reverse:
+                unit_cost = (
+                    item.unit_price
+                    if (item.unit_price and item.unit_price > 0)
+                    else (
+                        item.product.cost_price
+                        if (item.product and item.product.cost_price and item.product.cost_price > 0)
+                        else Decimal('0.01')
+                    )
+                )
+                movement_service.process_movement(
+                    product_id=item.product_id,
+                    quantity_change=-item.quantity,
+                    movement_type='out',
+                    source_reference=f"PURCHASE-VOID-{locked_purchase.number}-ITEM-{item.id}",
+                    idempotency_key=f"purchase_void_{locked_purchase.id}_item_{item.id}_movement",
+                    user=user,
+                    unit_cost=unit_cost,
+                    document_number=f"VOID-{locked_purchase.number}",
+                    notes=f"إلغاء فاتورة مشتريات رقم {locked_purchase.number} - السبب: {reason_clean}",
+                    movement_date=locked_purchase.date,
+                    warehouse_id=wh_id,
+                )
+
+        # 2. عكس القيد المحاسبي
+        if locked_purchase.journal_entry_id:
+            LedgerCoreService.reverse_entry(
+                entry_id=locked_purchase.journal_entry_id,
+                user=user,
+                reversal_reason=f"إلغاء فاتورة مشتريات {locked_purchase.number}: {reason_clean}",
+                reversal_date=locked_purchase.date,
+            )
+
+        # 3. إغلاق حركة الأستاذ المساعد وعكس رصيد المورد
+        if locked_purchase.supplier_id:
+            from supplier.models import SupplierTransaction
+            SupplierTransaction.objects.filter(
+                supplier=locked_purchase.supplier,
+                transaction_type="BILL",
+                transaction_number=locked_purchase.number,
+            ).update(
+                status="CLOSED",
+                open_amount=Decimal("0.00"),
+                open_amount_functional=Decimal("0.00"),
+                open_amount_foreign=Decimal("0.00"),
+            )
+            rate = getattr(locked_purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000")
+            func_tot = getattr(locked_purchase, "total_functional", None)
+            if not func_tot or func_tot == Decimal("0.00"):
+                func_tot = (locked_purchase.total * rate).quantize(Decimal("0.01"))
+            PartnerBalanceService.apply_document_delta(
+                "supplier", locked_purchase.supplier_id, func_tot, is_addition=False
+            )
+
+        # 4. تحديث حالة الفاتورة وتوثيق السبب
+        actor_name = user.get_full_name() or user.username
+        audit_note = f"[ملغية بواسطة {actor_name} بتاريخ {timezone.localdate()}]: {reason_clean}"
+        locked_purchase.status = "cancelled"
+        locked_purchase.notes = f"{locked_purchase.notes}\n{audit_note}".strip() if locked_purchase.notes else audit_note
+        locked_purchase.save(update_fields=["status", "notes", "updated_at"])
+
+        logger.info(f"✅ تم إلغاء (Void) فاتورة المشتريات {locked_purchase.number} بواسطة {user.username}")
+        return locked_purchase

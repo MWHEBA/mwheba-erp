@@ -706,6 +706,37 @@ def sale_delete(request, pk):
 
 
 @login_required
+@require_permission("sale.cancel_approved_sale")
+def sale_void(request, pk):
+    """
+    إلغاء فاتورة مبيعات معتمدة (Void) بشروط الحوكمة الصارمة مع عكس القيد والمخزون
+    """
+    from users.services.data_scoping_service import DataScopingService
+    from django.core.exceptions import ValidationError, PermissionDenied
+
+    sale = get_object_or_404(DataScopingService.get_scoped_sales(request.user), pk=pk)
+
+    if request.method != "POST":
+        return redirect("sale:sale_detail", pk=sale.pk)
+
+    reason = request.POST.get("cancellation_reason", "").strip()
+    try:
+        SaleService.void_sale(sale, request.user, reason=reason)
+        messages.success(
+            request,
+            f"تم إلغاء فاتورة المبيعات {sale.number} وعكس القيد المحاسبي وحركات المخزون بنجاح.",
+        )
+    except (ValidationError, PermissionDenied) as e:
+        err_msg = e.message if hasattr(e, "message") else str(e)
+        messages.error(request, err_msg)
+    except Exception as e:
+        logger.error(f"❌ خطأ في إلغاء فاتورة المبيعات {sale.number}: {str(e)}")
+        messages.error(request, f"حدث خطأ أثناء إلغاء الفاتورة: {str(e)}")
+
+    return redirect("sale:sale_detail", pk=sale.pk)
+
+
+@login_required
 def add_payment(request, pk):
     """
     إضافة دفعة على فاتورة مبيعات

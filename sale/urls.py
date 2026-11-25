@@ -11,6 +11,7 @@ urlpatterns = [
     path("<int:pk>/", views.sale_detail, name="sale_detail"),
     path("<int:pk>/edit/", views.sale_edit, name="sale_edit"),
     path("<int:pk>/delete/", views.sale_delete, name="sale_delete"),
+    path("<int:pk>/void/", views.sale_void, name="sale_void"),
     path("<int:pk>/print/", views.sale_print, name="sale_print"),
     path("<int:pk>/pdf/", views.sale_pdf_download, name="sale_pdf_download"),
     path("<int:pk>/email-pdf/", views.sale_email_pdf, name="sale_email_pdf"),

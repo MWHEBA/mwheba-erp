@@ -1419,6 +1419,37 @@ def purchase_delete(request, pk):
     return render(request, "purchase/purchase_confirm_delete.html", context)
 
 
+@login_required
+@require_permission("purchase.cancel_approved_purchase")
+def purchase_void(request, pk):
+    """
+    إلغاء فاتورة مشتريات معتمدة (Void) بشروط الحوكمة الصارمة مع عكس القيد والمخزون
+    """
+    from users.services.data_scoping_service import DataScopingService
+    from django.core.exceptions import ValidationError, PermissionDenied
+    from purchase.services.purchase_service import PurchaseService
+
+    purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user), pk=pk)
+
+    if request.method != "POST":
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+    reason = request.POST.get("cancellation_reason", "").strip()
+    try:
+        PurchaseService.void_purchase(purchase, request.user, reason=reason)
+        messages.success(
+            request,
+            f"تم إلغاء فاتورة المشتريات {purchase.number} وعكس القيد المحاسبي وحركات المخزون بنجاح.",
+        )
+    except (ValidationError, PermissionDenied) as e:
+        err_msg = e.message if hasattr(e, "message") else str(e)
+        messages.error(request, err_msg)
+    except Exception as e:
+        messages.error(request, f"حدث خطأ أثناء إلغاء الفاتورة: {str(e)}")
+
+    return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+
 def get_purchase_print_context(request, pk):
     from users.services.data_scoping_service import DataScopingService
     purchase = get_object_or_404(DataScopingService.get_scoped_purchases(request.user), pk=pk)
